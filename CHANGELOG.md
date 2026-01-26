@@ -1,3 +1,7 @@
+## Version 0.6.2
+
+- The operation for obtaining the list of working nodes at job start is now retried potentially decreasing the number of failures on unstable systems (like Metacentrum).
+
 ## Version 0.6.1
 
 - `qq cd -h` now properly prints help.
