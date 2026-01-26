@@ -36,10 +36,10 @@ dependencies = [
 dynamic = ["version"]
 
 [project.urls]
-Homepage = "https://ladme.github.io/qq-manual"
-Repository = "https://github.com/Ladme/qq"
-Issues = "https://github.com/Ladme/qq/issues"
-Documentation = "https://ladme.github.io/qq-manual"
+Homepage = "https://vachalab.github.io/qq-manual"
+Repository = "https://github.com/VachaLab/qq"
+Issues = "https://github.com/VachaLab/qq/issues"
+Documentation = "https://qq.readthedocs.io/"
 
 [dependency-groups]
 dev = [
