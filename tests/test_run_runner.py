@@ -552,11 +552,34 @@ def test_runner_update_info_finished_logs_warning_on_failure():
     mock_logger.warning.assert_called_once()
 
 
+def test_runner_get_nodes_success():
+    informer_mock = MagicMock()
+    informer_mock.getNodes.return_value = ["node1", "node2"]
+
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    assert runner._getNodes() == ["node1", "node2"]
+
+
+def test_runner_get_nodes_raises_on_failure():
+    informer_mock = MagicMock()
+    informer_mock.getNodes.return_value = None
+
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    with pytest.raises(
+        QQError, match="Could not get the list of used nodes from the batch server"
+    ):
+        runner._getNodes()
+
+
 def test_runner_update_info_running_success():
     informer_mock = MagicMock()
     retryer_mock = MagicMock()
-    retryer_mock.run.return_value = None
     nodes = ["node1", "node2"]
+    retryer_mock.run.return_value = nodes
     informer_mock.getNodes.return_value = nodes
 
     runner = Runner.__new__(Runner)
@@ -581,14 +604,19 @@ def test_runner_update_info_running_success():
     informer_mock.setRunning.assert_called_once_with(
         now, "host", nodes, Path("/workdir")
     )
-    retryer_cls.assert_called_once_with(
-        informer_mock.toFile,
-        runner._info_file,
-        host="random.host.org",
-        max_tries=CFG.runner.retry_tries,
-        wait_seconds=CFG.runner.retry_wait,
-    )
-    retryer_mock.run.assert_called_once()
+
+    node_call = retryer_cls.call_args_list[0]
+    assert node_call.kwargs["max_tries"] == CFG.runner.retry_tries
+    assert node_call.kwargs["wait_seconds"] == CFG.runner.retry_wait
+    assert node_call.args[0] == runner._getNodes
+
+    write_call = retryer_cls.call_args_list[1]
+    assert write_call.kwargs["max_tries"] == CFG.runner.retry_tries
+    assert write_call.kwargs["wait_seconds"] == CFG.runner.retry_wait
+    assert write_call.kwargs["host"] == "random.host.org"
+    assert write_call.args[0] == informer_mock.toFile
+    assert write_call.args[1] == runner._info_file
+
     mock_logger.debug.assert_called_once()
 
 
@@ -605,6 +633,7 @@ def test_runner_update_info_running_raises_qqerror_on_failure():
 
     with (
         patch("qq_lib.run.runner.socket.gethostname", return_value="localhost"),
+        patch("qq_lib.run.runner.CFG.runner.retry_wait", return_value=0.1),
         pytest.raises(QQError, match="Could not update qqinfo file"),
     ):
         runner._updateInfoRunning()
@@ -623,6 +652,7 @@ def test_runner_update_info_running_raises_on_empty_node_list():
 
     with (
         patch("qq_lib.run.runner.socket.gethostname", return_value="localhost"),
+        patch("qq_lib.run.runner.CFG.runner.retry_wait", return_value=0.1),
         pytest.raises(
             QQError, match="Could not get the list of used nodes from the batch server"
         ),
