@@ -1,5 +1,5 @@
 # Released under MIT License.
-# Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
+# Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 import sys
 
@@ -46,7 +46,7 @@ def cli(ctx: click.Context, version: bool):
 
     qq is a wrapper around batch scheduling systems, simplifying job submission and management.
 
-    For detailed information, visit: https://ladme.github.io/qq-manual.
+    For detailed information, visit: https://vachalab.github.io/qq-manual.
     """
     if version:
         print(__version__)

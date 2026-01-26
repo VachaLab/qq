@@ -1,5 +1,5 @@
 # Released under MIT License.
-# Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
+# Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 import os
 import shutil
@@ -408,11 +408,11 @@ class Runner:
         self._reloadInfoAndEnsureValid()
 
         try:
-            nodes = self._informer.getNodes()
-            if not nodes:
-                raise QQError(
-                    "Could not get the list of used nodes from the batch server"
-                )
+            nodes = Retryer(
+                self._getNodes,
+                max_tries=CFG.runner.retry_tries,
+                wait_seconds=CFG.runner.retry_wait,
+            ).run()
 
             self._informer.setRunning(
                 datetime.now(),
@@ -432,6 +432,23 @@ class Runner:
             raise QQError(
                 f"Could not update qqinfo file '{self._info_file}' at JOB START: {e}."
             ) from e
+
+    def _getNodes(self) -> list[str]:
+        """
+        Get a list of nodes used to execute this job. The nodes are obtained by
+        querying the batch system.
+
+        Returns:
+            list[str]: Names of nodes used to execute the job.
+
+        Raises:
+            QQError: If the batch system is unable to provide information about the nodes after retries.
+        """
+        nodes = self._informer.getNodes()
+        if not nodes:
+            raise QQError("Could not get the list of used nodes from the batch server")
+
+        return nodes
 
     def _updateInfoFinished(self) -> None:
         """

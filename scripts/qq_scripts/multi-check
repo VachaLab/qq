@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 
 # Released under MIT License.
-# Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
+# Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 """
 Check the state of qq jobs in multiple directories.
@@ -16,7 +16,7 @@ Requires `uv`: https://docs.astral.sh/uv
 # ]
 #
 # [tool.uv.sources]
-# qq = { git = "https://github.com/Ladme/qq.git", tag = "v0.6.1" }
+# qq = { git = "https://github.com/Ladme/qq.git", tag = "v0.6.2" }
 # ///
 
 import argparse

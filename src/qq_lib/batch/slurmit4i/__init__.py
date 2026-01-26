@@ -1,5 +1,5 @@
 # Released under MIT License.
-# Copyright (c) 2025 Ladislav Bartos and Robert Vacha Lab
+# Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 """
 SlurmIT4I backend for qq: job submission, monitoring, and IT4I-specific
