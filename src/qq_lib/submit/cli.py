@@ -33,7 +33,13 @@ using qq directives of this format: `# qq <option>=<value>`.
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
 )
-@click.argument("script", type=str, metavar=click.style("SCRIPT", fg="green"))
+@click.argument(
+    "script",
+    type=click.Path(
+        exists=True, file_okay=True, dir_okay=False, readable=True, path_type=str
+    ),
+    metavar=click.style("SCRIPT", fg="green"),
+)
 @optgroup.group(f"{click.style('General settings', fg='yellow')}")
 @optgroup.option(
     "--queue",

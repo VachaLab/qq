@@ -1,3 +1,8 @@
+## Version 0.7.0
+- Added autocomplete for script name in `qq submit`.
+
+***
+
 ## Version 0.6.2
 
 - The operation for obtaining the list of working nodes at job start is now retried potentially decreasing the number of failures on unstable systems (like Metacentrum).
