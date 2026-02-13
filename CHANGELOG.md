@@ -1,5 +1,5 @@
 ## Version 0.7.0
-- Added autocomplete for script name in `qq submit`.
+- Added autocomplete for script name in `qq submit` and `qq shebang`.
 - Some rewordings.
 
 ***
