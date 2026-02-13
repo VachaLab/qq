@@ -30,7 +30,9 @@ SHEBANG = f"#!/usr/bin/env -S {CFG.binary_name} run"
 )
 @click.argument(
     "script",
-    type=str,
+    type=click.Path(
+        exists=True, file_okay=True, dir_okay=False, readable=True, path_type=str
+    ),
     metavar=click.style("SCRIPT", fg="green"),
     required=False,
     default=None,
