@@ -47,6 +47,8 @@ def cli(ctx: click.Context, version: bool):
     qq is a wrapper around batch scheduling systems, simplifying job submission and management.
 
     For detailed information, visit: https://vachalab.github.io/qq-manual.
+
+    To report issues and suggest improvements, visit: https://github.com/VachaLab/qq/issues.
     """
     if version:
         print(__version__)
