@@ -857,6 +857,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         for data, job_id in parse_multi_pbs_dump_to_dictionaries(
             result.stdout.strip(), "Job Id"
         ):
+            # ignore top-level array jobs
+            if job_id.endswith("[]"):
+                continue
+
             jobs.append(PBSJob.fromDict(job_id, data))
 
         return jobs
