@@ -3,6 +3,7 @@
 
 import re
 import subprocess
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Self
@@ -10,7 +11,9 @@ from typing import Self
 import yaml
 
 from qq_lib.batch.interface import BatchJobInterface
-from qq_lib.batch.pbs.common import parse_pbs_dump_to_dictionary
+from qq_lib.batch.pbs.common import (
+    parse_pbs_dump_to_dictionary,
+)
 from qq_lib.core.common import hhmmss_to_duration, load_yaml_dumper
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -70,6 +73,11 @@ class PBSJob(BatchJobInterface):
     def getState(self) -> BatchState:
         if not (state := self._info.get("job_state")):
             return BatchState.UNKNOWN
+
+        # X is used by PBS to indicate finished tasks in unfinished array jobs,
+        # but qq uses X to indicate failure
+        if state == "X":
+            state = "F"
 
         # if the job is finished and the return code is not zero, return FAILED
         if state == "F":
@@ -289,13 +297,18 @@ class PBSJob(BatchJobInterface):
             to_dump, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
-    def getSteps(self) -> list[Self]:
+    def getSteps(self) -> Sequence[Self]:
         # not available for PBS
         return []
 
     def getStepId(self) -> str | None:
         # no job steps for PBS
         return None
+
+    def isArrayJob(self) -> bool:
+        return (
+            array := self._info.get("array")
+        ) is not None and array.lower() == "true"
 
     @classmethod
     def fromDict(cls, job_id: str, info: dict[str, str]) -> Self:

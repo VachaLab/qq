@@ -1167,14 +1167,14 @@ def test_get_jobs_info_using_command_success(sample_multi_dump_file):
             "123457.fake-cluster.example.com",
             "123458.fake-cluster.example.com",
         ]
-        assert [job._job_id for job in jobs] == expected_ids  # ty: ignore[unresolved-attribute]
+        assert [job._job_id for job in jobs] == expected_ids
 
-        assert [job._info["Job_Name"] for job in jobs] == [  # ty: ignore[unresolved-attribute]
+        assert [job._info["Job_Name"] for job in jobs] == [
             "example_job_1",
             "example_job_2",
             "example_job_3",
         ]
-        assert [job._info["job_state"] for job in jobs] == [  # ty: ignore[unresolved-attribute]
+        assert [job._info["job_state"] for job in jobs] == [
             "R",
             "Q",
             "H",

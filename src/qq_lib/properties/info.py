@@ -333,8 +333,8 @@ class Info:
             # convert optional loop job info
             elif f.type == LoopInfo | None and isinstance(value, dict):
                 # 'archive' must be converted to Path
-                init_kwargs[name] = LoopInfo(  # ty: ignore[missing-argument]
-                    **{k: Path(v) if k == "archive" else v for k, v in value.items()}
+                init_kwargs[name] = LoopInfo(
+                    **{k: Path(v) if k == "archive" else v for k, v in value.items()}  # ty: ignore[invalid-argument-type]
                 )
             # convert resources
             elif f.type == Resources:
@@ -349,7 +349,7 @@ class Info:
                 )
             # convert paths (incl. optional paths)
             elif f.type == Path or f.type == Path | None:
-                init_kwargs[name] = Path(value)
+                init_kwargs[name] = Path(value)  # ty: ignore[invalid-argument-type]
             # convert the list of excluded paths
             elif f.type == list[Path] and isinstance(value, list):
                 init_kwargs[name] = [

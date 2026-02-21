@@ -38,7 +38,7 @@ class DependType(Enum):
     AFTER_COMPLETION = 3
 
     @classmethod
-    def fromStr(cls, string: str) -> Self:
+    def fromStr(cls, string: str) -> "DependType":
         """
         Convert a dependency string keyword to a `DependType`.
 

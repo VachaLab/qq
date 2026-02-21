@@ -30,7 +30,7 @@ logger = get_logger(__name__)
 def load_yaml_dumper() -> type[yaml.Dumper]:
     """Return the fastest available YAML dumper (CDumper if possible)."""
     try:
-        from yaml import CDumper as Dumper  # type: ignore[attr-defined]
+        from yaml import CDumper as Dumper
 
         logger.debug("Loaded YAML CDumper.")
     except ImportError:
@@ -45,7 +45,7 @@ def load_yaml_loader() -> type[yaml.SafeLoader]:
     """Return the fastest available safe YAML loader (CSafeLoader if possible)."""
     try:
         from yaml import (
-            CSafeLoader as SafeLoader,  # ty: ignore[possibly-missing-import]
+            CSafeLoader as SafeLoader,
         )
 
         logger.debug("Loaded YAML CLoader.")

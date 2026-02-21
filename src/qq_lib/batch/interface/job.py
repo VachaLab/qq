@@ -3,6 +3,7 @@
 
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Self
@@ -331,7 +332,7 @@ class BatchJobInterface(ABC):
         pass
 
     @abstractmethod
-    def getSteps(self) -> list[Self]:
+    def getSteps(self) -> Sequence[Self]:
         """
         Return a list of steps associated with this job.
 
@@ -339,7 +340,7 @@ class BatchJobInterface(ABC):
         may not contain all the values that a proper BatchJobInterface contains.
 
         Returns:
-            list[BatchJobInterface] | None: List of job steps. An empty list if there are none.
+            Sequence[BatchJobInterface]: List of job steps. An empty list if there are none.
         """
         pass
 
@@ -350,5 +351,15 @@ class BatchJobInterface(ABC):
 
         Returns:
             str | None: Job step index or `None` if this is not a job step.
+        """
+        pass
+
+    @abstractmethod
+    def isArrayJob(self) -> bool:
+        """
+        Return `True` if the job is a top-level array job (not a sub-job).
+
+        Returns:
+            bool: `True` if the job is a top-level array job, else `False`.
         """
         pass

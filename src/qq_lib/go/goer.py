@@ -83,6 +83,9 @@ class Goer(Navigator):
                 "Host ('main_node') or working directory ('work_dir') are not defined."
             )
 
+        # hint for type checker
+        # work_dir and main_node must be set - we check that in self.hasDestination
+        assert self._work_dir and self._main_node
         logger.info(f"Navigating to '{str(self._work_dir)}' on '{self._main_node}'.")
         self._batch_system.navigateToDestination(self._main_node, self._work_dir)
 

@@ -124,18 +124,18 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
 
     @classmethod
     def getBatchJob(cls, job_id: str) -> SlurmJob:
-        return SlurmJob(job_id)  # ty: ignore[invalid-return-type]
+        return SlurmJob(job_id)
 
     @classmethod
     def getUnfinishedBatchJobs(cls, user: str) -> list[SlurmJob]:
         # get running jobs from sacct (faster than using squeue and scontrol)
-        command = f"sacct -u {user} --state RUNNING --allocations --noheader --parsable2 --format={SACCT_FIELDS}"
+        command = f"sacct -u {user} --state RUNNING --allocations --noheader --parsable2 --array --format={SACCT_FIELDS}"
         logger.debug(command)
 
         sacct_jobs = cls._getBatchJobsUsingSacctCommand(command)
 
         # get pending jobs using squeue
-        command = f'squeue -u {user} -t PENDING -h -o "%i"'
+        command = f'squeue -u {user} --array -t PENDING -h -o "%i"'
         logger.debug(command)
 
         squeue_jobs = cls._getBatchJobsUsingSqueueCommand(command)
@@ -147,13 +147,13 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
     @classmethod
     def getBatchJobs(cls, user: str) -> list[SlurmJob]:
         # get all jobs, except pending which are not available from sacct
-        command = f"sacct -u {user} --allocations --noheader --parsable2 --format={SACCT_FIELDS}"
+        command = f"sacct -u {user} --allocations --noheader --parsable2 --array --format={SACCT_FIELDS}"
         logger.debug(command)
 
         sacct_jobs = cls._getBatchJobsUsingSacctCommand(command)
 
         # get pending jobs using squeue
-        command = f'squeue -u {user} -t PENDING -h -o "%i"'
+        command = f'squeue -u {user} --array -t PENDING -h -o "%i"'
         logger.debug(command)
 
         squeue_jobs = cls._getBatchJobsUsingSqueueCommand(command)
@@ -165,13 +165,13 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
     @classmethod
     def getAllUnfinishedBatchJobs(cls) -> list[SlurmJob]:
         # get running jobs using sacct (faster than using squeue and scontrol)
-        command = f"sacct --state RUNNING --allusers --allocations --noheader --parsable2 --format={SACCT_FIELDS}"
+        command = f"sacct --state RUNNING --allusers --allocations --noheader --parsable2 --array --format={SACCT_FIELDS}"
         logger.debug(command)
 
         sacct_jobs = cls._getBatchJobsUsingSacctCommand(command)
 
         # get pending jobs using squeue
-        command = 'squeue -t PENDING -h -o "%i"'
+        command = 'squeue --array -t PENDING -h -o "%i"'
         logger.debug(command)
 
         squeue_jobs = cls._getBatchJobsUsingSqueueCommand(command)
@@ -183,13 +183,13 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
     @classmethod
     def getAllBatchJobs(cls) -> list[SlurmJob]:
         # get all jobs, except pending which are not available from sacct
-        command = f"sacct --allusers --allocations --noheader --parsable2 --format={SACCT_FIELDS}"
+        command = f"sacct --allusers --allocations --noheader --parsable2 --array --format={SACCT_FIELDS}"
         logger.debug(command)
 
         sacct_jobs = cls._getBatchJobsUsingSacctCommand(command)
 
         # get pending jobs using squeue
-        command = 'squeue -t PENDING -h -o "%i"'
+        command = 'squeue --array -t PENDING -h -o "%i"'
         logger.debug(command)
 
         squeue_jobs = cls._getBatchJobsUsingSqueueCommand(command)

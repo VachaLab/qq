@@ -1,5 +1,11 @@
-## Version 0.6.2
+## Version 0.7.0
+- Added passive support for array jobs. In the output of `qq jobs` and `qq stat`, individual sub-jobs are displayed for all array jobs.
+- Added autocomplete for script name in `qq submit` and `qq shebang`.
+- Some rewordings.
 
+***
+
+## Version 0.6.2
 - The operation for obtaining the list of working nodes at job start is now retried potentially decreasing the number of failures on unstable systems (like Metacentrum).
 
 ## Version 0.6.1

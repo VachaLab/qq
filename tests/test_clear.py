@@ -121,7 +121,7 @@ def test_clearer_clear_deletes_only_safe_files(tmp_path):
 
         messages = [call.args[0] for call in mock_info.call_args_list]
         assert any("Removed" in msg and "qq file" in msg for msg in messages)
-        assert any("not safe to clear" in msg for msg in messages)
+        assert any("could not be safely cleared" in msg for msg in messages)
 
 
 def test_clearer_clear_deletes_no_files_are_safe(tmp_path):

@@ -32,7 +32,7 @@ class GNUHelpColorsCommand(HelpColorsCommand):
 
             def write_usage(
                 self, prog_name: str, args: str | None, prefix: str | None = None
-            ) -> None:
+            ) -> None:  # ty: ignore[invalid-method-override]
                 """Override to make Usage: header bold"""
                 if prefix is None:
                     prefix = "Usage:"
@@ -50,7 +50,7 @@ class GNUHelpColorsCommand(HelpColorsCommand):
                 rows: Sequence[tuple[str, str | None]],
                 _col_max: int = 30,
                 _col_spacing: int = 2,
-            ) -> None:
+            ) -> None:  # ty: ignore[invalid-method-override]
                 for term, definition in rows:
                     colored_term = click.style(term, fg=self.options_color, bold=True)
                     self.write(f"  {colored_term}\n")

@@ -34,7 +34,11 @@ class Parser:
                 valid options. Only `GroupedOption` names are considered.
         """
         self._script = script
-        self._known_options = {p.name for p in params if isinstance(p, GroupedOption)}
+        self._known_options = {
+            p.name
+            for p in params
+            if isinstance(p, GroupedOption) and p.name is not None
+        }
         logger.debug(
             f"Known options for Parser: {self._known_options} ({len(self._known_options)} options)."
         )
@@ -149,7 +153,7 @@ class Parser:
         """
         field_names = {f.name for f in fields(Resources)}
         # only select fields that are part of Resources
-        return Resources(**{k: v for k, v in self._options.items() if k in field_names})
+        return Resources(**{k: v for k, v in self._options.items() if k in field_names})  # ty: ignore[invalid-argument-type]
 
     def getExclude(self) -> list[Path]:
         """
@@ -204,8 +208,8 @@ class Parser:
         Returns:
             Path | None: Archive directory path, or None if not set.
         """
-        if archive := self._options.get("archive"):
-            return Path(archive)
+        if (archive := self._options.get("archive")) is not None:
+            return Path(archive)  # ty: ignore[invalid-argument-type]
 
         return None
 

@@ -210,7 +210,7 @@ def test_runner_handle_sigterm_performs_cleanup_and_exits():
     runner._cleanup.assert_called_once()
     mock_logger.error.assert_called_once_with("Execution was terminated by SIGTERM.")
     mock_exit.assert_called_once_with(143)
-    assert exc_info.value.code == 143  # ty: ignore[unresolved-attribute]
+    assert exc_info.value.code == 143
 
 
 def test_runner_cleanup_with_running_process():

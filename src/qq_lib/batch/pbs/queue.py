@@ -271,13 +271,11 @@ class PBSQueue(BatchQueueInterface):
         If parsing fails or the field is missing, `_job_numbers` is set to an empty dictionary.
         """
         if not (state_count := self._info.get("state_count")):
-            self._job_numbers = {}
+            self._job_numbers: dict[str, str] = {}
+            return
 
         try:
-            self._job_numbers = {
-                k: int(v)
-                for k, v in (p.split(":") for p in state_count.split())  # ty: ignore[possibly-missing-attribute]
-            }
+            self._job_numbers = dict(p.split(":") for p in state_count.split())
         except Exception as e:
             logger.warning(f"Could not get job counts for queue '{self._name}': {e}.")
-            self._job_numbers = {}
+            self._job_numbers: dict[str, str] = {}

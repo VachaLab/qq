@@ -66,7 +66,7 @@ class Clearer:
         )
         if excluded:
             logger.info(
-                f"{len(excluded)} qq files were not safe to clear. Rerun as '{CFG.binary_name} clear --force' to clear them forcibly."
+                f"{len(excluded)} qq files could not be safely cleared. Rerun as '{CFG.binary_name} clear --force' to clear them forcibly."
             )
 
     def _collectRunTimeFiles(self) -> set[Path]:

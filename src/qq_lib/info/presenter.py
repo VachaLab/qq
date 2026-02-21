@@ -1,6 +1,7 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
+from collections.abc import Sequence
 from datetime import datetime
 
 from rich.align import Align
@@ -362,7 +363,7 @@ class Presenter:
 
         return table
 
-    def _createJobStepsTable(self, steps: list[BatchJobInterface]) -> Table:
+    def _createJobStepsTable(self, steps: Sequence[BatchJobInterface]) -> Table:
         """
         Create a formatted Rich table displaying job step information.
 
@@ -370,7 +371,7 @@ class Presenter:
         to be used within full-info job panels.
 
         Args:
-            steps: A list of batch-system step objects belonging to the job.
+            steps (Sequence[BatchJobInterface]): A list of batch-system step objects belonging to the job.
 
         Returns:
             Table: A Rich table containing the formatted step information.

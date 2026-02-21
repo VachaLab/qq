@@ -62,6 +62,10 @@ class Syncer(Navigator):
                 "Host ('main_node') or working directory ('work_dir') are not defined."
             )
 
+        # hint for type checker
+        # work_dir and main_node must be set - we check that in self.hasDestination
+        assert self._work_dir and self._main_node
+
         if files:
             logger.info(
                 f"Fetching file{'s' if len(files) > 1 else ''} '{' '.join(files)}' from job's working directory to input directory."
@@ -71,7 +75,7 @@ class Syncer(Navigator):
                 self._informer.info.input_dir,
                 self._main_node,
                 None,
-                [self._work_dir / x for x in files],  # ty: ignore[unsupported-operator]
+                [self._work_dir / x for x in files],
             )
         else:
             logger.info(

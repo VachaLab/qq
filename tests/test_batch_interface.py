@@ -56,7 +56,7 @@ def test_navigate_same_host_error():
 
 def test_guess_pbs():
     BatchMeta._registry.clear()
-    BatchMeta.register(PBS)
+    BatchMeta.registerBatchSystem(PBS)
 
     with patch.object(PBS, "isAvailable", return_value=True):
         assert BatchMeta.guess() is PBS
@@ -76,7 +76,7 @@ def test_guess_empty_registry():
 
 def test_from_str_success():
     BatchMeta._registry.clear()
-    BatchMeta.register(PBS)
+    BatchMeta.registerBatchSystem(PBS)
 
     assert BatchMeta.fromStr("PBS") is PBS
 
@@ -97,7 +97,7 @@ def test_from_str_none_registered():
 
 def test_env_var_or_guess_from_env_var_returns_value(monkeypatch):
     BatchMeta._registry.clear()
-    BatchMeta.register(PBS)
+    BatchMeta.registerBatchSystem(PBS)
     monkeypatch.setenv(CFG.env_vars.batch_system, "PBS")
 
     assert BatchMeta.fromEnvVarOrGuess() is PBS
@@ -105,7 +105,7 @@ def test_env_var_or_guess_from_env_var_returns_value(monkeypatch):
 
 def test_env_var_or_guess_from_env_var_not_set_calls_guess():
     BatchMeta._registry.clear()
-    BatchMeta.register(PBS)
+    BatchMeta.registerBatchSystem(PBS)
     if CFG.env_vars.batch_system in os.environ:
         del os.environ[CFG.env_vars.batch_system]
 
@@ -126,7 +126,7 @@ def test_from_env_var_not_set_calls_guess():
 
 def test_obtain_with_name_registered():
     BatchMeta._registry.clear()
-    BatchMeta.register(PBS)
+    BatchMeta.registerBatchSystem(PBS)
 
     assert BatchMeta.obtain("PBS") is PBS
 
@@ -140,7 +140,7 @@ def test_obtain_with_name_not_registered():
 
 def test_obtain_without_name_env_var(monkeypatch):
     BatchMeta._registry.clear()
-    BatchMeta.register(PBS)
+    BatchMeta.registerBatchSystem(PBS)
     monkeypatch.setenv(CFG.env_vars.batch_system, "PBS")
 
     assert BatchMeta.obtain(None) is PBS

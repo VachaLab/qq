@@ -150,29 +150,29 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
 
     @classmethod
     def getBatchJob(cls, job_id: str) -> PBSJob:
-        return PBSJob(job_id)  # ty: ignore[invalid-return-type]
+        return PBSJob(job_id)
 
     @classmethod
     def getUnfinishedBatchJobs(cls, user: str) -> list[PBSJob]:
-        command = f"qstat -fwu {user}"
+        command = f"qstat -fwtu {user}"
         logger.debug(command)
         return cls._getBatchJobsUsingCommand(command)
 
     @classmethod
     def getBatchJobs(cls, user: str) -> list[PBSJob]:
-        command = f"qstat -fwxu {user}"
+        command = f"qstat -fwxtu {user}"
         logger.debug(command)
         return cls._getBatchJobsUsingCommand(command)
 
     @classmethod
     def getAllUnfinishedBatchJobs(cls) -> list[PBSJob]:
-        command = "qstat -fw"
+        command = "qstat -fwt"
         logger.debug(command)
         return cls._getBatchJobsUsingCommand(command)
 
     @classmethod
     def getAllBatchJobs(cls) -> list[PBSJob]:
-        command = "qstat -fxw"
+        command = "qstat -fxwt"
         logger.debug(command)
         return cls._getBatchJobsUsingCommand(command)
 
@@ -857,6 +857,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         for data, job_id in parse_multi_pbs_dump_to_dictionaries(
             result.stdout.strip(), "Job Id"
         ):
-            jobs.append(PBSJob.fromDict(job_id, data))
+            # ignore top-level array jobs
+            job = PBSJob.fromDict(job_id, data)
+            if job.isArrayJob():
+                continue
+
+            jobs.append(job)
 
         return jobs

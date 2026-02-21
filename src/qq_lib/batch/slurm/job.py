@@ -3,6 +3,7 @@
 
 import re
 import subprocess
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Self
@@ -307,7 +308,7 @@ class SlurmJob(BatchJobInterface):
             self._info, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
-    def getSteps(self) -> list[Self]:
+    def getSteps(self) -> Sequence[Self]:
         command = f"sacct -j {self._job_id} --parsable2 --format={SACCT_STEP_FIELDS}"
         logger.debug(command)
 
@@ -342,6 +343,9 @@ class SlurmJob(BatchJobInterface):
             return step
         except ValueError:
             return None
+
+    def isArrayJob(self) -> bool:
+        return False
 
     @classmethod
     def fromDict(cls, job_id: str, info: dict[str, str]) -> Self:
@@ -416,7 +420,7 @@ class SlurmJob(BatchJobInterface):
         SlurmJob._assignIfAllocated(info, "AllocCPUs", "ReqCPUs", "NumCPUs")
         SlurmJob._assignIfAllocated(info, "AllocNodes", "ReqNodes", "NumNodes")
 
-        return SlurmJob.fromDict(info["JobId"], info)
+        return cls.fromDict(info["JobId"], info)
 
     @classmethod
     def _stepFromSacctString(cls, string: str) -> Self:
@@ -448,7 +452,7 @@ class SlurmJob(BatchJobInterface):
         # other words may contain useless additional information
         info["JobState"] = info["JobState"].split()[0]
 
-        return SlurmJob.fromDict(info["JobId"], info)
+        return cls.fromDict(info["JobId"], info)
 
     def getIdsForSorting(self) -> list[int]:
         """

@@ -39,7 +39,8 @@ def parse_multi_pbs_dump_to_dictionaries(
 
     Args:
         text (str): The raw PBS dump containing information about one or more queues/jobs/nodes.
-        keyword (str): Keyword identifying the start of a metadata block.
+        keyword (str | None): Keyword identifying the start of a metadata block.
+            If `None`, the first line is treated as identifier.
 
     Returns:
         list[tuple[dict[str, str], str]]: A list of tuples, each containing:
@@ -68,14 +69,14 @@ def parse_multi_pbs_dump_to_dictionaries(
 
         if not block:
             # extract the identifier
-            if keyword:
-                m = pattern.match(line)  # ty: ignore[possibly-missing-attribute]
+            if pattern:
+                m = pattern.match(line)
                 if not m:
                     raise QQError(
                         f"Invalid PBS dump format. Could not extract identifier from:\n{line}"
                     )
                 identifier = m.group(1).strip()
-            # if keyword is not specified, used the first line as the identifier
+            # if keyword is not specified, use the first line as the identifier
             else:
                 identifier = line.strip()
         block.append(line)

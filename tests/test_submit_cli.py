@@ -42,6 +42,8 @@ def test_submit_successful(tmp_path):
         assert any("job123" in msg for msg in info_messages)
 
 
+# v0.7.0 - obsolete test - script validation is performed by click library itself
+"""
 def test_submit_script_does_not_exist(tmp_path):
     runner = CliRunner()
     missing_script = tmp_path / "missing.sh"
@@ -52,6 +54,7 @@ def test_submit_script_does_not_exist(tmp_path):
         assert result.exit_code == CFG.exit_codes.default
         error_messages = [call.args[0] for call in mock_logger.error.call_args_list]
         assert any("does not exist" in str(msg) for msg in error_messages)
+"""
 
 
 def test_submit_detects_runtime_files_and_aborts(tmp_path):
