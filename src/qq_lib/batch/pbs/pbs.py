@@ -154,25 +154,25 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
 
     @classmethod
     def getUnfinishedBatchJobs(cls, user: str) -> list[PBSJob]:
-        command = f"qstat -fwu {user}"
+        command = f"qstat -fwtu {user}"
         logger.debug(command)
         return cls._getBatchJobsUsingCommand(command)
 
     @classmethod
     def getBatchJobs(cls, user: str) -> list[PBSJob]:
-        command = f"qstat -fwxu {user}"
+        command = f"qstat -fwxtu {user}"
         logger.debug(command)
         return cls._getBatchJobsUsingCommand(command)
 
     @classmethod
     def getAllUnfinishedBatchJobs(cls) -> list[PBSJob]:
-        command = "qstat -fw"
+        command = "qstat -fwt"
         logger.debug(command)
         return cls._getBatchJobsUsingCommand(command)
 
     @classmethod
     def getAllBatchJobs(cls) -> list[PBSJob]:
-        command = "qstat -fxw"
+        command = "qstat -fxwt"
         logger.debug(command)
         return cls._getBatchJobsUsingCommand(command)
 
@@ -857,19 +857,6 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         for data, job_id in parse_multi_pbs_dump_to_dictionaries(
             result.stdout.strip(), "Job Id"
         ):
-            # if the job is an array job, expand it to individual subjobs
-            if job_id.endswith("[]"):
-                # filter out the parent job
-                jobs.extend(
-                    [
-                        job
-                        for job in PBS._getBatchJobsUsingCommand(
-                            f"qstat -Jtfxw {job_id}"
-                        )
-                        if job.getId() != job_id
-                    ]
-                )
-            else:
-                jobs.append(PBSJob.fromDict(job_id, data))
+            jobs.append(PBSJob.fromDict(job_id, data))
 
         return jobs

@@ -1,4 +1,5 @@
 ## Version 0.7.0
+- Added passive support for array jobs. In the output of `qq jobs` and `qq stat`, individual sub-jobs are displayed for all array jobs.
 - Added autocomplete for script name in `qq submit` and `qq shebang`.
 - Some rewordings.
 
