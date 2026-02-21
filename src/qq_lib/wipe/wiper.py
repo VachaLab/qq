@@ -65,6 +65,10 @@ class Wiper(Navigator):
                 "Host ('main_node') or working directory ('work_dir') are not defined."
             )
 
+        # hint for type checker
+        # work_dir and main_node must be set - we check that in self.hasDestination
+        assert self._work_dir and self._main_node
+
         # we cannot delete the input directory even if the `--force` flag is used
         if self._workDirIsInputDir():
             raise QQError(

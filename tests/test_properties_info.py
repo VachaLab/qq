@@ -21,7 +21,7 @@ from qq_lib.properties.states import NaiveState
 
 @pytest.fixture(autouse=True)
 def register():
-    BatchMeta.register(PBS)
+    BatchMeta.registerBatchSystem(PBS)
 
 
 @pytest.fixture

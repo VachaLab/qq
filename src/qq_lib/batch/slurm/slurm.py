@@ -124,7 +124,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
 
     @classmethod
     def getBatchJob(cls, job_id: str) -> SlurmJob:
-        return SlurmJob(job_id)  # ty: ignore[invalid-return-type]
+        return SlurmJob(job_id)
 
     @classmethod
     def getUnfinishedBatchJobs(cls, user: str) -> list[SlurmJob]:

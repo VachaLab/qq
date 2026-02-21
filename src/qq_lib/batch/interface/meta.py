@@ -29,7 +29,7 @@ class BatchMeta(ABCMeta):
         return cls.envName()
 
     @classmethod
-    def register(cls, batch_cls: type[BatchInterface]) -> None:
+    def registerBatchSystem(cls, batch_cls: type[BatchInterface]) -> None:
         """
         Register a batch system class in the metaclass registry.
 
@@ -132,5 +132,5 @@ def batch_system(cls):
 
     Has to be added to every implementation of `BatchInterface`.
     """
-    BatchMeta.register(cls)
+    BatchMeta.registerBatchSystem(cls)
     return cls

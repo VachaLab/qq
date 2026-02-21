@@ -15,7 +15,7 @@ from qq_lib.cd.cli import cd
 @pytest.fixture(autouse=True)
 def register():
     BatchMeta._registry.clear()
-    BatchMeta.register(PBS)
+    BatchMeta.registerBatchSystem(PBS)
 
 
 def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJob:

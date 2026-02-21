@@ -3,6 +3,7 @@
 
 import re
 import subprocess
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Self
@@ -296,7 +297,7 @@ class PBSJob(BatchJobInterface):
             to_dump, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
-    def getSteps(self) -> list[Self]:
+    def getSteps(self) -> Sequence[Self]:
         # not available for PBS
         return []
 

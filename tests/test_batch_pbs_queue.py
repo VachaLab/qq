@@ -136,8 +136,8 @@ def test_pbsqueue_get_name():
 
 def test_pbsqueue_get_priority_returns_value():
     queue = PBSQueue.__new__(PBSQueue)
-    queue._info = {"Priority": 5}
-    assert queue.getPriority() == 5
+    queue._info = {"Priority": "5"}
+    assert queue.getPriority() == "5"
 
 
 def test_pbsqueue_get_priority_returns_none():
@@ -148,7 +148,7 @@ def test_pbsqueue_get_priority_returns_none():
 
 def test_pbsqueue_get_total_jobs_with_value():
     queue = PBSQueue.__new__(PBSQueue)
-    queue._info = {"total_jobs": 10}
+    queue._info = {"total_jobs": "10"}
     assert queue.getTotalJobs() == 10
 
 
@@ -160,7 +160,7 @@ def test_pbsqueue_get_total_jobs_default_none():
 
 def test_pbsqueue_get_running_jobs_with_value():
     queue = PBSQueue.__new__(PBSQueue)
-    queue._job_numbers = {"Running": 4}
+    queue._job_numbers = {"Running": "4"}
     assert queue.getRunningJobs() == 4
 
 
@@ -172,7 +172,7 @@ def test_pbsqueue_get_running_jobs_default_none():
 
 def test_pbsqueue_get_queued_jobs_with_value():
     queue = PBSQueue.__new__(PBSQueue)
-    queue._job_numbers = {"Queued": 7}
+    queue._job_numbers = {"Queued": "7"}
     assert queue.getQueuedJobs() == 7
 
 
@@ -185,11 +185,11 @@ def test_pbsqueue_get_queued_jobs_default_zero():
 def test_pbsqueue_get_other_jobs_sum_all_states():
     queue = PBSQueue.__new__(PBSQueue)
     queue._job_numbers = {
-        "Transit": 1,
-        "Held": 2,  # not counted as other
-        "Waiting": 3,  # not counted as other
-        "Exiting": 4,
-        "Begun": 5,
+        "Transit": "1",
+        "Held": "2",  # not counted as other
+        "Waiting": "3",  # not counted as other
+        "Exiting": "4",
+        "Begun": "5",
     }
     assert queue.getOtherJobs() == 10
 
@@ -306,7 +306,7 @@ def test_pbsqueue_set_job_numbers_parses_valid_state_count():
 
     queue._setJobNumbers()
 
-    assert queue._job_numbers == {"Running": 5, "Queued": 3, "Held": 1}
+    assert queue._job_numbers == {"Running": "5", "Queued": "3", "Held": "1"}
 
 
 def test_pbsqueue_set_job_numbers_handles_missing_state_count():

@@ -150,7 +150,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
 
     @classmethod
     def getBatchJob(cls, job_id: str) -> PBSJob:
-        return PBSJob(job_id)  # ty: ignore[invalid-return-type]
+        return PBSJob(job_id)
 
     @classmethod
     def getUnfinishedBatchJobs(cls, user: str) -> list[PBSJob]:

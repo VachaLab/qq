@@ -214,7 +214,7 @@ class JobsPresenter:
         self._stats.addJob(state, cpus, gpus, nodes)
 
         # build the row
-        row_data = {
+        row_data: dict[str, str] = {
             "S": JobsPresenter._color(state.toCode(), state.color),
             "Job ID": JobsPresenter._mainColor(
                 JobsPresenter._shortenJobId(job.getId())
@@ -233,7 +233,7 @@ class JobsPresenter:
             "Node": JobsPresenter._formatNodesOrComment(state, job),
             "%CPU": JobsPresenter._formatUtilCPU(job.getUtilCPU()),
             "%Mem": JobsPresenter._formatUtilMem(job.getUtilMem()),
-            "Exit": JobsPresenter._formatExitCode(job, state) if self._all else None,
+            "Exit": JobsPresenter._formatExitCode(job, state) if self._all else "",
         }
 
         return [row_data[header] for header in headers if header in row_data]

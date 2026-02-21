@@ -163,12 +163,12 @@ def test_create_job_status_panel(sample_info):
     assert len(panel_group.renderables) == 3
 
     # panel
-    panel: Panel = panel_group.renderables[1]
+    panel = panel_group.renderables[1]
     assert isinstance(panel, Panel)
-    assert presenter._informer.info.job_id in panel.title.plain
+    assert presenter._informer.info.job_id in panel.title.plain  # ty: ignore
 
     # table
-    table: Table = panel.renderable
+    table = panel.renderable
     assert isinstance(table, Table)
     assert len(table.columns) == 2
 

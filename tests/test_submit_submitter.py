@@ -275,9 +275,12 @@ def test_submitter_create_env_vars_dict_sets_all_required_variables_with_per_nod
     assert env[CFG.env_vars.batch_system] == str(submitter._batch_system)
     assert env[CFG.env_vars.input_dir] == str(submitter._input_dir)
     assert env[CFG.env_vars.nnodes] == str(submitter._resources.nnodes)
+    assert submitter._resources.ncpus_per_node is not None
+    assert submitter._resources.nnodes is not None
     assert env[CFG.env_vars.ncpus] == str(
         submitter._resources.ncpus_per_node * submitter._resources.nnodes
     )
+    assert submitter._resources.ngpus_per_node is not None
     assert env[CFG.env_vars.ngpus] == str(
         submitter._resources.ngpus_per_node * submitter._resources.nnodes
     )

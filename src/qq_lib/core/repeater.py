@@ -65,7 +65,7 @@ class Repeater:
                 - BaseException: The caught exception instance.
                 - Repeater: Reference to this `Repeater` instance.
         """
-        self._handlers[exc_type] = handler  # ty: ignore[invalid-assignment]
+        self._handlers[exc_type] = handler
 
     def run(self) -> None:
         """
@@ -87,4 +87,4 @@ class Repeater:
             except tuple(self._handlers.keys()) as e:
                 self.encountered_errors[i] = e
                 handler = self._handlers[type(e)]
-                handler(e, self)  # ty: ignore[invalid-argument-type]
+                handler(e, self)
