@@ -857,6 +857,19 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         for data, job_id in parse_multi_pbs_dump_to_dictionaries(
             result.stdout.strip(), "Job Id"
         ):
-            jobs.append(PBSJob.fromDict(job_id, data))
+            # if the job is an array job, expand it to individual subjobs
+            if job_id.endswith("[]"):
+                # filter out the parent job
+                jobs.extend(
+                    [
+                        job
+                        for job in PBS._getBatchJobsUsingCommand(
+                            f"qstat -Jtfxw {job_id}"
+                        )
+                        if job.getId() != job_id
+                    ]
+                )
+            else:
+                jobs.append(PBSJob.fromDict(job_id, data))
 
         return jobs
