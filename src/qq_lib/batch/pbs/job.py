@@ -304,6 +304,11 @@ class PBSJob(BatchJobInterface):
         # no job steps for PBS
         return None
 
+    def isArrayJob(self) -> bool:
+        return (
+            array := self._info.get("array")
+        ) is not None and array.lower() == "true"
+
     @classmethod
     def fromDict(cls, job_id: str, info: dict[str, str]) -> Self:
         """

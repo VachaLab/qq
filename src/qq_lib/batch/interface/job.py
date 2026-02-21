@@ -352,3 +352,13 @@ class BatchJobInterface(ABC):
             str | None: Job step index or `None` if this is not a job step.
         """
         pass
+
+    @abstractmethod
+    def isArrayJob(self) -> bool:
+        """
+        Return `True` if the job is a top-level array job (not a sub-job).
+
+        Returns:
+            bool: `True` if the job is a top-level array job, else `False`.
+        """
+        pass

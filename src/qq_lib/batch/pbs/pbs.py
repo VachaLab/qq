@@ -858,9 +858,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
             result.stdout.strip(), "Job Id"
         ):
             # ignore top-level array jobs
-            if job_id.endswith("[]"):
+            job = PBSJob.fromDict(job_id, data)
+            if job.isArrayJob():
                 continue
 
-            jobs.append(PBSJob.fromDict(job_id, data))
+            jobs.append(job)
 
         return jobs

@@ -343,6 +343,9 @@ class SlurmJob(BatchJobInterface):
         except ValueError:
             return None
 
+    def isArrayJob(self) -> bool:
+        return False
+
     @classmethod
     def fromDict(cls, job_id: str, info: dict[str, str]) -> Self:
         """
