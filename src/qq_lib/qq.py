@@ -24,8 +24,10 @@ from qq_lib.wipe.cli import wipe
 
 from ._version import __version__
 
-# support both --help and -h
-_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
+_CONTEXT_SETTINGS = {
+    "help_option_names": ["-h", "--help"],  # support both --help and -h
+    "allow_interspersed_args": True,  # make positional argument autocomplete work even when placed after options
+}
 
 
 @click.group(

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Installs qq on all nodes of the sokar cluster.
-# Script version: 0.3.0
+# Script version: 0.4.0
 
 set -euo pipefail
 
@@ -12,8 +12,8 @@ set -euo pipefail
 QQ_VERSION="v__VERSION__"
 
 # GitHub release assets
-INSTALL_SCRIPT_URL="https://github.com/Ladme/qq/releases/download/${QQ_VERSION}/qq-install.sh"
-RELEASE_URL="https://github.com/Ladme/qq/releases/download/${QQ_VERSION}/qq-release.tar.gz"
+INSTALL_SCRIPT_URL="https://github.com/VachaLab/qq/releases/download/${QQ_VERSION}/qq-install.sh"
+RELEASE_URL="https://github.com/VachaLab/qq/releases/download/${QQ_VERSION}/qq-release.tar.gz"
 
 # list of target home directories
 TARGET_HOMES=(

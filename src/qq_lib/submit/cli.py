@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import NoReturn
 
 import click
+from click.shell_completion import CompletionItem
 from click_option_group import optgroup
 
 from qq_lib.core.click_format import GNUHelpColorsCommand
@@ -17,6 +18,17 @@ from qq_lib.core.logger import get_logger
 from qq_lib.submit.factory import SubmitterFactory
 
 logger = get_logger(__name__)
+
+
+def complete_script(
+    _ctx: click.Context, _param: click.Parameter, incomplete: str
+) -> list[CompletionItem]:
+    """Return completion items for script files matching the incomplete string."""
+    return [
+        CompletionItem(str(path))
+        for path in Path().iterdir()
+        if path.is_file() and path.name.startswith(incomplete)
+    ]
 
 
 # Note that all options must be part of an optgroup otherwise Parser breaks.
@@ -39,6 +51,7 @@ using qq directives of this format: `# qq <option>=<value>`.
         exists=True, file_okay=True, dir_okay=False, readable=True, path_type=str
     ),
     metavar=click.style("SCRIPT", fg="green"),
+    shell_complete=complete_script,
 )
 @optgroup.group(f"{click.style('General settings', fg='yellow')}")
 @optgroup.option(

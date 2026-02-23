@@ -1,3 +1,7 @@
+## Version 0.7.1
+- **Bug fix:** Made autocomplete for script name work even if the argument was specified after the options.
+- Updated installation scripts to use the updated link to the repository.
+
 ## Version 0.7.0
 - Added passive support for array jobs. In the output of `qq jobs` and `qq stat`, individual sub-jobs are displayed for all array jobs.
 - Added autocomplete for script name in `qq submit` and `qq shebang`.
@@ -9,7 +13,6 @@
 - The operation for obtaining the list of working nodes at job start is now retried potentially decreasing the number of failures on unstable systems (like Metacentrum).
 
 ## Version 0.6.1
-
 - `qq cd -h` now properly prints help.
 
 ## Version 0.6.0

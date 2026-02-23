@@ -1,6 +1,6 @@
 #!/bin/bash
 # Installs qq on your current desktop and on the computing nodes of all Metacentrum clusters.
-# Script version: 0.3.0
+# Script version: 0.4.0
 
 set -euo pipefail
 
@@ -12,10 +12,10 @@ set -euo pipefail
 QQ_VERSION="v__VERSION__"
 
 # GitHub release assets
-INSTALL_SCRIPT_URL="https://github.com/Ladme/qq/releases/download/${QQ_VERSION}/qq-install.sh"
-INSTALL_SCRIPT_CUSTOM_RC_URL="https://github.com/Ladme/qq/releases/download/${QQ_VERSION}/qq-install-custom-rc.sh"
-SETUP_SCRIPT_URL="https://github.com/Ladme/qq/releases/download/${QQ_VERSION}/qq-set-scratch.sh"
-RELEASE_URL="https://github.com/Ladme/qq/releases/download/${QQ_VERSION}/qq-release.tar.gz"
+INSTALL_SCRIPT_URL="https://github.com/VachaLab/qq/releases/download/${QQ_VERSION}/qq-install.sh"
+INSTALL_SCRIPT_CUSTOM_RC_URL="https://github.com/VachaLab/qq/releases/download/${QQ_VERSION}/qq-install-custom-rc.sh"
+SETUP_SCRIPT_URL="https://github.com/VachaLab/qq/releases/download/${QQ_VERSION}/qq-set-scratch.sh"
+RELEASE_URL="https://github.com/VachaLab/qq/releases/download/${QQ_VERSION}/qq-release.tar.gz"
 
 # main home directory where source qq will be stored for the entire metacentrum
 MAIN_HOME="/storage/brno12-cerit/home/${USER}"
