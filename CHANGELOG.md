@@ -1,5 +1,5 @@
 ## Version 0.7.1
-- **Bug fix:** Made autocomplete for script name work even if the argument was specified after the options.
+- **Bug fix:** Fixed script name autocomplete so it works after options and with `--option=value` syntax.
 - Updated installation scripts to use the updated link to the repository.
 
 ## Version 0.7.0

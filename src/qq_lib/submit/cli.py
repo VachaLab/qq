@@ -23,11 +23,26 @@ logger = get_logger(__name__)
 def complete_script(
     _ctx: click.Context, _param: click.Parameter, incomplete: str
 ) -> list[CompletionItem]:
-    """Return completion items for script files matching the incomplete string."""
+    """
+    Return completion items for script files and directories matching the incomplete string.
+
+    If incomplete is a directory or resolves to one, lists files and subdirectories
+    inside it. Otherwise, lists files and directories in the current directory
+    matching the prefix.
+    """
+    incomplete_path = Path(incomplete)
+
+    if incomplete_path.is_dir():
+        search_dir = incomplete_path
+        prefix = ""
+    else:
+        search_dir = incomplete_path.parent
+        prefix = incomplete_path.name
+
     return [
-        CompletionItem(str(path))
-        for path in Path().iterdir()
-        if path.is_file() and path.name.startswith(incomplete)
+        CompletionItem(str(path), type="file")
+        for path in search_dir.iterdir()
+        if path.name.startswith(prefix)
     ]
 
 

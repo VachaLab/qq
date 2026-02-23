@@ -69,3 +69,25 @@ class GNUHelpColorsCommand(HelpColorsCommand):
 
         self.format_help(ctx, formatter)
         return formatter.getvalue()
+
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        """Split --option=value tokens into --option value during completion.
+
+        Args:
+            ctx: The current Click context.
+            args: The raw argument list from the shell.
+
+        Returns:
+            The remaining unparsed arguments.
+        """
+        if ctx.resilient_parsing:
+            args = [
+                part
+                for arg in args
+                for part in (
+                    arg.split("=", 1) if arg.startswith("-") and "=" in arg else [arg]
+                )
+                if part != "="
+            ]
+
+        return super().parse_args(ctx, args)
