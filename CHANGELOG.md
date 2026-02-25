@@ -1,3 +1,6 @@
+## Version 0.7.2
+- **Bug fix:** Updated installation scripts so that installation works even for nodes opening login shell.
+
 ## Version 0.7.1
 - **Bug fix:** Fixed script name autocomplete so it works after options and with `--option=value` syntax.
 - Updated installation scripts to use the updated link to the repository.

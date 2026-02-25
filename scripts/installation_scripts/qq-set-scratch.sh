@@ -1,7 +1,7 @@
 #!/bin/bash
 # Sets up .bashrc to sync qq from a specified directory to /scratch/${USER}
 # and add both locations to PATH (with /scratch/${USER}/qq prioritized).
-# Script version: 0.3.1
+# Script version: 0.4.0
 
 set -euo pipefail
 
@@ -46,6 +46,24 @@ BLOCK_END="# <<< This block is managed by qq (v${VERSION}) <<<"
 # Update .bashrc in target home
 # -----------------------------
 touch "$BASHRC"
+
+ensure_bashrc_loaded() {
+    local content='
+# Load .bashrc for login shells
+if [ -f ~/.bashrc ]; then
+    . ~/.bashrc
+fi
+'
+
+    for file in "${TARGET_HOME}/.profile" "${TARGET_HOME}/.bash_profile"; do
+        if [[ -f "$file" ]]; then
+            # do nothing
+        else
+            printf "%s" "$content" > "$file"
+            echo "INFO    [$TARGET_HOME] Created $file to load ~/.bashrc..."
+        fi
+    done
+}
 
 generate_qq_block() {
     cat <<EOF
@@ -106,5 +124,6 @@ update_bashrc_block() {
 }
 
 update_bashrc_block "$BASHRC"
+ensure_bashrc_loaded
 
 echo "INFO    [$TARGET_HOME] qq PATH and cd function configured for $PATH_TO_QQ (version $VERSION)."
