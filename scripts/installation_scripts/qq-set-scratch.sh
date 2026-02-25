@@ -1,7 +1,7 @@
 #!/bin/bash
 # Sets up .bashrc to sync qq from a specified directory to /scratch/${USER}
 # and add both locations to PATH (with /scratch/${USER}/qq prioritized).
-# Script version: 0.4.0
+# Script version: 0.4.1
 
 set -euo pipefail
 
@@ -57,10 +57,10 @@ fi
 
     for file in "${TARGET_HOME}/.profile" "${TARGET_HOME}/.bash_profile"; do
         if [[ -f "$file" ]]; then
-            # do nothing
+            echo "INFO    [$TARGET_HOME] Ensuring .bashrc is loaded: $file already exists."
         else
             printf "%s" "$content" > "$file"
-            echo "INFO    [$TARGET_HOME] Created $file to load ~/.bashrc..."
+            echo "INFO    [$TARGET_HOME] Ensuring .bashrc is loaded: created $file."
         fi
     done
 }
