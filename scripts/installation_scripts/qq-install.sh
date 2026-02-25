@@ -1,7 +1,7 @@
 #!/bin/bash
 # Installs qq from a GitHub release into a specific home directory
 # and updates that home directory's .bashrc accordingly.
-# Script version: 0.5.0
+# Script version: 0.5.1
 
 set -euo pipefail
 
@@ -95,10 +95,10 @@ fi
 
     for file in "${TARGET_HOME}/.profile" "${TARGET_HOME}/.bash_profile"; do
         if [[ -f "$file" ]]; then
-            # do nothing
+            echo "INFO    [$TARGET_HOME] Ensuring .bashrc is loaded: $file already exists."
         else
             printf "%s" "$content" > "$file"
-            echo "INFO    [$TARGET_HOME] Created $file to load ~/.bashrc..."
+            echo "INFO    [$TARGET_HOME] Ensuring .bashrc is loaded: created $file."
         fi
     done
 }
