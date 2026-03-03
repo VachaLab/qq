@@ -103,7 +103,7 @@ class Info:
     included_files: list[Path] = field(default_factory=list)
 
     # Mode of transferring files from the working directory to the input directory after job completion.
-    transfer_back: list[TransferMode] = field(default_factory=lambda: [Success()])
+    transfer_mode: list[TransferMode] = field(default_factory=lambda: [Success()])
 
     # List of dependencies.
     depend: list[Depend] = field(default_factory=list)
@@ -249,8 +249,8 @@ class Info:
 
         command_line.extend(
             [
-                "--transfer-back",
-                ":".join(mode.toStr() for mode in self.transfer_back),
+                "--transfer-mode",
+                ":".join(mode.toStr() for mode in self.transfer_mode),
             ]
         )
 

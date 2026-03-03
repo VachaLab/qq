@@ -11,6 +11,7 @@ from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
+from qq_lib.properties.transfer_mode import TransferMode
 
 from .parser import Parser
 from .submitter import Submitter
@@ -68,6 +69,7 @@ class SubmitterFactory:
             self._getExclude(),
             self._getInclude(),
             self._getDepend(),
+            self._getTransferMode(),
         )
 
     def _getBatchSystem(self) -> type[BatchInterface]:
@@ -166,6 +168,11 @@ class SubmitterFactory:
             or self._parser.getArchiveFormat()
             or "job%04d",
             input_dir=self._input_dir,
+            archive_mode=TransferMode.multiFromStr(
+                self._kwargs.get("archive_mode") or ""
+            )
+            + self._parser.getArchiveMode()
+            or [],
         )
 
     def _getExclude(self) -> list[Path]:
@@ -206,8 +213,8 @@ class SubmitterFactory:
         """
         Determine the list of dependencies.
 
-        Merges the list of dependencies specified in command-line arguments
-        with the list parsed from the script.
+        Merges the list of dependencies specified in the command-line arguments
+        with the list parsed from the submitted script.
 
         Returns:
             list[Depend]: List of job dependencies.
@@ -224,3 +231,18 @@ class SubmitterFactory:
             str | None: The account name or None if not defined.
         """
         return self._kwargs.get("account") or self._parser.getAccount()
+
+    def _getTransferMode(self) -> list[TransferMode]:
+        """
+        Determine the mode specifying when files should be
+        transferred from the working directory to the input directory.
+
+        Merges the modes specified in the command-line arguments
+        with the modes parsed from the submitted script.
+
+        Returns:
+            list[TransferMode]: List of transfer modes.
+        """
+        return (
+            TransferMode.multiFromStr(self._kwargs.get("transfer_mode") or "") or []
+        ) + self._parser.getTransferMode()

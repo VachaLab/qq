@@ -17,6 +17,7 @@ from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import Resources
 from qq_lib.properties.size import Size
+from qq_lib.properties.transfer_mode import TransferMode
 from qq_lib.submit.cli import submit
 from qq_lib.submit.parser import Parser
 
@@ -313,6 +314,52 @@ def test_parser_get_batch_system_value():
 
     mock_from_str.assert_called_once_with("PBS")
     assert result == mock_class
+
+
+def test_parser_get_transfer_mode_empty_list():
+    parser = Parser.__new__(Parser)
+    parser._options = {}
+
+    result = parser.getTransferMode()
+    assert result == []
+
+
+def test_parser_get_transfer_mode_calls_multi_from_str():
+    parser = Parser.__new__(Parser)
+    parser._options = {"transfer_mode": "success,1,never"}
+
+    mock_transfer_list = [MagicMock(), MagicMock(), MagicMock()]
+
+    with patch.object(
+        TransferMode, "multiFromStr", return_value=mock_transfer_list
+    ) as mock_multi:
+        result = parser.getTransferMode()
+
+    mock_multi.assert_called_once_with("success,1,never")
+    assert result == mock_transfer_list
+
+
+def test_parser_get_archive_mode_empty_list():
+    parser = Parser.__new__(Parser)
+    parser._options = {}
+
+    result = parser.getArchiveMode()
+    assert result == []
+
+
+def test_parser_get_archive_mode_calls_multi_from_str():
+    parser = Parser.__new__(Parser)
+    parser._options = {"archive_mode": "success,1,never"}
+
+    mock_transfer_list = [MagicMock(), MagicMock(), MagicMock()]
+
+    with patch.object(
+        TransferMode, "multiFromStr", return_value=mock_transfer_list
+    ) as mock_multi:
+        result = parser.getArchiveMode()
+
+    mock_multi.assert_called_once_with("success,1,never")
+    assert result == mock_transfer_list
 
 
 @pytest.fixture

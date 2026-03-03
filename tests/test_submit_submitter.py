@@ -18,6 +18,7 @@ from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
 from qq_lib.properties.states import NaiveState
+from qq_lib.properties.transfer_mode import Always, Success
 from qq_lib.submit.submitter import CFG, Submitter
 
 
@@ -488,6 +489,7 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
     submitter._exclude = []
     submitter._include = []
     submitter._depend = []
+    submitter._transfer_mode = [Success()]
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
     env_vars = {CFG.env_vars.guard: "true"}
 
@@ -536,6 +538,7 @@ def test_submitter_submit(tmp_path):
     submitter._exclude = ["exclude1"]
     submitter._include = ["include1"]
     submitter._depend = []
+    submitter._transfer_mode = [Always()]
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
     env_vars = {CFG.env_vars.guard: "true"}
 
@@ -599,3 +602,4 @@ def test_submitter_submit(tmp_path):
     assert info_arg.excluded_files == submitter._exclude
     assert info_arg.included_files == submitter._include
     assert info_arg.depend == submitter._depend
+    assert info_arg.transfer_mode == [Always()]

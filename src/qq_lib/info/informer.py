@@ -364,7 +364,7 @@ class Informer:
         Returns:
             True if files should be transferred, False otherwise.
         """
-        return any(mode.shouldTransfer(exit_code) for mode in self.info.transfer_back)
+        return any(mode.shouldTransfer(exit_code) for mode in self.info.transfer_mode)
 
     def shouldArchiveFiles(self, exit_code: int) -> bool:
         """

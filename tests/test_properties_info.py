@@ -87,7 +87,7 @@ def test_to_dict_contains_all_non_none_fields(sample_info):
         "resources",
         "excluded_files",
         "account",
-        "transfer_back",
+        "transfer_mode",
     }
     assert expected_fields.issubset(result.keys())
 
@@ -106,7 +106,7 @@ def test_to_yaml_contains_fields(sample_info):
     assert data["job_name"] == "script.sh+025"
     assert data["resources"]["ncpus"] == 8
     assert data["account"] == "fake-account"
-    assert data["transfer_back"] == ["success"]
+    assert data["transfer_mode"] == ["success"]
 
 
 def test_to_yaml_skips_none_fields(sample_info):
@@ -187,7 +187,7 @@ def test_from_dict_roundtrip(sample_info):
         "submission_time",
         "stdout_file",
         "stderr_file",
-        "transfer_back",
+        "transfer_mode",
     ]:
         assert getattr(reconstructed, field_name) == getattr(sample_info, field_name)
         assert type(getattr(reconstructed, field_name)) is type(
@@ -299,7 +299,7 @@ def test_get_command_line_for_resubmit_basic(sample_info):
         "PBS",
         "--depend",
         "afterok=12345.fake.server.com",
-        "--transfer-back",
+        "--transfer-mode",
         "success",
     ]
 
@@ -342,6 +342,6 @@ def test_get_command_line_full(sample_info):
         "job%3d",
         "--archive-mode",
         "success",
-        "--transfer-back",
+        "--transfer-mode",
         "success",
     ]

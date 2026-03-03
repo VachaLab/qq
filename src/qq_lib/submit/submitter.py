@@ -26,6 +26,7 @@ from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
 from qq_lib.properties.states import NaiveState
+from qq_lib.properties.transfer_mode import Success, TransferMode
 
 logger = get_logger(__name__)
 
@@ -56,6 +57,7 @@ class Submitter:
         exclude: list[Path] | None = None,
         include: list[Path] | None = None,
         depend: list[Depend] | None = None,
+        transfer_mode: list[TransferMode] | None = None,
     ):
         """
         Initialize a Submitter instance.
@@ -75,6 +77,8 @@ class Submitter:
                 even though they are not part of the job's input directory.
                 Paths are provided either absolute or relative to the input directory.
             depend (list[Depend] | None): Optional list of job dependencies.
+            transfer_mode (list[TransferMode] | None): Mode specifying when files whould be transferred from the
+                working directory to the input directory. Defaults to [`Success()`].
 
         Raises:
             QQError: If the script does not exist or has an invalid shebang line.
@@ -97,6 +101,7 @@ class Submitter:
             i if i.is_absolute() else self._input_dir / i for i in (include or [])
         ]
         self._depend = depend or []
+        self._transfer_mode = transfer_mode or [Success()]
 
         # script must exist
         if not self._script.is_file():
@@ -168,6 +173,7 @@ class Submitter:
                     included_files=self._include,
                     depend=self._depend,
                     account=self._account,
+                    transfer_mode=self._transfer_mode,
                 )
             )
             informer.toFile(self._info_file)
@@ -258,6 +264,10 @@ class Submitter:
     def getDepend(self) -> list[Depend] | None:
         """Get the list of dependencies."""
         return self._depend
+
+    def getTransferMode(self) -> list[TransferMode]:
+        """Get the list of transfer modes."""
+        return self._transfer_mode
 
     def _createEnvVarsDict(self) -> dict[str, str]:
         """

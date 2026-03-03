@@ -15,6 +15,7 @@ from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import Resources
+from qq_lib.properties.transfer_mode import TransferMode
 
 logger = get_logger(__name__)
 
@@ -224,6 +225,18 @@ class Parser:
             return archive_format
         return None
 
+    def getArchiveMode(self) -> list[TransferMode]:
+        """
+        Get the mode specifying when the files should be archived.
+
+        Returns:
+            list[TransferMode]: List of transfer modes.
+        """
+        if isinstance(raw := self._options.get("archive_mode"), str):
+            return TransferMode.multiFromStr(raw)
+
+        return []
+
     def getDepend(self) -> list[Depend]:
         """
         Return the list of job dependencies.
@@ -247,6 +260,19 @@ class Parser:
             return account
 
         return None
+
+    def getTransferMode(self) -> list[TransferMode]:
+        """
+        Get the mode specifying when the files should be transferred
+        from the working directory to the input directory.
+
+        Returns:
+            list[TransferMode]: List of transfer modes.
+        """
+        if isinstance(raw := self._options.get("transfer_mode"), str):
+            return TransferMode.multiFromStr(raw)
+
+        return []
 
     @staticmethod
     def _stripAndSplit(string: str) -> list[str]:
