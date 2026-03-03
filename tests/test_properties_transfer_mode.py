@@ -336,3 +336,33 @@ def test_transfer_modes_list_to_str_roundtrip():
     # verify roundtrip
     mode_list2 = TransferModesList.fromStr(result)
     assert mode_list2.toStr() == original
+
+
+def test_transfer_modes_list_default_returns_instance():
+    mode_list = TransferModesList.default()
+    assert isinstance(mode_list, TransferModesList)
+
+
+def test_transfer_modes_list_default_contains_success_mode():
+    mode_list = TransferModesList.default()
+    assert len(mode_list.modes) == 1
+    assert isinstance(mode_list.modes[0], Success)
+
+
+def test_transfer_modes_list_default_transfers_on_success():
+    mode_list = TransferModesList.default()
+    assert mode_list.shouldTransfer(0) is True
+
+
+def test_transfer_modes_list_default_does_not_transfer_on_failure():
+    mode_list = TransferModesList.default()
+    assert mode_list.shouldTransfer(1) is False
+    assert mode_list.shouldTransfer(42) is False
+
+
+def test_transfer_modes_list_default_multiple_calls_are_independent():
+    mode_list1 = TransferModesList.default()
+    mode_list2 = TransferModesList.default()
+
+    assert mode_list1 is not mode_list2
+    assert mode_list1.modes is not mode_list2.modes

@@ -177,6 +177,20 @@ class TransferModesList(TransferMode):
     modes: list[TransferMode]
 
     @classmethod
+    def default(cls) -> Self:
+        """
+        Create a default TransferModesList with Success mode.
+
+        Returns a TransferModesList configured to transfer data only when the job
+        completes successfully (exit code 0). This is the recommended default behavior
+        for most use cases.
+
+        Returns:
+            A TransferModesList instance containing only the Success transfer mode.
+        """
+        return cls(modes=[Success()])
+
+    @classmethod
     def fromStr(cls, s: str) -> Self:
         """
         Parse a string containing multiple transfer modes.

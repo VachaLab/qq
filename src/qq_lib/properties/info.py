@@ -28,6 +28,7 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
+from qq_lib.properties.transfer_mode import TransferModesList
 
 from .job_type import JobType
 from .loop import LoopInfo
@@ -100,6 +101,9 @@ class Info:
 
     # List of files and directories to explicitly copy to the working directory.
     included_files: list[Path] = field(default_factory=list)
+
+    # Mode of transferring files from the working directory to the input directory after job completion.
+    transfer_back: TransferModesList = field(default_factory=TransferModesList.default)
 
     # List of dependencies.
     depend: list[Depend] = field(default_factory=list)
@@ -243,6 +247,8 @@ class Info:
         if self.loop_info:
             command_line.extend(self.loop_info.toCommandLine())
 
+        command_line.extend(["--transfer-back", self.transfer_back.toStr()])
+
         return command_line
 
     def _toYaml(self) -> str:
@@ -294,6 +300,9 @@ class Info:
             # convert list of excluded/included files
             elif f.type == list[Path]:
                 result[f.name] = [str(x) for x in value]
+            # conver transfer modes
+            elif f.type == TransferModesList and isinstance(value, TransferModesList):
+                result[f.name] = value.toStr()
             elif f.type == list[Depend]:
                 result[f.name] = [Depend.toStr(x) for x in value]
             # convert timestamp
@@ -355,6 +364,9 @@ class Info:
                 init_kwargs[name] = [
                     Path(v) if isinstance(v, str) else v for v in value
                 ]
+            # convert transfer modes
+            elif f.type == TransferModesList and isinstance(value, str):
+                init_kwargs[name] = TransferModesList.fromStr(value)
             # convert dependencies
             elif f.type == list[Depend] and isinstance(value, list):
                 init_kwargs[name] = [Depend.fromStr(x) for x in value]  # ty: ignore[invalid-argument-type]
