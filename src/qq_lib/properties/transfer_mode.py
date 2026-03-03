@@ -4,7 +4,6 @@
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Self
 
 from qq_lib.core.error import QQError
 
@@ -45,6 +44,26 @@ class TransferMode(ABC):
                     return ExitCode(int(s))
 
                 raise QQError(f"Could not recognize a transfer mode variant '{s}'.")
+
+    @classmethod
+    def multiFromStr(cls, raw: str) -> list["TransferMode"]:
+        """
+        Parse a string containing multiple transfer modes.
+
+        Args:
+            s: String containing transfer mode variants separated by a colon, comma, or space.
+                Example: "success:42", "1,2,3", or "failure success".
+
+        Returns:
+            list[TransferMode]: A list of parsed transfer modes.
+
+        Raises:
+            QQError: If any of the individual mode strings cannot be recognized.
+        """
+        mode_strings = re.split(r"[:,\s]+", raw.strip())
+        mode_strings = [ms for ms in mode_strings if ms]
+
+        return [TransferMode.fromStr(mode_str) for mode_str in mode_strings]
 
     @abstractmethod
     def shouldTransfer(self, exit_code: int) -> bool:
@@ -140,79 +159,3 @@ class ExitCode(TransferMode):
 
     def toStr(self) -> str:
         return f"{self.code}"
-
-
-@dataclass(frozen=True)
-class TransferModesList(TransferMode):
-    """
-    Collection of multiple TransferMode variants combined with OR logic.
-
-    Represents multiple TransferMode variants where data are transferred/archived if ANY
-    of the contained modes would trigger a transfer for the given exit code.
-    """
-
-    modes: list[TransferMode]
-
-    @classmethod
-    def default(cls) -> Self:
-        """
-        Create a default TransferModesList with Success mode.
-
-        Returns a TransferModesList configured to transfer/archived data only when the job
-        completes successfully (exit code 0). This is the recommended default behavior
-        for most use cases.
-
-        Returns:
-            A TransferModesList instance containing only the Success transfer mode.
-        """
-        return cls(modes=[Success()])
-
-    @classmethod
-    def fromStr(cls, s: str) -> Self:
-        """
-        Parse a string containing multiple transfer modes.
-
-        Args:
-            s: String containing transfer mode variants separated by a colon, comma, or space.
-                Example: "success:42", "1,2,3", or "failure success".
-
-        Returns:
-            A TransferModes instance containing the parsed modes.
-
-        Raises:
-            QQError: If any of the individual mode strings cannot be recognized.
-        """
-        mode_strings = re.split(r"[:,\s]+", s.strip())
-        mode_strings = [ms for ms in mode_strings if ms]
-
-        modes = [TransferMode.fromStr(mode_str) for mode_str in mode_strings]
-
-        if not modes:
-            raise QQError("TransferModesList must contain at least one transfer mode.")
-
-        return cls(modes=modes)
-
-    def shouldTransfer(self, exit_code: int) -> bool:
-        """
-        Check if ANY contained mode should transfer.
-
-        Data are transferred/archived if at least one of the contained transfer modes would
-        return True for the given exit code.
-
-        Args:
-            exit_code: The exit code of the completed job.
-
-        Returns:
-            True if any contained mode would transfer, False if all would not transfer.
-        """
-        return any(mode.shouldTransfer(exit_code) for mode in self.modes)
-
-    def toStr(self) -> str:
-        """
-        Convert to string representation with colon separator.
-
-        Returns:
-            String representation with all contained modes converted to strings and
-            joined by colons.
-        """
-        return ":".join(mode.toStr() for mode in self.modes)

@@ -106,7 +106,7 @@ def test_to_yaml_contains_fields(sample_info):
     assert data["job_name"] == "script.sh+025"
     assert data["resources"]["ncpus"] == 8
     assert data["account"] == "fake-account"
-    assert data["transfer_back"] == "success"
+    assert data["transfer_back"] == ["success"]
 
 
 def test_to_yaml_skips_none_fields(sample_info):

@@ -28,7 +28,7 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
-from qq_lib.properties.transfer_mode import TransferModesList
+from qq_lib.properties.transfer_mode import Success, TransferMode
 
 from .job_type import JobType
 from .loop import LoopInfo
@@ -103,7 +103,7 @@ class Info:
     included_files: list[Path] = field(default_factory=list)
 
     # Mode of transferring files from the working directory to the input directory after job completion.
-    transfer_back: TransferModesList = field(default_factory=TransferModesList.default)
+    transfer_back: list[TransferMode] = field(default_factory=lambda: [Success()])
 
     # List of dependencies.
     depend: list[Depend] = field(default_factory=list)
@@ -247,7 +247,12 @@ class Info:
         if self.loop_info:
             command_line.extend(self.loop_info.toCommandLine())
 
-        command_line.extend(["--transfer-back", self.transfer_back.toStr()])
+        command_line.extend(
+            [
+                "--transfer-back",
+                ":".join(mode.toStr() for mode in self.transfer_back),
+            ]
+        )
 
         return command_line
 
@@ -301,8 +306,8 @@ class Info:
             elif f.type == list[Path]:
                 result[f.name] = [str(x) for x in value]
             # conver transfer modes
-            elif f.type == TransferModesList and isinstance(value, TransferModesList):
-                result[f.name] = value.toStr()
+            elif f.type == list[TransferMode]:
+                result[f.name] = [x.toStr() for x in value]
             elif f.type == list[Depend]:
                 result[f.name] = [Depend.toStr(x) for x in value]
             # convert timestamp
@@ -365,8 +370,8 @@ class Info:
                     Path(v) if isinstance(v, str) else v for v in value
                 ]
             # convert transfer modes
-            elif f.type == TransferModesList and isinstance(value, str):
-                init_kwargs[name] = TransferModesList.fromStr(value)
+            elif f.type == list[TransferMode] and isinstance(value, list):
+                init_kwargs[name] = [TransferMode.fromStr(x) for x in value]  # ty: ignore[invalid-argument-type]
             # convert dependencies
             elif f.type == list[Depend] and isinstance(value, list):
                 init_kwargs[name] = [Depend.fromStr(x) for x in value]  # ty: ignore[invalid-argument-type]

@@ -12,7 +12,6 @@ from qq_lib.properties.transfer_mode import (
     Never,
     Success,
     TransferMode,
-    TransferModesList,
 )
 
 
@@ -178,191 +177,75 @@ def test_transfer_decision_logic(mode: TransferMode, exit_code: int, expected: b
         "  success  :  failure  ",
     ],
 )
-def test_transfer_modes_list_from_str_valid_strings(input_str: str):
-    result = TransferModesList.fromStr(input_str)
-    assert isinstance(result, TransferModesList)
-    assert len(result.modes) >= 1
+def test_transfer_modes_list_multi_from_str_valid_strings(input_str: str):
+    result = TransferMode.multiFromStr(input_str)
+    assert isinstance(result, list)
+    assert len(result) >= 1
 
 
-def test_transfer_modes_list_from_str_colon_separator():
-    result = TransferModesList.fromStr("success:failure")
-    assert len(result.modes) == 2
-    assert isinstance(result.modes[0], Success)
-    assert isinstance(result.modes[1], Failure)
+def test_transfer_modes_list_multi_from_str_colon_separator():
+    result = TransferMode.multiFromStr("success:failure")
+    assert len(result) == 2
+    assert isinstance(result[0], Success)
+    assert isinstance(result[1], Failure)
 
 
-def test_transfer_modes_list_from_str_comma_separator():
-    result = TransferModesList.fromStr("success,failure")
-    assert len(result.modes) == 2
-    assert isinstance(result.modes[0], Success)
-    assert isinstance(result.modes[1], Failure)
+def test_transfer_modes_list_multi_from_str_comma_separator():
+    result = TransferMode.multiFromStr("success,failure")
+    assert len(result) == 2
+    assert isinstance(result[0], Success)
+    assert isinstance(result[1], Failure)
 
 
-def test_transfer_modes_list_from_str_space_separator():
-    result = TransferModesList.fromStr("success failure")
-    assert len(result.modes) == 2
-    assert isinstance(result.modes[0], Success)
-    assert isinstance(result.modes[1], Failure)
+def test_transfer_modes_list_multi_from_str_space_separator():
+    result = TransferMode.multiFromStr("success failure")
+    assert len(result) == 2
+    assert isinstance(result[0], Success)
+    assert isinstance(result[1], Failure)
 
 
-def test_transfer_modes_list_from_str_mixed_separators():
-    result = TransferModesList.fromStr("success:failure,always failure")
-    assert len(result.modes) == 4
-    assert isinstance(result.modes[0], Success)
-    assert isinstance(result.modes[1], Failure)
-    assert isinstance(result.modes[2], Always)
-    assert isinstance(result.modes[3], Failure)
+def test_transfer_modes_list_multi_from_str_mixed_separators():
+    result = TransferMode.multiFromStr("success:failure,always failure")
+    assert len(result) == 4
+    assert isinstance(result[0], Success)
+    assert isinstance(result[1], Failure)
+    assert isinstance(result[2], Always)
+    assert isinstance(result[3], Failure)
 
 
-def test_transfer_modes_list_from_str_with_exit_codes():
-    result = TransferModesList.fromStr("success:42,100")
-    assert len(result.modes) == 3
-    assert isinstance(result.modes[0], Success)
-    assert isinstance(result.modes[1], ExitCode)
-    assert result.modes[1].code == 42
-    assert isinstance(result.modes[2], ExitCode)
-    assert result.modes[2].code == 100
+def test_transfer_modes_list_multi_from_str_with_exit_codes():
+    result = TransferMode.multiFromStr("success:42,100")
+    assert len(result) == 3
+    assert isinstance(result[0], Success)
+    assert isinstance(result[1], ExitCode)
+    assert result[1].code == 42
+    assert isinstance(result[2], ExitCode)
+    assert result[2].code == 100
 
 
-def test_transfer_modes_list_from_str_with_whitespace():
-    result = TransferModesList.fromStr("  success  :  failure  ")
-    assert len(result.modes) == 2
-    assert isinstance(result.modes[0], Success)
-    assert isinstance(result.modes[1], Failure)
+def test_transfer_modes_list_multi_from_str_with_whitespace():
+    result = TransferMode.multiFromStr("  success  :  failure  ")
+    assert len(result) == 2
+    assert isinstance(result[0], Success)
+    assert isinstance(result[1], Failure)
 
 
-def test_transfer_modes_list_from_str_single_mode():
-    result = TransferModesList.fromStr("always")
-    assert len(result.modes) == 1
-    assert isinstance(result.modes[0], Always)
+def test_transfer_modes_list_multi_from_str_single_mode():
+    result = TransferMode.multiFromStr("always")
+    assert len(result) == 1
+    assert isinstance(result[0], Always)
 
 
-def test_transfer_modes_list_from_str_empty_string_raises_error():
-    with pytest.raises(QQError) as exc_info:
-        TransferModesList.fromStr("")
-    assert "must contain at least one" in str(exc_info.value)
+def test_transfer_modes_list_multi_from_str_empty_string():
+    result = TransferMode.multiFromStr("")
+    assert len(result) == 0
 
 
-def test_transfer_modes_list_from_str_whitespace_only_raises_error():
-    with pytest.raises(QQError) as exc_info:
-        TransferModesList.fromStr("   ")
-    assert "must contain at least one" in str(exc_info.value)
+def test_transfer_modes_list_multi_from_str_whitespace_only():
+    result = TransferMode.multiFromStr("     ")
+    assert len(result) == 0
 
 
-def test_transfer_modes_list_from_str_invalid_mode_raises_error():
+def test_transfer_modes_list_multi_from_str_invalid_mode_raises_error():
     with pytest.raises(QQError):
-        TransferModesList.fromStr("success:invalid_mode")
-
-
-def test_transfer_modes_list_should_transfer_single_mode_true():
-    mode_list = TransferModesList.fromStr("success")
-    assert mode_list.shouldTransfer(0) is True
-
-
-def test_transfer_modes_list_should_transfer_single_mode_false():
-    mode_list = TransferModesList.fromStr("success")
-    assert mode_list.shouldTransfer(1) is False
-
-
-def test_transfer_modes_list_should_transfer_multiple_modes_all_false():
-    mode_list = TransferModesList.fromStr("success:4")
-    assert mode_list.shouldTransfer(2) is False
-
-
-def test_transfer_modes_list_should_transfer_multiple_modes_one_true():
-    mode_list = TransferModesList.fromStr("success:failure")
-    assert mode_list.shouldTransfer(0) is True
-    assert mode_list.shouldTransfer(1) is True
-
-
-def test_transfer_modes_list_should_transfer_multiple_modes_all_true():
-    mode_list = TransferModesList.fromStr("always:failure")
-    assert mode_list.shouldTransfer(1) is True
-    assert mode_list.shouldTransfer(42) is True
-
-
-def test_transfer_modes_list_should_transfer_never_mode():
-    mode_list = TransferModesList.fromStr("never:success")
-    assert mode_list.shouldTransfer(0) is True
-    assert mode_list.shouldTransfer(1) is False
-
-
-@pytest.mark.parametrize(
-    "mode_str,exit_code,expected",
-    [
-        ("always:never", 0, True),  # always is True
-        ("success:failure", 0, True),  # success is True
-        ("success:failure", 1, True),  # failure is True
-        ("success:1", 2, False),  # both False
-        ("never:never", 0, False),  # both False
-        ("42:43", 42, True),  # one matches
-        ("42:43", 44, False),  # none match
-        ("always:42:43", 0, True),  # always is True
-    ],
-)
-def test_transfer_modes_list_should_transfer_various_combinations(
-    mode_str: str, exit_code: int, expected: bool
-):
-    mode_list = TransferModesList.fromStr(mode_str)
-    assert mode_list.shouldTransfer(exit_code) is expected
-
-
-def test_transfer_modes_list_to_str_single_mode():
-    mode_list = TransferModesList.fromStr("always")
-    assert mode_list.toStr() == "always"
-
-
-def test_transfer_modes_list_to_str_multiple_modes():
-    mode_list = TransferModesList.fromStr("always:never:success")
-    assert mode_list.toStr() == "always:never:success"
-
-
-def test_transfer_modes_list_to_str_with_exit_codes():
-    mode_list = TransferModesList.fromStr("success:42:failure")
-    assert mode_list.toStr() == "success:42:failure"
-
-
-def test_transfer_modes_list_to_str_preserves_order():
-    mode_list = TransferModesList.fromStr("failure:success:always")
-    assert mode_list.toStr() == "failure:success:always"
-
-
-def test_transfer_modes_list_to_str_roundtrip():
-    original = "success:42:failure"
-    mode_list = TransferModesList.fromStr(original)
-    result = mode_list.toStr()
-    assert result == original
-
-    # verify roundtrip
-    mode_list2 = TransferModesList.fromStr(result)
-    assert mode_list2.toStr() == original
-
-
-def test_transfer_modes_list_default_returns_instance():
-    mode_list = TransferModesList.default()
-    assert isinstance(mode_list, TransferModesList)
-
-
-def test_transfer_modes_list_default_contains_success_mode():
-    mode_list = TransferModesList.default()
-    assert len(mode_list.modes) == 1
-    assert isinstance(mode_list.modes[0], Success)
-
-
-def test_transfer_modes_list_default_transfers_on_success():
-    mode_list = TransferModesList.default()
-    assert mode_list.shouldTransfer(0) is True
-
-
-def test_transfer_modes_list_default_does_not_transfer_on_failure():
-    mode_list = TransferModesList.default()
-    assert mode_list.shouldTransfer(1) is False
-    assert mode_list.shouldTransfer(42) is False
-
-
-def test_transfer_modes_list_default_multiple_calls_are_independent():
-    mode_list1 = TransferModesList.default()
-    mode_list2 = TransferModesList.default()
-
-    assert mode_list1 is not mode_list2
-    assert mode_list1.modes is not mode_list2.modes
+        TransferMode.multiFromStr("success:invalid_mode")

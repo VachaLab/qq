@@ -17,7 +17,7 @@ from pathlib import Path
 from qq_lib.archive.archiver import Archiver
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.properties.transfer_mode import TransferModesList
+from qq_lib.properties.transfer_mode import Success, TransferMode
 
 logger = get_logger(__name__)
 
@@ -33,7 +33,7 @@ class LoopInfo:
     archive: Path
     archive_format: str
     current: int
-    archive_mode: TransferModesList
+    archive_mode: list[TransferMode]
 
     def __init__(
         self,
@@ -43,7 +43,7 @@ class LoopInfo:
         archive_format: str,
         current: int | None = None,
         input_dir: Path | None = None,
-        archive_mode: TransferModesList = TransferModesList.default(),
+        archive_mode: list[TransferMode] | None = None,
     ):
         """
         Initialize loop job information with validation checks.
@@ -57,8 +57,8 @@ class LoopInfo:
             archive_format (str): File naming pattern used for archived files.
             current (int | None): The current cycle number. Defaults to `start`
                 if not provided.
-            archive_mode (TransferModesList): When should the files be archived?
-                Defaults to `success`, meaning that archivel should only be performed for
+            archive_mode (list[TransferMode] | None): When should the files be archived?
+                Defaults to [Success()], meaning that archival should only be performed for
                 successfully completed jobs.
 
         Raises:
@@ -73,7 +73,7 @@ class LoopInfo:
             raise QQError("Input directory cannot be used as the loop job's archive.")
 
         self.archive_format = archive_format
-        self.archive_mode = archive_mode
+        self.archive_mode = archive_mode or [Success()]
 
         self.start = start
         self.end = end
@@ -98,8 +98,8 @@ class LoopInfo:
         for k, v in asdict(self).items():
             if isinstance(v, Path):
                 dict[k] = str(v)
-            elif isinstance(v, TransferModesList):
-                dict[k] = v.toStr()
+            elif isinstance(v, list[TransferMode]):
+                dict[k] = [TransferMode.toStr(x) for x in v]
             else:
                 dict[k] = v
 
@@ -122,7 +122,7 @@ class LoopInfo:
             "--archive-format",
             self.archive_format,
             "--archive-mode",
-            self.archive_mode.toStr(),
+            ":".join(mode.toStr() for mode in self.archive_mode),
         ]
 
     def _getCycle(self) -> int:

@@ -9,7 +9,7 @@ import pytest
 
 from qq_lib.core.error import QQError
 from qq_lib.properties.loop import LoopInfo
-from qq_lib.properties.transfer_mode import ExitCode, Failure, TransferModesList
+from qq_lib.properties.transfer_mode import ExitCode, Failure, Success, TransferMode
 
 
 def test_valid_constructor(tmp_path):
@@ -28,7 +28,7 @@ def test_valid_constructor(tmp_path):
     assert loop_info.current == 1
     assert loop_info.archive == (input_dir / "archive").resolve()
     assert loop_info.archive_format == "md%04d"
-    assert loop_info.archive_mode == TransferModesList.default()
+    assert loop_info.archive_mode == [Success()]
 
 
 def test_constructor_with_current(tmp_path):
@@ -59,7 +59,7 @@ def test_constructor_with_archive_mode(tmp_path):
         archive=input_dir / "archive",
         input_dir=input_dir,
         archive_format="md%04d",
-        archive_mode=TransferModesList.fromStr("0,failure"),
+        archive_mode=TransferMode.multiFromStr("0,failure"),
     )
 
     assert loop_info.start == 1
@@ -67,7 +67,7 @@ def test_constructor_with_archive_mode(tmp_path):
     assert loop_info.current == 1
     assert loop_info.archive == (input_dir / "archive").resolve()
     assert loop_info.archive_format == "md%04d"
-    assert loop_info.archive_mode == TransferModesList(modes=[ExitCode(0), Failure()])
+    assert loop_info.archive_mode == [ExitCode(0), Failure()]
 
 
 def test_missing_end(tmp_path):
