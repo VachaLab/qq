@@ -17,6 +17,7 @@ from pathlib import Path
 from qq_lib.archive.archiver import Archiver
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.properties.transfer_mode import TransferModesList
 
 logger = get_logger(__name__)
 
@@ -32,6 +33,7 @@ class LoopInfo:
     archive: Path
     archive_format: str
     current: int
+    archive_mode: TransferModesList
 
     def __init__(
         self,
@@ -41,6 +43,7 @@ class LoopInfo:
         archive_format: str,
         current: int | None = None,
         input_dir: Path | None = None,
+        archive_mode: TransferModesList = TransferModesList.default(),
     ):
         """
         Initialize loop job information with validation checks.
@@ -54,6 +57,9 @@ class LoopInfo:
             archive_format (str): File naming pattern used for archived files.
             current (int | None): The current cycle number. Defaults to `start`
                 if not provided.
+            archive_mode (TransferModesList): When should the files be archived?
+                Defaults to `success`, meaning that archivel should only be performed for
+                successfully completed jobs.
 
         Raises:
             QQError: If `end` is not provided, if `start > end`, if `current > end`,
@@ -67,6 +73,7 @@ class LoopInfo:
             raise QQError("Input directory cannot be used as the loop job's archive.")
 
         self.archive_format = archive_format
+        self.archive_mode = archive_mode
 
         self.start = start
         self.end = end
@@ -87,9 +94,16 @@ class LoopInfo:
 
     def toDict(self) -> dict[str, object]:
         """Return all fields as a dict."""
-        return {
-            k: str(v) if isinstance(v, Path) else v for k, v in asdict(self).items()
-        }
+        dict = {}
+        for k, v in asdict(self).items():
+            if isinstance(v, Path):
+                dict[k] = str(v)
+            elif isinstance(v, TransferModesList):
+                dict[k] = v.toStr()
+            else:
+                dict[k] = v
+
+        return dict
 
     def toCommandLine(self) -> list[str]:
         """
@@ -107,6 +121,8 @@ class LoopInfo:
             self.archive.name,
             "--archive-format",
             self.archive_format,
+            "--archive-mode",
+            self.archive_mode.toStr(),
         ]
 
     def _getCycle(self) -> int:

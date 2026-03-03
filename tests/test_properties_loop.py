@@ -9,6 +9,7 @@ import pytest
 
 from qq_lib.core.error import QQError
 from qq_lib.properties.loop import LoopInfo
+from qq_lib.properties.transfer_mode import ExitCode, Failure, TransferModesList
 
 
 def test_valid_constructor(tmp_path):
@@ -27,6 +28,7 @@ def test_valid_constructor(tmp_path):
     assert loop_info.current == 1
     assert loop_info.archive == (input_dir / "archive").resolve()
     assert loop_info.archive_format == "md%04d"
+    assert loop_info.archive_mode == TransferModesList.default()
 
 
 def test_constructor_with_current(tmp_path):
@@ -46,6 +48,26 @@ def test_constructor_with_current(tmp_path):
     assert loop_info.current == 5
     assert loop_info.archive == (input_dir / "archive").resolve()
     assert loop_info.archive_format == "md%04d"
+
+
+def test_constructor_with_archive_mode(tmp_path):
+    input_dir = tmp_path / "job"
+
+    loop_info = LoopInfo(
+        start=1,
+        end=5,
+        archive=input_dir / "archive",
+        input_dir=input_dir,
+        archive_format="md%04d",
+        archive_mode=TransferModesList.fromStr("0,failure"),
+    )
+
+    assert loop_info.start == 1
+    assert loop_info.end == 5
+    assert loop_info.current == 1
+    assert loop_info.archive == (input_dir / "archive").resolve()
+    assert loop_info.archive_format == "md%04d"
+    assert loop_info.archive_mode == TransferModesList(modes=[ExitCode(0), Failure()])
 
 
 def test_missing_end(tmp_path):
@@ -218,6 +240,8 @@ def test_to_command_line_basic():
         "archive",
         "--archive-format",
         "job%04d",
+        "--archive-mode",
+        "success",
     ]
 
 
@@ -238,4 +262,6 @@ def test_to_command_line_archive_name_only():
         "myarchive",
         "--archive-format",
         "md%03d",
+        "--archive-mode",
+        "success",
     ]

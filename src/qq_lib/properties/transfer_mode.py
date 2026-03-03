@@ -12,10 +12,8 @@ from qq_lib.core.error import QQError
 @dataclass(frozen=True)
 class TransferMode(ABC):
     """
-    Specifies when job data should be transferred from the working directory to the input directory.
-
-    This enum determines whether the job's working directory should be transferred to
-    the input directory after the job completes.
+    Specifies when job data should be transferred from the working directory to
+    the input directory or archived from the working directory.
     """
 
     @classmethod
@@ -51,13 +49,13 @@ class TransferMode(ABC):
     @abstractmethod
     def shouldTransfer(self, exit_code: int) -> bool:
         """
-        Determine whether data should be transferred based on the exit code.
+        Determine whether data should be transferred/archived based on the exit code.
 
         Args:
             exit_code: The exit code of the completed job.
 
         Returns:
-            True if data should be transferred, False otherwise.
+            True if data should be transferred/archived, False otherwise.
         """
         pass
 
@@ -75,12 +73,7 @@ class TransferMode(ABC):
 @dataclass(frozen=True)
 class Always(TransferMode):
     """
-    Data are always transferred to the input directory regardless of job outcome.
-
-    The working directory is always deleted after the job finishes and the data are
-    transferred. Note that if an error occurs in qq itself, no transfer is performed.
-    Transfer may not be successful if the job is killed by the batch system or killed
-    using `qq kill --force`.
+    Data are always transferred/archived regardless of job outcome.
     """
 
     def shouldTransfer(self, exit_code: int) -> bool:
@@ -94,10 +87,7 @@ class Always(TransferMode):
 @dataclass(frozen=True)
 class Never(TransferMode):
     """
-    Data are never transferred to the input directory.
-
-    The working directory is preserved and no data are transferred regardless of the
-    job outcome.
+    Data are never transferred/archived.
     """
 
     def shouldTransfer(self, exit_code: int) -> bool:
@@ -111,11 +101,7 @@ class Never(TransferMode):
 @dataclass(frozen=True)
 class Success(TransferMode):
     """
-    Data are transferred to the input directory only if the job completes successfully.
-
-    Data are transferred only if the job finishes with exit code 0 or the value of the
-    `QQ_NO_RESUBMIT` environment variable (in loop jobs). If the job fails or is killed,
-    the working directory is not removed and no data are transferred.
+    Data are transferred/archived only if the job completes successfully.
     """
 
     def shouldTransfer(self, exit_code: int) -> bool:
@@ -128,12 +114,7 @@ class Success(TransferMode):
 @dataclass(frozen=True)
 class Failure(TransferMode):
     """
-    Data are transferred to the input directory only if the job fails or is killed.
-
-    Data are transferred only if the job finishes with a non-zero exit code or is killed.
-    Note that if an error occurs in qq itself, no transfer is performed. Transfer may not
-    be successful if the job is killed by the batch system or killed using
-    `qq kill --force`.
+    Data are transferred/archived only if the job fails or is killed.
     """
 
     def shouldTransfer(self, exit_code: int) -> bool:
@@ -146,11 +127,7 @@ class Failure(TransferMode):
 @dataclass(frozen=True)
 class ExitCode(TransferMode):
     """
-    Data are transferred to the input directory only if the job exits with a specific code.
-
-    Data are transferred only if the job finishes with the exact exit code specified
-    in the `code` field. In loop jobs, the value of the `QQ_NO_RESUBMIT` environment
-    variable is interpreted as exit code 0.
+    Data are transferred/archived only if the job exits with a specific code.
 
     Attributes:
         code: The exit code that triggers data transfer.
@@ -170,7 +147,7 @@ class TransferModesList(TransferMode):
     """
     Collection of multiple TransferMode variants combined with OR logic.
 
-    Represents multiple TransferMode variants where data are transferred if ANY
+    Represents multiple TransferMode variants where data are transferred/archived if ANY
     of the contained modes would trigger a transfer for the given exit code.
     """
 
@@ -181,7 +158,7 @@ class TransferModesList(TransferMode):
         """
         Create a default TransferModesList with Success mode.
 
-        Returns a TransferModesList configured to transfer data only when the job
+        Returns a TransferModesList configured to transfer/archived data only when the job
         completes successfully (exit code 0). This is the recommended default behavior
         for most use cases.
 
@@ -219,7 +196,7 @@ class TransferModesList(TransferMode):
         """
         Check if ANY contained mode should transfer.
 
-        Data are transferred if at least one of the contained transfer modes would
+        Data are transferred/archived if at least one of the contained transfer modes would
         return True for the given exit code.
 
         Args:
@@ -231,7 +208,8 @@ class TransferModesList(TransferMode):
         return any(mode.shouldTransfer(exit_code) for mode in self.modes)
 
     def toStr(self) -> str:
-        """Convert to string representation with colon separator.
+        """
+        Convert to string representation with colon separator.
 
         Returns:
             String representation with all contained modes converted to strings and

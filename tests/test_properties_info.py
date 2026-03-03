@@ -340,6 +340,8 @@ def test_get_command_line_full(sample_info):
         "archive",
         "--archive-format",
         "job%3d",
+        "--archive-mode",
+        "success",
         "--transfer-back",
         "success",
     ]
