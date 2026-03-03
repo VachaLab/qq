@@ -12,6 +12,13 @@ from qq_lib.core.error import QQError, QQJobMismatchError
 from qq_lib.info.informer import Informer
 from qq_lib.properties.info import Info
 from qq_lib.properties.states import BatchState, NaiveState, RealState
+from qq_lib.properties.transfer_mode import (
+    Always,
+    ExitCode,
+    Never,
+    Success,
+    TransferModesList,
+)
 
 
 def test_informer_init_sets_info_and_batch_info():
@@ -548,3 +555,149 @@ def test_informer_from_batch_job_returns_informer_on_success():
 
     assert result is informer_mock
     assert result._batch_info is batch_job
+
+
+def test_informer_should_transfer_files_returns_true_on_success():
+    info_mock = MagicMock(spec=Info)
+    info_mock.transfer_back = Success()
+
+    informer = Informer(info_mock)
+    result = informer.shouldTransferFiles(0)
+
+    assert result is True
+
+
+def test_informer_should_transfer_files_returns_false_on_success_with_nonzero():
+    info_mock = MagicMock(spec=Info)
+    info_mock.transfer_back = Success()
+
+    informer = Informer(info_mock)
+    result = informer.shouldTransferFiles(1)
+
+    assert result is False
+
+
+def test_informer_should_transfer_files_with_always_mode():
+    info_mock = MagicMock(spec=Info)
+    info_mock.transfer_back = Always()
+
+    informer = Informer(info_mock)
+    assert informer.shouldTransferFiles(0) is True
+    assert informer.shouldTransferFiles(1) is True
+    assert informer.shouldTransferFiles(42) is True
+
+
+def test_informer_should_transfer_files_with_never_mode():
+    info_mock = MagicMock(spec=Info)
+    info_mock.transfer_back = Never()
+
+    informer = Informer(info_mock)
+    assert informer.shouldTransferFiles(0) is False
+    assert informer.shouldTransferFiles(1) is False
+    assert informer.shouldTransferFiles(42) is False
+
+
+def test_informer_should_transfer_files_with_exit_code_mode():
+    info_mock = MagicMock(spec=Info)
+    info_mock.transfer_back = ExitCode(42)
+
+    informer = Informer(info_mock)
+    assert informer.shouldTransferFiles(42) is True
+    assert informer.shouldTransferFiles(1) is False
+    assert informer.shouldTransferFiles(0) is False
+
+
+def test_informer_should_transfer_files_with_transfer_modes_list():
+    info_mock = MagicMock(spec=Info)
+    info_mock.transfer_back = TransferModesList.fromStr("success:1")
+
+    informer = Informer(info_mock)
+    assert informer.shouldTransferFiles(0) is True
+    assert informer.shouldTransferFiles(1) is True
+    assert informer.shouldTransferFiles(2) is False
+
+
+def test_informer_should_archive_files_returns_false_when_not_loop_job():
+    info_mock = MagicMock(spec=Info)
+    info_mock.loop_info = None
+
+    informer = Informer(info_mock)
+    result = informer.shouldArchiveFiles(0)
+
+    assert result is False
+
+
+def test_informer_should_archive_files_returns_true_when_loop_job_succeeds():
+    loop_info_mock = MagicMock()
+    loop_info_mock.archive_mode = Success()
+
+    info_mock = MagicMock(spec=Info)
+    info_mock.loop_info = loop_info_mock
+
+    informer = Informer(info_mock)
+    result = informer.shouldArchiveFiles(0)
+
+    assert result is True
+
+
+def test_informer_should_archive_files_returns_false_when_loop_job_fails():
+    loop_info_mock = MagicMock()
+    loop_info_mock.archive_mode = Success()
+
+    info_mock = MagicMock(spec=Info)
+    info_mock.loop_info = loop_info_mock
+
+    informer = Informer(info_mock)
+    result = informer.shouldArchiveFiles(1)
+
+    assert result is False
+
+
+def test_informer_should_archive_files_with_always_mode():
+    loop_info_mock = MagicMock()
+    loop_info_mock.archive_mode = Always()
+
+    info_mock = MagicMock(spec=Info)
+    info_mock.loop_info = loop_info_mock
+
+    informer = Informer(info_mock)
+    assert informer.shouldArchiveFiles(0) is True
+    assert informer.shouldArchiveFiles(1) is True
+
+
+def test_informer_should_archive_files_with_never_mode():
+    loop_info_mock = MagicMock()
+    loop_info_mock.archive_mode = Never()
+
+    info_mock = MagicMock(spec=Info)
+    info_mock.loop_info = loop_info_mock
+
+    informer = Informer(info_mock)
+    assert informer.shouldArchiveFiles(0) is False
+    assert informer.shouldArchiveFiles(1) is False
+
+
+def test_informer_should_archive_files_with_exit_code_mode():
+    loop_info_mock = MagicMock()
+    loop_info_mock.archive_mode = ExitCode(5)
+
+    info_mock = MagicMock(spec=Info)
+    info_mock.loop_info = loop_info_mock
+
+    informer = Informer(info_mock)
+    assert informer.shouldArchiveFiles(5) is True
+    assert informer.shouldArchiveFiles(1) is False
+    assert informer.shouldArchiveFiles(0) is False
+
+
+def test_informer_should_archive_files_with_transfer_modes_list():
+    loop_info_mock = MagicMock()
+    loop_info_mock.archive_mode = TransferModesList.fromStr("failure:42")
+
+    info_mock = MagicMock(spec=Info)
+    info_mock.loop_info = loop_info_mock
+
+    informer = Informer(info_mock)
+    assert informer.shouldArchiveFiles(1) is True
+    assert informer.shouldArchiveFiles(42) is True
+    assert informer.shouldArchiveFiles(0) is False

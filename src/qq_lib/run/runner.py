@@ -226,32 +226,47 @@ class Runner:
         """
         Finalize the execution of the job script.
 
-        This method handles post-processing depending on the success or failure
-        of the script:
+        Handles post-processing of the job based on the script's exit code and the
+        configured transfer and archive modes. The specific actions taken depend on
+        the job's transfer mode, archive mode, and whether scratch directory is being used.
 
-        - On success (process return code 0):
-            - Updates the qq info file to indicate the job is "finished".
-            - If `use_scratch` is True, copies job files back from the scratch
-            directory to the submission directory and removes them from scratch.
+        Specifically, this method:
 
-        - On failure (non-zero return code):
-            - Updates the qq info file to indicate the job "failed".
-            - If `use_scratch` is True, files remain in the scratch directory
-            for debugging purposes. Only runtime files are copied to the input directory.
+        1. Archives files from the working directory if archiving is enabled and the
+            archive mode allows it for the given exit code (loop jobs only).
+        2. Transfers or handles files based on whether scratch directory is used:
+            - If using scratch and transfer mode allows: Syncs the entire working
+                directory back to the input directory (excluding explicitly included files)
+                and removes the working directory from scratch.
+            - If using scratch and transfer mode disallows: Copies only runtime files
+                to the input directory and preserves the working directory.
+            - If not using scratch: No file operations are performed.
+        3. Updates the qq info file to "finished" (exit code 0) or "failed" (non-zero
+            exit code).
+        4. Resubmits the job if it is a loop job and completed successfully.
 
         Raises:
-            QQError: If copying or deletion of files fails.
+            QQError: If copying, deletion, or archiving of files fails or if the resubmission fails.
         """
         logger.info("Finalizing the execution.")
         assert self._process is not None
 
-        if self._process.returncode == 0:
-            # archive files
-            if self._archiver:
-                self._archiver.toArchive(self._work_dir)
+        # archive files
+        if self._archiver and self._informer.shouldArchiveFiles(
+            self._process.returncode
+        ):
+            logger.debug(
+                f"Script exit code is '{self._process.returncode}'. Archiving files."
+            )
+            self._archiver.toArchive(self._work_dir)
 
-            if self._use_scratch:
-                # copy files back to the input (submission) directory
+        # transfer files back to the input (submission) directory
+        if self._use_scratch:
+            if self._informer.shouldTransferFiles(self._process.returncode):
+                logger.debug(
+                    f"Script exit code is '{self._process.returncode}'. Transferring files from working directory."
+                )
+
                 Retryer(
                     self._batch_system.syncWithExclusions,
                     self._work_dir,
@@ -266,9 +281,13 @@ class Runner:
                 ).run()
 
                 # remove the working directory from scratch
-                # directory is retained on scratch if the run fails for any reason
                 self._deleteWorkDir()
+            else:
+                # copy only the runtime files to input directory
+                # and keep the working directory
+                self._copyRunTimeFilesToInputDir(retry=True)
 
+        if self._process.returncode == 0:
             # update the qqinfo file
             self._updateInfoFinished()
 
@@ -276,10 +295,6 @@ class Runner:
             if self._informer.info.job_type == JobType.LOOP:
                 self._resubmit()
         else:
-            # copy runtime files to input directory
-            if self._use_scratch:
-                self._copyRunTimeFilesToInputDir(retry=True)
-
             # update the qqinfo file
             self._updateInfoFailed(self._process.returncode)
 
