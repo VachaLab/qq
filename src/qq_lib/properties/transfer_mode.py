@@ -92,7 +92,7 @@ class TransferMode(ABC):
 @dataclass(frozen=True)
 class Always(TransferMode):
     """
-    Data are always transferred/archived regardless of job outcome.
+    Data are always transferred/archived regardless the job's exit code.
     """
 
     def shouldTransfer(self, exit_code: int) -> bool:
@@ -133,7 +133,7 @@ class Success(TransferMode):
 @dataclass(frozen=True)
 class Failure(TransferMode):
     """
-    Data are transferred/archived only if the job fails or is killed.
+    Data are transferred/archived only if the job fails.
     """
 
     def shouldTransfer(self, exit_code: int) -> bool:

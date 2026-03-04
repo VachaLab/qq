@@ -19,13 +19,17 @@ class Syncer(Navigator):
         Verify that the job is in a state where files can be fetched from its working directory.
 
         Raises:
-            QQNotSuitableError: If the job has already finished / is finishing successfully
-                                is queued/booting or has been killed without creating a working directory.
+            QQNotSuitableError: If the working directory is not expected to exist
+                or if the working directory is the input directory.
         """
-        # finished jobs do not have working directory
-        if self._isFinished():
+        if self._workDirIsInputDir():
             raise QQNotSuitableError(
-                "Job has finished and was synchronized: nothing to sync."
+                "Working directory of the job is the input directory of the job: implicitly synchronized."
+            )
+
+        if self._isSynchronized():
+            raise QQNotSuitableError(
+                "Job has been completed and was synchronized: working directory no longer exists."
             )
 
         # killed jobs may not have working directory
@@ -33,10 +37,6 @@ class Syncer(Navigator):
             raise QQNotSuitableError(
                 "Job has been killed and no working directory is available."
             )
-
-        # succesfully exiting jobs do not have working directory
-        if self._isExitingSuccessfully():
-            raise QQNotSuitableError("Job is finishing successfully: nothing to sync.")
 
         # queued jobs do not have working directory
         if self._isQueued():

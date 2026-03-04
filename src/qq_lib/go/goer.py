@@ -21,17 +21,11 @@ class Goer(Navigator):
         Verify that the job is in a state where its working directory can be visited.
 
         Raises:
-            QQNotSuitableError: If the job has already finished / is finishing successfully
-                                or has been killed without creating a working directory.
+            QQNotSuitableError: If the working directory is not expected to exist.
         """
-        if self._isFinished():
+        if self._isSynchronized() and not self._workDirIsInputDir():
             raise QQNotSuitableError(
-                "Job has finished and was synchronized: working directory no longer exists."
-            )
-
-        if self._isExitingSuccessfully():
-            raise QQNotSuitableError(
-                "Job is finishing successfully: working directory no longer exists."
+                "Job has been completed and was synchronized: working directory no longer exists."
             )
 
         if self._isKilled() and not self.hasDestination():
@@ -41,7 +35,7 @@ class Goer(Navigator):
 
     def go(self) -> None:
         """
-        Open a shell in the job's working directory on the main execution node.
+        Open a shell in the job's working directory on the main execution node (if the node is available).
 
         Raises:
             QQError: If the working directory or main node is not set and navigation
@@ -54,14 +48,14 @@ class Goer(Navigator):
             logger.info("You are already in the working directory.")
             return
 
-        if self._isKilled():
+        if self._isKilled() and not self._workDirIsInputDir():
             logger.warning(
                 "Job has been killed: working directory may no longer exist."
             )
 
-        elif self._isFailed():
+        elif (self._isFailed() or self._isFinished()) and not self._workDirIsInputDir():
             logger.warning(
-                "Job has completed with an error code: working directory may no longer exist."
+                "Job has been completed: working directory may no longer exist."
             )
 
         elif self._isUnknownInconsistent():
@@ -69,7 +63,7 @@ class Goer(Navigator):
 
         elif self._isQueued():
             logger.warning(
-                f"Job is {str(self._state)}: working directory does not yet exist. Will retry every {CFG.goer.wait_time} seconds."
+                f"Job is {str(self._state)}: cannot visit the working directory. Will retry every {CFG.goer.wait_time} seconds."
             )
 
             # keep retrying until the job stops being queued

@@ -284,3 +284,36 @@ def test_navigator_from_informer_handles_missing_destination():
 
     assert nav._main_node is None
     assert nav._work_dir is None
+
+
+@pytest.mark.parametrize(
+    "work_dir, input_dir, uses_scratch, main_node, input_machine, expected",
+    [
+        # work dir is None
+        (None, Path("/input"), False, "main", "input", False),
+        # different paths
+        (Path("/workdir"), Path("/input"), False, "main", "input", False),
+        # same path, shared storage, different nodes
+        (Path("/shared/path"), Path("/shared/path"), False, "nodeA", "nodeB", True),
+        #  same path, scratch storage, same node
+        (Path("/shared/path"), Path("/shared/path"), True, "nodeA", "nodeA", True),
+        # # same path, scratch storage, different node
+        (Path("/shared/path"), Path("/shared/path"), True, "nodeA", "nodeB", False),
+        # same path, shared storage, same node
+        (Path("/same/path"), Path("/same/path"), False, "main", "main", True),
+    ],
+)
+def test_wiper_workdir_is_inputdir_various_conditions(
+    work_dir, input_dir, uses_scratch, main_node, input_machine, expected
+):
+    wiper = Navigator.__new__(Navigator)
+    wiper._work_dir = work_dir
+    wiper._main_node = main_node
+    wiper._input_machine = input_machine
+
+    wiper._informer = MagicMock()
+    wiper._informer.info.input_dir = input_dir
+    wiper._informer.usesScratch.return_value = uses_scratch
+
+    result = wiper._workDirIsInputDir()
+    assert result is expected

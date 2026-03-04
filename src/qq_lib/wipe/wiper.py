@@ -19,9 +19,14 @@ class Wiper(Navigator):
         Verify that the job is in a state where its working directory can be deleted.
 
         Raises:
-            QQNotSuitableError: If the job is queued, booting, running, suspended, or successfully finished,
-            or if the working directory is not defined.
+            QQNotSuitableError: If the working directory is not expected to exist
+                or if the working directory is the input directory.
         """
+        if self._workDirIsInputDir():
+            raise QQNotSuitableError(
+                "Working directory of the job is the input directory of the job. Cannot delete the input directory."
+            )
+
         if self._isQueued():
             raise QQNotSuitableError(
                 f"Job is {str(self._informer.getRealState()).lower()} and does not have a working directory yet."
@@ -32,23 +37,13 @@ class Wiper(Navigator):
                 f"Job is {str(self._informer.getRealState()).lower()}. It is not safe to delete the working directory."
             )
 
-        if self._isFinished():
+        if self._isSynchronized():
             raise QQNotSuitableError(
-                "Job has finished and was synchronized: working directory no longer exists."
-            )
-
-        if self._isExitingSuccessfully():
-            raise QQNotSuitableError(
-                "Job is finishing successfully: working directory no longer exists."
+                "Job has been completed and was synchronized: working directory no longer exists."
             )
 
         if not self.hasDestination():
             raise QQNotSuitableError("Job does not have a working directory.")
-
-        if self._workDirIsInputDir():
-            raise QQNotSuitableError(
-                "Working directory of the job is the input directory of the job. Cannot delete the input directory."
-            )
 
     def wipe(self) -> str:
         """
@@ -81,20 +76,3 @@ class Wiper(Navigator):
         self._batch_system.deleteRemoteDir(self._main_node, self._work_dir)
 
         return self._informer.info.job_id
-
-    def _workDirIsInputDir(self) -> bool:
-        """Check whether the working directory of the job is the input directory of the job."""
-        # note that we cannot just compare directory paths, since
-        # the same directory path may point to different directories
-        # on the input machine and on the execution node
-        # we also need to check that
-        #   a) job was running in shared storage or
-        #   b) the job was running on the input machine
-        return (
-            self._work_dir is not None
-            and self._work_dir.resolve() == self._informer.info.input_dir.resolve()
-            and (
-                not self._informer.usesScratch()
-                or self._main_node == self._input_machine
-            )
-        )

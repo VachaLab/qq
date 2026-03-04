@@ -130,6 +130,7 @@ Each expression should follow the format `<type>=<job_id>[:<job_id>...]`, e.g., 
         f"The default value is {click.style('success', bold=True)} meaning that files are transferred only if the job finishes successfully.\n"
         f"When files are transferred, the working directory is deleted. "
         f"If files are not transferred, the working directory is preserved.\n"
+        f"Note that data from killed jobs are {click.style('never', bold=True)} automatically transferred.\n"
         f"This option is ignored if the input directory itself is used as the working directory.\n"
         f"Examples: `success`, `always`, `success:42`, `1 2 3`.\n"
     ),
