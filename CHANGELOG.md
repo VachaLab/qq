@@ -1,3 +1,9 @@
+## Version 0.8.0
+- Added the `--transfer-mode` and `--archive-mode` options, which allow automatically transferring (and archiving, respectively) files from the working directory based on the job's exit code. See [the manual](https://vachalab.github.io/qq-manual/transfer_modes.html) for more information.
+- As a consequence of the above change, the behavior of `qq go`, `qq sync`, and `qq wipe` has been slightly adjusted.
+
+***
+
 ## Version 0.7.2
 - **Bug fix:** Updated installation scripts so that installation works even for nodes opening login shell.
 
