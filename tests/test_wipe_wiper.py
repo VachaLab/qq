@@ -72,6 +72,24 @@ from qq_lib.wipe.wiper import Wiper
             "Job has been completed and was synchronized: working directory no longer exists",
         ),
         (
+            RealState.FINISHED,
+            0,
+            [Failure()],
+            "It may not be safe to delete a working directory of a successfully finished job",
+        ),
+        (
+            RealState.FINISHED,
+            0,
+            [Never()],
+            "It may not be safe to delete a working directory of a successfully finished job",
+        ),
+        (
+            RealState.FINISHED,
+            0,
+            [ExitCode(3)],
+            "It may not be safe to delete a working directory of a successfully finished job",
+        ),
+        (
             RealState.FAILED,
             1,
             [Failure()],
@@ -186,16 +204,6 @@ def test_wiper_ensure_suitable_raises_when_workdir_is_inputdir():
 @pytest.mark.parametrize(
     "state, job_exit_code, transfer_mode",
     [
-        (
-            RealState.FINISHED,
-            0,
-            [Failure()],
-        ),
-        (
-            RealState.FINISHED,
-            0,
-            [Never()],
-        ),
         (
             RealState.FAILED,
             1,

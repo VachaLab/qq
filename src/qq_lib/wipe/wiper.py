@@ -42,6 +42,11 @@ class Wiper(Navigator):
                 "Job has been completed and was synchronized: working directory no longer exists."
             )
 
+        if self._isFinished():
+            raise QQNotSuitableError(
+                "It may not be safe to delete a working directory of a successfully finished job. Rerun as 'qq wipe --force' if sure."
+            )
+
         if not self.hasDestination():
             raise QQNotSuitableError("Job does not have a working directory.")
 
