@@ -249,3 +249,21 @@ def test_transfer_modes_list_multi_from_str_whitespace_only():
 def test_transfer_modes_list_multi_from_str_invalid_mode_raises_error():
     with pytest.raises(QQError):
         TransferMode.multiFromStr("success:invalid_mode")
+
+
+@pytest.mark.parametrize(
+    "transfer_mode, expected",
+    [
+        (Always(), "always"),
+        (Never(), "never"),
+        (Success(), "success"),
+        (Failure(), "failure"),
+        (ExitCode(0), "0"),
+        (ExitCode(1), "1"),
+        (ExitCode(-1), "-1"),
+        (ExitCode(42), "42"),
+        (ExitCode(-100), "-100"),
+    ],
+)
+def test_transfer_mode_to_str(transfer_mode, expected):
+    assert transfer_mode.toStr() == expected

@@ -11,7 +11,7 @@ files.
 """
 
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
 
 from qq_lib.archive.archiver import Archiver
@@ -94,16 +94,14 @@ class LoopInfo:
 
     def toDict(self) -> dict[str, object]:
         """Return all fields as a dict."""
-        dict = {}
-        for k, v in asdict(self).items():
-            if isinstance(v, Path):
-                dict[k] = str(v)
-            elif isinstance(v, list[TransferMode]):
-                dict[k] = [TransferMode.toStr(x) for x in v]
-            else:
-                dict[k] = v
-
-        return dict
+        return {
+            "start": self.start,
+            "end": self.end,
+            "archive": str(self.archive),
+            "archive_format": self.archive_format,
+            "current": self.current,
+            "archive_mode": [mode.toStr() for mode in self.archive_mode],
+        }
 
     def toCommandLine(self) -> list[str]:
         """

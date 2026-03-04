@@ -9,7 +9,14 @@ import pytest
 
 from qq_lib.core.error import QQError
 from qq_lib.properties.loop import LoopInfo
-from qq_lib.properties.transfer_mode import ExitCode, Failure, Success, TransferMode
+from qq_lib.properties.transfer_mode import (
+    Always,
+    ExitCode,
+    Failure,
+    Never,
+    Success,
+    TransferMode,
+)
 
 
 def test_valid_constructor(tmp_path):
@@ -265,3 +272,80 @@ def test_to_command_line_archive_name_only():
         "--archive-mode",
         "success",
     ]
+
+
+@pytest.mark.parametrize(
+    "start, end, current, archive_format",
+    [
+        (0, 10, 3, "md%04d"),
+        (5, 20, 5, "job%03d"),
+        (0, 1, 0, "test*"),
+        (99, 100, 99, "md%5d"),
+    ],
+)
+def test_to_dict_scalar_fields(tmp_path, start, end, current, archive_format):
+    info = LoopInfo(
+        start=start,
+        end=end,
+        archive=tmp_path / "storage",
+        archive_format=archive_format,
+        current=current,
+    )
+    result = info.toDict()
+
+    assert result["start"] == start
+    assert result["end"] == end
+    assert result["current"] == current
+    assert result["archive_format"] == archive_format
+
+
+@pytest.mark.parametrize(
+    "archive_subdir",
+    [
+        "archive",
+        "jobs/loop_archive",
+        "data/results",
+    ],
+)
+def test_to_dict_archive_is_string(tmp_path, archive_subdir):
+    info = LoopInfo(
+        start=0,
+        end=10,
+        archive=tmp_path / archive_subdir,
+        archive_format="md%004d",
+        current=3,
+    )
+
+    result = info.toDict()
+
+    assert isinstance(result["archive"], str)
+    assert result["archive"] == str(info.archive)
+
+
+@pytest.mark.parametrize(
+    "archive_mode, expected_strings",
+    [
+        ([Always()], ["always"]),
+        ([Never()], ["never"]),
+        ([Success()], ["success"]),
+        ([Failure()], ["failure"]),
+        ([ExitCode(0)], ["0"]),
+        ([ExitCode(42)], ["42"]),
+        ([ExitCode(-1)], ["-1"]),
+        ([Success(), Failure()], ["success", "failure"]),
+        ([Always(), ExitCode(5), Never()], ["always", "5", "never"]),
+    ],
+)
+def test_to_dict_archive_mode_serialisation(tmp_path, archive_mode, expected_strings):
+    info = LoopInfo(
+        start=0,
+        end=10,
+        archive=tmp_path / "storage",
+        archive_format="md%04d",
+        current=3,
+        archive_mode=archive_mode,
+    )
+
+    result = info.toDict()
+
+    assert result["archive_mode"] == expected_strings
