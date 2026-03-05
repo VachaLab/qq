@@ -16,9 +16,10 @@ from pathlib import Path
 from typing import Self
 
 from qq_lib.archive.archiver import Archiver
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.properties.transfer_mode import Success, TransferMode
+from qq_lib.properties.transfer_mode import TransferMode
 
 logger = get_logger(__name__)
 
@@ -74,7 +75,9 @@ class LoopInfo:
             raise QQError("Input directory cannot be used as the loop job's archive.")
 
         self.archive_format = archive_format
-        self.archive_mode = archive_mode or [Success()]
+        self.archive_mode = archive_mode or TransferMode.multiFromStr(
+            CFG.transfer_files_options.default_archive_mode
+        )
 
         self.start = start
         self.end = end

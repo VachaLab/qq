@@ -26,7 +26,7 @@ from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
 from qq_lib.properties.states import NaiveState
-from qq_lib.properties.transfer_mode import Success, TransferMode
+from qq_lib.properties.transfer_mode import TransferMode
 
 logger = get_logger(__name__)
 
@@ -101,7 +101,9 @@ class Submitter:
             i if i.is_absolute() else self._input_dir / i for i in (include or [])
         ]
         self._depend = depend or []
-        self._transfer_mode = transfer_mode or [Success()]
+        self._transfer_mode = transfer_mode or TransferMode.multiFromStr(
+            CFG.transfer_files_options.default_transfer_mode
+        )
 
         # script must exist
         if not self._script.is_file():
