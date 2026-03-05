@@ -22,7 +22,6 @@ class BatchNodeInterface(ABC):
         Raises:
             QQError: If the node cannot be queried or its info updated.
         """
-        pass
 
     @abstractmethod
     def getName(self) -> str:
@@ -32,7 +31,6 @@ class BatchNodeInterface(ABC):
         Returns:
             str: The name identifying the node in the batch system.
         """
-        pass
 
     @abstractmethod
     def getNCPUs(self) -> int | None:
@@ -42,7 +40,6 @@ class BatchNodeInterface(ABC):
         Returns:
             int | None: Total CPU core count or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getNFreeCPUs(self) -> int | None:
@@ -52,7 +49,6 @@ class BatchNodeInterface(ABC):
         Returns:
             int | None: Number of free CPU cores or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getNGPUs(self) -> int | None:
@@ -62,7 +58,6 @@ class BatchNodeInterface(ABC):
         Returns:
             int | None: Total GPU count or `None` if not available..
         """
-        pass
 
     @abstractmethod
     def getNFreeGPUs(self) -> int | None:
@@ -72,7 +67,6 @@ class BatchNodeInterface(ABC):
         Returns:
             int | None: Number of free GPUs or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getCPUMemory(self) -> Size | None:
@@ -82,7 +76,6 @@ class BatchNodeInterface(ABC):
         Returns:
             Size | None: Total CPU memory available on the node or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getFreeCPUMemory(self) -> Size | None:
@@ -92,7 +85,6 @@ class BatchNodeInterface(ABC):
         Returns:
             Size | None: Free (unused) CPU memory or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getGPUMemory(self) -> Size | None:
@@ -102,7 +94,6 @@ class BatchNodeInterface(ABC):
         Returns:
             Size | None: Total GPU memory available or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getFreeGPUMemory(self) -> Size | None:
@@ -112,7 +103,6 @@ class BatchNodeInterface(ABC):
         Returns:
             Size | None: Free (unused) GPU memory or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getLocalScratch(self) -> Size | None:
@@ -122,7 +112,6 @@ class BatchNodeInterface(ABC):
         Returns:
             Size | None: Total size of local scratch space or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getFreeLocalScratch(self) -> Size | None:
@@ -132,7 +121,6 @@ class BatchNodeInterface(ABC):
         Returns:
             Size | None: Free local scratch space or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getSSDScratch(self) -> Size | None:
@@ -142,7 +130,6 @@ class BatchNodeInterface(ABC):
         Returns:
             Size | None: Total SSD scratch capacity or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getFreeSSDScratch(self) -> Size | None:
@@ -152,7 +139,6 @@ class BatchNodeInterface(ABC):
         Returns:
             Size | None: Free SSD scratch space or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getSharedScratch(self) -> Size | None:
@@ -162,7 +148,6 @@ class BatchNodeInterface(ABC):
         Returns:
             Size | None: Total shared scratch capacity or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getFreeSharedScratch(self) -> Size | None:
@@ -172,7 +157,6 @@ class BatchNodeInterface(ABC):
         Returns:
             Size | None: Free shared scratch space or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getProperties(self) -> list[str]:
@@ -182,7 +166,6 @@ class BatchNodeInterface(ABC):
         Returns:
             list[str]: List of node property strings.
         """
-        pass
 
     @abstractmethod
     def isAvailableToUser(self, user: str) -> bool:
@@ -195,7 +178,6 @@ class BatchNodeInterface(ABC):
         Returns:
             bool: True if the node is up and schedulable, False otherwise.
         """
-        pass
 
     @abstractmethod
     def toYaml(self) -> str:
@@ -205,4 +187,3 @@ class BatchNodeInterface(ABC):
         Returns:
             str: YAML-formatted string of node metadata.
         """
-        pass

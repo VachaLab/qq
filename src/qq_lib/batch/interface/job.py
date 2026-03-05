@@ -32,7 +32,6 @@ class BatchJobInterface(ABC):
         Returns:
             bool: True if the job contains no information.
         """
-        pass
 
     @abstractmethod
     def getId(self) -> str:
@@ -42,7 +41,6 @@ class BatchJobInterface(ABC):
         Returns:
             str: The ID of the job.
         """
-        pass
 
     @abstractmethod
     def getAccount(self) -> str | None:
@@ -53,7 +51,6 @@ class BatchJobInterface(ABC):
             str | None: Account associated with the job or None if no
             account is defined.
         """
-        pass
 
     @abstractmethod
     def update(self) -> None:
@@ -63,7 +60,6 @@ class BatchJobInterface(ABC):
         Raises:
             QQError: If the job cannot be queried or its info updated.
         """
-        pass
 
     @abstractmethod
     def getState(self) -> BatchState:
@@ -75,7 +71,6 @@ class BatchJobInterface(ABC):
         Returns:
             BatchState: The job state according to the batch system.
         """
-        pass
 
     @abstractmethod
     def getComment(self) -> str | None:
@@ -86,7 +81,6 @@ class BatchJobInterface(ABC):
             str | None: The job's comment string if available, or None if the
             batch system has not attached a comment.
         """
-        pass
 
     @abstractmethod
     def getEstimated(self) -> tuple[datetime, str] | None:
@@ -99,7 +93,6 @@ class BatchJobInterface(ABC):
                 - str: The name of the node where the job is expected to run.
             Returns None if either estimate is unavailable.
         """
-        pass
 
     @abstractmethod
     def getMainNode(self) -> str | None:
@@ -110,7 +103,6 @@ class BatchJobInterface(ABC):
             str | None: The hostname of the main execution node, or ``None``
             if unavailable or not applicable.
         """
-        pass
 
     @abstractmethod
     def getNodes(self) -> list[str] | None:
@@ -122,7 +114,6 @@ class BatchJobInterface(ABC):
                 A list of hostnames or node identifiers used by the job,
                 or `None` if node information is not available.
         """
-        pass
 
     @abstractmethod
     def getShortNodes(self) -> list[str] | None:
@@ -134,7 +125,6 @@ class BatchJobInterface(ABC):
                 A list of short hostnames used by the job, or `None` if node information
                 is not available.
         """
-        pass
 
     @abstractmethod
     def getUser(self) -> str | None:
@@ -144,7 +134,6 @@ class BatchJobInterface(ABC):
         Returns:
             str | None: Username of the user who owns the job or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getNCPUs(self) -> int | None:
@@ -154,7 +143,6 @@ class BatchJobInterface(ABC):
         Returns:
             int | None: Number of CPUs allocated for the job or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getNGPUs(self) -> int | None:
@@ -164,7 +152,6 @@ class BatchJobInterface(ABC):
         Returns:
             int | None: Number of GPUs allocated for the job or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getNNodes(self) -> int | None:
@@ -174,7 +161,6 @@ class BatchJobInterface(ABC):
         Returns:
             int | None: Number of nodes used by the job or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getMem(self) -> Size | None:
@@ -184,7 +170,6 @@ class BatchJobInterface(ABC):
         Returns:
             Size | None: Amount of memory allocated for the job or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getName(self) -> str | None:
@@ -194,7 +179,6 @@ class BatchJobInterface(ABC):
         Returns:
             str | None: The name of the submitted job or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getSubmissionTime(self) -> datetime | None:
@@ -205,7 +189,6 @@ class BatchJobInterface(ABC):
             datetime | None: Time when the job was submitted to the batch system
             or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getStartTime(self) -> datetime | None:
@@ -216,7 +199,6 @@ class BatchJobInterface(ABC):
             datetime | None: Time when the job began running or
             `None` if the job has not yet started.
         """
-        pass
 
     @abstractmethod
     def getCompletionTime(self) -> datetime | None:
@@ -227,7 +209,6 @@ class BatchJobInterface(ABC):
             datetime | None: Time when the job completed or
             `None` if the job has not yet completed.
         """
-        pass
 
     @abstractmethod
     def getModificationTime(self) -> datetime | None:
@@ -238,7 +219,6 @@ class BatchJobInterface(ABC):
             datetime | None: Time when the job was last modified or `None`
             if the information is not available.
         """
-        pass
 
     @abstractmethod
     def getWalltime(self) -> timedelta | None:
@@ -248,7 +228,6 @@ class BatchJobInterface(ABC):
         Returns:
             timedelta | None: Walltime for the job or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getQueue(self) -> str | None:
@@ -258,7 +237,6 @@ class BatchJobInterface(ABC):
         Returns:
             str | None: The queue this job is part of or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getUtilCPU(self) -> int | None:
@@ -268,7 +246,6 @@ class BatchJobInterface(ABC):
         Returns:
             int | None: Utilization of requested CPUs or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getUtilMem(self) -> int | None:
@@ -278,7 +255,6 @@ class BatchJobInterface(ABC):
         Returns:
             int | None: Utilization of requested memory or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getExitCode(self) -> int | None:
@@ -288,7 +264,6 @@ class BatchJobInterface(ABC):
         Returns:
             int | None: Exit code of the job or `None` if exit code is not assigned.
         """
-        pass
 
     @abstractmethod
     def getInputDir(self) -> Path | None:
@@ -298,7 +273,6 @@ class BatchJobInterface(ABC):
         Returns:
             Path | None: Path to the submission directory or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getInputMachine(self) -> str | None:
@@ -308,7 +282,6 @@ class BatchJobInterface(ABC):
         Returns:
             str | None: Hostname of the submission machine or `None` if not available.
         """
-        pass
 
     @abstractmethod
     def getInfoFile(self) -> Path | None:
@@ -319,7 +292,6 @@ class BatchJobInterface(ABC):
             Path | None: Path to the qq info file or `None` if
             this is not a qq job.
         """
-        pass
 
     @abstractmethod
     def toYaml(self) -> str:
@@ -329,7 +301,6 @@ class BatchJobInterface(ABC):
         Returns:
             str: YAML-formatted string of job metadata.
         """
-        pass
 
     @abstractmethod
     def getSteps(self) -> Sequence[Self]:
@@ -342,7 +313,6 @@ class BatchJobInterface(ABC):
         Returns:
             Sequence[BatchJobInterface]: List of job steps. An empty list if there are none.
         """
-        pass
 
     @abstractmethod
     def getStepId(self) -> str | None:
@@ -352,7 +322,6 @@ class BatchJobInterface(ABC):
         Returns:
             str | None: Job step index or `None` if this is not a job step.
         """
-        pass
 
     @abstractmethod
     def isArrayJob(self) -> bool:
@@ -362,4 +331,3 @@ class BatchJobInterface(ABC):
         Returns:
             bool: `True` if the job is a top-level array job, else `False`.
         """
-        pass
