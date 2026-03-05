@@ -346,10 +346,7 @@ class Info:
                 init_kwargs[name] = JobType.fromStr(value)
             # convert optional loop job info
             elif f.type == LoopInfo | None and isinstance(value, dict):
-                # 'archive' must be converted to Path
-                init_kwargs[name] = LoopInfo(
-                    **{k: Path(v) if k == "archive" else v for k, v in value.items()}  # ty: ignore[invalid-argument-type]
-                )
+                init_kwargs[name] = LoopInfo.fromDict(value)  # ty: ignore[invalid-argument-type]
             # convert resources
             elif f.type == Resources:
                 init_kwargs[name] = Resources(**value)  # ty: ignore[invalid-argument-type]

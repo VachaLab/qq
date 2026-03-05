@@ -75,19 +75,19 @@ from qq_lib.wipe.wiper import Wiper
             RealState.FINISHED,
             0,
             [Failure()],
-            "It may not be safe to delete a working directory of a successfully finished job",
+            "It may not be safe to delete the working directory of a successfully finished job",
         ),
         (
             RealState.FINISHED,
             0,
             [Never()],
-            "It may not be safe to delete a working directory of a successfully finished job",
+            "It may not be safe to delete the working directory of a successfully finished job",
         ),
         (
             RealState.FINISHED,
             0,
             [ExitCode(3)],
-            "It may not be safe to delete a working directory of a successfully finished job",
+            "It may not be safe to delete the working directory of a successfully finished job",
         ),
         (
             RealState.FAILED,

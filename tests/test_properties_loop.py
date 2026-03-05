@@ -349,3 +349,93 @@ def test_to_dict_archive_mode_serialisation(tmp_path, archive_mode, expected_str
     result = info.toDict()
 
     assert result["archive_mode"] == expected_strings
+
+
+def test_from_dict_returns_correct_instance_with_all_fields():
+    result = LoopInfo.fromDict(
+        {
+            "start": 2,
+            "end": 10,
+            "archive": "storage",
+            "archive_format": "md%04d",
+            "current": 5,
+            "archive_mode": ["success"],
+        }
+    )
+    assert result.start == 2
+    assert result.end == 10
+    assert result.archive == Path("storage").resolve()
+    assert result.archive_format == "md%04d"
+    assert result.current == 5
+    assert result.archive_mode == [Success()]
+
+
+def test_from_dict_roundtrip_produces_equivalent_fields():
+    original = LoopInfo(
+        start=1,
+        end=5,
+        archive=Path("/tmp/archive"),
+        archive_format="job%03d",
+        current=3,
+        archive_mode=[Success(), Failure(), ExitCode(42)],
+    )
+    result = LoopInfo.fromDict(original.toDict())
+    assert result.start == original.start
+    assert result.end == original.end
+    assert result.archive == original.archive
+    assert result.archive_format == original.archive_format
+    assert result.current == original.current
+    assert result.archive_mode == original.archive_mode
+
+
+@pytest.mark.parametrize(
+    "field, value, match",
+    [
+        ("start", "0", "start"),
+        ("start", None, "start"),
+        ("end", "10", "end"),
+        ("end", None, "end"),
+        ("archive", 123, "archive"),
+        ("archive", None, "archive"),
+        ("archive_format", 123, "archive_format"),
+        ("archive_format", None, "archive_format"),
+        ("current", "3", "current"),
+        ("current", None, "current"),
+    ],
+)
+def test_from_dict_raises_on_wrong_field_type(field, value, match):
+    data = {
+        "start": 0,
+        "end": 10,
+        "archive": "/tmp/archive",
+        "archive_format": "md%04d",
+        "current": 3,
+        "archive_mode": ["success"],
+        field: value,
+    }
+    with pytest.raises(QQError, match=match):
+        LoopInfo.fromDict(data)
+
+
+@pytest.mark.parametrize(
+    "archive_mode",
+    [
+        "success",
+        123,
+        None,
+        ["success", 123],
+        [None],
+    ],
+)
+def test_from_dict_raises_on_invalid_archive_mode(archive_mode):
+    with pytest.raises(QQError, match="archive_mode"):
+        LoopInfo.fromDict(
+            {
+                "start": 0,
+                "end": 10,
+                "archive": "/tmp/archive",
+                "archive_format": "md%04d",
+                "current": 3,
+                "archive_mode": archive_mode,
+            }
+        )

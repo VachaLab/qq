@@ -13,6 +13,7 @@ files.
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Self
 
 from qq_lib.archive.archiver import Archiver
 from qq_lib.core.error import QQError
@@ -91,6 +92,54 @@ class LoopInfo:
             raise QQError(
                 f"Current cycle number ({self.current}) cannot be higher than 'loop-end' ({self.end})."
             )
+
+    @classmethod
+    def fromDict(cls, data: dict[str, object]) -> Self:
+        """
+        Reconstruct a LoopInfo instance from a dictionary produced by toDict.
+
+        Args:
+            data (dict[str, object]): A dictionary as returned by `toDict()`.
+
+        Returns:
+            LoopInfo: A new instance with fields populated from the dictionary.
+        """
+        start = data.get("start")
+        end = data.get("end")
+        archive = data.get("archive")
+        archive_format = data.get("archive_format")
+        current = data.get("current")
+        archive_mode = data.get("archive_mode")
+
+        if not isinstance(start, int):
+            raise QQError(f"Field 'start' must be an int, got {type(start).__name__}.")
+        if not isinstance(end, int):
+            raise QQError(f"Field 'end' must be an int, got {type(end).__name__}.")
+        if not isinstance(archive, str):
+            raise QQError(
+                f"Field 'archive' must be a str, got {type(archive).__name__}."
+            )
+        if not isinstance(archive_format, str):
+            raise QQError(
+                f"Field 'archive_format' must be a str, got {type(archive_format).__name__}."
+            )
+        if not isinstance(current, int):
+            raise QQError(
+                f"Field 'current' must be an int, got {type(current).__name__}."
+            )
+        if not isinstance(archive_mode, list) or not all(
+            isinstance(m, str) for m in archive_mode
+        ):
+            raise QQError("Field 'archive_mode' must be a list of strings.")
+
+        return cls(
+            start=start,
+            end=end,
+            archive=Path(archive),
+            archive_format=archive_format,
+            current=current,
+            archive_mode=[TransferMode.fromStr(mode) for mode in archive_mode],  # ty: ignore[invalid-argument-type]
+        )
 
     def toDict(self) -> dict[str, object]:
         """Return all fields as a dict."""

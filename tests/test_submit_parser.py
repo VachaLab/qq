@@ -221,6 +221,21 @@ def test_parser_get_include_empty_list():
     assert result == []
 
 
+def test_parser_get_include_calls_split_files_list_single_numeric_value():
+    parser = Parser.__new__(Parser)
+    parser._options = {"include": 16}
+
+    mock_split_result = [Path("16")]
+
+    with patch(
+        "qq_lib.submit.parser.split_files_list", return_value=mock_split_result
+    ) as mock_split:
+        result = parser.getInclude()
+
+    mock_split.assert_called_once_with("16")
+    assert result == mock_split_result
+
+
 def test_parser_get_include_calls_split_files_list():
     parser = Parser.__new__(Parser)
     parser._options = {"include": "file1,file2"}
@@ -322,6 +337,21 @@ def test_parser_get_transfer_mode_empty_list():
 
     result = parser.getTransferMode()
     assert result == []
+
+
+def test_parser_get_transfer_mode_single_int():
+    parser = Parser.__new__(Parser)
+    parser._options = {"transfer_mode": 1}
+
+    mock_transfer_list = [MagicMock()]
+
+    with patch.object(
+        TransferMode, "multiFromStr", return_value=mock_transfer_list
+    ) as mock_multi:
+        result = parser.getTransferMode()
+
+    mock_multi.assert_called_once_with("1")
+    assert result == mock_transfer_list
 
 
 def test_parser_get_transfer_mode_calls_multi_from_str():

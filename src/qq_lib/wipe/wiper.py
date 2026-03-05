@@ -44,7 +44,7 @@ class Wiper(Navigator):
 
         if self._isFinished():
             raise QQNotSuitableError(
-                "It may not be safe to delete a working directory of a successfully finished job. Rerun as 'qq wipe --force' if sure."
+                "It may not be safe to delete the working directory of a successfully finished job. Rerun as 'qq wipe --force' if sure."
             )
 
         if not self.hasDestination():
