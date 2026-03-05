@@ -41,7 +41,7 @@ def test_submitter_factory_init(tmp_path):
     mock_parser_class.assert_called_once()
 
 
-def test_submitter_factory_get_depend():
+def test_submitter_factory_get_depend_from_command_line():
     mock_parser = MagicMock()
     parser_depend = [MagicMock(), MagicMock()]
     mock_parser.getDepend.return_value = parser_depend
@@ -58,10 +58,24 @@ def test_submitter_factory_get_depend():
         result = factory._getDepend()
 
     mock_multi.assert_called_once_with("afterok=1234,afterany=2345")
-    assert result == cli_depend_list + parser_depend
+    assert result == cli_depend_list
 
 
-def test_submitter_factory_get_transfer_mode():
+def test_submitter_factory_get_depend_from_parser():
+    mock_parser = MagicMock()
+    parser_depend = [MagicMock(), MagicMock()]
+    mock_parser.getDepend.return_value = parser_depend
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {}
+
+    result = factory._getDepend()
+
+    assert result == parser_depend
+
+
+def test_submitter_factory_get_transfer_mode_from_command_line():
     mock_parser = MagicMock()
     parser_transfer_mode = [MagicMock(), MagicMock()]
     mock_parser.getTransferMode.return_value = parser_transfer_mode
@@ -78,10 +92,23 @@ def test_submitter_factory_get_transfer_mode():
         result = factory._getTransferMode()
 
     mock_multi.assert_called_once_with("success,1")
-    assert result == cli_transfer_list + parser_transfer_mode
+    assert result == cli_transfer_list
 
 
-def test_submitter_factory_get_exclude():
+def test_submitter_factory_get_transfer_mode_from_parser():
+    mock_parser = MagicMock()
+    parser_transfer_mode = [MagicMock(), MagicMock()]
+    mock_parser.getTransferMode.return_value = parser_transfer_mode
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {}
+
+    result = factory._getTransferMode()
+    assert result == parser_transfer_mode
+
+
+def test_submitter_factory_get_exclude_from_command_line():
     mock_parser = MagicMock()
     parser_excludes = [Path("/tmp/file1"), Path("/tmp/file2")]
     mock_parser.getExclude.return_value = parser_excludes
@@ -98,10 +125,23 @@ def test_submitter_factory_get_exclude():
         result = factory._getExclude()
 
     mock_split.assert_called_once_with("/tmp/file3,/tmp/file4")
-    assert set(result) == set(cli_excludes + parser_excludes)
+    assert result == cli_excludes
 
 
-def test_submitter_factory_get_include():
+def test_submitter_factory_get_exclude_from_parser():
+    mock_parser = MagicMock()
+    parser_excludes = [Path("/tmp/file1"), Path("/tmp/file2")]
+    mock_parser.getExclude.return_value = parser_excludes
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {}
+
+    result = factory._getExclude()
+    assert result == parser_excludes
+
+
+def test_submitter_factory_get_include_from_command_line():
     mock_parser = MagicMock()
     parser_includes = [Path("/tmp/file1"), Path("/tmp/file2")]
     mock_parser.getInclude.return_value = parser_includes
@@ -118,7 +158,20 @@ def test_submitter_factory_get_include():
         result = factory._getInclude()
 
     mock_split.assert_called_once_with("/tmp/file3,/tmp/file4")
-    assert set(result) == set(cli_includes + parser_includes)
+    assert result == cli_includes
+
+
+def test_submitter_factory_get_include_from_parser():
+    mock_parser = MagicMock()
+    parser_includes = [Path("/tmp/file1"), Path("/tmp/file2")]
+    mock_parser.getInclude.return_value = parser_includes
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {}
+
+    result = factory._getInclude()
+    assert result == parser_includes
 
 
 def test_submitter_factory_get_loop_info_uses_cli_over_parser():
@@ -211,7 +264,7 @@ def test_submitter_factory_get_loop_info_mixed_cli_parser_and_defaults_with_arch
     assert loop_info.end == 50  # parser
     assert loop_info.archive == Path("fake_path/storage").resolve()  # default
     assert loop_info.archive_format == "job%02d"  # parser
-    assert loop_info.archive_mode == [Never(), Success(), ExitCode(3)]  # combination
+    assert loop_info.archive_mode == [Never()]  # CLI
 
 
 def test_submitter_factory_get_resources():
