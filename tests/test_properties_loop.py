@@ -336,7 +336,7 @@ def test_to_dict_archive_is_string(tmp_path, archive_subdir):
         ([Always(), ExitCode(5), Never()], ["always", "5", "never"]),
     ],
 )
-def test_to_dict_archive_mode_serialisation(tmp_path, archive_mode, expected_strings):
+def test_to_dict_archive_mode_serialization(tmp_path, archive_mode, expected_strings):
     info = LoopInfo(
         start=0,
         end=10,
@@ -360,6 +360,24 @@ def test_from_dict_returns_correct_instance_with_all_fields():
             "archive_format": "md%04d",
             "current": 5,
             "archive_mode": ["success"],
+        }
+    )
+    assert result.start == 2
+    assert result.end == 10
+    assert result.archive == Path("storage").resolve()
+    assert result.archive_format == "md%04d"
+    assert result.current == 5
+    assert result.archive_mode == [Success()]
+
+
+def test_from_dict_returns_correct_instance_with_archive_mode_missing():
+    result = LoopInfo.fromDict(
+        {
+            "start": 2,
+            "end": 10,
+            "archive": "storage",
+            "archive_format": "md%04d",
+            "current": 5,
         }
     )
     assert result.start == 2

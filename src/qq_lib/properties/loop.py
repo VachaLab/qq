@@ -112,7 +112,7 @@ class LoopInfo:
         archive = data.get("archive")
         archive_format = data.get("archive_format")
         current = data.get("current")
-        archive_mode = data.get("archive_mode")
+        archive_mode = data.get("archive_mode", ["success"])
 
         if not isinstance(start, int):
             raise QQError(f"Field 'start' must be an int, got {type(start).__name__}.")
