@@ -9,6 +9,14 @@ import pytest
 
 from qq_lib.core.error import QQError
 from qq_lib.properties.loop import LoopInfo
+from qq_lib.properties.transfer_mode import (
+    Always,
+    ExitCode,
+    Failure,
+    Never,
+    Success,
+    TransferMode,
+)
 
 
 def test_valid_constructor(tmp_path):
@@ -27,6 +35,7 @@ def test_valid_constructor(tmp_path):
     assert loop_info.current == 1
     assert loop_info.archive == (input_dir / "archive").resolve()
     assert loop_info.archive_format == "md%04d"
+    assert loop_info.archive_mode == [Success()]
 
 
 def test_constructor_with_current(tmp_path):
@@ -46,6 +55,26 @@ def test_constructor_with_current(tmp_path):
     assert loop_info.current == 5
     assert loop_info.archive == (input_dir / "archive").resolve()
     assert loop_info.archive_format == "md%04d"
+
+
+def test_constructor_with_archive_mode(tmp_path):
+    input_dir = tmp_path / "job"
+
+    loop_info = LoopInfo(
+        start=1,
+        end=5,
+        archive=input_dir / "archive",
+        input_dir=input_dir,
+        archive_format="md%04d",
+        archive_mode=TransferMode.multiFromStr("0,failure"),
+    )
+
+    assert loop_info.start == 1
+    assert loop_info.end == 5
+    assert loop_info.current == 1
+    assert loop_info.archive == (input_dir / "archive").resolve()
+    assert loop_info.archive_format == "md%04d"
+    assert loop_info.archive_mode == [ExitCode(0), Failure()]
 
 
 def test_missing_end(tmp_path):
@@ -218,6 +247,8 @@ def test_to_command_line_basic():
         "archive",
         "--archive-format",
         "job%04d",
+        "--archive-mode",
+        "success",
     ]
 
 
@@ -238,4 +269,173 @@ def test_to_command_line_archive_name_only():
         "myarchive",
         "--archive-format",
         "md%03d",
+        "--archive-mode",
+        "success",
     ]
+
+
+@pytest.mark.parametrize(
+    "start, end, current, archive_format",
+    [
+        (0, 10, 3, "md%04d"),
+        (5, 20, 5, "job%03d"),
+        (0, 1, 0, "test*"),
+        (99, 100, 99, "md%5d"),
+    ],
+)
+def test_to_dict_scalar_fields(tmp_path, start, end, current, archive_format):
+    info = LoopInfo(
+        start=start,
+        end=end,
+        archive=tmp_path / "storage",
+        archive_format=archive_format,
+        current=current,
+    )
+    result = info.toDict()
+
+    assert result["start"] == start
+    assert result["end"] == end
+    assert result["current"] == current
+    assert result["archive_format"] == archive_format
+
+
+@pytest.mark.parametrize(
+    "archive_subdir",
+    [
+        "archive",
+        "jobs/loop_archive",
+        "data/results",
+    ],
+)
+def test_to_dict_archive_is_string(tmp_path, archive_subdir):
+    info = LoopInfo(
+        start=0,
+        end=10,
+        archive=tmp_path / archive_subdir,
+        archive_format="md%004d",
+        current=3,
+    )
+
+    result = info.toDict()
+
+    assert isinstance(result["archive"], str)
+    assert result["archive"] == str(info.archive)
+
+
+@pytest.mark.parametrize(
+    "archive_mode, expected_strings",
+    [
+        ([Always()], ["always"]),
+        ([Never()], ["never"]),
+        ([Success()], ["success"]),
+        ([Failure()], ["failure"]),
+        ([ExitCode(0)], ["0"]),
+        ([ExitCode(42)], ["42"]),
+        ([ExitCode(-1)], ["-1"]),
+        ([Success(), Failure()], ["success", "failure"]),
+        ([Always(), ExitCode(5), Never()], ["always", "5", "never"]),
+    ],
+)
+def test_to_dict_archive_mode_serialisation(tmp_path, archive_mode, expected_strings):
+    info = LoopInfo(
+        start=0,
+        end=10,
+        archive=tmp_path / "storage",
+        archive_format="md%04d",
+        current=3,
+        archive_mode=archive_mode,
+    )
+
+    result = info.toDict()
+
+    assert result["archive_mode"] == expected_strings
+
+
+def test_from_dict_returns_correct_instance_with_all_fields():
+    result = LoopInfo.fromDict(
+        {
+            "start": 2,
+            "end": 10,
+            "archive": "storage",
+            "archive_format": "md%04d",
+            "current": 5,
+            "archive_mode": ["success"],
+        }
+    )
+    assert result.start == 2
+    assert result.end == 10
+    assert result.archive == Path("storage").resolve()
+    assert result.archive_format == "md%04d"
+    assert result.current == 5
+    assert result.archive_mode == [Success()]
+
+
+def test_from_dict_roundtrip_produces_equivalent_fields():
+    original = LoopInfo(
+        start=1,
+        end=5,
+        archive=Path("/tmp/archive"),
+        archive_format="job%03d",
+        current=3,
+        archive_mode=[Success(), Failure(), ExitCode(42)],
+    )
+    result = LoopInfo.fromDict(original.toDict())
+    assert result.start == original.start
+    assert result.end == original.end
+    assert result.archive == original.archive
+    assert result.archive_format == original.archive_format
+    assert result.current == original.current
+    assert result.archive_mode == original.archive_mode
+
+
+@pytest.mark.parametrize(
+    "field, value, match",
+    [
+        ("start", "0", "start"),
+        ("start", None, "start"),
+        ("end", "10", "end"),
+        ("end", None, "end"),
+        ("archive", 123, "archive"),
+        ("archive", None, "archive"),
+        ("archive_format", 123, "archive_format"),
+        ("archive_format", None, "archive_format"),
+        ("current", "3", "current"),
+        ("current", None, "current"),
+    ],
+)
+def test_from_dict_raises_on_wrong_field_type(field, value, match):
+    data = {
+        "start": 0,
+        "end": 10,
+        "archive": "/tmp/archive",
+        "archive_format": "md%04d",
+        "current": 3,
+        "archive_mode": ["success"],
+        field: value,
+    }
+    with pytest.raises(QQError, match=match):
+        LoopInfo.fromDict(data)
+
+
+@pytest.mark.parametrize(
+    "archive_mode",
+    [
+        "success",
+        123,
+        None,
+        ["success", 123],
+        [None],
+    ],
+)
+def test_from_dict_raises_on_invalid_archive_mode(archive_mode):
+    with pytest.raises(QQError, match="archive_mode"):
+        LoopInfo.fromDict(
+            {
+                "start": 0,
+                "end": 10,
+                "archive": "/tmp/archive",
+                "archive_format": "md%04d",
+                "current": 3,
+                "archive_mode": archive_mode,
+            }
+        )

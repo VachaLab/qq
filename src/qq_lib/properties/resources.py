@@ -184,19 +184,6 @@ class Resources(HasCouplingMethods):
         processed_couplings: set[FieldCoupling] = set()
 
         for f in fields(Resources):
-            # handle props
-            if f.name == "props":
-                # merge all props dictionaries; first occurence of each key wins
-                merged_props: dict[str, str] = {}
-                for r in resources:
-                    if r.props:
-                        # only add keys that have not been added yet
-                        merged_props |= {
-                            k: v for k, v in r.props.items() if k not in merged_props
-                        }
-                merged_data[f.name] = merged_props or None
-                continue
-
             # check if this field is part of a coupling
             if coupling := Resources.getCouplingForField(f.name):
                 # skip if coupling already processed

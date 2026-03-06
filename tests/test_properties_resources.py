@@ -163,16 +163,16 @@ def test_merge_resources_basic_field_precedence():
     assert merged.work_dir == "input_dir"
 
 
-def test_merge_resources_props_merging_order_and_dedup():
+def test_merge_resources_props_1():
     r1 = Resources(props="cl_example,ssd")
     r2 = Resources(props="ssd:infiniband")
     r3 = Resources(props=None)
     merged = Resources.mergeResources(r1, r2, r3)
 
-    assert merged.props == {"cl_example": "true", "ssd": "true", "infiniband": "true"}
+    assert merged.props == {"cl_example": "true", "ssd": "true"}
 
 
-def test_merge_resources_props_merging_order_and_dedup_disallowed():
+def test_merge_resources_props_2():
     r1 = Resources(props="vnode=example_node  ^ssd")
     r2 = Resources(props="ssd,infiniband:^property")
     r3 = Resources(props=None)
@@ -181,12 +181,10 @@ def test_merge_resources_props_merging_order_and_dedup_disallowed():
     assert merged.props == {
         "vnode": "example_node",
         "ssd": "false",
-        "infiniband": "true",
-        "property": "false",
     }
 
 
-def test_merge_resources_props_merging_order_and_dedup_disallowed2():
+def test_merge_resources_props_3():
     r1 = Resources(props="vnode=^example_node  ssd")
     r2 = Resources(props=None)
     r3 = Resources(props="^ssd,infiniband:property")
@@ -195,8 +193,6 @@ def test_merge_resources_props_merging_order_and_dedup_disallowed2():
     assert merged.props == {
         "vnode": "^example_node",
         "ssd": "true",
-        "infiniband": "true",
-        "property": "true",
     }
 
 
@@ -373,7 +369,7 @@ def test_merge_resources_all_fields_combined():
     assert merged.work_size is not None
     assert merged.work_size.value == 25165824
     assert merged.work_dir == "scratch_local"
-    assert merged.props == {"gpu": "true", "ssd": "false"}
+    assert merged.props == {"gpu": "true"}
 
 
 def test_merge_resources_with_none_resources():

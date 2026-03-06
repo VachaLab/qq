@@ -830,12 +830,16 @@ def test_runner_finalize_failure_updates_info_failed(mock_copy, mock_logger_info
     runner._process = MagicMock()
     runner._process.returncode = 91
     runner._use_scratch = True
+    runner._archiver = None
+    runner._informer = MagicMock()
+    runner._informer.shouldTransferFiles = MagicMock(return_value=False)
     runner._updateInfoFailed = MagicMock()
 
     runner.finalize()
 
     mock_copy.assert_called_once_with(retry=True)
     runner._updateInfoFailed.assert_called_once_with(91)
+    runner._informer.shouldTransferFiles.assert_called_once_with(91)
     mock_logger_info.assert_any_call("Finalizing the execution.")
     mock_logger_info.assert_any_call("Job completed with an exit code of 91.")
 
@@ -849,6 +853,7 @@ def test_runner_finalize_failure_updates_info_failed_no_scratch(
     runner._process = MagicMock()
     runner._process.returncode = 91
     runner._use_scratch = False
+    runner._archiver = None
     runner._updateInfoFailed = MagicMock()
 
     runner.finalize()
@@ -872,6 +877,8 @@ def test_runner_finalize_with_scratch_and_archiver(mock_logger_info):
     runner._informer = MagicMock()
     runner._informer.info.input_machine = "random.host.org"
     runner._informer.info.job_type = JobType.STANDARD
+    runner._informer.shouldTransferFiles = MagicMock(return_value=True)
+    runner._informer.shouldArchiveFiles = MagicMock(return_value=True)
 
     runner._deleteWorkDir = MagicMock()
     runner._updateInfoFinished = MagicMock()
@@ -895,6 +902,35 @@ def test_runner_finalize_with_scratch_and_archiver(mock_logger_info):
 
 
 @patch("qq_lib.run.runner.logger.info")
+def test_runner_finalize_with_scratch_and_archiver_at_failure(mock_logger_info):
+    runner = Runner.__new__(Runner)
+    runner._process = MagicMock()
+    runner._process.returncode = 1
+    runner._archiver = MagicMock()
+    runner._use_scratch = True
+    runner._work_dir = Path("/work")
+    runner._input_dir = Path("/input")
+    runner._batch_system = MagicMock()
+    runner._informer = MagicMock()
+    runner._informer.info.input_machine = "random.host.org"
+    runner._informer.info.job_type = JobType.STANDARD
+    runner._informer.shouldTransferFiles = MagicMock(return_value=False)
+    runner._informer.shouldArchiveFiles = MagicMock(return_value=False)
+
+    runner._deleteWorkDir = MagicMock()
+    runner._updateInfoFailed = MagicMock()
+
+    runner.finalize()
+
+    runner._archiver.toArchive.assert_not_called()
+    runner._deleteWorkDir.assert_not_called()
+    runner._updateInfoFailed.assert_called_once()
+
+    mock_logger_info.assert_any_call("Finalizing the execution.")
+    mock_logger_info.assert_any_call("Job completed with an exit code of 1.")
+
+
+@patch("qq_lib.run.runner.logger.info")
 def test_runner_finalize_with_scratch_and_without_archiver(mock_logger_info):
     runner = Runner.__new__(Runner)
     runner._process = MagicMock()
@@ -907,6 +943,7 @@ def test_runner_finalize_with_scratch_and_without_archiver(mock_logger_info):
     runner._informer = MagicMock()
     runner._informer.info.input_machine = "random.host.org"
     runner._informer.info.job_type = JobType.STANDARD
+    runner._informer.shouldTransferFiles = MagicMock(return_value=True)
 
     runner._deleteWorkDir = MagicMock()
     runner._updateInfoFinished = MagicMock()
@@ -937,6 +974,7 @@ def test_runner_finalize_without_scratch_and_with_archiver(mock_logger_info):
     runner._informer = MagicMock()
     runner._informer.info.input_machine = "random.host.org"
     runner._informer.info.job_type = JobType.STANDARD
+    runner._informer.shouldArchiveFiles = MagicMock(return_value=True)
 
     runner._deleteWorkDir = MagicMock()
     runner._updateInfoFinished = MagicMock()
@@ -948,6 +986,33 @@ def test_runner_finalize_without_scratch_and_with_archiver(mock_logger_info):
     runner._updateInfoFinished.assert_called_once()
     mock_logger_info.assert_any_call("Finalizing the execution.")
     mock_logger_info.assert_any_call("Job completed with an exit code of 0.")
+
+
+@patch("qq_lib.run.runner.logger.info")
+def test_runner_finalize_without_scratch_and_with_archiver_at_failure(mock_logger_info):
+    runner = Runner.__new__(Runner)
+    runner._process = MagicMock()
+    runner._process.returncode = 1
+    runner._archiver = MagicMock()
+    runner._use_scratch = False
+    runner._work_dir = Path("/work")
+    runner._input_dir = Path("/input")
+    runner._batch_system = MagicMock()
+    runner._informer = MagicMock()
+    runner._informer.info.input_machine = "random.host.org"
+    runner._informer.info.job_type = JobType.STANDARD
+    runner._informer.shouldArchiveFiles = MagicMock(return_value=False)
+
+    runner._deleteWorkDir = MagicMock()
+    runner._updateInfoFailed = MagicMock()
+
+    runner.finalize()
+
+    runner._archiver.toArchive.assert_not_called()
+    runner._deleteWorkDir.assert_not_called()
+    runner._updateInfoFailed.assert_called_once()
+    mock_logger_info.assert_any_call("Finalizing the execution.")
+    mock_logger_info.assert_any_call("Job completed with an exit code of 1.")
 
 
 @patch("qq_lib.run.runner.logger.info")

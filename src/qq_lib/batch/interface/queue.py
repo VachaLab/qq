@@ -24,7 +24,6 @@ class BatchQueueInterface(ABC):
         Raises:
             QQError: If the queue cannot be queried or its info updated.
         """
-        pass
 
     @abstractmethod
     def getName(self) -> str:
@@ -34,7 +33,6 @@ class BatchQueueInterface(ABC):
         Returns:
             str: The name identifying this queue in the batch system.
         """
-        pass
 
     @abstractmethod
     def getPriority(self) -> str | None:
@@ -45,7 +43,6 @@ class BatchQueueInterface(ABC):
             str | None: The queue priority, or None if priority information
             is not available.
         """
-        pass
 
     @abstractmethod
     def getTotalJobs(self) -> int | None:
@@ -56,7 +53,6 @@ class BatchQueueInterface(ABC):
             int | None: The total count of jobs, regardless of status
             or `None` if the information is not available.
         """
-        pass
 
     @abstractmethod
     def getRunningJobs(self) -> int | None:
@@ -67,7 +63,6 @@ class BatchQueueInterface(ABC):
             int | None: The number of running jobs or `None`
             if the information is not available.
         """
-        pass
 
     @abstractmethod
     def getQueuedJobs(self) -> int | None:
@@ -78,7 +73,6 @@ class BatchQueueInterface(ABC):
             int | None: The number of queued jobs or `None`
             if the information is not available.
         """
-        pass
 
     @abstractmethod
     def getOtherJobs(self) -> int | None:
@@ -90,7 +84,6 @@ class BatchQueueInterface(ABC):
             such as exiting or suspended jobs.
             Returns `None` if the information is not available.
         """
-        pass
 
     @abstractmethod
     def getMaxWalltime(self) -> timedelta | None:
@@ -100,7 +93,6 @@ class BatchQueueInterface(ABC):
         Returns:
             timedelta | None: The walltime limit, or None if unlimited or unknown.
         """
-        pass
 
     @abstractmethod
     def getMaxNNodes(self) -> int | None:
@@ -110,7 +102,6 @@ class BatchQueueInterface(ABC):
         Returns:
             int | None: The maximum number of nodes that can be requested, or None if unlimited or unknown.
         """
-        pass
 
     @abstractmethod
     def getComment(self) -> str | None:
@@ -121,7 +112,6 @@ class BatchQueueInterface(ABC):
             str | None: The human-readable comment or note about the queue
             or `None` if the information is not available.
         """
-        pass
 
     @abstractmethod
     def isAvailableToUser(self, user: str) -> bool:
@@ -134,7 +124,6 @@ class BatchQueueInterface(ABC):
         Returns:
             bool: True if the user can submit jobs to this queue, False otherwise.
         """
-        pass
 
     @abstractmethod
     def getDestinations(self) -> list[str]:
@@ -144,7 +133,6 @@ class BatchQueueInterface(ABC):
         Returns:
             list[str]: A list of destination queue names associated with the queue.
         """
-        pass
 
     @abstractmethod
     def fromRouteOnly(self) -> bool:
@@ -155,7 +143,6 @@ class BatchQueueInterface(ABC):
             bool: True if the queue is accessible exclusively through a route,
             False otherwise.
         """
-        pass
 
     @abstractmethod
     def toYaml(self) -> str:
@@ -165,7 +152,6 @@ class BatchQueueInterface(ABC):
         Returns:
             str: YAML-formatted string of queue metadata.
         """
-        pass
 
     @abstractmethod
     def getDefaultResources(self) -> Resources:
@@ -175,4 +161,3 @@ class BatchQueueInterface(ABC):
         Returns:
             Resources: Default resources allocated for jobs submitted to this queue.
         """
-        pass

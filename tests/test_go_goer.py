@@ -9,7 +9,9 @@ import pytest
 
 from qq_lib.core.error import QQError, QQNotSuitableError
 from qq_lib.go.goer import Goer
+from qq_lib.properties.info import Success
 from qq_lib.properties.states import RealState
+from qq_lib.properties.transfer_mode import Always, ExitCode, Failure, Never
 
 
 def test_goer_wait_queued():
@@ -41,27 +43,95 @@ def test_goer_wait_queued_raises_not_suitable_error():
         goer.update.assert_called_once()
 
 
-def test_goer_ensure_suitable_raises_finished():
+@pytest.mark.parametrize(
+    "state, job_exit_code, transfer_mode, expected_message",
+    [
+        (
+            RealState.FINISHED,
+            0,
+            [Success()],
+            "Job has been completed and was synchronized: working directory no longer exists",
+        ),
+        (
+            RealState.FINISHED,
+            0,
+            [Always()],
+            "Job has been completed and was synchronized: working directory no longer exists",
+        ),
+        (
+            RealState.FINISHED,
+            0,
+            [ExitCode(0)],
+            "Job has been completed and was synchronized: working directory no longer exists",
+        ),
+        (
+            RealState.FAILED,
+            1,
+            [Failure()],
+            "Job has been completed and was synchronized: working directory no longer exists",
+        ),
+        (
+            RealState.FAILED,
+            1,
+            [Always()],
+            "Job has been completed and was synchronized: working directory no longer exists",
+        ),
+        (
+            RealState.FAILED,
+            1,
+            [ExitCode(1)],
+            "Job has been completed and was synchronized: working directory no longer exists",
+        ),
+        (
+            RealState.EXITING,
+            0,
+            [Always()],
+            "Job has been completed and was synchronized: working directory no longer exists",
+        ),
+        (
+            RealState.EXITING,
+            0,
+            [Success()],
+            "Job has been completed and was synchronized: working directory no longer exists",
+        ),
+        (
+            RealState.EXITING,
+            1,
+            [Always()],
+            "Job has been completed and was synchronized: working directory no longer exists",
+        ),
+        (
+            RealState.EXITING,
+            1,
+            [Failure()],
+            "Job has been completed and was synchronized: working directory no longer exists",
+        ),
+        (
+            RealState.EXITING,
+            2,
+            [ExitCode(2)],
+            "Job has been completed and was synchronized: working directory no longer exists",
+        ),
+    ],
+)
+def test_goer_ensure_suitable_raises_for_unsuitable_states(
+    state, job_exit_code, transfer_mode, expected_message
+):
     goer = Goer.__new__(Goer)
-    goer._state = RealState.FINISHED
-
-    with pytest.raises(
-        QQNotSuitableError,
-        match="Job has finished and was synchronized: working directory no longer exists.",
-    ):
-        goer.ensureSuitable()
-
-
-def test_goer_ensure_suitable_raises_exiting_successfully():
-    goer = Goer.__new__(Goer)
-    goer._state = RealState.EXITING
+    goer._state = state
     goer._informer = MagicMock()
-    goer._informer.info.job_exit_code = 0
+    goer._informer.info.job_exit_code = job_exit_code
+    goer._informer.getRealState.return_value = state
+    goer._informer.info.transfer_mode = transfer_mode
 
-    with pytest.raises(
-        QQNotSuitableError,
-        match="Job is finishing successfully: working directory no longer exists.",
-    ):
+    goer._work_dir = Path("/workdir")
+    goer._main_node = "node"
+    goer._input_machine = "input"
+    goer._informer.info.input_dir = Path("/different_input")
+    goer._informer.usesScratch.return_value = True
+    goer._batch_system = MagicMock()
+
+    with pytest.raises(QQNotSuitableError, match=expected_message):
         goer.ensureSuitable()
 
 
@@ -71,6 +141,8 @@ def test_goer_ensure_suitable_raises_exiting_successfully():
 def test_goer_ensure_suitable_raises_killed_without_destination(destination):
     goer = Goer.__new__(Goer)
     goer._state = RealState.KILLED
+    goer._informer = MagicMock()
+    goer._informer.info.job_exit_code = None
     goer._work_dir, goer._main_node = destination
 
     with pytest.raises(
@@ -80,20 +152,209 @@ def test_goer_ensure_suitable_raises_killed_without_destination(destination):
         goer.ensureSuitable()
 
 
-def test_goer_ensure_suitable_passes_running():
+@pytest.mark.parametrize(
+    "state, job_exit_code, transfer_mode",
+    [
+        (
+            RealState.QUEUED,
+            None,
+            [Always()],
+        ),
+        (
+            RealState.BOOTING,
+            None,
+            [Always()],
+        ),
+        (
+            RealState.HELD,
+            None,
+            [Always()],
+        ),
+        (
+            RealState.WAITING,
+            None,
+            [Always()],
+        ),
+        (
+            RealState.RUNNING,
+            None,
+            [Always()],
+        ),
+        (
+            RealState.SUSPENDED,
+            None,
+            [Always()],
+        ),
+        (
+            RealState.FINISHED,
+            0,
+            [Failure()],
+        ),
+        (
+            RealState.FINISHED,
+            0,
+            [Never()],
+        ),
+        (
+            RealState.FAILED,
+            1,
+            [Success()],
+        ),
+        (
+            RealState.FAILED,
+            2,
+            [Success(), ExitCode(1)],
+        ),
+        (
+            RealState.FAILED,
+            1,
+            [Never()],
+        ),
+        (
+            RealState.KILLED,
+            None,
+            [Failure()],
+        ),
+        (
+            RealState.KILLED,
+            None,
+            [Always()],
+        ),
+        (
+            RealState.KILLED,
+            None,
+            [Never()],
+        ),
+        (
+            RealState.KILLED,
+            None,
+            [Success()],
+        ),
+        (
+            RealState.UNKNOWN,
+            None,
+            [Success()],
+        ),
+        (
+            RealState.UNKNOWN,
+            None,
+            [Always()],
+        ),
+        (
+            RealState.UNKNOWN,
+            1,
+            [Success()],
+        ),
+        (
+            RealState.IN_AN_INCONSISTENT_STATE,
+            None,
+            [Success()],
+        ),
+        (
+            RealState.IN_AN_INCONSISTENT_STATE,
+            None,
+            [Always()],
+        ),
+    ],
+)
+def test_goer_ensure_suitable_passes_for_allowed_states(
+    state, job_exit_code, transfer_mode
+):
     goer = Goer.__new__(Goer)
-    goer._state = RealState.RUNNING
+    goer._state = state
+    goer._informer = MagicMock()
+    goer._informer.info.job_exit_code = job_exit_code
+    goer._informer.info.transfer_mode = transfer_mode
+    goer._informer.getRealState.return_value = state
+    goer._work_dir = Path("/valid/workdir")
+    goer._main_node = "main"
+    goer._input_machine = "input"
+    goer._informer.info.input_dir = Path("/different")
+    goer._informer.usesScratch.return_value = True
+    goer._batch_system = MagicMock()
 
-    goer.ensureSuitable()  # should not raise
+    goer.ensureSuitable()
 
 
-def test_goer_ensure_suitable_passes_killed_with_destination():
+@pytest.mark.parametrize(
+    "state, job_exit_code, transfer_mode",
+    [
+        (
+            RealState.FINISHED,
+            0,
+            [Success()],
+        ),
+        (
+            RealState.FINISHED,
+            0,
+            [Always()],
+        ),
+        (
+            RealState.FINISHED,
+            0,
+            [ExitCode(0)],
+        ),
+        (
+            RealState.FAILED,
+            1,
+            [Failure()],
+        ),
+        (
+            RealState.FAILED,
+            1,
+            [Always()],
+        ),
+        (
+            RealState.FAILED,
+            1,
+            [ExitCode(1)],
+        ),
+        (
+            RealState.EXITING,
+            0,
+            [Always()],
+        ),
+        (
+            RealState.EXITING,
+            0,
+            [Success()],
+        ),
+        (
+            RealState.EXITING,
+            1,
+            [Always()],
+        ),
+        (
+            RealState.EXITING,
+            1,
+            [Failure()],
+        ),
+        (
+            RealState.EXITING,
+            2,
+            [ExitCode(2)],
+        ),
+    ],
+)
+def test_goer_ensure_suitable_passes_for_synchronized_states_if_workdir_is_inputdir(
+    state, job_exit_code, transfer_mode
+):
     goer = Goer.__new__(Goer)
-    goer._state = RealState.KILLED
-    goer._work_dir = Path("/some/path")
-    goer._main_node = "host"
+    goer._state = state
+    goer._informer = MagicMock()
+    goer._informer.info.job_exit_code = job_exit_code
+    goer._informer.getRealState.return_value = state
+    goer._informer.info.transfer_mode = transfer_mode
+    same_path = Path("/shared/path")
 
-    goer.ensureSuitable()  # should not raise
+    goer._work_dir = same_path
+    goer._main_node = "main"
+    goer._input_machine = "main"
+    goer._informer.info.input_dir = same_path
+    goer._informer.usesScratch.return_value = False
+    goer._batch_system = MagicMock()
+
+    goer.ensureSuitable()
 
 
 def test_goer_go_already_in_work_dir_logs_info_and_returns():
@@ -116,12 +377,30 @@ def test_goer_go_killed_state_logs_warning_and_navigates():
     goer._main_node = "host"
     goer._batch_system = MagicMock()
     goer._isInWorkDir = MagicMock(return_value=False)
+    goer._workDirIsInputDir = MagicMock(return_value=False)
 
     with patch("qq_lib.go.goer.logger") as mock_logger:
         goer.go()
         mock_logger.warning.assert_called_once_with(
             "Job has been killed: working directory may no longer exist."
         )
+        goer._batch_system.navigateToDestination.assert_called_once_with(
+            goer._main_node, goer._work_dir
+        )
+
+
+def test_goer_go_killed_state_navigates_without_warning_if_workdir_is_inputdir():
+    goer = Goer.__new__(Goer)
+    goer._state = RealState.KILLED
+    goer._work_dir = Path("/dir")
+    goer._main_node = "host"
+    goer._batch_system = MagicMock()
+    goer._isInWorkDir = MagicMock(return_value=False)
+    goer._workDirIsInputDir = MagicMock(return_value=True)
+
+    with patch("qq_lib.go.goer.logger") as mock_logger:
+        goer.go()
+        mock_logger.warning.assert_not_called()
         goer._batch_system.navigateToDestination.assert_called_once_with(
             goer._main_node, goer._work_dir
         )
@@ -134,12 +413,66 @@ def test_goer_go_failed_state_logs_warning_and_navigates():
     goer._main_node = "host"
     goer._batch_system = MagicMock()
     goer._isInWorkDir = MagicMock(return_value=False)
+    goer._workDirIsInputDir = MagicMock(return_value=False)
 
     with patch("qq_lib.go.goer.logger") as mock_logger:
         goer.go()
         mock_logger.warning.assert_called_once_with(
-            "Job has completed with an error code: working directory may no longer exist."
+            "Job has been completed: working directory may no longer exist."
         )
+        goer._batch_system.navigateToDestination.assert_called_once_with(
+            goer._main_node, goer._work_dir
+        )
+
+
+def test_goer_go_failed_state_navigates_without_warning_if_workdir_is_inputdir():
+    goer = Goer.__new__(Goer)
+    goer._state = RealState.FAILED
+    goer._work_dir = Path("/dir")
+    goer._main_node = "host"
+    goer._batch_system = MagicMock()
+    goer._isInWorkDir = MagicMock(return_value=False)
+    goer._workDirIsInputDir = MagicMock(return_value=True)
+
+    with patch("qq_lib.go.goer.logger") as mock_logger:
+        goer.go()
+        mock_logger.warning.assert_not_called()
+        goer._batch_system.navigateToDestination.assert_called_once_with(
+            goer._main_node, goer._work_dir
+        )
+
+
+def test_goer_go_finished_state_logs_warning_and_navigates():
+    goer = Goer.__new__(Goer)
+    goer._state = RealState.FINISHED
+    goer._work_dir = Path("/dir")
+    goer._main_node = "host"
+    goer._batch_system = MagicMock()
+    goer._isInWorkDir = MagicMock(return_value=False)
+    goer._workDirIsInputDir = MagicMock(return_value=False)
+
+    with patch("qq_lib.go.goer.logger") as mock_logger:
+        goer.go()
+        mock_logger.warning.assert_called_once_with(
+            "Job has been completed: working directory may no longer exist."
+        )
+        goer._batch_system.navigateToDestination.assert_called_once_with(
+            goer._main_node, goer._work_dir
+        )
+
+
+def test_goer_go_finished_state_navigates_without_warning_if_workdir_is_inputdir():
+    goer = Goer.__new__(Goer)
+    goer._state = RealState.FINISHED
+    goer._work_dir = Path("/dir")
+    goer._main_node = "host"
+    goer._batch_system = MagicMock()
+    goer._isInWorkDir = MagicMock(return_value=False)
+    goer._workDirIsInputDir = MagicMock(return_value=True)
+
+    with patch("qq_lib.go.goer.logger") as mock_logger:
+        goer.go()
+        mock_logger.warning.assert_not_called()
         goer._batch_system.navigateToDestination.assert_called_once_with(
             goer._main_node, goer._work_dir
         )

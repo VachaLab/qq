@@ -71,23 +71,82 @@ class GNUHelpColorsCommand(HelpColorsCommand):
         return formatter.getvalue()
 
     def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
-        """Split --option=value tokens into --option value during completion.
+        """
+        Reassemble bash-split option tokens before delegating to Click's parser.
+
+        Bash splits tokens on `=` (which appears in `COMP_WORDBREAKS` by
+        default) before invoking the completion handler. This means that an
+        option like ``--option=foo=bar`` arrives as the fragments
+        `["--option", "=", "foo", "=", "bar"]` rather than as a single token.
+        Click's parser cannot handle this fragmented form, so autocompletion
+        breaks whenever an option value contains `=`.
+
+        This override reassembles such fragments back into `["--option",
+        "foo=bar"]` during resilient (completion) parsing, leaving normal
+        invocations entirely unaffected.
 
         Args:
             ctx: The current Click context.
-            args: The raw argument list from the shell.
+            args: The raw argument list as received from the shell, potentially
+                containing `=`-fragmented option tokens produced by bash's
+                completion machinery.
 
         Returns:
-            The remaining unparsed arguments.
+            The remaining unparsed arguments, after reassembly and delegation
+            to the parent parser.
         """
-        if ctx.resilient_parsing:
-            args = [
-                part
-                for arg in args
-                for part in (
-                    arg.split("=", 1) if arg.startswith("-") and "=" in arg else [arg]
-                )
-                if part != "="
-            ]
 
+        if ctx.resilient_parsing:
+            processed = []
+            i = 0
+            while i < len(args):
+                arg = args[i]
+                if arg.startswith("-") and "=" in arg:
+                    # already combined: --option=foo=bar
+                    option, value = arg.split("=", 1)
+                    processed.append(option)
+                    if value:
+                        processed.append(value)
+                    i += 1
+                elif arg.startswith("-") and i + 1 < len(args) and args[i + 1] == "=":
+                    # bash pre-split starting with "=": ["--opt", "=", "foo", "=", "bar"]
+                    processed.append(arg)
+                    i += 2  # skip option and bare "="
+                    value_parts = []
+                    while i < len(args) and not args[i].startswith("-"):
+                        if args[i] == "=":
+                            value_parts.append("=")
+                        else:
+                            if value_parts and value_parts[-1] != "=":
+                                break  # previous wasn't "=", this is a new arg
+                            value_parts.append(args[i])
+                        i += 1
+                    if value_parts:
+                        processed.append("".join(value_parts))
+                elif (
+                    arg.startswith("-")
+                    and i + 1 < len(args)
+                    and not args[i + 1].startswith("-")
+                    and i + 2 < len(args)
+                    and args[i + 2] == "="
+                ):
+                    # bash pre-split starting with fragment: ["--opt", "foo", "=", "bar"]
+                    processed.append(arg)
+                    i += 1
+                    value_parts = [args[i]]
+                    i += 1
+                    while i < len(args) and not args[i].startswith("-"):
+                        if args[i] == "=":
+                            value_parts.append("=")
+                            i += 1
+                            if i < len(args) and not args[i].startswith("-"):
+                                value_parts.append(args[i])
+                                i += 1
+                        else:
+                            break
+                    processed.append("".join(value_parts))
+                else:
+                    processed.append(arg)
+                    i += 1
+            args = processed
         return super().parse_args(ctx, args)

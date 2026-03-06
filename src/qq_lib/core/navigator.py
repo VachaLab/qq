@@ -143,6 +143,21 @@ class Navigator(Operator):
             )
         )
 
+    def _isSynchronized(self) -> bool:
+        """
+        Check whether the job has been synchronized.
+
+        Ignores the actual existence/non-existence of the working directory.
+        """
+        # if exit code is not defined, then the job was never synchronized
+        # (it was either never run or it was killed)
+        if (exit_code := self._informer.info.job_exit_code) is None:
+            return False
+
+        return any(
+            mode.shouldTransfer(exit_code) for mode in self._informer.info.transfer_mode
+        )
+
     def _isQueued(self) -> bool:
         """Check if the job is queued, booting, held, or waiting."""
         return self._state in {
@@ -186,3 +201,20 @@ class Navigator(Operator):
     def _isRunning(self) -> bool:
         """Check if the job is running."""
         return self._state == RealState.RUNNING
+
+    def _workDirIsInputDir(self) -> bool:
+        """Check whether the working directory of the job is the input directory of the job."""
+        # note that we cannot just compare directory paths, since
+        # the same directory path may point to different directories
+        # on the input machine and on the execution node
+        # we also need to check that
+        #   a) job was running in shared storage or
+        #   b) the job was running on the input machine
+        return (
+            self._work_dir is not None
+            and self._work_dir.resolve() == self._informer.info.input_dir.resolve()
+            and (
+                not self._informer.usesScratch()
+                or self._main_node == self._input_machine
+            )
+        )

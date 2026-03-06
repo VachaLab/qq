@@ -11,12 +11,15 @@ files.
 """
 
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Self
 
 from qq_lib.archive.archiver import Archiver
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.properties.transfer_mode import TransferMode
 
 logger = get_logger(__name__)
 
@@ -32,6 +35,7 @@ class LoopInfo:
     archive: Path
     archive_format: str
     current: int
+    archive_mode: list[TransferMode]
 
     def __init__(
         self,
@@ -41,6 +45,7 @@ class LoopInfo:
         archive_format: str,
         current: int | None = None,
         input_dir: Path | None = None,
+        archive_mode: list[TransferMode] | None = None,
     ):
         """
         Initialize loop job information with validation checks.
@@ -54,6 +59,9 @@ class LoopInfo:
             archive_format (str): File naming pattern used for archived files.
             current (int | None): The current cycle number. Defaults to `start`
                 if not provided.
+            archive_mode (list[TransferMode] | None): When should the files be archived?
+                Defaults to [Success()], meaning that archival should only be performed for
+                successfully completed jobs.
 
         Raises:
             QQError: If `end` is not provided, if `start > end`, if `current > end`,
@@ -67,6 +75,9 @@ class LoopInfo:
             raise QQError("Input directory cannot be used as the loop job's archive.")
 
         self.archive_format = archive_format
+        self.archive_mode = archive_mode or TransferMode.multiFromStr(
+            CFG.transfer_files_options.default_archive_mode
+        )
 
         self.start = start
         self.end = end
@@ -85,10 +96,63 @@ class LoopInfo:
                 f"Current cycle number ({self.current}) cannot be higher than 'loop-end' ({self.end})."
             )
 
+    @classmethod
+    def fromDict(cls, data: dict[str, object]) -> Self:
+        """
+        Reconstruct a LoopInfo instance from a dictionary produced by toDict.
+
+        Args:
+            data (dict[str, object]): A dictionary as returned by `toDict()`.
+
+        Returns:
+            LoopInfo: A new instance with fields populated from the dictionary.
+        """
+        start = data.get("start")
+        end = data.get("end")
+        archive = data.get("archive")
+        archive_format = data.get("archive_format")
+        current = data.get("current")
+        archive_mode = data.get("archive_mode")
+
+        if not isinstance(start, int):
+            raise QQError(f"Field 'start' must be an int, got {type(start).__name__}.")
+        if not isinstance(end, int):
+            raise QQError(f"Field 'end' must be an int, got {type(end).__name__}.")
+        if not isinstance(archive, str):
+            raise QQError(
+                f"Field 'archive' must be a str, got {type(archive).__name__}."
+            )
+        if not isinstance(archive_format, str):
+            raise QQError(
+                f"Field 'archive_format' must be a str, got {type(archive_format).__name__}."
+            )
+        if not isinstance(current, int):
+            raise QQError(
+                f"Field 'current' must be an int, got {type(current).__name__}."
+            )
+        if not isinstance(archive_mode, list) or not all(
+            isinstance(m, str) for m in archive_mode
+        ):
+            raise QQError("Field 'archive_mode' must be a list of strings.")
+
+        return cls(
+            start=start,
+            end=end,
+            archive=Path(archive),
+            archive_format=archive_format,
+            current=current,
+            archive_mode=[TransferMode.fromStr(mode) for mode in archive_mode],  # ty: ignore[invalid-argument-type]
+        )
+
     def toDict(self) -> dict[str, object]:
         """Return all fields as a dict."""
         return {
-            k: str(v) if isinstance(v, Path) else v for k, v in asdict(self).items()
+            "start": self.start,
+            "end": self.end,
+            "archive": str(self.archive),
+            "archive_format": self.archive_format,
+            "current": self.current,
+            "archive_mode": [mode.toStr() for mode in self.archive_mode],
         }
 
     def toCommandLine(self) -> list[str]:
@@ -107,6 +171,8 @@ class LoopInfo:
             self.archive.name,
             "--archive-format",
             self.archive_format,
+            "--archive-mode",
+            ":".join(mode.toStr() for mode in self.archive_mode),
         ]
 
     def _getCycle(self) -> int:

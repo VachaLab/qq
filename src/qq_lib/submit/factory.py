@@ -11,6 +11,7 @@ from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
+from qq_lib.properties.transfer_mode import TransferMode
 
 from .parser import Parser
 from .submitter import Submitter
@@ -68,6 +69,7 @@ class SubmitterFactory:
             self._getExclude(),
             self._getInclude(),
             self._getDepend(),
+            self._getTransferMode(),
         )
 
     def _getBatchSystem(self) -> type[BatchInterface]:
@@ -166,55 +168,63 @@ class SubmitterFactory:
             or self._parser.getArchiveFormat()
             or "job%04d",
             input_dir=self._input_dir,
+            archive_mode=TransferMode.multiFromStr(
+                self._kwargs.get("archive_mode") or ""
+            )
+            or self._parser.getArchiveMode(),
         )
 
     def _getExclude(self) -> list[Path]:
         """
         Determine the files to exclude from being copied to the job's working directory.
 
-        Merges the list of files specified in command-line arguments with
-        the list parsed from the script.
+        Priority:
+            1. Excluded files specified on the command line.
+            2. Excluded files specified inside the submitted script.
+
+        The lists are NOT merged.
 
         Returns:
             list[Path]: List of relative file paths to exclude.
         """
-        return list(
-            set(
-                split_files_list(self._kwargs.get("exclude"))
-                + self._parser.getExclude()
-            )
+        return (
+            split_files_list(self._kwargs.get("exclude")) or self._parser.getExclude()
         )
 
     def _getInclude(self) -> list[Path]:
         """
         Determine the files to explicitly copy to the job's working directory.
 
-        Merges the list of files specified in command-line arguments with
-        the list parsed from the script.
+        Priority:
+            1. Included files specified on the command line.
+            2. Included files specified inside the submitted script.
+
+        The lists are NOT merged.
 
         Returns:
             list[Path]: List of file paths to include.
         """
-        return list(
-            set(
-                split_files_list(self._kwargs.get("include"))
-                + self._parser.getInclude()
-            )
+        return (
+            split_files_list(self._kwargs.get("include")) or self._parser.getInclude()
         )
 
     def _getDepend(self) -> list[Depend]:
         """
         Determine the list of dependencies.
 
-        Merges the list of dependencies specified in command-line arguments
-        with the list parsed from the script.
+        Priority:
+            1. Dependencies specified on the command line.
+            2. Dependencies specified inside the submitted script.
+
+        The lists are NOT merged.
 
         Returns:
             list[Depend]: List of job dependencies.
         """
         return (
-            Depend.multiFromStr(self._kwargs.get("depend") or "") or []
-        ) + self._parser.getDepend()
+            Depend.multiFromStr(self._kwargs.get("depend") or "")
+            or self._parser.getDepend()
+        )
 
     def _getAccount(self) -> str | None:
         """
@@ -224,3 +234,22 @@ class SubmitterFactory:
             str | None: The account name or None if not defined.
         """
         return self._kwargs.get("account") or self._parser.getAccount()
+
+    def _getTransferMode(self) -> list[TransferMode]:
+        """
+        Determine the mode specifying when files should be
+        transferred from the working directory to the input directory.
+
+        Priority:
+            1. Transfer modes specified on the command line.
+            2. Transfer modes specified inside the submitted script.
+
+        The lists are NOT merged.
+
+        Returns:
+            list[TransferMode]: List of transfer modes.
+        """
+        return (
+            TransferMode.multiFromStr(self._kwargs.get("transfer_mode") or "")
+            or self._parser.getTransferMode()
+        )

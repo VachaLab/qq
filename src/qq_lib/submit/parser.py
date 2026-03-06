@@ -15,6 +15,7 @@ from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import Resources
+from qq_lib.properties.transfer_mode import TransferMode
 
 logger = get_logger(__name__)
 
@@ -116,8 +117,8 @@ class Parser:
         Returns:
             type[BatchInterface] | None: The batch system class if specified, otherwise None.
         """
-        if isinstance(batch_system := self._options.get("batch_system"), str):
-            return BatchMeta.fromStr(batch_system)
+        if (batch_system := self._options.get("batch_system")) is not None:
+            return BatchMeta.fromStr(str(batch_system))
 
         return None
 
@@ -128,9 +129,9 @@ class Parser:
         Returns:
             str | None: Queue name, or None if not set.
         """
-        if not isinstance(queue := self._options.get("queue"), str):
-            return None
-        return queue
+        if (queue := self._options.get("queue")) is not None:
+            return str(queue)
+        return None
 
     def getJobType(self) -> JobType | None:
         """
@@ -139,8 +140,8 @@ class Parser:
         Returns:
             JobType | None: Enum value representing the job type, or None if not set.
         """
-        if isinstance(job_type := self._options.get("job_type"), str):
-            return JobType.fromStr(job_type)
+        if (job_type := self._options.get("job_type")) is not None:
+            return JobType.fromStr(str(job_type))
 
         return None
 
@@ -162,8 +163,8 @@ class Parser:
         Returns:
             list[Path]: List of excluded file paths. Returns an empty list if none specified.
         """
-        if isinstance(exclude := self._options.get("exclude"), str):
-            return split_files_list(exclude)
+        if (exclude := self._options.get("exclude")) is not None:
+            return split_files_list(str(exclude))
 
         return []
 
@@ -174,8 +175,8 @@ class Parser:
         Returns:
             list[Path]: List of included file paths. Returns an empty list if none specified.
         """
-        if isinstance(include := self._options.get("include"), str):
-            return split_files_list(include)
+        if (include := self._options.get("include")) is not None:
+            return split_files_list(str(include))
 
         return []
 
@@ -209,7 +210,7 @@ class Parser:
             Path | None: Archive directory path, or None if not set.
         """
         if (archive := self._options.get("archive")) is not None:
-            return Path(archive)  # ty: ignore[invalid-argument-type]
+            return Path(str(archive))
 
         return None
 
@@ -220,9 +221,21 @@ class Parser:
         Returns:
             str | None: Archive filename format string, or None if not set.
         """
-        if isinstance(archive_format := self._options.get("archive_format"), str):
-            return archive_format
+        if (archive_format := self._options.get("archive_format")) is not None:
+            return str(archive_format)
         return None
+
+    def getArchiveMode(self) -> list[TransferMode]:
+        """
+        Get the mode specifying when the files should be archived.
+
+        Returns:
+            list[TransferMode]: List of transfer modes.
+        """
+        if (raw := self._options.get("archive_mode")) is not None:
+            return TransferMode.multiFromStr(str(raw))
+
+        return []
 
     def getDepend(self) -> list[Depend]:
         """
@@ -231,8 +244,8 @@ class Parser:
         Returns:
             list[Depend]: List of job dependencies.
         """
-        if isinstance(raw := self._options.get("depend"), str):
-            return Depend.multiFromStr(raw)
+        if (raw := self._options.get("depend")) is not None:
+            return Depend.multiFromStr(str(raw))
 
         return []
 
@@ -243,10 +256,23 @@ class Parser:
         Returns:
             str | None: The account name or None if not defined.
         """
-        if isinstance(account := self._options.get("account"), str):
-            return account
+        if (account := self._options.get("account")) is not None:
+            return str(account)
 
         return None
+
+    def getTransferMode(self) -> list[TransferMode]:
+        """
+        Get the mode specifying when the files should be transferred
+        from the working directory to the input directory.
+
+        Returns:
+            list[TransferMode]: List of transfer modes.
+        """
+        if (raw := self._options.get("transfer_mode")) is not None:
+            return TransferMode.multiFromStr(str(raw))
+
+        return []
 
     @staticmethod
     def _stripAndSplit(string: str) -> list[str]:

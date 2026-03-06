@@ -349,3 +349,38 @@ class Informer:
             Path: Absolute path to the info file.
         """
         return construct_info_file_path(self.info.input_dir, self.info.job_name)
+
+    def shouldTransferFiles(self, exit_code: int) -> bool:
+        """
+        Determine whether files should be transferred from the working directory.
+
+        Checks the configured transfer mode to decide if files should be transferred
+        from the job's working directory to the input directory based on the job's
+        exit code.
+
+        Args:
+            exit_code: The exit code of the completed job.
+
+        Returns:
+            True if files should be transferred, False otherwise.
+        """
+        return any(mode.shouldTransfer(exit_code) for mode in self.info.transfer_mode)
+
+    def shouldArchiveFiles(self, exit_code: int) -> bool:
+        """
+        Determine whether files should be archived from the working directory to the archive directory.
+
+        Checks the configured archive mode to decide if files should be archived
+        from the job's working directory. This only applies to loop jobs.
+
+        Args:
+            exit_code: The exit code of the completed job iteration.
+
+        Returns:
+            True if files should be archived, False if the job is not a loop job or
+            the archive mode does not trigger on the given exit code.
+        """
+        if (loop_info := self.info.loop_info) is None:
+            return False
+
+        return any(mode.shouldTransfer(exit_code) for mode in loop_info.archive_mode)

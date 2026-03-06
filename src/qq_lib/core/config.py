@@ -404,6 +404,17 @@ class SlurmLumiOptions:
 
 
 @dataclass
+class TransferFilesOptions:
+    """Options associated with transferring and archiving files."""
+
+    # Default archive mode used for jobs.
+    default_archive_mode: str = "success"
+
+    # Default transfer mode used for jobs.
+    default_transfer_mode: str = "success"
+
+
+@dataclass
 class Config:
     """Main configuration for qq."""
 
@@ -430,6 +441,9 @@ class Config:
     slurm_options: SlurmOptions = field(default_factory=SlurmOptions)
     slurm_it4i_options: SlurmIT4IOptions = field(default_factory=SlurmIT4IOptions)
     slurm_lumi_options: SlurmLumiOptions = field(default_factory=SlurmLumiOptions)
+    transfer_files_options: TransferFilesOptions = field(
+        default_factory=TransferFilesOptions
+    )
 
     # Name of the qq binary.
     binary_name: str = "qq"

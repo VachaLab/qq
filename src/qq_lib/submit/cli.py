@@ -117,10 +117,29 @@ using qq directives of this format: `# qq <option>=<value>`.
 Each expression should follow the format `<type>=<job_id>[:<job_id>...]`, e.g., `after=1234`, `afterok=456:789`.""",
 )
 @optgroup.option(
+    "--transfer-mode",
+    type=str,
+    default=None,
+    help=(
+        f"A colon-, comma-, or space-separated list of transfer modes that specify whether files in the working directory "
+        f"should be transferred to the input directory upon job completion.\n"
+        f"Available modes: {click.style('success', bold=True)} (transfer only on exit code 0), {click.style('failure', bold=True)} (transfer only on non-zero exit code), "
+        f"{click.style('always', bold=True)} (always transfer), {click.style('never', bold=True)} (never transfer), "
+        f"or a specific {click.style('exit code', bold=True)} number (e.g., 42).\n"
+        f"Multiple modes can be combined; files are transferred if {click.style('any', bold=True)} apply.\n"
+        f"The default value is {click.style('success', bold=True)} meaning that files are transferred only if the job finishes successfully.\n"
+        f"When files are transferred, the working directory is deleted. "
+        f"If files are not transferred, the working directory is preserved.\n"
+        f"Note that data from killed jobs are {click.style('never', bold=True)} automatically transferred.\n"
+        f"This option is ignored if the input directory itself is used as the working directory.\n"
+        f"Examples: `success`, `always`, `success:42`, `1 2 3`.\n"
+    ),
+)
+@optgroup.option(
     "--batch-system",
     type=str,
     default=None,
-    help=f"Name of the batch system to submit the job to. If not specified, the system will use the environment variable '{CFG.env_vars.batch_system}' or attempt to auto-detect it.",
+    help=f"Name of the batch system to submit the job to. If not specified, the system will use the environment variable '{CFG.env_vars.batch_system}' or auto-detect it.",
 )
 @optgroup.group(f"{click.style('Requested resources', fg='yellow')}")
 @optgroup.option(
@@ -237,6 +256,17 @@ Overrides `--work-size-per-cpu` and `--work-size-per-node`.""",
     type=str,
     default=None,
     help="Filename format for archived files. Defaults to 'job%04d'.",
+)
+@optgroup.option(
+    "--archive-mode",
+    type=str,
+    default=None,
+    help=(
+        f"A colon-, comma-, or space-separated list of archive modes that specify whether files in the working directory "
+        f"should be archived upon job completion.\n"
+        f"Supports the same modes as {click.style('--transfer-mode', bold=True)}. See that option for available modes and examples.\n"
+        f"The default value is {click.style('success', bold=True)} meaning that files are archived only if the job finishes successfully."
+    ),
 )
 def submit(script: str, **kwargs) -> NoReturn:
     """
