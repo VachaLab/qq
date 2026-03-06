@@ -76,7 +76,6 @@ class TransferMode(ABC):
         Returns:
             True if data should be transferred/archived, False otherwise.
         """
-        pass
 
     @abstractmethod
     def toStr(self) -> str:
@@ -86,7 +85,6 @@ class TransferMode(ABC):
         Returns:
             A string representation of the transfer mode variant.
         """
-        pass
 
 
 @dataclass(frozen=True)
