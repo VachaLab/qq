@@ -11,7 +11,11 @@ from click.shell_completion import CompletionItem
 from click_option_group import optgroup
 
 from qq_lib.core.click_format import GNUHelpColorsCommand
-from qq_lib.core.common import available_work_dirs, get_runtime_files
+from qq_lib.core.common import (
+    available_job_types,
+    available_work_dirs,
+    get_runtime_files,
+)
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -86,7 +90,7 @@ using qq directives of this format: `# qq <option>=<value>`.
     "--job-type",
     type=str,
     default=None,
-    help="Type of the qq job. Defaults to 'standard'.",
+    help=f"Type of the qq job. Defaults to 'standard'. Available types: {available_job_types()}.",
 )
 @optgroup.option(
     "--exclude",

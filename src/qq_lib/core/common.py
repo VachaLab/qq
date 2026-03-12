@@ -725,3 +725,15 @@ def available_work_dirs() -> str:
         return ", ".join([f"'{work_dir_type}'" for work_dir_type in work_dirs])
     except QQError:
         return "??? (no batch system detected)"
+
+
+def available_job_types() -> str:
+    """
+    Return the supported job types.
+
+    Returns:
+        str: A comma-separated list of supported job types, each wrapped in quotes.
+    """
+    from qq_lib.properties.job_type import JobType
+
+    return ", ".join([f"'{str(job_type)}'" for job_type in JobType])
