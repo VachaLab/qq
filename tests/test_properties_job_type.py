@@ -11,6 +11,7 @@ from qq_lib.properties.job_type import JobType
 def test_str_method():
     assert str(JobType.STANDARD) == "standard"
     assert str(JobType.LOOP) == "loop"
+    assert str(JobType.CONTINUOUS) == "continuous"
 
 
 @pytest.mark.parametrize(
