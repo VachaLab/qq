@@ -318,6 +318,7 @@ def test_runner_cleanup_with_running_process_no_scratch():
 
 def test_runner_resubmit_final_cycle():
     informer_mock = MagicMock()
+    informer_mock.info.job_type = JobType.LOOP
     informer_mock.info.loop_info.current = 5
     informer_mock.info.loop_info.end = 5
 
@@ -1117,7 +1118,11 @@ def test_runner_execute_updates_info_and_runs_script(tmp_path):
     assert retcode == 0
 
 
-def test_runner_execute_handles_no_resubmit_exit_code(tmp_path):
+@pytest.mark.parametrize(
+    "job_type",
+    [JobType.LOOP, JobType.CONTINUOUS],
+)
+def test_runner_execute_handles_no_resubmit_exit_code(tmp_path, job_type):
     script_file = tmp_path / "script.sh"
     script_file.write_text("#!/bin/bash\necho Hello\n")
 
@@ -1131,6 +1136,7 @@ def test_runner_execute_handles_no_resubmit_exit_code(tmp_path):
     runner._informer.info.stdout_file = stdout_file
     runner._informer.info.stderr_file = stderr_file
     runner._informer.info.loop_info = MagicMock()
+    runner._informer.info.job_type = job_type
     runner._should_resubmit = True
 
     mock_process = MagicMock()
@@ -1319,8 +1325,8 @@ def test_runner_reload_info_without_retry(mock_informer_cls, mock_retryer_cls):
 def test_runner_ensure_matches_job_with_matching_numeric_id():
     informer = MagicMock()
     informer.info.job_id = "12345.cluster.domain"
-    informer.matchesJob = (
-        lambda job_id: informer.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]
+    informer.matchesJob = lambda job_id: (
+        informer.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]
     )
 
     runner = Runner.__new__(Runner)
@@ -1333,8 +1339,8 @@ def test_runner_ensure_matches_job_with_matching_numeric_id():
 def test_runner_ensure_matches_job_with_different_numeric_id_raises():
     informer = MagicMock()
     informer.info.job_id = "99999.cluster.domain"
-    informer.matchesJob = (
-        lambda job_id: informer.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]
+    informer.matchesJob = lambda job_id: (
+        informer.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]
     )
 
     runner = Runner.__new__(Runner)
@@ -1348,8 +1354,8 @@ def test_runner_ensure_matches_job_with_different_numeric_id_raises():
 def test_runner_ensure_matches_job_with_partial_suffix_matching():
     informer = MagicMock()
     informer.info.job_id = "5678.random.server.org"
-    informer.matchesJob = (
-        lambda job_id: informer.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]
+    informer.matchesJob = lambda job_id: (
+        informer.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]
     )
 
     runner = Runner.__new__(Runner)

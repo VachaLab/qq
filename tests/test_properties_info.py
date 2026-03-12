@@ -304,6 +304,36 @@ def test_get_command_line_for_resubmit_basic(sample_info):
     ]
 
 
+def test_get_command_line_for_continuous(sample_info):
+    sample_info.job_type = JobType.CONTINUOUS
+    sample_info.excluded_files = [Path("exclude.txt"), Path("inner/exclude2.txt")]
+    sample_info.included_files = [Path("include.txt"), Path("inner/include2.txt")]
+
+    assert sample_info.getCommandLineForResubmit() == [
+        "script.sh",
+        "--queue",
+        "default",
+        "--job-type",
+        "continuous",
+        "--batch-system",
+        "PBS",
+        "--depend",
+        "afterok=12345.fake.server.com",
+        "--ncpus",
+        "8",
+        "--work-dir",
+        "scratch_local",
+        "--account",
+        "fake-account",
+        "--exclude",
+        "exclude.txt,inner/exclude2.txt",
+        "--include",
+        "include.txt,inner/include2.txt",
+        "--transfer-mode",
+        "success",
+    ]
+
+
 def test_get_command_line_full(sample_info):
     sample_info.job_type = JobType.LOOP
     sample_info.excluded_files = [Path("exclude.txt"), Path("inner/exclude2.txt")]

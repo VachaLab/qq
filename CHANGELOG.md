@@ -1,3 +1,8 @@
+## Version 0.9.0
+- Added `continuous` jobs: a light-weight alternative to loop jobs. Continuous jobs automatically submit their continuation but do not track their cycle nor do they perform archival operations. See [the manual](https://vachalab.github.io/qq-manual/continuous_job.html) for more information.
+
+***
+
 ## Version 0.8.0
 - Added the `--transfer-mode` and `--archive-mode` options, which allow automatically transferring (and archiving, respectively) files from the working directory for other jobs than those successfully finished. See [the manual](https://vachalab.github.io/qq-manual/transfer_modes.html) for more information.
 - As a consequence of the above change, the behavior of `qq go`, `qq sync`, and `qq wipe` has been slightly adjusted.
