@@ -129,6 +129,9 @@ class Runner:
         else:
             self._archiver = None
 
+        if self._informer.info.job_type == JobType.CONTINUOUS:
+            self._should_resubmit = True
+
     def prepare(self) -> None:
         """
         Prepare the script for execution, setting up the archive
@@ -211,7 +214,7 @@ class Runner:
         # if the script returns an exit code corresponding to CFG.exit_codes.qq_run_no_resubmit,
         # do not submit the next cycle of the job but return 0
         if (
-            self._informer.info.loop_info is not None
+            self._informer.info.job_type in [JobType.LOOP, JobType.CONTINUOUS]
             and self._process.returncode == CFG.exit_codes.qq_run_no_resubmit
         ):
             logger.debug(
@@ -243,7 +246,7 @@ class Runner:
             - If not using scratch: No file operations are performed.
         3. Updates the qq info file to "finished" (exit code 0) or "failed" (non-zero
             exit code).
-        4. Resubmits the job if it is a loop job and completed successfully.
+        4. Resubmits the job if it is a loop or continuous job and was completed successfully.
 
         Raises:
             QQError: If copying, deletion, or archiving of files fails or if the resubmission fails.
@@ -291,8 +294,8 @@ class Runner:
             # update the qqinfo file
             self._updateInfoFinished()
 
-            # if this is a loop job
-            if self._informer.info.job_type == JobType.LOOP:
+            # if this is a loop/continuous job
+            if self._informer.info.job_type in [JobType.LOOP, JobType.CONTINUOUS]:
                 self._resubmit()
         else:
             # update the qqinfo file
@@ -646,24 +649,31 @@ class Runner:
 
     def _resubmit(self) -> None:
         """
-        Resubmit the current loop job to the batch system if additional cycles remain.
+        Resubmit the current job if either of the following is true:
+            a) it is a loop job and additional cycles remain,
+            b) it is a continuous job that should be resubmitted.
 
         Raises:
             QQError: If the job cannot be resubmitted.
         """
-        if not (loop_info := self._informer.info.loop_info):
-            logger.debug("Loop info is undefined while resubmiting. This is a bug!")
-            return
-
-        if loop_info.current >= loop_info.end:
-            logger.info("This was the final cycle of the loop job. Not resubmitting.")
-            return
-
         if not self._should_resubmit:
             logger.info(
                 f"The script finished with an exit code of '{CFG.exit_codes.qq_run_no_resubmit}' indicating that the next cycle of the job should not be submitted. Not resubmitting."
             )
             return
+
+        if self._informer.info.job_type == JobType.LOOP:
+            if not (loop_info := self._informer.info.loop_info):
+                logger.warning(
+                    "Loop info is undefined while resubmiting a loop job. This is a bug!"
+                )
+                return
+
+            if loop_info.current >= loop_info.end:
+                logger.info(
+                    "This was the final cycle of the loop job. Not resubmitting."
+                )
+                return
 
         logger.info("Resubmitting the job.")
         logger.debug(

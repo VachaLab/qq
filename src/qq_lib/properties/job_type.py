@@ -21,6 +21,7 @@ class JobType(Enum):
 
     STANDARD = 1
     LOOP = 2
+    CONTINUOUS = 3
 
     def __str__(self):
         return self.name.lower()

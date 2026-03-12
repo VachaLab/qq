@@ -22,6 +22,9 @@ def test_str_method():
         ("loop", JobType.LOOP),
         ("LOOP", JobType.LOOP),
         ("LoOp", JobType.LOOP),
+        ("continuous", JobType.CONTINUOUS),
+        ("CONTINUOUS", JobType.CONTINUOUS),
+        ("ConTiNUOus", JobType.CONTINUOUS),
     ],
 )
 def test_from_str_valid(input_str, expected):
@@ -37,6 +40,7 @@ def test_from_str_valid(input_str, expected):
         "123",
         "standrd",  # intentional typo
         "looping",
+        "continous",  # intentional typo
     ],
 )
 def test_from_str_invalid_raises(invalid_str):

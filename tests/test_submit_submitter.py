@@ -226,6 +226,7 @@ def test_submitter_create_env_vars_dict_sets_all_required_variables(
     submitter._loop_info = None
     submitter._input_dir = tmp_path
     submitter._resources = Resources(nnodes=2, ncpus=8, ngpus=2, walltime="1d")
+    submitter._job_type = JobType.STANDARD
 
     if debug_mode:
         with patch.dict(os.environ, {CFG.env_vars.debug_mode: "true"}):
@@ -263,6 +264,7 @@ def test_submitter_create_env_vars_dict_sets_all_required_variables_with_per_nod
     submitter._resources = Resources(
         nnodes=2, ncpus_per_node=8, ngpus_per_node=2, walltime="1d"
     )
+    submitter._job_type = JobType.STANDARD
 
     if debug_mode:
         with patch.dict(os.environ, {CFG.env_vars.debug_mode: "true"}):
@@ -309,6 +311,7 @@ def test_submitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mode
     submitter._loop_info = DummyLoop()
     submitter._input_dir = tmp_path
     submitter._resources = Resources()
+    submitter._job_type = JobType.LOOP
 
     if debug_mode:
         with patch.dict(os.environ, {CFG.env_vars.debug_mode: "true"}):
@@ -333,6 +336,37 @@ def test_submitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mode
         assert CFG.env_vars.debug_mode not in env
 
 
+@pytest.mark.parametrize("debug_mode", [True, False])
+def test_submitter_create_env_vars_dict_continuous_job(tmp_path, debug_mode):
+    script = tmp_path / "script.sh"
+    script.write_text("#!/usr/bin/env -S qq run\n")
+
+    submitter = Submitter.__new__(Submitter)
+    submitter._info_file = tmp_path / "job.qqinfo"
+    submitter._batch_system = "BatchSystem"
+    submitter._input_dir = tmp_path
+    submitter._resources = Resources()
+    submitter._loop_info = None
+    submitter._job_type = JobType.CONTINUOUS
+
+    if debug_mode:
+        with patch.dict(os.environ, {CFG.env_vars.debug_mode: "true"}):
+            env = submitter._createEnvVarsDict()
+    else:
+        env = submitter._createEnvVarsDict()
+
+    assert env[CFG.env_vars.guard] == "true"
+    assert env[CFG.env_vars.info_file] == str(submitter._info_file)
+    assert env[CFG.env_vars.input_machine] == socket.gethostname()
+    assert env[CFG.env_vars.batch_system] == str(submitter._batch_system)
+    assert env[CFG.env_vars.input_dir] == str(submitter._input_dir)
+    assert env[CFG.env_vars.no_resubmit] == str(CFG.exit_codes.qq_run_no_resubmit)
+    if debug_mode:
+        assert env[CFG.env_vars.debug_mode] == "true"
+    else:
+        assert CFG.env_vars.debug_mode not in env
+
+
 def test_submitter_get_input_dir_returns_correct_path(tmp_path):
     submitter = Submitter.__new__(Submitter)
     submitter._input_dir = tmp_path
@@ -342,10 +376,9 @@ def test_submitter_get_input_dir_returns_correct_path(tmp_path):
     assert result == tmp_path
 
 
-def test_submitter_continues_loop_returns_true_for_valid_continuation(tmp_path):
+def test_submitter_loop_job_continues_loop_true_for_valid_continuation():
     submitter = Submitter.__new__(Submitter)
     submitter._loop_info = MagicMock(current=2)
-    submitter._input_dir = tmp_path
 
     dummy_info = MagicMock()
     dummy_info.loop_info = MagicMock(current=1)
@@ -354,22 +387,12 @@ def test_submitter_continues_loop_returns_true_for_valid_continuation(tmp_path):
     dummy_informer = MagicMock()
     dummy_informer.info = dummy_info
 
-    with (
-        patch(
-            "qq_lib.submit.submitter.get_info_file",
-            return_value=tmp_path / "job.qqinfo",
-        ),
-        patch.object(Informer, "fromFile", return_value=dummy_informer),
-    ):
-        result = submitter.continuesLoop()
-
-    assert result is True
+    assert submitter._loopJobContinuesLoop(dummy_informer) is True
 
 
-def test_submitter_continues_loop_returns_false_if_previous_not_finished(tmp_path):
+def test_submitter_loop_job_continues_loop_false_if_previous_not_finished():
     submitter = Submitter.__new__(Submitter)
     submitter._loop_info = MagicMock(current=2)
-    submitter._input_dir = tmp_path
 
     dummy_info = MagicMock()
     dummy_info.loop_info = MagicMock(current=1)
@@ -378,22 +401,12 @@ def test_submitter_continues_loop_returns_false_if_previous_not_finished(tmp_pat
     dummy_informer = MagicMock()
     dummy_informer.info = dummy_info
 
-    with (
-        patch(
-            "qq_lib.submit.submitter.get_info_file",
-            return_value=tmp_path / "job.qqinfo",
-        ),
-        patch.object(Informer, "fromFile", return_value=dummy_informer),
-    ):
-        result = submitter.continuesLoop()
-
-    assert result is False
+    assert submitter._loopJobContinuesLoop(dummy_informer) is False
 
 
-def test_submitter_continues_loop_returns_false_if_previous_cycle_mismatch(tmp_path):
+def test_submitter_loop_job_continues_loop_false_if_previous_cycle_mismatch():
     submitter = Submitter.__new__(Submitter)
     submitter._loop_info = MagicMock(current=5)
-    submitter._input_dir = tmp_path
 
     dummy_info = MagicMock()
     dummy_info.loop_info = MagicMock(current=3)
@@ -402,22 +415,12 @@ def test_submitter_continues_loop_returns_false_if_previous_cycle_mismatch(tmp_p
     dummy_informer = MagicMock()
     dummy_informer.info = dummy_info
 
-    with (
-        patch(
-            "qq_lib.submit.submitter.get_info_file",
-            return_value=tmp_path / "job.qqinfo",
-        ),
-        patch.object(Informer, "fromFile", return_value=dummy_informer),
-    ):
-        result = submitter.continuesLoop()
-
-    assert result is False
+    assert submitter._loopJobContinuesLoop(dummy_informer) is False
 
 
-def test_submitter_continues_loop_returns_false_if_no_loop_info_in_past(tmp_path):
+def test_submitter_loop_job_continues_loop_false_if_no_loop_info_in_past():
     submitter = Submitter.__new__(Submitter)
-    submitter._loop_info = MagicMock(current=3)
-    submitter._input_dir = tmp_path
+    submitter._loop_info = MagicMock(current=2)
 
     dummy_info = MagicMock()
     dummy_info.loop_info = None
@@ -426,40 +429,133 @@ def test_submitter_continues_loop_returns_false_if_no_loop_info_in_past(tmp_path
     dummy_informer = MagicMock()
     dummy_informer.info = dummy_info
 
-    with (
-        patch(
-            "qq_lib.submit.submitter.get_info_file",
-            return_value=tmp_path / "job.qqinfo",
-        ),
-        patch.object(Informer, "fromFile", return_value=dummy_informer),
-    ):
-        result = submitter.continuesLoop()
-
-    assert result is False
+    assert submitter._loopJobContinuesLoop(dummy_informer) is False
 
 
-def test_submitter_continues_loop_returns_false_if_no_loop_info_current(tmp_path):
+def test_submitter_loop_job_continues_loop_false_if_no_loop_info_current():
     submitter = Submitter.__new__(Submitter)
     submitter._loop_info = None
-    submitter._input_dir = tmp_path
 
     dummy_info = MagicMock()
-    dummy_info.loop_info = MagicMock(current=3)
+    dummy_info.loop_info = MagicMock(current=1)
     dummy_info.job_state = NaiveState.FINISHED
 
     dummy_informer = MagicMock()
     dummy_informer.info = dummy_info
 
+    assert submitter._loopJobContinuesLoop(dummy_informer) is False
+
+
+def test_submitter_continuous_job_continues_loop_true_for_valid_continuation():
+    submitter = Submitter.__new__(Submitter)
+    submitter._job_type = JobType.CONTINUOUS
+
+    dummy_info = MagicMock()
+    dummy_info.job_type = JobType.CONTINUOUS
+    dummy_info.job_state = NaiveState.FINISHED
+
+    dummy_informer = MagicMock()
+    dummy_informer.info = dummy_info
+
+    assert submitter._continuousJobContinuesLoop(dummy_informer) is True
+
+
+def test_submitter_continuous_job_continues_loop_false_if_not_finished():
+    submitter = Submitter.__new__(Submitter)
+    submitter._job_type = JobType.CONTINUOUS
+
+    dummy_info = MagicMock()
+    dummy_info.job_type = JobType.CONTINUOUS
+    dummy_info.job_state = NaiveState.RUNNING
+
+    dummy_informer = MagicMock()
+    dummy_informer.info = dummy_info
+
+    assert submitter._continuousJobContinuesLoop(dummy_informer) is False
+
+
+def test_submitter_continuous_job_continues_loop_false_if_previous_not_continuous():
+    submitter = Submitter.__new__(Submitter)
+    submitter._job_type = JobType.CONTINUOUS
+
+    dummy_info = MagicMock()
+    dummy_info.job_type = JobType.LOOP
+    dummy_info.job_state = NaiveState.FINISHED
+
+    dummy_informer = MagicMock()
+    dummy_informer.info = dummy_info
+
+    assert submitter._continuousJobContinuesLoop(dummy_informer) is False
+
+
+def test_submitter_continuous_job_continues_loop_false_if_current_not_continuous():
+    submitter = Submitter.__new__(Submitter)
+    submitter._job_type = JobType.STANDARD
+
+    dummy_info = MagicMock()
+    dummy_info.job_type = JobType.CONTINUOUS
+    dummy_info.job_state = NaiveState.FINISHED
+
+    dummy_informer = MagicMock()
+    dummy_informer.info = dummy_info
+
+    assert submitter._continuousJobContinuesLoop(dummy_informer) is False
+
+
+def test_submitter_continues_loop_returns_true_if_valid_loop(tmp_path):
+    submitter = Submitter.__new__(Submitter)
+    submitter._input_dir = tmp_path
+
+    dummy_informer = MagicMock()
+
     with (
         patch(
             "qq_lib.submit.submitter.get_info_file",
             return_value=tmp_path / "job.qqinfo",
         ),
         patch.object(Informer, "fromFile", return_value=dummy_informer),
+        patch.object(Submitter, "_loopJobContinuesLoop", return_value=True),
+        patch.object(Submitter, "_continuousJobContinuesLoop", return_value=False),
     ):
-        result = submitter.continuesLoop()
+        assert submitter.continuesLoop() is True
 
-    assert result is False
+
+def test_submitter_continues_loop_returns_true_if_valid_continuous(tmp_path):
+    submitter = Submitter.__new__(Submitter)
+    submitter._input_dir = tmp_path
+
+    dummy_informer = MagicMock()
+
+    with (
+        patch(
+            "qq_lib.submit.submitter.get_info_file",
+            return_value=tmp_path / "job.qqinfo",
+        ),
+        patch.object(Informer, "fromFile", return_value=dummy_informer),
+        patch.object(Submitter, "_loopJobContinuesLoop", return_value=False),
+        patch.object(Submitter, "_continuousJobContinuesLoop", return_value=True),
+    ):
+        assert submitter.continuesLoop() is True
+
+
+def test_submitter_continues_loop_returns_false_if_not_valid_loop_and_not_valid_continuous(
+    tmp_path,
+):
+    submitter = Submitter.__new__(Submitter)
+    submitter._input_dir = tmp_path
+
+    dummy_informer = MagicMock()
+
+    with (
+        patch(
+            "qq_lib.submit.submitter.get_info_file",
+            return_value=tmp_path / "job.qqinfo",
+        ),
+        patch.object(Informer, "fromFile", return_value=dummy_informer),
+        patch.object(Submitter, "_loopJobContinuesLoop", return_value=False),
+        patch.object(Submitter, "_continuousJobContinuesLoop", return_value=False),
+    ):
+        assert submitter.continuesLoop() is False
 
 
 def test_submitter_continues_loop_returns_false_on_qqerror(tmp_path):

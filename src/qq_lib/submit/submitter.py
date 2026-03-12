@@ -183,40 +183,68 @@ class Submitter:
 
     def continuesLoop(self) -> bool:
         """
-        Determine whether the submitted job is a continuation of a loop job.
-
-        Checks if an info file exists in the input directory that corresponds
-        to the previous cycle of the same loop job. A job is considered a valid
-        continuation if:
-          - An info file is found.
-          - Both the info file and the current job are loop jobs.
-          - The previous job finished successfully.
-          - The previous loop cycle number is exactly one less than the current one.
+        Determine whether the submitted job is a continuation of a loop/continuous job.
 
         Returns:
-            bool: True if the job is a valid continuation of a previous loop job,
+            bool: True if the job is a valid continuation of a previous loop/continuous job,
                   False otherwise.
         """
         try:
-            # only one qq info file can be present
+            # there should only be one info file for both loop jobs (runtime files are archived)
+            # and continuous jobs (runtime files overwrite each other)
             info_file = get_info_file(self._input_dir)
             informer = Informer.fromFile(info_file)
 
-            if (
-                informer.info.loop_info
-                and self._loop_info
-                and informer.info.job_state == NaiveState.FINISHED
-                and informer.info.loop_info.current == self._loop_info.current - 1
+            if self._loopJobContinuesLoop(informer) or self._continuousJobContinuesLoop(
+                informer
             ):
-                logger.debug("Valid loop job with a correct cycle.")
+                logger.debug("Valid loop job with a correct cycle or a continuous job.")
                 return True
             logger.debug(
-                "Detected info file is either not a loop job or does not correspond to the previous cycle."
+                "Detected info file does not correspond to a resubmittable job."
             )
             return False
         except QQError as e:
             logger.debug(f"Could not read an info file: {e}.")
             return False
+
+    def _loopJobContinuesLoop(self, previous: Informer) -> bool:
+        """
+        Determine whether the submitted job is a continuation of a loop job.
+
+        Args:
+            previous (Informer): Informer associated with the previous job.
+
+        Returns:
+            bool: True if the job is a valid continuation of a previous loop job, False otherwise.
+        """
+        return (
+            # both the previous job and the current job must be loop jobs
+            previous.info.loop_info is not None
+            and self._loop_info is not None
+            # previous job must be successfully finished
+            and previous.info.job_state == NaiveState.FINISHED
+            # the cycle of the current job is one more than the cycle of the previous job
+            and previous.info.loop_info.current == self._loop_info.current - 1
+        )
+
+    def _continuousJobContinuesLoop(self, previous: Informer) -> bool:
+        """
+        Determine whether the submitted job is a continuation of a continuous job.
+
+        Args:
+            previous (Informer): Informer associated with the previous job.
+
+        Returns:
+            bool: True if the job is a valid continuation of a previous continuous job, False otherwise.
+        """
+        return (
+            # both the previous and the current job must be continuous jobs
+            previous.info.job_type == JobType.CONTINUOUS
+            and self._job_type == JobType.CONTINUOUS
+            # previous job must be successfully finished
+            and previous.info.job_state == NaiveState.FINISHED
+        )
 
     def getInputDir(self) -> Path:
         """
@@ -327,6 +355,9 @@ class Submitter:
             env_vars[CFG.env_vars.loop_start] = str(self._loop_info.start)
             env_vars[CFG.env_vars.loop_end] = str(self._loop_info.end)
             env_vars[CFG.env_vars.archive_format] = self._loop_info.archive_format
+
+        # loop job- or continuous job-specific environment variables
+        if self._job_type in [JobType.LOOP, JobType.CONTINUOUS]:
             env_vars[CFG.env_vars.no_resubmit] = str(CFG.exit_codes.qq_run_no_resubmit)
 
         return env_vars
