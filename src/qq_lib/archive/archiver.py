@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from qq_lib.batch.interface import BatchInterface
-from qq_lib.core.common import is_printf_pattern, printf_to_regex
+from qq_lib.core.common import is_printf_pattern, logical_resolve, printf_to_regex
 from qq_lib.core.config import CFG
 from qq_lib.core.logger import get_logger
 from qq_lib.core.retryer import Retryer
@@ -240,9 +240,9 @@ class Archiver:
         logger.debug(f"All available files: {available_files}.")
         if include_qq_files:
             # the stem of the file must contain the regex pattern
-            return [f.resolve() for f in available_files if regex.search(f.stem)]
+            return [logical_resolve(f) for f in available_files if regex.search(f.stem)]
         return [
-            f.resolve()
+            logical_resolve(f)
             for f in available_files
             if regex.search(f.stem) and f.suffix not in CFG.suffixes.all_suffixes
         ]

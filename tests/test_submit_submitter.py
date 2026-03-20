@@ -39,6 +39,7 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
             resources=Resources(),
             exclude=[Path("exclude")],
             include=[Path("include"), Path("/tmp/include")],
+            transfer_mode=[Always()],
         )
 
         assert submitter._batch_system == PBS
@@ -54,6 +55,8 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
         assert submitter._exclude == [tmp_path / "exclude"]
         assert submitter._include == [tmp_path / "include", Path("/tmp/include")]
         assert submitter._depend == []
+        assert isinstance(submitter._transfer_mode[0], Always)
+        assert submitter._server is None
 
 
 def test_submitter_init_raises_error_if_script_does_not_exist(tmp_path):
@@ -114,6 +117,7 @@ def test_submitter_init_sets_all_optional_arguments_correctly(tmp_path):
             loop_info=loop_info,
             exclude=exclude_files,
             depend=depend_jobs,
+            server="fake.server.com",
         )
 
         assert submitter._batch_system == PBS
@@ -129,6 +133,7 @@ def test_submitter_init_sets_all_optional_arguments_correctly(tmp_path):
         assert submitter._resources == Resources()
         assert submitter._exclude == exclude_files
         assert submitter._depend == depend_jobs
+        assert submitter._server == "fake.server.com"
 
 
 def test_submitter_construct_job_name_returns_script_name_for_standard_job(
@@ -587,6 +592,7 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
     submitter._depend = []
     submitter._transfer_mode = [Success()]
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
+    submitter._server = None
     env_vars = {CFG.env_vars.guard: "true"}
 
     with (
@@ -613,6 +619,7 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
         submitter._depend,
         env_vars,
         submitter._account,
+        submitter._server,
     )
     mock_informer_class.assert_called_once()
     mock_informer_instance.toFile.assert_called_once_with(submitter._info_file)
@@ -635,6 +642,7 @@ def test_submitter_submit(tmp_path):
     submitter._include = ["include1"]
     submitter._depend = []
     submitter._transfer_mode = [Always()]
+    submitter._server = "fake.server.com"
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
     env_vars = {CFG.env_vars.guard: "true"}
 
@@ -666,6 +674,7 @@ def test_submitter_submit(tmp_path):
         submitter._depend,
         env_vars,
         submitter._account,
+        submitter._server,
     )
     mock_informer_class.assert_called_once()
     mock_informer_instance.toFile.assert_called_once_with(submitter._info_file)
@@ -699,3 +708,4 @@ def test_submitter_submit(tmp_path):
     assert info_arg.included_files == submitter._include
     assert info_arg.depend == submitter._depend
     assert info_arg.transfer_mode == [Always()]
+    assert info_arg.server == submitter._server

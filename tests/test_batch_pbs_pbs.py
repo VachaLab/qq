@@ -567,8 +567,25 @@ def test_translate_per_chunk_resources_missing_memory_raises():
 def test_translate_submit_minimal_fields():
     res = Resources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mpiprocs=1,mem=1048576kb script.sh"
+    )
+
+
+def test_translate_submit_with_server():
+    res = Resources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
+    assert (
+        PBS._translateSubmit(
+            res,
+            "gpu",
+            "server.random.address.com",
+            Path("tmp"),
+            "script.sh",
+            "job",
+            [],
+            {},
+        )
+        == f"qsub -N job -q gpu@server.random.address.com -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mpiprocs=1,mem=1048576kb script.sh"
     )
 
 
@@ -577,7 +594,7 @@ def test_translate_submit_ncpus_ngpus_per_node():
         nnodes=1, ncpus_per_node=1, ngpus_per_node=1, mem="1gb", work_dir="input_dir"
     )
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mpiprocs=1,mem=1048576kb,ngpus=1 script.sh"
     )
 
@@ -588,6 +605,7 @@ def test_translate_submit_with_env_vars():
         PBS._translateSubmit(
             res,
             "gpu",
+            None,
             Path("tmp"),
             "script.sh",
             "job",
@@ -601,7 +619,7 @@ def test_translate_submit_with_env_vars():
 def test_translate_submit_multiple_nodes():
     res = Resources(nnodes=4, ncpus=8, mem="1gb", work_dir="input_dir")
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=4:ncpus=2:mpiprocs=2:mem=262144kb -l place=vscatter script.sh"
     )
 
@@ -611,7 +629,7 @@ def test_translate_submit_multiple_nodes_ncpus_and_ngpus_per_node():
         nnodes=4, ncpus_per_node=8, ngpus_per_node=1, mem="1gb", work_dir="input_dir"
     )
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=4:ncpus=8:mpiprocs=8:mem=262144kb:ngpus=1 -l place=vscatter script.sh"
     )
 
@@ -622,6 +640,7 @@ def test_translate_submit_multiple_nodes_with_env_vars():
         PBS._translateSubmit(
             res,
             "gpu",
+            None,
             Path("tmp"),
             "script.sh",
             "job",
@@ -637,7 +656,9 @@ def test_translate_submit_with_walltime():
         nnodes=1, ncpus=2, mem="2gb", walltime="1d24m121s", work_dir="input_dir"
     )
     assert (
-        PBS._translateSubmit(res, "queue", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(
+            res, "queue", None, Path("tmp"), "script.sh", "job", [], {}
+        )
         == f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=2,mpiprocs=2,mem=2097152kb -l walltime=24:26:01 script.sh"
     )
 
@@ -647,7 +668,9 @@ def test_translate_submit_with_walltime2():
         nnodes=1, ncpus=2, mem="2gb", walltime="12:30:15", work_dir="input_dir"
     )
     assert (
-        PBS._translateSubmit(res, "queue", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(
+            res, "queue", None, Path("tmp"), "script.sh", "job", [], {}
+        )
         == f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=2,mpiprocs=2,mem=2097152kb -l walltime=12:30:15 script.sh"
     )
 
@@ -660,6 +683,7 @@ def test_translate_submit_with_walltime_and_env_vars():
         PBS._translateSubmit(
             res,
             "queue",
+            None,
             Path("tmp"),
             "script.sh",
             "job",
@@ -673,7 +697,7 @@ def test_translate_submit_with_walltime_and_env_vars():
 def test_translate_submit_work_dir_scratch_shm():
     res = Resources(nnodes=1, ncpus=1, mem="8gb", work_dir="scratch_shm")
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mpiprocs=1,mem=8388608kb,scratch_shm=true script.sh"
     )
 
@@ -683,7 +707,7 @@ def test_translate_submit_scratch_local_work_size():
         nnodes=2, ncpus=2, mem="4gb", work_dir="scratch_local", work_size="16gb"
     )
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=1:mpiprocs=1:mem=2097152kb:scratch_local=8388608kb -l place=vscatter script.sh"
     )
 
@@ -697,7 +721,7 @@ def test_translate_submit_scratch_local_work_size_per_node():
         work_size_per_node="16gb",
     )
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=1:mpiprocs=1:mem=2097152kb:scratch_local=16777216kb -l place=vscatter script.sh"
     )
 
@@ -707,7 +731,7 @@ def test_translate_submit_scratch_ssd_work_size():
         nnodes=2, ncpus=2, mem="4gb", work_dir="scratch_ssd", work_size="16gb"
     )
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=1:mpiprocs=1:mem=2097152kb:scratch_ssd=8388608kb -l place=vscatter script.sh"
     )
 
@@ -717,7 +741,7 @@ def test_translate_submit_scratch_shared_work_size():
         nnodes=2, ncpus=2, mem="4gb", work_dir="scratch_shared", work_size="16gb"
     )
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=1:mpiprocs=1:mem=2097152kb:scratch_shared=8388608kb -l place=vscatter script.sh"
     )
 
@@ -727,7 +751,7 @@ def test_translate_submit_work_size_per_cpu():
         nnodes=1, ncpus=8, mem="4gb", work_dir="scratch_local", work_size_per_cpu="2gb"
     )
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=8,mpiprocs=8,mem=4194304kb,scratch_local=16777216kb script.sh"
     )
 
@@ -741,7 +765,7 @@ def test_translate_submit_work_size_per_cpu_with_cpus_per_node():
         work_size_per_cpu="2gb",
     )
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=8,mpiprocs=8,mem=4194304kb,scratch_local=16777216kb script.sh"
     )
 
@@ -751,7 +775,7 @@ def test_translate_submit_work_size_per_cpu_multiple_nodes():
         nnodes=3, ncpus=3, mem="4gb", work_dir="scratch_local", work_size_per_cpu="2gb"
     )
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=3:ncpus=1:mpiprocs=1:mem=1398102kb:scratch_local=2097152kb -l place=vscatter script.sh"
     )
 
@@ -761,7 +785,7 @@ def test_translate_submit_mem_per_cpu():
         nnodes=1, ncpus=4, mem_per_cpu="2gb", work_dir="scratch_local", work_size="10gb"
     )
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=4,mpiprocs=4,mem=8388608kb,scratch_local=10485760kb script.sh"
     )
 
@@ -775,7 +799,7 @@ def test_translate_submit_mem_per_cpu_with_ncpus_per_node():
         work_size="10gb",
     )
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=4,mpiprocs=4,mem=8388608kb,scratch_local=10485760kb script.sh"
     )
 
@@ -789,7 +813,7 @@ def test_translate_submit_mem_per_node():
         work_size="10gb",
     )
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=4,mpiprocs=4,mem=8388608kb,scratch_local=10485760kb script.sh"
     )
 
@@ -799,7 +823,7 @@ def test_translate_submit_mem_per_cpu_multiple_nodes():
         nnodes=2, ncpus=4, mem_per_cpu="2gb", work_dir="scratch_local", work_size="20gb"
     )
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=2:mpiprocs=2:mem=4194304kb:scratch_local=10485760kb -l place=vscatter script.sh"
     )
 
@@ -813,7 +837,7 @@ def test_translate_submit_mem_per_node_multiple_nodes():
         work_size="20gb",
     )
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=2:mpiprocs=2:mem=4194304kb:scratch_local=10485760kb -l place=vscatter script.sh"
     )
 
@@ -827,7 +851,7 @@ def test_translate_submit_mem_per_cpu_and_work_size_per_cpu():
         work_size_per_cpu="5gb",
     )
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=4,mpiprocs=4,mem=8388608kb,scratch_local=20971520kb script.sh"
     )
 
@@ -841,7 +865,7 @@ def test_translate_submit_mem_per_cpu_and_work_size_per_cpu_multiple_nodes():
         work_size_per_cpu="5gb",
     )
     assert (
-        PBS._translateSubmit(res, "gpu", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(res, "gpu", None, Path("tmp"), "script.sh", "job", [], {})
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -l select=2:ncpus=2:mpiprocs=2:mem=4194304kb:scratch_local=10485760kb -l place=vscatter script.sh"
     )
 
@@ -855,7 +879,9 @@ def test_translate_submit_with_props():
         work_dir="input_dir",
     )
     assert (
-        PBS._translateSubmit(res, "queue", Path("tmp"), "script.sh", "job", [], {})
+        PBS._translateSubmit(
+            res, "queue", None, Path("tmp"), "script.sh", "job", [], {}
+        )
         == f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mpiprocs=1,mem=1048576kb,vnode=my_node,infiniband=true script.sh"
     )
 
@@ -872,6 +898,7 @@ def test_translate_submit_with_props_and_env_vars():
         PBS._translateSubmit(
             res,
             "queue",
+            None,
             Path("tmp"),
             "script.sh",
             "job",
@@ -896,6 +923,7 @@ def test_translate_submit_complex_case():
     assert PBS._translateSubmit(
         res,
         "gpu",
+        None,
         Path("tmp"),
         "myscript.sh",
         "job",
@@ -913,11 +941,43 @@ def test_translate_submit_complex_case():
     )
 
 
+def test_translate_submit_complex_case_with_server():
+    res = Resources(
+        nnodes=3,
+        ncpus=6,
+        mem="5gb",
+        ngpus=3,
+        walltime="1h30m",
+        work_dir="scratch_local",
+        work_size_per_cpu="2gb",
+        props={"cl_cluster": "true"},
+    )
+    assert PBS._translateSubmit(
+        res,
+        "gpu",
+        "server.fake.address.com",
+        Path("tmp"),
+        "myscript.sh",
+        "job",
+        [],
+        {
+            CFG.env_vars.info_file: "/path/to/job/job.qqinfo",
+            CFG.env_vars.input_dir: "/path/to/job/",
+            CFG.env_vars.guard: "true",
+        },
+    ) == (
+        f"qsub -N job -q gpu@server.fake.address.com -j eo -e tmp/job{CFG.suffixes.qq_out} "
+        f"-v \"{CFG.env_vars.info_file}='/path/to/job/job.qqinfo'\",\"{CFG.env_vars.input_dir}='/path/to/job/'\",\"{CFG.env_vars.guard}='true'\" "
+        f"-l select=3:ncpus=2:mpiprocs=2:mem=1747627kb:ngpus=1:scratch_local=4194304kb:cl_cluster=true "
+        f"-l walltime=1:30:00 -l place=vscatter myscript.sh"
+    )
+
+
 def test_translate_submit_single_depend():
     res = Resources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
     depend = [Depend(DependType.AFTER_START, ["123"])]
     cmd = PBS._translateSubmit(
-        res, "queue", Path("tmp"), "script.sh", "job", depend, {}
+        res, "queue", None, Path("tmp"), "script.sh", "job", depend, {}
     )
     expected = f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mpiprocs=1,mem=1048576kb -W depend=after:123 script.sh"
     assert cmd == expected
@@ -927,7 +987,7 @@ def test_translate_submit_multiple_jobs_depend():
     res = Resources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
     depend = [Depend(DependType.AFTER_SUCCESS, ["1", "2"])]
     cmd = PBS._translateSubmit(
-        res, "queue", Path("tmp"), "script.sh", "job", depend, {}
+        res, "queue", None, Path("tmp"), "script.sh", "job", depend, {}
     )
     expected = f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mpiprocs=1,mem=1048576kb -W depend=afterok:1:2 script.sh"
     assert cmd == expected
@@ -940,7 +1000,7 @@ def test_translate_submit_multiple_dependencies():
         Depend(DependType.AFTER_FAILURE, ["2"]),
     ]
     cmd = PBS._translateSubmit(
-        res, "queue", Path("tmp"), "script.sh", "job", depend, {}
+        res, "queue", None, Path("tmp"), "script.sh", "job", depend, {}
     )
     expected = f"qsub -N job -q queue -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mpiprocs=1,mem=1048576kb -W depend=afterok:1,afternotok:2 script.sh"
     assert cmd == expected
@@ -960,6 +1020,7 @@ def test_translate_submit_complex_with_depend():
     cmd = PBS._translateSubmit(
         res,
         "gpu",
+        None,
         Path("tmp"),
         "myscript.sh",
         "job",
@@ -993,9 +1054,10 @@ def test_transform_resources_input_dir_warns_and_sets_work_dir():
         mock_instance.getDefaultResources.return_value = Resources()
 
         res = PBS.transformResources(
-            "gpu", Resources(work_dir="input_dir", work_size="10gb")
+            "gpu", None, Resources(work_dir="input_dir", work_size="10gb")
         )
 
+    mock_queue.assert_called_once_with("gpu", None)
     assert res.work_dir == "input_dir"
 
     called_args = mock_warning.call_args[0]
@@ -1016,9 +1078,10 @@ def test_transform_resources_job_dir_warns_and_sets_work_dir():
         mock_instance.getDefaultResources.return_value = Resources()
 
         res = PBS.transformResources(
-            "gpu", Resources(work_dir="job_dir", work_size="10gb")
+            "gpu", None, Resources(work_dir="job_dir", work_size="10gb")
         )
 
+    mock_queue.assert_called_once_with("gpu", None)
     assert res.work_dir == "input_dir"
 
     called_args = mock_warning.call_args[0]
@@ -1039,9 +1102,10 @@ def test_transform_resources_scratch_shm_warns_and_clears_work_size():
         mock_instance.getDefaultResources.return_value = Resources()
 
         res = PBS.transformResources(
-            "gpu", Resources(work_dir="scratch_shm", work_size="10gb")
+            "gpu", None, Resources(work_dir="scratch_shm", work_size="10gb")
         )
 
+    mock_queue.assert_called_once_with("gpu", None)
     assert res.work_dir == "scratch_shm"
     assert res.work_size is None
 
@@ -1063,7 +1127,7 @@ def test_transform_resources_supported_scratch():
             mock_instance.getDefaultResources.return_value = Resources()
 
             res = PBS.transformResources(
-                "gpu", Resources(work_dir=scratch, work_size="10gb")
+                "gpu", None, Resources(work_dir=scratch, work_size="10gb")
             )
 
         assert res.work_dir == scratch
@@ -1085,6 +1149,7 @@ def test_transform_resources_supported_scratch_unnormalized():
 
             res = PBS.transformResources(
                 "gpu",
+                None,
                 Resources(work_dir=scratch.upper().replace("_", "-"), work_size="10gb"),
             )
 
@@ -1103,7 +1168,7 @@ def test_transform_resources_unknown_work_dir_raises():
         mock_queue.return_value = mock_instance
         mock_instance.getDefaultResources.return_value = Resources()
 
-        PBS.transformResources("gpu", Resources(work_dir="unknown_scratch"))
+        PBS.transformResources("gpu", None, Resources(work_dir="unknown_scratch"))
 
 
 def test_transform_resources_missing_work_dir_raises():
@@ -1120,7 +1185,26 @@ def test_transform_resources_missing_work_dir_raises():
         mock_queue.return_value = mock_instance
         mock_instance.getDefaultResources.return_value = Resources()
 
-        PBS.transformResources("gpu", Resources())
+        PBS.transformResources("gpu", None, Resources())
+
+
+def test_transform_resources_with_server():
+    provided = Resources(work_dir="input_dir", work_size="10gb")
+    with (
+        patch("qq_lib.batch.pbs.pbs.PBSQueue") as mock_queue,
+        patch.object(PBS, "_getDefaultServerResources", return_value=Resources()),
+        patch.object(Resources, "mergeResources", return_value=provided),
+        patch("qq_lib.batch.pbs.pbs.logger.warning"),
+    ):
+        mock_instance = MagicMock()
+        mock_queue.return_value = mock_instance
+        mock_instance.getDefaultResources.return_value = Resources()
+
+        PBS.transformResources(
+            "gpu", "server", Resources(work_dir="input_dir", work_size="10gb")
+        )
+
+    mock_queue.assert_called_once_with("gpu", "server")
 
 
 @pytest.fixture
@@ -1272,7 +1356,37 @@ def test_pbs_get_queues_returns_list(mock_run):
     )
 
     mock_parse.assert_called_once_with("mock_stdout", "Queue")
-    mock_from_dict.assert_called_once_with("queue1", {"key": "value"})
+    mock_from_dict.assert_called_once_with("queue1", None, {"key": "value"})
+
+    assert result == ["mock_queue"]
+
+
+@patch("qq_lib.batch.pbs.pbs.subprocess.run")
+def test_pbs_get_queues_with_server_returns_list(mock_run):
+    mock_run.return_value = MagicMock(returncode=0, stdout="mock_stdout", stderr="")
+
+    with (
+        patch(
+            "qq_lib.batch.pbs.pbs.parse_multi_pbs_dump_to_dictionaries",
+            return_value=[({"key": "value"}, "queue1")],
+        ) as mock_parse,
+        patch(
+            "qq_lib.batch.pbs.pbs.PBSQueue.fromDict", return_value="mock_queue"
+        ) as mock_from_dict,
+    ):
+        result = PBS.getQueues("server")
+
+    mock_run.assert_called_once_with(
+        ["bash"],
+        input="qstat -Qfw @server",
+        text=True,
+        check=False,
+        capture_output=True,
+        errors="replace",
+    )
+
+    mock_parse.assert_called_once_with("mock_stdout", "Queue")
+    mock_from_dict.assert_called_once_with("queue1", "server", {"key": "value"})
 
     assert result == ["mock_queue"]
 
@@ -1322,6 +1436,31 @@ def test_pbs_get_nodes_returns_list(mock_run):
     mock_run.assert_called_once_with(
         ["bash"],
         input="pbsnodes -a",
+        text=True,
+        check=False,
+        capture_output=True,
+        errors="replace",
+    )
+    mock_parse.assert_called_once_with("mock_stdout", None)
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert isinstance(result[0], PBSNode)
+    assert result[0]._name == "node1"
+    assert result[0]._info == {"key": "value"}
+
+
+@patch("qq_lib.batch.pbs.pbs.subprocess.run")
+def test_pbs_get_nodes_with_server_returns_list(mock_run):
+    mock_run.return_value = MagicMock(returncode=0, stdout="mock_stdout", stderr="")
+    with patch(
+        "qq_lib.batch.pbs.pbs.parse_multi_pbs_dump_to_dictionaries",
+        return_value=[({"key": "value"}, "node1")],
+    ) as mock_parse:
+        result = PBS.getNodes("server")
+
+    mock_run.assert_called_once_with(
+        ["bash"],
+        input="pbsnodes -a -s server",
         text=True,
         check=False,
         capture_output=True,
@@ -1483,3 +1622,92 @@ def test_pbs_create_work_dir_on_scratch_creates_work_dir():
     assert result == expected_work_dir
 
     mkdir_mock.assert_called_once_with(exist_ok=True)
+
+
+@pytest.mark.parametrize(
+    "queue, server, expected",
+    [
+        ("default", "worker1", "-q default@worker1"),
+        ("cpu", None, "-q cpu"),
+        ("gpu", "", "-q gpu"),
+        ("default-cpu", "worker1", "-q default-cpu@worker1"),
+        ("gpu", "worker1.cluster.org", "-q gpu@worker1.cluster.org"),
+    ],
+)
+def test_pbs_translate_queue_server(queue, server, expected):
+    assert PBS._translateQueueServer(queue, server) == expected
+
+
+@pytest.mark.parametrize(
+    "server, expected_ams_site",
+    [
+        ("robox-pro.ceitec.muni.cz", "robox"),
+        ("sokar-pbs.ncbr.muni.cz", "sokar"),
+        ("pbs-m1.metacentrum.cz", "metavo24"),
+    ],
+)
+def test_modify_ams_env_vars_updates_ams_site_for_known_servers(
+    server, expected_ams_site
+):
+    env_vars = {"AMS_SITE": "old-value"}
+    PBS._modifyAMSEnvVars(env_vars, server)
+    assert env_vars["AMS_SITE"] == expected_ams_site
+
+
+@pytest.mark.parametrize(
+    "server, expected_ams_site_support",
+    [
+        ("robox-pro.ceitec.muni.cz", "linuxsupport@ics.muni.cz"),
+        ("sokar-pbs.ncbr.muni.cz", "support@lcc.ncbr.muni.cz"),
+        ("pbs-m1.metacentrum.cz", "support@lcc.ncbr.muni.cz"),
+    ],
+)
+def test_modify_ams_env_vars_updates_ams_site_support_for_known_servers(
+    server, expected_ams_site_support
+):
+    env_vars = {"AMS_SITE_SUPPORT": "old-value"}
+    PBS._modifyAMSEnvVars(env_vars, server)
+    assert env_vars["AMS_SITE_SUPPORT"] == expected_ams_site_support
+
+
+@pytest.mark.parametrize(
+    "server, expected_ams_groupns",
+    [
+        ("robox-pro.ceitec.muni.cz", "uvt"),
+        ("sokar-pbs.ncbr.muni.cz", "ncbr"),
+        ("pbs-m1.metacentrum.cz", "ics"),
+    ],
+)
+def test_modify_ams_env_vars_updates_ams_groupns_for_known_servers(
+    server, expected_ams_groupns
+):
+    env_vars = {"AMS_GROUPNS": "old-value"}
+    PBS._modifyAMSEnvVars(env_vars, server)
+    assert env_vars["AMS_GROUPNS"] == expected_ams_groupns
+
+
+def test_modify_ams_env_vars_does_not_add_missing_ams_vars():
+    env_vars = {"AMS_SITE": "old-value"}
+    PBS._modifyAMSEnvVars(env_vars, "robox-pro.ceitec.muni.cz")
+    assert "AMS_SITE_SUPPORT" not in env_vars
+    assert "AMS_GROUPNS" not in env_vars
+
+
+def test_modify_ams_env_vars_does_not_modify_non_ams_vars():
+    env_vars = {"AMS_SITE": "old-value", "PATH": "/usr/bin:/bin", "HOME": "/home/user"}
+    PBS._modifyAMSEnvVars(env_vars, "robox-pro.ceitec.muni.cz")
+    assert env_vars["PATH"] == "/usr/bin:/bin"
+    assert env_vars["HOME"] == "/home/user"
+
+
+def test_modify_ams_env_vars_warns_for_unknown_server():
+    with patch("qq_lib.batch.pbs.pbs.logger.warning") as mock_warning:
+        PBS._modifyAMSEnvVars({}, "unknown-server.example.com")
+        mock_warning.assert_called_once()
+        assert "unknown-server.example.com" in mock_warning.call_args[0][0]
+
+
+def test_modify_ams_env_vars_raises_for_unknown_server_with_ams_vars():
+    env_vars = {"AMS_SITE": "old-value"}
+    with pytest.raises(KeyError):
+        PBS._modifyAMSEnvVars(env_vars, "unknown-server.example.com")

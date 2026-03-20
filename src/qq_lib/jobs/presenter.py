@@ -77,6 +77,7 @@ class JobsPresenter:
         jobs: list[BatchJobInterface],
         extra: bool,
         all: bool,
+        server: str | None,
     ):
         """
         Initialize the presenter with a list of jobs.
@@ -86,12 +87,15 @@ class JobsPresenter:
                 to be presented.
             extra (bool): Should show additional info about jobs.
             all (bool): Show all jobs, not just queued and running.
+            server (str | None): Batch server for which the jobs were collected.
+                `None` = default server.
         """
         self._batch_system = batch_system
         self._jobs = jobs
         self._stats = JobsStatistics()
         self._extra = extra
         self._all = all
+        self._server = server
 
     def createJobsInfoPanel(self, console: Console | None = None) -> Group:
         """
@@ -123,8 +127,17 @@ class JobsPresenter:
         panel = Panel(
             content,
             title=Text(
-                "COLLECTED JOBS", style=CFG.jobs_presenter.title_style, justify="center"
+                "COLLECTED JOBS",
+                style=CFG.jobs_presenter.title_style,
+                justify="center",
             ),
+            subtitle=Text(
+                f"{self._server}",
+                style=CFG.jobs_presenter.subtitle_style,
+                justify="center",
+            )
+            if self._server
+            else None,
             border_style=CFG.jobs_presenter.border_style,
             padding=(1, 1),
             width=get_panel_width(
@@ -213,12 +226,17 @@ class JobsPresenter:
         nodes = job.getNNodes() or 0
         self._stats.addJob(state, cpus, gpus, nodes)
 
+        if self._server:
+            # show full job ID if we are working with a non-standard server
+            job_id = job.getId()
+        else:
+            # otherwise, show only the numerical portion of the ID
+            job_id = JobsPresenter._shortenJobId(job.getId())
+
         # build the row
         row_data: dict[str, str] = {
             "S": JobsPresenter._color(state.toCode(), state.color),
-            "Job ID": JobsPresenter._mainColor(
-                JobsPresenter._shortenJobId(job.getId())
-            ),
+            "Job ID": JobsPresenter._mainColor(job_id),
             "User": JobsPresenter._mainColor(job.getUser() or ""),
             "Job Name": JobsPresenter._mainColor(
                 JobsPresenter._shortenJobName(job.getName() or "")

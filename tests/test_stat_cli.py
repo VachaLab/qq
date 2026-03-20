@@ -79,22 +79,55 @@ def test_stat_command_unfinished_shows_jobs(parsed_jobs):
 
     with (
         patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
-        patch.object(PBS, "getAllUnfinishedBatchJobs", return_value=parsed_jobs),
+        patch.object(
+            PBS, "getAllUnfinishedBatchJobs", return_value=parsed_jobs
+        ) as mock_get_jobs,
         patch.object(
             PBS,
             "getAllBatchJobs",
             side_effect=Exception("getAllBatchJobs should not be called"),
         ),
         patch.object(PBS, "sortJobs") as mock_sort,
+        patch("getpass.getuser", return_value="user"),
     ):
         result = runner.invoke(stat, [], catch_exceptions=False)
 
         assert result.exit_code == 0
         mock_sort.assert_called_once()
+        mock_get_jobs.assert_called_once()
         output = result.output
 
         for job in parsed_jobs:
             assert JobsPresenter._shortenJobId(job.getId()) in output
+            assert job.getName() in output
+            assert job.getUser() in output
+
+
+def test_stat_command_unfinished_shows_jobs_with_server(parsed_jobs):
+    runner = CliRunner()
+
+    with (
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
+        patch.object(
+            PBS, "getAllUnfinishedBatchJobs", return_value=parsed_jobs
+        ) as mock_get_jobs,
+        patch.object(
+            PBS,
+            "getAllBatchJobs",
+            side_effect=Exception("getAllBatchJobs should not be called"),
+        ),
+        patch.object(PBS, "sortJobs") as mock_sort,
+        patch("getpass.getuser", return_value="user"),
+    ):
+        result = runner.invoke(stat, ["-s", "server"], catch_exceptions=False)
+
+        assert result.exit_code == 0
+        mock_sort.assert_called_once()
+        mock_get_jobs.assert_called_once_with("server")
+        output = result.output
+
+        for job in parsed_jobs:
+            assert job.getId() in output
             assert job.getName() in output
             assert job.getUser() in output
 
@@ -104,7 +137,7 @@ def test_stat_command_all_flag_shows_all_jobs(parsed_jobs):
 
     with (
         patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
-        patch.object(PBS, "getAllBatchJobs", return_value=parsed_jobs),
+        patch.object(PBS, "getAllBatchJobs", return_value=parsed_jobs) as mock_get_jobs,
         patch.object(
             PBS,
             "getAllUnfinishedBatchJobs",
@@ -116,10 +149,37 @@ def test_stat_command_all_flag_shows_all_jobs(parsed_jobs):
 
         assert result.exit_code == 0
         mock_sort.assert_called_once()
+        mock_get_jobs.assert_called_once()
         output = result.output
 
         for job in parsed_jobs:
             assert JobsPresenter._shortenJobId(job.getId()) in output
+            assert job.getName() in output
+            assert job.getUser() in output
+
+
+def test_stat_command_all_flag_shows_all_jobs_with_server(parsed_jobs):
+    runner = CliRunner()
+
+    with (
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
+        patch.object(PBS, "getAllBatchJobs", return_value=parsed_jobs) as mock_get_jobs,
+        patch.object(
+            PBS,
+            "getAllUnfinishedBatchJobs",
+            side_effect=Exception("getAllUnfinishedBatchJobs should not be called"),
+        ),
+        patch.object(PBS, "sortJobs") as mock_sort,
+    ):
+        result = runner.invoke(stat, ["--all", "-s", "server"], catch_exceptions=False)
+
+        assert result.exit_code == 0
+        mock_sort.assert_called_once()
+        mock_get_jobs.assert_called_once_with("server")
+        output = result.output
+
+        for job in parsed_jobs:
+            assert job.getId() in output
             assert job.getName() in output
             assert job.getUser() in output
 

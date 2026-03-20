@@ -5,7 +5,7 @@ from dataclasses import fields
 from pathlib import Path
 
 from qq_lib.batch.interface import BatchInterface, BatchMeta
-from qq_lib.core.common import split_files_list
+from qq_lib.core.common import split_files_list, translate_server
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
@@ -58,18 +58,21 @@ class SubmitterFactory:
         else:
             loop_info = None
 
+        server = self._getServer()
+
         return Submitter(
             BatchSystem,
             queue,
             self._getAccount(),
             self._script,
             job_type,
-            self._getResources(BatchSystem, queue),
+            self._getResources(BatchSystem, queue, server),
             loop_info,
             self._getExclude(),
             self._getInclude(),
             self._getDepend(),
             self._getTransferMode(),
+            server,
         )
 
     def _getBatchSystem(self) -> type[BatchInterface]:
@@ -123,7 +126,9 @@ class SubmitterFactory:
             raise QQError("Submission queue not specified.")
         return queue
 
-    def _getResources(self, BatchSystem: type[BatchInterface], queue: str) -> Resources:
+    def _getResources(
+        self, BatchSystem: type[BatchInterface], queue: str, server: str | None
+    ) -> Resources:
         """
         Get the resource requirements for the job by merging the requirements specified on the command
         line with requirements specified inside the submitted script.
@@ -133,6 +138,7 @@ class SubmitterFactory:
         Args:
             BatchSystem (type[BatchInterface]): The batch system class to use.
             queue (str): The submission queue.
+            server (str | None): The submission server. `None` = the current main server.
 
         Returns:
             Resources: A merged Resources object containing the final resource requirements.
@@ -144,6 +150,7 @@ class SubmitterFactory:
 
         return BatchSystem.transformResources(
             queue,
+            server,
             Resources.mergeResources(
                 command_line_resources, self._parser.getResources()
             ),
@@ -253,3 +260,21 @@ class SubmitterFactory:
             TransferMode.multiFromStr(self._kwargs.get("transfer_mode") or "")
             or self._parser.getTransferMode()
         )
+
+    def _getServer(self) -> str | None:
+        """
+        Determine the batch server to submit the job to.
+
+        Priority:
+            1. Command-line specification
+            2. Batch system specified in the script
+            3. None - the current batch server.
+
+        Returns:
+            str | None: The full name of the batch server to use,
+                or `None` for the current batch server.
+        """
+        if raw := self._kwargs.get("server") or self._parser.getServer():
+            return translate_server(raw)
+
+        return None

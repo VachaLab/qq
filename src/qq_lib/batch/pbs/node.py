@@ -27,13 +27,14 @@ class QueuesAvailability:
     _queues: dict[str, dict[str, bool]] = {}
 
     @staticmethod
-    def getOrInit(queue: str, user: str) -> bool:
+    def getOrInit(queue: str, user: str, server: str | None) -> bool:
         """
         Retrieve the availability of a queue for the given user.
 
         Args:
             queue (str): The name of the queue to check.
             user (str): The username to check access for.
+            server (str | None): Server on which the queue is located.
 
         Returns:
             bool:
@@ -41,21 +42,48 @@ class QueuesAvailability:
                 False otherwise.
         """
         # check whether the availability is cached
-        if (avail_dict := QueuesAvailability._queues.get(queue)) is not None and (
-            available := avail_dict.get(user)
-        ) is not None:
+        if (
+            avail_dict := QueuesAvailability._queues.get(
+                QueuesAvailability._getFullQueueName(queue, server)
+            )
+        ) is not None and (available := avail_dict.get(user)) is not None:
             return available
 
         # get the availability by querying the batch system
-        available = PBSQueue(queue).isAvailableToUser(user)
+        available = PBSQueue(queue, server).isAvailableToUser(user)
 
         # cache the result
         try:
-            QueuesAvailability._queues[queue][user] = available
+            QueuesAvailability._queues[
+                QueuesAvailability._getFullQueueName(queue, server)
+            ][user] = available
         except KeyError:
-            QueuesAvailability._queues[queue] = {user: available}
-        logger.debug(f"Initialized availability of '{queue}' for user '{user}'.")
+            QueuesAvailability._queues[
+                QueuesAvailability._getFullQueueName(queue, server)
+            ] = {user: available}
+        logger.debug(
+            f"Initialized availability of '{QueuesAvailability._getFullQueueName(queue, server)}' for user '{user}'."
+        )
         return available
+
+    @staticmethod
+    def _getFullQueueName(queue: str, server: str | None) -> str:
+        """
+        Format a queue name with an optional server qualifier.
+
+        Args:
+            queue (str): The name of the queue.
+            server (str | None): The server the queue resides on,
+                or `None` to address the queue without a server qualifier.
+
+        Returns:
+            str: The full queue name as `queue@server`, or just `queue` if
+            `server` is `None`.
+        """
+        if server:
+            return f"{queue}@{server}"
+
+        return queue
 
 
 class PBSNode(BatchNodeInterface):
@@ -64,8 +92,9 @@ class PBSNode(BatchNodeInterface):
     Stores metadata for a single PBS node.
     """
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, server: str | None = None):
         self._name = name
+        self._server = server
         self._info: dict[str, str] = {}
 
         self.update()
@@ -73,6 +102,8 @@ class PBSNode(BatchNodeInterface):
     def update(self) -> None:
         # get node info from PBS
         command = f"pbsnodes -v {self._name}"
+        if self._server:
+            command += f" -s {self._server}"
 
         result = subprocess.run(
             ["bash"],
@@ -152,17 +183,18 @@ class PBSNode(BatchNodeInterface):
             return False
 
         if queue := self._info.get("queue"):
-            return QueuesAvailability.getOrInit(queue, user)
+            return QueuesAvailability.getOrInit(queue, user, self._server)
 
         return True
 
     @classmethod
-    def fromDict(cls, name: str, info: dict[str, str]) -> Self:
+    def fromDict(cls, name: str, server: str | None, info: dict[str, str]) -> Self:
         """
         Construct a new instance of PBSNode from node name and a dictionary of node information.
 
         Args:
             name (str): The unique name of the node.
+            server (str | None): Server on which the node is located. If `None`, assumes the current server.
             info (dict[str, str]): A dictionary containing PBS node metadata as key-value pairs.
 
         Returns:
@@ -173,6 +205,7 @@ class PBSNode(BatchNodeInterface):
         """
         node = cls.__new__(cls)
         node._name = name
+        node._server = server
         node._info = info
 
         return node

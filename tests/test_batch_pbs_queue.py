@@ -76,6 +76,16 @@ def test_pbsqueue_init():
     with patch.object(PBSQueue, "update") as mock_update:
         queue = PBSQueue("main")
     assert queue._name == "main"
+    assert queue._server is None
+    assert isinstance(queue._info, dict)
+    mock_update.assert_called_once()
+
+
+def test_pbsqueue_init_with_server():
+    with patch.object(PBSQueue, "update") as mock_update:
+        queue = PBSQueue("main", "server")
+    assert queue._name == "main"
+    assert queue._server == "server"
     assert isinstance(queue._info, dict)
     mock_update.assert_called_once()
 
@@ -83,6 +93,7 @@ def test_pbsqueue_init():
 def test_pbsqueue_update_success():
     queue = PBSQueue.__new__(PBSQueue)
     queue._name = "main"
+    queue._server = None
     queue._info = {}
 
     mock_result = MagicMock()
@@ -114,9 +125,45 @@ def test_pbsqueue_update_success():
     assert queue._info == {"k": "v"}
 
 
+def test_pbsqueue_update_with_server_success():
+    queue = PBSQueue.__new__(PBSQueue)
+    queue._name = "main"
+    queue._server = "server"
+    queue._info = {}
+
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "queue_data"
+
+    with (
+        patch(
+            "qq_lib.batch.pbs.queue.subprocess.run", return_value=mock_result
+        ) as run_mock,
+        patch(
+            "qq_lib.batch.pbs.queue.parse_pbs_dump_to_dictionary",
+            return_value={"k": "v"},
+        ) as parse_mock,
+        patch.object(queue, "_setAttributes") as set_attrs_mock,
+    ):
+        queue.update()
+
+    run_mock.assert_called_once_with(
+        ["bash"],
+        input="qstat -Qfw main@server",
+        text=True,
+        check=False,
+        capture_output=True,
+        errors="replace",
+    )
+    parse_mock.assert_called_once_with("queue_data")
+    set_attrs_mock.assert_called_once()
+    assert queue._info == {"k": "v"}
+
+
 def test_pbsqueue_update_failure():
     queue = PBSQueue.__new__(PBSQueue)
     queue._name = "nonexistent"
+    queue._server = None
 
     mock_result = MagicMock()
     mock_result.returncode = 1
@@ -442,9 +489,27 @@ def test_pbsqueue_from_dict():
     }
 
     with patch.object(PBSQueue, "_setAttributes") as set_attributes_mock:
-        queue = PBSQueue.fromDict(name, info)
+        queue = PBSQueue.fromDict(name, None, info)
 
     assert queue._name == name
+    assert queue._info == info
+    set_attributes_mock.assert_called_once()
+
+
+def test_pbsqueue_with_server_from_dict():
+    name = "gpu_queue"
+    info = {
+        "enabled": "True",
+        "started": "True",
+        "Priority": "100",
+        "total_jobs": "42",
+    }
+
+    with patch.object(PBSQueue, "_setAttributes") as set_attributes_mock:
+        queue = PBSQueue.fromDict(name, "server", info)
+
+    assert queue._name == name
+    assert queue._server == "server"
     assert queue._info == info
     set_attributes_mock.assert_called_once()
 

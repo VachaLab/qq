@@ -274,6 +274,22 @@ class Parser:
 
         return []
 
+    def getServer(self) -> str | None:
+        """
+        Get the batch server to which the job should be submitted.
+
+        Note that this function returns the raw name of the server
+        as provided by the user. It should be then translated using
+        the `translate_server` function.
+
+        Returns:
+            str | None: The name or shortcut of the batch server or `None` if not specified.
+        """
+        if (server := self._options.get("server")) is not None:
+            return str(server)
+
+        return None
+
     @staticmethod
     def _stripAndSplit(string: str) -> list[str]:
         """

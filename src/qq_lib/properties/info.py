@@ -114,6 +114,11 @@ class Info:
     # Account associated with the job
     account: str | None = None
 
+    # Batch server the job was submitted to
+    # Can be `None` which indicates the job was submitted
+    # to the main batch server the input machine is connected to
+    server: str | None = None
+
     # Job start time
     start_time: datetime | None = None
 
@@ -230,6 +235,9 @@ class Info:
         ]
 
         command_line.extend(self.resources.toCommandLine())
+
+        if self.server:
+            command_line.extend(["--server", self.server])
 
         if self.account:
             command_line.extend(["--account", self.account])

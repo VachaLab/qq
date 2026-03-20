@@ -79,22 +79,55 @@ def test_jobs_command_unfinished_shows_jobs(parsed_jobs):
 
     with (
         patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
-        patch.object(PBS, "getUnfinishedBatchJobs", return_value=parsed_jobs),
+        patch.object(
+            PBS, "getUnfinishedBatchJobs", return_value=parsed_jobs
+        ) as mock_get_jobs,
         patch.object(
             PBS,
             "getBatchJobs",
             side_effect=Exception("getBatchJobs should not be called"),
         ),
         patch.object(PBS, "sortJobs") as mock_sort,
+        patch("getpass.getuser", return_value="user"),
     ):
         result = runner.invoke(jobs, [], catch_exceptions=False)
 
         assert result.exit_code == 0
         mock_sort.assert_called_once()
+        mock_get_jobs.assert_called_once_with("user", None)
         output = result.output
 
         for job in parsed_jobs:
             assert JobsPresenter._shortenJobId(job.getId()) in output
+            assert job.getName() in output
+            assert job.getUser() in output
+
+
+def test_jobs_command_unfinished_shows_jobs_with_server(parsed_jobs):
+    runner = CliRunner()
+
+    with (
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
+        patch.object(
+            PBS, "getUnfinishedBatchJobs", return_value=parsed_jobs
+        ) as mock_get_jobs,
+        patch.object(
+            PBS,
+            "getBatchJobs",
+            side_effect=Exception("getBatchJobs should not be called"),
+        ),
+        patch.object(PBS, "sortJobs") as mock_sort,
+        patch("getpass.getuser", return_value="user"),
+    ):
+        result = runner.invoke(jobs, ["-s", "server"], catch_exceptions=False)
+
+        assert result.exit_code == 0
+        mock_get_jobs.assert_called_once_with("user", "server")
+        mock_sort.assert_called_once()
+        output = result.output
+
+        for job in parsed_jobs:
+            assert job.getId() in output
             assert job.getName() in output
             assert job.getUser() in output
 
@@ -104,22 +137,51 @@ def test_jobs_command_all_flag_shows_all_jobs(parsed_jobs):
 
     with (
         patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
-        patch.object(PBS, "getBatchJobs", return_value=parsed_jobs),
+        patch.object(PBS, "getBatchJobs", return_value=parsed_jobs) as mock_get_jobs,
         patch.object(
             PBS,
             "getUnfinishedBatchJobs",
             side_effect=Exception("getUnfinishedBatchJobs should not be called"),
         ),
         patch.object(PBS, "sortJobs") as mock_sort,
+        patch("getpass.getuser", return_value="user"),
     ):
         result = runner.invoke(jobs, ["--all"], catch_exceptions=False)
 
         assert result.exit_code == 0
+        mock_get_jobs.assert_called_once_with("user", None)
         mock_sort.assert_called_once()
         output = result.output
 
         for job in parsed_jobs:
             assert JobsPresenter._shortenJobId(job.getId()) in output
+            assert job.getName() in output
+            assert job.getUser() in output
+
+
+def test_jobs_command_all_flag_shows_all_jobs_with_server(parsed_jobs):
+    runner = CliRunner()
+
+    with (
+        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
+        patch.object(PBS, "getBatchJobs", return_value=parsed_jobs) as mock_get_jobs,
+        patch.object(
+            PBS,
+            "getUnfinishedBatchJobs",
+            side_effect=Exception("getUnfinishedBatchJobs should not be called"),
+        ),
+        patch.object(PBS, "sortJobs") as mock_sort,
+        patch("getpass.getuser", return_value="user"),
+    ):
+        result = runner.invoke(jobs, ["--all", "-s", "server"], catch_exceptions=False)
+
+        assert result.exit_code == 0
+        mock_get_jobs.assert_called_once_with("user", "server")
+        mock_sort.assert_called_once()
+        output = result.output
+
+        for job in parsed_jobs:
+            assert job.getId() in output
             assert job.getName() in output
             assert job.getUser() in output
 

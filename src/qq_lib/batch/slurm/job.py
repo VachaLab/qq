@@ -11,7 +11,7 @@ from typing import Self
 import yaml
 
 from qq_lib.batch.interface.job import BatchJobInterface
-from qq_lib.core.common import dhhmmss_to_duration, load_yaml_dumper
+from qq_lib.core.common import dhhmmss_to_duration, load_yaml_dumper, logical_resolve
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -285,7 +285,7 @@ class SlurmJob(BatchJobInterface):
             logger.debug(f"Could not obtain input directory for '{self._job_id}'.")
             return None
 
-        return Path(raw_dir).resolve()
+        return logical_resolve(Path(raw_dir))
 
     def getInfoFile(self) -> Path | None:
         if not (input_dir := self.getInputDir()) or not (name := self.getName()):

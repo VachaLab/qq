@@ -138,7 +138,7 @@ def test_slurmit4i_transform_resources_valid_work_dir_scratch(
     mock_instance.getDefaultResources.return_value = Resources()
 
     provided = Resources(work_dir="scratch")
-    result = SlurmIT4I.transformResources("default", provided)
+    result = SlurmIT4I.transformResources("default", None, provided)
 
     mock_get_defaults.assert_called_once()
     mock_queue.assert_called_once_with("default")
@@ -162,7 +162,7 @@ def test_slurmit4i_transform_resources_raises_when_no_work_dir(
     with pytest.raises(
         QQError, match="Work-dir is not set after filling in default attributes"
     ):
-        SlurmIT4I.transformResources("default", provided)
+        SlurmIT4I.transformResources("default", None, provided)
 
     mock_get_defaults.assert_called_once()
     mock_queue.assert_called_once_with("default")
@@ -183,7 +183,7 @@ def test_slurmit4i_transform_resources_warns_when_work_size_set(
     mock_instance.getDefaultResources.return_value = Resources()
 
     provided = Resources(work_dir="scratch", work_size=Size(10, "gb"))
-    SlurmIT4I.transformResources("default", provided)
+    SlurmIT4I.transformResources("default", None, provided)
 
     mock_warn.assert_called_once()
     mock_get_defaults.assert_called_once()
@@ -207,7 +207,7 @@ def test_slurmit4i_transform_resources_raises_for_unknown_work_dir(
     with pytest.raises(
         QQError, match="Unknown working directory type specified: work-dir"
     ):
-        SlurmIT4I.transformResources("default", provided)
+        SlurmIT4I.transformResources("default", None, provided)
 
     mock_get_defaults.assert_called_once()
     mock_queue.assert_called_once_with("default")

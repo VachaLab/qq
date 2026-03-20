@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Self
 
 from qq_lib.archive.archiver import Archiver
+from qq_lib.core.common import logical_resolve
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -70,8 +71,8 @@ class LoopInfo:
         if not end:
             raise QQError("Attribute 'loop-end' is undefined.")
 
-        self.archive = archive.resolve()
-        if input_dir and self.archive == input_dir.resolve():
+        self.archive = logical_resolve(archive)
+        if input_dir and self.archive == logical_resolve(input_dir):
             raise QQError("Input directory cannot be used as the loop job's archive.")
 
         self.archive_format = archive_format

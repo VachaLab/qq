@@ -170,7 +170,12 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
         BatchInterface.syncSelected(src_dir, dest_dir, None, None, include_files)
 
     @classmethod
-    def transformResources(cls, queue: str, provided_resources: Resources) -> Resources:
+    def transformResources(
+        cls, queue: str, server: str | None, provided_resources: Resources
+    ) -> Resources:
+        # server is unused
+        _ = server
+
         # default resources of the queue
         default_queue_resources = SlurmQueue(queue).getDefaultResources()
         # default server or hard-coded resources

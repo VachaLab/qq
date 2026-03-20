@@ -86,8 +86,9 @@ class PBSQueue(BatchQueueInterface):
     Stores metadata for a single PBS queue.
     """
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, server: str | None = None):
         self._name = name
+        self._server = server
         self._info: dict[str, str] = {}
 
         self.update()
@@ -95,6 +96,8 @@ class PBSQueue(BatchQueueInterface):
     def update(self) -> None:
         # get queue info from PBS
         command = f"qstat -Qfw {self._name}"
+        if self._server:
+            command += f"@{self._server}"
 
         result = subprocess.run(
             ["bash"],
@@ -242,13 +245,14 @@ class PBSQueue(BatchQueueInterface):
         self._acl_hosts = self._info.get("acl_hosts", "").split(",")
 
     @classmethod
-    def fromDict(cls, name: str, info: dict[str, str]) -> Self:
+    def fromDict(cls, name: str, server: str | None, info: dict[str, str]) -> Self:
         """
         Construct a new instance of PBSQueue from a queue name and a dictionary of queue information.
 
 
         Args:
             name (str): The unique name of the queue.
+            server (str | None): Server on which the queue is located. If `None`, assumes the current server.
             info (dict[str, str]): A dictionary containing PBS queue metadata as key-value pairs.
 
         Returns:
@@ -259,6 +263,7 @@ class PBSQueue(BatchQueueInterface):
         """
         queue = cls.__new__(cls)
         queue._name = name
+        queue._server = server
         queue._info = info
         queue._setAttributes()
 

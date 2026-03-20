@@ -10,6 +10,7 @@ import click
 from rich.console import Console
 
 from qq_lib.batch.interface.meta import BatchMeta
+from qq_lib.core.common import translate_server
 
 if TYPE_CHECKING:
     from qq_lib.batch.interface.node import BatchNodeInterface
@@ -39,17 +40,26 @@ Nodes are grouped heuristically into node groups based on their names.""",
     is_flag=True,
     help="Display all nodes, including those that are down or inaccessible.",
 )
+@click.option(
+    "-s",
+    "--server",
+    default=None,
+    help="Collect nodes from the specified batch server. If not specified, the current server is used.",
+)
 @click.option("--yaml", is_flag=True, help="Output node metadata in YAML format.")
-def nodes(all: bool, yaml: bool) -> NoReturn:
+def nodes(all: bool, server: str | None, yaml: bool) -> NoReturn:
     try:
         BatchSystem = BatchMeta.fromEnvVarOrGuess()
-        nodes: list[BatchNodeInterface] = BatchSystem.getNodes()
+        if server:
+            server = translate_server(server)
+
+        nodes: list[BatchNodeInterface] = BatchSystem.getNodes(server)
         user = getpass.getuser()
 
         if not all:
             nodes = [n for n in nodes if n.isAvailableToUser(user)]
 
-        presenter = NodesPresenter(nodes, user, all)
+        presenter = NodesPresenter(nodes, user, all, server)
         if yaml:
             presenter.dumpYaml()
         else:

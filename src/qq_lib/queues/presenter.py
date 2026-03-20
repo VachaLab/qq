@@ -17,7 +17,13 @@ class QueuesPresenter:
     Presents information about queues of the batch system.
     """
 
-    def __init__(self, queues: list[BatchQueueInterface], user: str, all: bool):
+    def __init__(
+        self,
+        queues: list[BatchQueueInterface],
+        user: str,
+        all: bool,
+        server: str | None,
+    ):
         """
         Initialize the presenter with a list of queues.
 
@@ -25,11 +31,14 @@ class QueuesPresenter:
             queues (list[BatchQueueInterface]): List of queue information objects
                 to be presented.
             user (str): Name of the user for which the queues are displayed.
-            all (boolean): Display all queues or only those available to the user.
+            all (bool): Display all queues or only those available to the user.
+            server (str | None): Batch server for which the queues were collected.
+                `None` = default server.
         """
         self._queues = queues
         self._user = user
         self._display_all = all
+        self._server = server
 
         self._show_comment = self._shouldShowComment()
         self._show_max_nnodes = self._shouldShowMaxNNodes()
@@ -62,6 +71,13 @@ class QueuesPresenter:
                 style=CFG.queues_presenter.title_style,
                 justify="center",
             ),
+            subtitle=Text(
+                f"{self._server}",
+                style=CFG.jobs_presenter.subtitle_style,
+                justify="center",
+            )
+            if self._server
+            else None,
             border_style=CFG.queues_presenter.border_style,
             padding=(1, 1),
             width=get_panel_width(

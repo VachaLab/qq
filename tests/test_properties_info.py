@@ -304,6 +304,29 @@ def test_get_command_line_for_resubmit_basic(sample_info):
     ]
 
 
+def test_get_command_line_for_resubmit_basic_with_server(sample_info):
+    sample_info.resources = Resources()
+    sample_info.account = None
+    sample_info.excluded_files = []
+    sample_info.server = "fake.server.com"
+
+    assert sample_info.getCommandLineForResubmit() == [
+        "script.sh",
+        "--queue",
+        "default",
+        "--job-type",
+        "standard",
+        "--batch-system",
+        "PBS",
+        "--depend",
+        "afterok=12345.fake.server.com",
+        "--server",
+        "fake.server.com",
+        "--transfer-mode",
+        "success",
+    ]
+
+
 def test_get_command_line_for_continuous(sample_info):
     sample_info.job_type = JobType.CONTINUOUS
     sample_info.excluded_files = [Path("exclude.txt"), Path("inner/exclude2.txt")]
@@ -341,6 +364,7 @@ def test_get_command_line_full(sample_info):
     sample_info.loop_info = LoopInfo(
         start=3, end=10, archive=Path("inner/inner2/archive"), archive_format="job%3d"
     )
+    sample_info.server = "fake.server.com"
 
     assert sample_info.getCommandLineForResubmit() == [
         "script.sh",
@@ -356,6 +380,8 @@ def test_get_command_line_full(sample_info):
         "8",
         "--work-dir",
         "scratch_local",
+        "--server",
+        "fake.server.com",
         "--account",
         "fake-account",
         "--exclude",

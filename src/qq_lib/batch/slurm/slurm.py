@@ -60,7 +60,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         depend: list[Depend],
         env_vars: dict[str, str],
         account: str | None = None,
+        server: str | None = None,
     ) -> str:
+        # server is unused
+        _ = server
+
         # intentionally using PBS
         PBS._sharedGuard(res, env_vars)
 
@@ -127,7 +131,12 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         return SlurmJob(job_id)
 
     @classmethod
-    def getUnfinishedBatchJobs(cls, user: str) -> list[SlurmJob]:
+    def getUnfinishedBatchJobs(
+        cls, user: str, server: str | None = None
+    ) -> list[SlurmJob]:
+        # server unused
+        _ = server
+
         # get running jobs from sacct (faster than using squeue and scontrol)
         command = f"sacct -u {user} --state RUNNING --allocations --noheader --parsable2 --array --format={SACCT_FIELDS}"
         logger.debug(command)
@@ -145,7 +154,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         return list(merged.values())
 
     @classmethod
-    def getBatchJobs(cls, user: str) -> list[SlurmJob]:
+    def getBatchJobs(cls, user: str, server: str | None = None) -> list[SlurmJob]:
+        # server unused
+        _ = server
+
         # get all jobs, except pending which are not available from sacct
         command = f"sacct -u {user} --allocations --noheader --parsable2 --array --format={SACCT_FIELDS}"
         logger.debug(command)
@@ -163,7 +175,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         return list(merged.values())
 
     @classmethod
-    def getAllUnfinishedBatchJobs(cls) -> list[SlurmJob]:
+    def getAllUnfinishedBatchJobs(cls, server: str | None = None) -> list[SlurmJob]:
+        # server unused
+        _ = server
+
         # get running jobs using sacct (faster than using squeue and scontrol)
         command = f"sacct --state RUNNING --allusers --allocations --noheader --parsable2 --array --format={SACCT_FIELDS}"
         logger.debug(command)
@@ -181,7 +196,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         return list(merged.values())
 
     @classmethod
-    def getAllBatchJobs(cls) -> list[SlurmJob]:
+    def getAllBatchJobs(cls, server: str | None = None) -> list[SlurmJob]:
+        # server unused
+        _ = server
+
         # get all jobs, except pending which are not available from sacct
         command = f"sacct --allusers --allocations --noheader --parsable2 --array --format={SACCT_FIELDS}"
         logger.debug(command)
@@ -199,7 +217,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         return list(merged.values())
 
     @classmethod
-    def getQueues(cls) -> list[SlurmQueue]:
+    def getQueues(cls, server: str | None = None) -> list[SlurmQueue]:
+        # server unused
+        _ = server
+
         command = "scontrol show partition -o"
         logger.debug(command)
 
@@ -225,7 +246,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         return queues
 
     @classmethod
-    def getNodes(cls) -> list[SlurmNode]:
+    def getNodes(cls, server: str | None = None) -> list[SlurmNode]:
+        # server unused
+        _ = server
+
         command = "scontrol show node -o"
         logger.debug(command)
 

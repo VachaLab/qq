@@ -14,7 +14,7 @@ from qq_lib.batch.interface.meta import batch_system
 from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
 from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.batch.pbs.queue import PBSQueue
-from qq_lib.core.common import equals_normalized
+from qq_lib.core.common import equals_normalized, logical_resolve
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -57,7 +57,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         # to affect the job execution or be copied back to input_dir
         # this also simplifies deletion of the working directory
         # (the allocated scratch dir cannot be deleted)
-        work_dir = (scratch_dir / CFG.pbs_options.scratch_dir_inner).resolve()
+        work_dir = logical_resolve(scratch_dir / CFG.pbs_options.scratch_dir_inner)
 
         logger.debug(f"Creating working directory '{str(work_dir)}'.")
         work_dir.mkdir(exist_ok=True)
@@ -74,6 +74,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         depend: list[Depend],
         env_vars: dict[str, str],
         account: str | None = None,
+        server: str | None = None,
     ) -> str:
         # account unused
         _ = account
@@ -81,12 +82,19 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         cls._sharedGuard(res, env_vars)
 
         # set env vars required for Infinity modules
+        # this can be removed once Infinity stops being supported
         env_vars.update(cls._collectAMSEnvVars())
+
+        # if we are submitting to a different server, we need to change the AMS site
+        # this can be removed once Infinity stops being supported
+        if server:
+            cls._modifyAMSEnvVars(env_vars, server)
 
         # get the submission command
         command = cls._translateSubmit(
             res,
             queue,
+            server,
             script.parent,
             str(script),
             job_name,
@@ -153,32 +161,44 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         return PBSJob(job_id)
 
     @classmethod
-    def getUnfinishedBatchJobs(cls, user: str) -> list[PBSJob]:
+    def getUnfinishedBatchJobs(
+        cls, user: str, server: str | None = None
+    ) -> list[PBSJob]:
         command = f"qstat -fwtu {user}"
+        if server:
+            command += f" @{server}"
         logger.debug(command)
         return cls._getBatchJobsUsingCommand(command)
 
     @classmethod
-    def getBatchJobs(cls, user: str) -> list[PBSJob]:
+    def getBatchJobs(cls, user: str, server: str | None = None) -> list[PBSJob]:
         command = f"qstat -fwxtu {user}"
+        if server:
+            command += f" @{server}"
         logger.debug(command)
         return cls._getBatchJobsUsingCommand(command)
 
     @classmethod
-    def getAllUnfinishedBatchJobs(cls) -> list[PBSJob]:
+    def getAllUnfinishedBatchJobs(cls, server: str | None = None) -> list[PBSJob]:
         command = "qstat -fwt"
+        if server:
+            command += f" @{server}"
         logger.debug(command)
         return cls._getBatchJobsUsingCommand(command)
 
     @classmethod
-    def getAllBatchJobs(cls) -> list[PBSJob]:
+    def getAllBatchJobs(cls, server: str | None = None) -> list[PBSJob]:
         command = "qstat -fxwt"
+        if server:
+            command += f" @{server}"
         logger.debug(command)
         return cls._getBatchJobsUsingCommand(command)
 
     @classmethod
-    def getQueues(cls) -> list[PBSQueue]:
+    def getQueues(cls, server: str | None = None) -> list[PBSQueue]:
         command = "qstat -Qfw"
+        if server:
+            command += f" @{server}"
         logger.debug(command)
 
         result = subprocess.run(
@@ -199,13 +219,15 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         for data, name in parse_multi_pbs_dump_to_dictionaries(
             result.stdout.strip(), "Queue"
         ):
-            queues.append(PBSQueue.fromDict(name, data))
+            queues.append(PBSQueue.fromDict(name, server, data))
 
         return queues
 
     @classmethod
-    def getNodes(cls) -> list[PBSNode]:
+    def getNodes(cls, server: str | None = None) -> list[PBSNode]:
         command = "pbsnodes -a"
+        if server:
+            command += f" -s {server}"
         logger.debug(command)
 
         result = subprocess.run(
@@ -226,7 +248,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         for data, name in parse_multi_pbs_dump_to_dictionaries(
             result.stdout.strip(), None
         ):
-            queues.append(PBSNode.fromDict(name, data))
+            queues.append(PBSNode.fromDict(name, server, data))
 
         return queues
 
@@ -370,9 +392,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         )
 
     @classmethod
-    def transformResources(cls, queue: str, provided_resources: Resources) -> Resources:
+    def transformResources(
+        cls, queue: str, server: str | None, provided_resources: Resources
+    ) -> Resources:
         # default resources of the queue
-        default_queue_resources = PBSQueue(queue).getDefaultResources()
+        default_queue_resources = PBSQueue(queue, server).getDefaultResources()
         # default hard-coded resources
         default_batch_resources = cls._getDefaultServerResources()
 
@@ -484,6 +508,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         cls,
         res: Resources,
         queue: str,
+        server: str | None,
         input_dir: Path,
         script: str,
         job_name: str,
@@ -496,16 +521,18 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         Args:
             res (Resources): The resources requested for the job.
             queue (str): The queue name to submit to.
+            server (str): Optional name of the server to submit the job to.
             input_dir (Path): The directory from which the job is being submitted.
             script (str): Path to the job script.
             job_name (str): Name of the job.
             depend (list[Depend]): List of dependencies of the job.
+            env_vars (dict[str, str]): Dictionary of environment variables to set.
 
         Returns:
             str: The fully constructed qsub command string.
         """
         qq_output = str((input_dir / job_name).with_suffix(CFG.suffixes.qq_out))
-        command = f"qsub -N {job_name} -q {queue} -j eo -e {qq_output} "
+        command = f"qsub -N {job_name} {cls._translateQueueServer(queue, server)} -j eo -e {qq_output} "
 
         # translate environment variables
         if env_vars:
@@ -544,6 +571,14 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         command += script
 
         return command
+
+    @classmethod
+    def _translateQueueServer(cls, queue: str, server: str | None) -> str:
+        """Translate the specification of the submission queue and the PBS server into a PBS option."""
+        if server:
+            return f"-q {queue}@{server}"
+
+        return f"-q {queue}"
 
     @classmethod
     def _translateEnvVars(cls, env_vars: dict[str, str]) -> str:
@@ -731,6 +766,46 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         logger.debug(f"AMS vars: {ams_vars}")
 
         return ams_vars
+
+    @classmethod
+    def _modifyAMSEnvVars(cls, env_vars: dict[str, str], server: str) -> None:
+        """
+        Modify environment variables for Infinity AMS if the job is submitted to a different server.
+        """
+        # bleh, seriously can't wait to get rid of having to support AMS...
+        # this is so needlessly complicated
+
+        ams_site_converter = {
+            "robox-pro.ceitec.muni.cz": "robox",
+            "sokar-pbs.ncbr.muni.cz": "sokar",
+            "pbs-m1.metacentrum.cz": "metavo24",
+        }
+
+        if server not in ams_site_converter:
+            logger.warning(
+                f"Server '{server}' is not supported by the qq-AMS translation layer. The job will not have access to AMS modules. Please report this issue."
+            )
+
+        if "AMS_SITE" in env_vars:
+            env_vars["AMS_SITE"] = ams_site_converter[server]
+
+        ams_site_support_converter = {
+            "robox-pro.ceitec.muni.cz": "linuxsupport@ics.muni.cz",
+            "sokar-pbs.ncbr.muni.cz": "support@lcc.ncbr.muni.cz",
+            "pbs-m1.metacentrum.cz": "support@lcc.ncbr.muni.cz",
+        }
+
+        if "AMS_SITE_SUPPORT" in env_vars:
+            env_vars["AMS_SITE_SUPPORT"] = ams_site_support_converter[server]
+
+        ams_groupns_converter = {
+            "robox-pro.ceitec.muni.cz": "uvt",
+            "sokar-pbs.ncbr.muni.cz": "ncbr",
+            "pbs-m1.metacentrum.cz": "ics",
+        }
+
+        if "AMS_GROUPNS" in env_vars:
+            env_vars["AMS_GROUPNS"] = ams_groupns_converter[server]
 
     @classmethod
     def _getDefaultServerResources(cls) -> Resources:

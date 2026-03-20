@@ -651,11 +651,28 @@ def test_node_group_stats_create_stats_table_excludes_gpu_columns_when_none(
 )
 def test_nodes_presenter_init(mock_create_groups):
     nodes = [MagicMock(), MagicMock()]
-    presenter = NodesPresenter(nodes, "user1", True)
+    presenter = NodesPresenter(nodes, "user1", True, None)
 
     assert presenter._nodes == nodes
     assert presenter._user == "user1"
     assert presenter._display_all is True
+    assert presenter._server is None
+    mock_create_groups.assert_called_once_with()
+    assert presenter._node_groups == ["group1", "group2"]
+
+
+@patch(
+    "qq_lib.nodes.presenter.NodesPresenter._createNodeGroups",
+    return_value=["group1", "group2"],
+)
+def test_nodes_presenter_init_with_server(mock_create_groups):
+    nodes = [MagicMock(), MagicMock()]
+    presenter = NodesPresenter(nodes, "user1", True, "server")
+
+    assert presenter._nodes == nodes
+    assert presenter._user == "user1"
+    assert presenter._display_all is True
+    assert presenter._server == "server"
     mock_create_groups.assert_called_once_with()
     assert presenter._node_groups == ["group1", "group2"]
 
@@ -972,6 +989,7 @@ def test_nodes_presenter_create_nodes_info_panel_multiple_groups(
 
     presenter = NodesPresenter.__new__(NodesPresenter)
     presenter._node_groups = [group1, group2]
+    presenter._server = None
 
     result = presenter.createNodesInfoPanel()
 
@@ -998,6 +1016,7 @@ def test_nodes_presenter_create_nodes_info_panel_single_group(
 
     presenter = NodesPresenter.__new__(NodesPresenter)
     presenter._node_groups = [group]
+    presenter._server = None
 
     result = presenter.createNodesInfoPanel()
 
@@ -1050,10 +1069,12 @@ def test_nodes_presenter_dump_yaml_roundtrip():
         "sharing": "default_shared",
     }
 
-    gpu_node = PBSNode.fromDict("zero21", info_gpu)
-    cpu_node = PBSNode.fromDict("three3", info_cpu)
+    gpu_node = PBSNode.fromDict("zero21", None, info_gpu)
+    cpu_node = PBSNode.fromDict("three3", None, info_cpu)
 
-    presenter = NodesPresenter([gpu_node, cpu_node], user="testuser", all=True)
+    presenter = NodesPresenter(
+        [gpu_node, cpu_node], user="testuser", all=True, server=None
+    )
 
     captured = StringIO()
     sys.stdout = captured
@@ -1070,7 +1091,7 @@ def test_nodes_presenter_dump_yaml_roundtrip():
             continue
         data = yaml.safe_load(doc)
         name = data["Node"]
-        reloaded_nodes.append(PBSNode.fromDict(name, data))
+        reloaded_nodes.append(PBSNode.fromDict(name, None, data))
 
     assert len(reloaded_nodes) == 2
 

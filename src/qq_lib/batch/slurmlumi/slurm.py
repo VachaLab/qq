@@ -44,6 +44,7 @@ class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
         depend: list[Depend],
         env_vars: dict[str, str],
         account: str | None = None,
+        server: str | None = None,
     ) -> str:
         # set the 'lumi_scratch_type' env var to be able to decide in getScratchDir
         # whether to create a scratch directory on /scratch or on /flash
@@ -52,7 +53,7 @@ class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
             env_vars[CFG.env_vars.lumi_scratch_type] = res.work_dir
 
         return super().jobSubmit(
-            res, queue, script, job_name, depend, env_vars, account
+            res, queue, script, job_name, depend, env_vars, account, server
         )
 
     @classmethod

@@ -32,8 +32,35 @@ def test_nodes_command_prints_available_nodes():
 
     assert result.exit_code == 0
     mock_meta.assert_called_once()
-    mock_batch.getNodes.assert_called_once()
-    mock_presenter_cls.assert_called_once_with([mock_node], "user", False)
+    mock_batch.getNodes.assert_called_once_with(None)
+    mock_presenter_cls.assert_called_once_with([mock_node], "user", False, None)
+    mock_presenter.createNodesInfoPanel.assert_called_once()
+
+
+def test_nodes_command_prints_available_nodes_with_server():
+    runner = CliRunner()
+    mock_node = MagicMock()
+    mock_node.isAvailableToUser.return_value = True
+
+    with (
+        patch("qq_lib.nodes.cli.BatchMeta.fromEnvVarOrGuess") as mock_meta,
+        patch("qq_lib.nodes.cli.NodesPresenter") as mock_presenter_cls,
+        patch("qq_lib.nodes.cli.Console"),
+        patch("qq_lib.nodes.cli.getpass.getuser", return_value="user"),
+    ):
+        mock_batch = MagicMock()
+        mock_batch.getNodes.return_value = [mock_node]
+        mock_meta.return_value = mock_batch
+
+        mock_presenter = MagicMock()
+        mock_presenter_cls.return_value = mock_presenter
+
+        result = runner.invoke(nodes, ["-s", "server"])
+
+    assert result.exit_code == 0
+    mock_meta.assert_called_once()
+    mock_batch.getNodes.assert_called_once_with("server")
+    mock_presenter_cls.assert_called_once_with([mock_node], "user", False, "server")
     mock_presenter.createNodesInfoPanel.assert_called_once()
 
 
@@ -58,8 +85,34 @@ def test_nodes_command_prints_all_nodes_with_flag():
 
     assert result.exit_code == 0
     mock_meta.assert_called_once()
-    mock_batch.getNodes.assert_called_once()
-    mock_presenter_cls.assert_called_once_with([mock_node], "testuser", True)
+    mock_batch.getNodes.assert_called_once_with(None)
+    mock_presenter_cls.assert_called_once_with([mock_node], "testuser", True, None)
+    mock_presenter.createNodesInfoPanel.assert_called_once()
+
+
+def test_nodes_command_prints_all_nodes_with_flag_with_server():
+    runner = CliRunner()
+    mock_node = MagicMock()
+
+    with (
+        patch("qq_lib.nodes.cli.BatchMeta.fromEnvVarOrGuess") as mock_meta,
+        patch("qq_lib.nodes.cli.NodesPresenter") as mock_presenter_cls,
+        patch("qq_lib.nodes.cli.Console"),
+        patch("qq_lib.nodes.cli.getpass.getuser", return_value="testuser"),
+    ):
+        mock_batch = MagicMock()
+        mock_batch.getNodes.return_value = [mock_node]
+        mock_meta.return_value = mock_batch
+
+        mock_presenter = MagicMock()
+        mock_presenter_cls.return_value = mock_presenter
+
+        result = runner.invoke(nodes, ["--all", "-s", "server"])
+
+    assert result.exit_code == 0
+    mock_meta.assert_called_once()
+    mock_batch.getNodes.assert_called_once_with("server")
+    mock_presenter_cls.assert_called_once_with([mock_node], "testuser", True, "server")
     mock_presenter.createNodesInfoPanel.assert_called_once()
 
 
@@ -84,8 +137,8 @@ def test_nodes_command_outputs_yaml_when_flag_set():
 
     assert result.exit_code == 0
     mock_meta.assert_called_once()
-    mock_batch.getNodes.assert_called_once()
-    mock_presenter_cls.assert_called_once_with([mock_node], "testuser", False)
+    mock_batch.getNodes.assert_called_once_with(None)
+    mock_presenter_cls.assert_called_once_with([mock_node], "testuser", False, None)
     mock_presenter.dumpYaml.assert_called_once()
 
 

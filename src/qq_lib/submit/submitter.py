@@ -15,6 +15,7 @@ from qq_lib.core.common import (
     construct_loop_job_name,
     get_info_file,
     hhmmss_to_duration,
+    logical_resolve,
 )
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -58,6 +59,7 @@ class Submitter:
         include: list[Path] | None = None,
         depend: list[Depend] | None = None,
         transfer_mode: list[TransferMode] | None = None,
+        server: str | None = None,
     ):
         """
         Initialize a Submitter instance.
@@ -79,6 +81,8 @@ class Submitter:
             depend (list[Depend] | None): Optional list of job dependencies.
             transfer_mode (list[TransferMode] | None): Mode specifying when files whould be transferred from the
                 working directory to the input directory. Defaults to [`Success()`].
+            server (str | None): Optional name of the server to which the job should be submitted.
+                If `None`, the default batch server, as configured by the batch system is used.
 
         Raises:
             QQError: If the script does not exist or has an invalid shebang line.
@@ -87,10 +91,11 @@ class Submitter:
         self._batch_system = batch_system
         self._job_type = job_type
         self._queue = queue
+        self._server = server
         self._account = account
         self._loop_info = loop_info
         self._script = script
-        self._input_dir = script.resolve().parent
+        self._input_dir = logical_resolve(script).parent
         self._script_name = script.name
         self._job_name = self._constructJobName()
         self._info_file = construct_info_file_path(self._input_dir, self._job_name)
@@ -146,6 +151,7 @@ class Submitter:
                 self._depend,
                 self._createEnvVarsDict(),
                 self._account,
+                self._server,
             )
 
             # create job qq info file
@@ -176,6 +182,7 @@ class Submitter:
                     depend=self._depend,
                     account=self._account,
                     transfer_mode=self._transfer_mode,
+                    server=self._server,
                 )
             )
             informer.toFile(self._info_file)
@@ -298,6 +305,10 @@ class Submitter:
     def getTransferMode(self) -> list[TransferMode]:
         """Get the list of transfer modes."""
         return self._transfer_mode
+
+    def getServer(self) -> str | None:
+        """Get the submission server."""
+        return self._server
 
     def _createEnvVarsDict(self) -> dict[str, str]:
         """

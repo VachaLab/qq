@@ -32,8 +32,35 @@ def test_queues_command_prints_available_queues():
 
     assert result.exit_code == 0
     mock_meta.assert_called_once()
-    mock_batch.getQueues.assert_called_once()
-    mock_presenter_cls.assert_called_once_with([mock_queue], "user", False)
+    mock_batch.getQueues.assert_called_once_with(None)
+    mock_presenter_cls.assert_called_once_with([mock_queue], "user", False, None)
+    mock_presenter.createQueuesInfoPanel.assert_called_once()
+
+
+def test_queues_command_prints_available_queues_with_server():
+    runner = CliRunner()
+    mock_queue = MagicMock()
+    mock_queue.isAvailableToUser.return_value = True
+
+    with (
+        patch("qq_lib.queues.cli.BatchMeta.fromEnvVarOrGuess") as mock_meta,
+        patch("qq_lib.queues.cli.QueuesPresenter") as mock_presenter_cls,
+        patch("qq_lib.queues.cli.Console"),
+        patch("qq_lib.queues.cli.getpass.getuser", return_value="user"),
+    ):
+        mock_batch = MagicMock()
+        mock_batch.getQueues.return_value = [mock_queue]
+        mock_meta.return_value = mock_batch
+
+        mock_presenter = MagicMock()
+        mock_presenter_cls.return_value = mock_presenter
+
+        result = runner.invoke(queues, ["-s", "server"])
+
+    assert result.exit_code == 0
+    mock_meta.assert_called_once()
+    mock_batch.getQueues.assert_called_once_with("server")
+    mock_presenter_cls.assert_called_once_with([mock_queue], "user", False, "server")
     mock_presenter.createQueuesInfoPanel.assert_called_once()
 
 
@@ -57,7 +84,31 @@ def test_queues_command_prints_all_queues_with_flag():
         result = runner.invoke(queues, ["--all"])
 
     assert result.exit_code == 0
-    mock_presenter_cls.assert_called_once_with([mock_queue], "testuser", True)
+    mock_presenter_cls.assert_called_once_with([mock_queue], "testuser", True, None)
+    mock_presenter.createQueuesInfoPanel.assert_called_once()
+
+
+def test_queues_command_prints_all_queues_with_flag_with_server():
+    runner = CliRunner()
+    mock_queue = MagicMock()
+
+    with (
+        patch("qq_lib.queues.cli.BatchMeta.fromEnvVarOrGuess") as mock_meta,
+        patch("qq_lib.queues.cli.QueuesPresenter") as mock_presenter_cls,
+        patch("qq_lib.queues.cli.Console"),
+        patch("qq_lib.queues.cli.getpass.getuser", return_value="testuser"),
+    ):
+        mock_batch = MagicMock()
+        mock_batch.getQueues.return_value = [mock_queue]
+        mock_meta.return_value = mock_batch
+
+        mock_presenter = MagicMock()
+        mock_presenter_cls.return_value = mock_presenter
+
+        result = runner.invoke(queues, ["--all", "-s", "server"])
+
+    assert result.exit_code == 0
+    mock_presenter_cls.assert_called_once_with([mock_queue], "testuser", True, "server")
     mock_presenter.createQueuesInfoPanel.assert_called_once()
 
 

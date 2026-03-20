@@ -10,6 +10,7 @@ import click
 from rich.console import Console
 
 from qq_lib.batch.interface.meta import BatchMeta
+from qq_lib.core.common import translate_server
 from qq_lib.core.config import CFG
 
 if TYPE_CHECKING:
@@ -37,17 +38,26 @@ If the `--all` flag is specified, display all queues, including those not availa
     is_flag=True,
     help="Display all queues, including those not available to you.",
 )
+@click.option(
+    "-s",
+    "--server",
+    default=None,
+    help="Collect queues from the specified batch server. If not specified, the current server is used.",
+)
 @click.option("--yaml", is_flag=True, help="Output queue metadata in YAML format.")
-def queues(all: bool, yaml: bool) -> NoReturn:
+def queues(all: bool, server: str | None, yaml: bool) -> NoReturn:
     try:
         BatchSystem = BatchMeta.fromEnvVarOrGuess()
-        queues: list[BatchQueueInterface] = BatchSystem.getQueues()
+        if server:
+            server = translate_server(server)
+
+        queues: list[BatchQueueInterface] = BatchSystem.getQueues(server)
         user = getpass.getuser()
 
         if not all:
             queues = [q for q in queues if q.isAvailableToUser(user)]
 
-        presenter = QueuesPresenter(queues, user, all)
+        presenter = QueuesPresenter(queues, user, all, server)
         if yaml:
             presenter.dumpYaml()
         else:

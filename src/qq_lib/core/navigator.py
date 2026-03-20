@@ -14,6 +14,7 @@ import socket
 from pathlib import Path
 from typing import Self
 
+from qq_lib.core.common import logical_resolve
 from qq_lib.core.logger import get_logger
 from qq_lib.info.informer import Informer
 from qq_lib.properties.states import RealState
@@ -136,7 +137,7 @@ class Navigator(Operator):
         #   b) we are on the same machine
         return (
             self._work_dir is not None
-            and self._work_dir.resolve() == Path.cwd().resolve()
+            and logical_resolve(self._work_dir) == logical_resolve(Path())
             and (
                 not self._informer.usesScratch()
                 or self._main_node == socket.gethostname()
@@ -212,7 +213,8 @@ class Navigator(Operator):
         #   b) the job was running on the input machine
         return (
             self._work_dir is not None
-            and self._work_dir.resolve() == self._informer.info.input_dir.resolve()
+            and logical_resolve(self._work_dir)
+            == logical_resolve(self._informer.info.input_dir)
             and (
                 not self._informer.usesScratch()
                 or self._main_node == self._input_machine

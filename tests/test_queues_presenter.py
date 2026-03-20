@@ -24,11 +24,26 @@ def test_queues_presenter_init_sets_fields_correctly():
     user = "user"
     display_all = True
 
-    presenter = QueuesPresenter(queues, user, display_all)
+    presenter = QueuesPresenter(queues, user, display_all, None)
 
     assert presenter._queues == queues
     assert presenter._user == user
     assert presenter._display_all is True
+    assert presenter._server is None
+
+
+def test_queues_presenter_init_with_server_sets_fields_correctly():
+    queues = [MagicMock(), MagicMock()]
+    user = "user"
+    display_all = True
+    server = "server"
+
+    presenter = QueuesPresenter(queues, user, display_all, server)
+
+    assert presenter._queues == queues
+    assert presenter._user == user
+    assert presenter._display_all is True
+    assert presenter._server == "server"
 
 
 def test_queues_presenter_format_walltime_returns_formatted_text():
@@ -67,7 +82,7 @@ def test_queues_presenter_add_queue_row_main_available():
     queue.getMaxWalltime.return_value = None
     queue.getMaxNNodes.return_value = 8
 
-    presenter = QueuesPresenter([queue], "user", True)
+    presenter = QueuesPresenter([queue], "user", True, None)
     table = Table()
     presenter._addQueueRow(queue, table, user="user")
 
@@ -100,7 +115,7 @@ def test_queues_presenter_add_queue_row_main_available_do_not_show_comment():
     queue.getMaxWalltime.return_value = None
     queue.getMaxNNodes.return_value = 8
 
-    presenter = QueuesPresenter([queue], "user", False)
+    presenter = QueuesPresenter([queue], "user", False, None)
     presenter._show_comment = False
     table = Table()
     presenter._addQueueRow(queue, table, user="user")
@@ -134,7 +149,7 @@ def test_queues_presenter_add_queue_row_main_available_do_not_show_max_nodes():
     queue.getMaxWalltime.return_value = None
     queue.getMaxNNodes.return_value = 8
 
-    presenter = QueuesPresenter([queue], "user", True)
+    presenter = QueuesPresenter([queue], "user", True, None)
     presenter._show_max_nnodes = False
     table = Table()
     presenter._addQueueRow(queue, table, user="user")
@@ -168,7 +183,7 @@ def test_queues_presenter_add_queue_row_main_unavailable():
     queue.getMaxWalltime.return_value = None
     queue.getMaxNNodes.return_value = 8
 
-    presenter = QueuesPresenter([queue], "user", True)
+    presenter = QueuesPresenter([queue], "user", True, None)
     table = Table()
     presenter._addQueueRow(queue, table, user="user")
 
@@ -198,7 +213,7 @@ def test_queues_presenter_add_queue_row_rerouted_available():
     queue.getMaxWalltime.return_value = None
     queue.getMaxNNodes.return_value = 8
 
-    presenter = QueuesPresenter([queue], "user", False)
+    presenter = QueuesPresenter([queue], "user", False, None)
     table = Table()
     presenter._addQueueRow(queue, table, user="user", from_route=True)
 
@@ -230,7 +245,7 @@ def test_queues_presenter_add_queue_row_rerouted_unavailable():
     queue.getComment.return_value = "Rerouted blocked"
     queue.getMaxWalltime.return_value = None
 
-    presenter = QueuesPresenter([queue], "user", True)
+    presenter = QueuesPresenter([queue], "user", True, None)
     table = Table()
     presenter._addQueueRow(queue, table, user="user", from_route=True)
 
@@ -258,7 +273,7 @@ def test_queues_presenter_add_queue_row_dangling():
     queue.getComment.return_value = "Dangling dest"
     queue.getMaxWalltime.return_value = None
 
-    presenter = QueuesPresenter([queue], "user", False)
+    presenter = QueuesPresenter([queue], "user", False, None)
     table = Table()
     presenter._addQueueRow(queue, table, user="user", dangling=True)
 
@@ -315,7 +330,7 @@ def _render_table(table: Table) -> str:
 
 def test_queues_presenter_create_queues_table_basic_main_only():
     main = _make_queue("mainq", destinations=[])
-    presenter = QueuesPresenter([main], user="user", all=False)
+    presenter = QueuesPresenter([main], user="user", all=False, server=None)
 
     table = presenter._createQueuesTable()
     output = _render_table(table)
@@ -331,7 +346,7 @@ def test_queues_presenter_create_queues_table_basic_main_only():
 
 def test_queues_presenter_create_queues_table_no_comment():
     main = _make_queue("mainq", destinations=[])
-    presenter = QueuesPresenter([main], user="user", all=False)
+    presenter = QueuesPresenter([main], user="user", all=False, server=None)
     presenter._show_comment = False
 
     table = presenter._createQueuesTable()
@@ -347,7 +362,7 @@ def test_queues_presenter_create_queues_table_no_comment():
 
 def test_queues_presenter_create_queues_table_basic_no_max_nodes():
     main = _make_queue("mainq", destinations=[], nnodes=None)
-    presenter = QueuesPresenter([main], user="user", all=False)
+    presenter = QueuesPresenter([main], user="user", all=False, server=None)
 
     table = presenter._createQueuesTable()
     output = _render_table(table)
@@ -366,7 +381,7 @@ def test_queues_presenter_create_queues_table_with_rerouted_parent_available():
         "mainq", destinations=["destq"], available_to=True, comment="main"
     )
     dest = _make_queue("destq", comment="dest")
-    presenter = QueuesPresenter([main, dest], user="user", all=False)
+    presenter = QueuesPresenter([main, dest], user="user", all=False, server=None)
 
     table = presenter._createQueuesTable()
     output = _render_table(table)
@@ -380,7 +395,7 @@ def test_queues_presenter_create_queues_table_with_rerouted_parent_available():
 def test_queues_presenter_create_queues_table_with_rerouted_parent_unavailable():
     main = _make_queue("mainq", destinations=["destq"], available_to=False)
     dest = _make_queue("destq")
-    presenter = QueuesPresenter([main, dest], user="user", all=False)
+    presenter = QueuesPresenter([main, dest], user="user", all=False, server=None)
 
     table = presenter._createQueuesTable()
     output = _render_table(table)
@@ -395,7 +410,9 @@ def test_queues_presenter_create_queues_table_unbound_when_all_true():
     route_only_unbound = _make_queue(
         "lonely_dest", from_route_only=True, comment="dangling"
     )
-    presenter = QueuesPresenter([route_only_unbound], user="user", all=True)
+    presenter = QueuesPresenter(
+        [route_only_unbound], user="user", all=True, server=None
+    )
 
     table = presenter._createQueuesTable()
     output = _render_table(table)
@@ -409,7 +426,7 @@ def test_queues_presenter_create_queues_table_unbound_when_all_true():
 @pytest.mark.parametrize("all", [False, True])
 def test_queues_presenter_create_queues_info_panel_structure(all):
     queue_mock = MagicMock()
-    presenter = QueuesPresenter([queue_mock], user="user", all=all)
+    presenter = QueuesPresenter([queue_mock], user="user", all=all, server=None)
 
     fake_table = Table()
     with patch.object(presenter, "_createQueuesTable", return_value=fake_table):
@@ -429,6 +446,44 @@ def test_queues_presenter_create_queues_info_panel_structure(all):
         assert "ALL QUEUES" in main_panel.title.plain
     else:
         assert "AVAILABLE QUEUES" in main_panel.title.plain
+
+    # subtitle
+    assert main_panel.subtitle is None
+
+    # content should be a table
+    assert isinstance(main_panel.renderable, Table)
+    assert main_panel.renderable is fake_table
+
+
+@pytest.mark.parametrize("all", [False, True])
+def test_queues_presenter_create_queues_info_panel_structure_with_server(all):
+    queue_mock = MagicMock()
+    presenter = QueuesPresenter(
+        [queue_mock], user="user", all=all, server="fake.server.com"
+    )
+
+    fake_table = Table()
+    with patch.object(presenter, "_createQueuesTable", return_value=fake_table):
+        panel_group = presenter.createQueuesInfoPanel()
+
+    # structure of returned object
+    assert isinstance(panel_group, Group)
+    assert len(panel_group.renderables) == 3
+
+    # middle renderable must be a Panel
+    main_panel = panel_group.renderables[1]
+    assert isinstance(main_panel, Panel)
+
+    # title
+    assert isinstance(main_panel.title, Text)
+    if all:
+        assert "ALL QUEUES" in main_panel.title.plain
+    else:
+        assert "AVAILABLE QUEUES" in main_panel.title.plain
+
+    # subtitle
+    assert isinstance(main_panel.subtitle, Text)
+    assert "fake.server.com" in main_panel.subtitle.plain
 
     # content should be a table
     assert isinstance(main_panel.renderable, Table)
@@ -459,10 +514,12 @@ def test_queues_presenter_dump_yaml_roundtrip():
         "started": "True",
     }
 
-    gpu_queue = PBSQueue.fromDict("gpu", info_gpu)
-    cpu_queue = PBSQueue.fromDict("cpu", info_cpu)
+    gpu_queue = PBSQueue.fromDict("gpu", None, info_gpu)
+    cpu_queue = PBSQueue.fromDict("cpu", None, info_cpu)
 
-    presenter = QueuesPresenter([gpu_queue, cpu_queue], user="user", all=True)
+    presenter = QueuesPresenter(
+        [gpu_queue, cpu_queue], user="user", all=True, server=None
+    )
 
     captured = StringIO()
     sys.stdout = captured
@@ -479,7 +536,7 @@ def test_queues_presenter_dump_yaml_roundtrip():
             continue
         data = yaml.safe_load(doc)
         name = data["Queue"]
-        reloaded_queues.append(PBSQueue.fromDict(name, data))
+        reloaded_queues.append(PBSQueue.fromDict(name, None, data))
 
     # check that both queues were dumped and reloaded
     assert len(reloaded_queues) == 2
@@ -499,7 +556,7 @@ def test_queues_presenter_should_show_comment_returns_true_if_any_has_comment():
 
     q2 = _make_queue("queue2")
 
-    presenter = QueuesPresenter([q1, q2], user="user", all=False)
+    presenter = QueuesPresenter([q1, q2], user="user", all=False, server=None)
     assert presenter._shouldShowComment()
 
 
@@ -510,7 +567,7 @@ def test_queues_presenter_should_show_comment_returns_true_if_none_has_comment()
     q2 = _make_queue("queue2")
     q2.getComment.return_value = None
 
-    presenter = QueuesPresenter([q1, q2], user="user", all=False)
+    presenter = QueuesPresenter([q1, q2], user="user", all=False, server=None)
     assert not presenter._shouldShowComment()
 
 
@@ -519,7 +576,7 @@ def test_queues_presenter_should_show_max_nodes_returns_true_if_any_has_max_node
 
     q2 = _make_queue("queue2")
 
-    presenter = QueuesPresenter([q1, q2], user="user", all=False)
+    presenter = QueuesPresenter([q1, q2], user="user", all=False, server=None)
     assert presenter._shouldShowMaxNNodes()
 
 
@@ -527,5 +584,5 @@ def test_queues_presenter_should_show_max_nodes_returns_false_if_none_have_max_n
     q1 = _make_queue("queue1", nnodes=None)
     q2 = _make_queue("queue2", nnodes=None)
 
-    presenter = QueuesPresenter([q1, q2], user="user", all=False)
+    presenter = QueuesPresenter([q1, q2], user="user", all=False, server=None)
     assert not presenter._shouldShowMaxNNodes()

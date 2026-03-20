@@ -11,6 +11,7 @@ from rich.console import Console
 
 from qq_lib.batch.interface import BatchMeta
 from qq_lib.core.click_format import GNUHelpColorsCommand
+from qq_lib.core.common import translate_server
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -44,25 +45,34 @@ logger = get_logger(__name__)
     is_flag=True,
     help="Include both unfinished and finished jobs in the summary.",
 )
+@click.option(
+    "-s",
+    "--server",
+    default=None,
+    help="Collect jobs from the specified batch server. If not specified, the current server is used.",
+)
 @click.option("--yaml", is_flag=True, help="Output job metadata in YAML format.")
-def jobs(user: str, extra: bool, all: bool, yaml: bool) -> NoReturn:
+def jobs(user: str, extra: bool, all: bool, server: str | None, yaml: bool) -> NoReturn:
     try:
         batch_system = BatchMeta.fromEnvVarOrGuess()
         if not user:
             # use the current user, if `--user` is not specified
             user = getpass.getuser()
 
+        if server:
+            server = translate_server(server)
+
         if all:
-            jobs = batch_system.getBatchJobs(user)
+            jobs = batch_system.getBatchJobs(user, server)
         else:
-            jobs = batch_system.getUnfinishedBatchJobs(user)
+            jobs = batch_system.getUnfinishedBatchJobs(user, server)
 
         if not jobs:
             logger.info("No jobs found.")
             sys.exit(0)
 
         batch_system.sortJobs(jobs)
-        presenter = JobsPresenter(batch_system, jobs, extra, all)
+        presenter = JobsPresenter(batch_system, jobs, extra, all, server)
         if yaml:
             presenter.dumpYaml()
         else:

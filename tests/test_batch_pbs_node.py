@@ -11,10 +11,37 @@ from qq_lib.core.error import QQError
 from qq_lib.properties.size import Size
 
 
+@pytest.mark.parametrize(
+    "queue, server, expected",
+    [
+        # server provided - returns queue@server format
+        ("default", "worker1", "default@worker1"),
+        # server is None - returns bare queue name
+        ("cpu", None, "cpu"),
+        # empty server string is falsy - returns bare queue name
+        ("gpu", "", "gpu"),
+        # queue name with special characters is preserved
+        ("default-cpu", "worker1", "default-cpu@worker1"),
+        # server name with dots (hostname) is preserved
+        ("gpu", "worker1.cluster.org", "gpu@worker1.cluster.org"),
+    ],
+)
+def test_queues_availability_get_full_queue_name(queue, server, expected):
+    assert QueuesAvailability._getFullQueueName(queue, server) == expected
+
+
 def test_queues_availability_get_or_init_returns_cached_value():
     QueuesAvailability._queues = {"gpu": {"user1": True}}
     with patch("qq_lib.batch.pbs.node.PBSQueue") as mock_pbsqueue:
-        result = QueuesAvailability.getOrInit("gpu", "user1")
+        result = QueuesAvailability.getOrInit("gpu", "user1", None)
+    mock_pbsqueue.assert_not_called()
+    assert result is True
+
+
+def test_queues_availability_get_or_init_with_server_returns_cached_value():
+    QueuesAvailability._queues = {"gpu@server": {"user1": True}}
+    with patch("qq_lib.batch.pbs.node.PBSQueue") as mock_pbsqueue:
+        result = QueuesAvailability.getOrInit("gpu", "user1", "server")
     mock_pbsqueue.assert_not_called()
     assert result is True
 
@@ -25,11 +52,46 @@ def test_queues_availability_get_or_init_queries_and_caches_value(mock_pbsqueue)
     mock_instance = MagicMock()
     mock_instance.isAvailableToUser.return_value = True
     mock_pbsqueue.return_value = mock_instance
-    result = QueuesAvailability.getOrInit("cpu", "user2")
-    mock_pbsqueue.assert_called_once_with("cpu")
+    result = QueuesAvailability.getOrInit("cpu", "user2", None)
+    mock_pbsqueue.assert_called_once_with("cpu", None)
     mock_instance.isAvailableToUser.assert_called_once_with("user2")
     assert result is True
     assert QueuesAvailability._queues == {"cpu": {"user2": True}}
+
+
+@patch("qq_lib.batch.pbs.node.PBSQueue")
+def test_queues_availability_get_or_init_with_server_queries_and_caches_value(
+    mock_pbsqueue,
+):
+    QueuesAvailability._queues = {}
+    mock_instance = MagicMock()
+    mock_instance.isAvailableToUser.return_value = True
+    mock_pbsqueue.return_value = mock_instance
+    result = QueuesAvailability.getOrInit("cpu", "user2", "server")
+    mock_pbsqueue.assert_called_once_with("cpu", "server")
+    mock_instance.isAvailableToUser.assert_called_once_with("user2")
+    assert result is True
+    assert QueuesAvailability._queues == {"cpu@server": {"user2": True}}
+
+
+@patch("qq_lib.batch.pbs.node.PBSQueue")
+def test_queues_availability_get_or_init_with_server_queries_and_caches_value_if_cache_is_for_different_server(
+    mock_pbsqueue,
+):
+    QueuesAvailability._queues = {
+        "cpu": {"user2": True},
+        "cpu@server2": {"user2": False},
+    }
+    mock_instance = MagicMock()
+    mock_instance.isAvailableToUser.return_value = True
+    mock_pbsqueue.return_value = mock_instance
+    result = QueuesAvailability.getOrInit("cpu", "user2", "server")
+    mock_pbsqueue.assert_called_once_with("cpu", "server")
+    mock_instance.isAvailableToUser.assert_called_once_with("user2")
+    assert result is True
+    assert QueuesAvailability._queues["cpu"]["user2"] is True
+    assert QueuesAvailability._queues["cpu@server2"]["user2"] is False
+    assert QueuesAvailability._queues["cpu@server"]["user2"] is True
 
 
 @patch("qq_lib.batch.pbs.node.PBSQueue")
@@ -38,12 +100,28 @@ def test_queues_availability_get_or_init_adds_to_existing_queue_entry(mock_pbsqu
     mock_instance = MagicMock()
     mock_instance.isAvailableToUser.return_value = False
     mock_pbsqueue.return_value = mock_instance
-    result = QueuesAvailability.getOrInit("gpu", "user2")
-    mock_pbsqueue.assert_called_once_with("gpu")
+    result = QueuesAvailability.getOrInit("gpu", "user2", None)
+    mock_pbsqueue.assert_called_once_with("gpu", None)
     mock_instance.isAvailableToUser.assert_called_once_with("user2")
     assert result is False
     assert QueuesAvailability._queues["gpu"]["user2"] is False
     assert QueuesAvailability._queues["gpu"]["user1"] is True
+
+
+@patch("qq_lib.batch.pbs.node.PBSQueue")
+def test_queues_availability_get_or_init_with_server_adds_to_existing_queue_entry(
+    mock_pbsqueue,
+):
+    QueuesAvailability._queues = {"gpu@server": {"user1": True}}
+    mock_instance = MagicMock()
+    mock_instance.isAvailableToUser.return_value = False
+    mock_pbsqueue.return_value = mock_instance
+    result = QueuesAvailability.getOrInit("gpu", "user2", "server")
+    mock_pbsqueue.assert_called_once_with("gpu", "server")
+    mock_instance.isAvailableToUser.assert_called_once_with("user2")
+    assert result is False
+    assert QueuesAvailability._queues["gpu@server"]["user2"] is False
+    assert QueuesAvailability._queues["gpu@server"]["user1"] is True
 
 
 @patch.object(PBSNode, "update")
@@ -51,6 +129,17 @@ def test_pbs_node_init_calls_update(mock_update):
     node = PBSNode("node1")
     mock_update.assert_called_once()
     assert node._name == "node1"
+    assert node._server is None
+    assert isinstance(node._info, dict)
+    assert node._info == {}
+
+
+@patch.object(PBSNode, "update")
+def test_pbs_node_init_with_server_calls_update(mock_update):
+    node = PBSNode("node1", "server")
+    mock_update.assert_called_once()
+    assert node._name == "node1"
+    assert node._server == "server"
     assert isinstance(node._info, dict)
     assert node._info == {}
 
@@ -60,6 +149,7 @@ def test_pbs_node_init_calls_update(mock_update):
 def test_pbs_node_update_parses_successfully(mock_parse, mock_run):
     node = PBSNode.__new__(PBSNode)
     node._name = "node1"
+    node._server = None
     mock_run.return_value = MagicMock(returncode=0, stdout="mock_output")
     mock_parse.return_value = {"state": "free", "ntype": "PBS"}
     node.update()
@@ -79,6 +169,7 @@ def test_pbs_node_update_parses_successfully(mock_parse, mock_run):
 def test_pbs_node_update_raises_on_nonzero_return(mock_run):
     node = PBSNode.__new__(PBSNode)
     node._name = "nodeX"
+    node._server = None
     mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="error")
     with pytest.raises(QQError, match="Node 'nodeX' does not exist."):
         node.update()
@@ -90,6 +181,7 @@ def test_pbs_node_update_raises_on_nonzero_return(mock_run):
 def test_pbs_node_update_sets_info_even_if_parse_returns_empty(mock_parse, mock_run):
     node = PBSNode.__new__(PBSNode)
     node._name = "node_empty"
+    node._server = None
     mock_run.return_value = MagicMock(returncode=0, stdout="")
     mock_parse.return_value = {}
     node.update()
@@ -357,22 +449,42 @@ def test_pbs_node_get_properties_returns_empty_when_no_matching_keys():
 
 def test_pbs_node_from_dict_creates_instance_with_correct_attributes():
     info = {"resources_available.ncpus": "32", "state": "free"}
-    node = PBSNode.fromDict("nodeA", info)
+    node = PBSNode.fromDict("nodeA", None, info)
     assert isinstance(node, PBSNode)
     assert node._name == "nodeA"
+    assert node._server is None
+    assert node._info == info
+
+
+def test_pbs_node_from_dict_with_server_creates_instance_with_correct_attributes():
+    info = {"resources_available.ncpus": "32", "state": "free"}
+    node = PBSNode.fromDict("nodeA", "server", info)
+    assert isinstance(node, PBSNode)
+    assert node._name == "nodeA"
+    assert node._server == "server"
     assert node._info == info
 
 
 def test_pbs_node_from_dict_allows_empty_info_dict():
-    node = PBSNode.fromDict("nodeB", {})
+    node = PBSNode.fromDict("nodeB", None, {})
     assert isinstance(node, PBSNode)
     assert node._name == "nodeB"
+    assert node._server is None
+    assert node._info == {}
+
+
+def test_pbs_node_from_dict_with_server_allows_empty_info_dict():
+    node = PBSNode.fromDict("nodeB", "server", {})
+    assert isinstance(node, PBSNode)
+    assert node._name == "nodeB"
+    assert node._server == "server"
     assert node._info == {}
 
 
 def test_pbs_node_is_available_to_user_returns_false_when_state_missing():
     node = PBSNode.__new__(PBSNode)
     node._name = "node1"
+    node._server = None
     node._info = {}
     result = node.isAvailableToUser("user1")
     assert result is False
@@ -382,6 +494,7 @@ def test_pbs_node_is_available_to_user_returns_false_when_state_missing():
 def test_pbs_node_is_available_to_user_returns_false_for_disabled_states(state):
     node = PBSNode.__new__(PBSNode)
     node._name = "node2"
+    node._server = None
     node._info = {"state": state}
     result = node.isAvailableToUser("user2")
     assert result is False
@@ -391,15 +504,30 @@ def test_pbs_node_is_available_to_user_returns_false_for_disabled_states(state):
 def test_pbs_node_is_available_to_user_delegates_to_queues_availability(mock_getorinit):
     node = PBSNode.__new__(PBSNode)
     node._name = "node3"
+    node._server = None
     node._info = {"state": "free", "queue": "gpu"}
     result = node.isAvailableToUser("user3")
-    mock_getorinit.assert_called_once_with("gpu", "user3")
+    mock_getorinit.assert_called_once_with("gpu", "user3", None)
+    assert result is True
+
+
+@patch("qq_lib.batch.pbs.node.QueuesAvailability.getOrInit", return_value=True)
+def test_pbs_node_is_available_to_user_delegates_to_queues_availability_with_server(
+    mock_getorinit,
+):
+    node = PBSNode.__new__(PBSNode)
+    node._name = "node3"
+    node._server = "server"
+    node._info = {"state": "free", "queue": "gpu"}
+    result = node.isAvailableToUser("user3")
+    mock_getorinit.assert_called_once_with("gpu", "user3", "server")
     assert result is True
 
 
 def test_pbs_node_is_available_to_user_returns_true_when_no_queue_and_enabled_state():
     node = PBSNode.__new__(PBSNode)
     node._name = "node4"
+    node._server = None
     node._info = {"state": "free"}
     result = node.isAvailableToUser("user4")
     assert result is True

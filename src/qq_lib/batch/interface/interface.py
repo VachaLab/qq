@@ -7,7 +7,7 @@ import subprocess
 from abc import ABC
 from pathlib import Path
 
-from qq_lib.core.common import convert_absolute_to_relative
+from qq_lib.core.common import convert_absolute_to_relative, logical_resolve
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -109,6 +109,7 @@ class BatchInterface[
         depend: list[Depend],
         env_vars: dict[str, str],
         account: str | None = None,
+        server: str | None = None,
     ) -> str:
         """
         Submit a job to the batch system.
@@ -123,6 +124,7 @@ class BatchInterface[
             depend (list[Depend]): List of job dependencies.
             env_vars (dict[str, str]): Dictionary of environment variables to propagate to the job.
             account (str | None): Optional account name to use for the job.
+            server (str | None): Optional name of the server to submit the job to.
 
         Returns:
             str: Unique ID of the submitted job.
@@ -183,14 +185,18 @@ class BatchInterface[
         )
 
     @classmethod
-    def getUnfinishedBatchJobs(cls, user: str) -> list[TBatchJob]:
+    def getUnfinishedBatchJobs(
+        cls, user: str, server: str | None = None
+    ) -> list[TBatchJob]:
         """
-        Retrieve information about all unfinished jobs submitted by `user`.
+        Retrieve information about all unfinished jobs submitted by `user`
+        on the specified or default batch server.
 
         The jobs can be returned in arbitrary order.
 
         Args:
             user (str): Username for which to fetch unfinished jobs.
+            server (str | None): Optional name of the batch server to get jobs from.
 
         Returns:
             list[TBatchJob]: A list of job info objects representing the user's unfinished jobs.
@@ -200,14 +206,16 @@ class BatchInterface[
         )
 
     @classmethod
-    def getBatchJobs(cls, user: str) -> list[TBatchJob]:
+    def getBatchJobs(cls, user: str, server: str | None = None) -> list[TBatchJob]:
         """
-        Retrieve information about all jobs submitted by a specific user (including finished jobs).
+        Retrieve information about all jobs submitted by a specific user (including finished jobs)
+        on the specified or default batch server.
 
         The jobs can be returned in arbitrary order.
 
         Args:
             user (str): Username for which to fetch all jobs.
+            server (str | None): Optional name of the batch server to get jobs from.
 
         Returns:
             list[TBatchJob]: A list of job info objects representing all jobs of the user.
@@ -217,11 +225,14 @@ class BatchInterface[
         )
 
     @classmethod
-    def getAllUnfinishedBatchJobs(cls) -> list[TBatchJob]:
+    def getAllUnfinishedBatchJobs(cls, server: str | None = None) -> list[TBatchJob]:
         """
-        Retrieve information about unfinished jobs of all users.
+        Retrieve information about unfinished jobs of all users on the specified or default batch server.
 
         The jobs can be returned in arbitrary order.
+
+        Args:
+            server (str | None): Optional name of the batch server to get jobs from.
 
         Returns:
             list[TBatchJob]: A list of job info objects representing unfinished jobs of all users.
@@ -231,11 +242,14 @@ class BatchInterface[
         )
 
     @classmethod
-    def getAllBatchJobs(cls) -> list[TBatchJob]:
+    def getAllBatchJobs(cls, server: str | None = None) -> list[TBatchJob]:
         """
-        Retrieve information about all jobs of all users.
+        Retrieve information about all jobs of all users on the specified or default batch server.
 
         The jobs can be returned in arbitrary order.
+
+        Args:
+            server (str | None): Optional name of the batch server to get jobs from.
 
         Returns:
             list[TBatchJob]: A list of job info objects representing all jobs of all users.
@@ -245,9 +259,12 @@ class BatchInterface[
         )
 
     @classmethod
-    def getQueues(cls) -> list[TBatchQueue]:
+    def getQueues(cls, server: str | None = None) -> list[TBatchQueue]:
         """
-        Retrieve all queues managed by the batch system.
+        Retrieve all queues managed by the batch system on the specified or default batch server.
+
+        Args:
+            server (str | None): Optional name of the batch server to get queues from.
 
         Returns:
             list[TBatchQueue]: A list of queue objects existing in the batch system.
@@ -257,9 +274,12 @@ class BatchInterface[
         )
 
     @classmethod
-    def getNodes(cls) -> list[TBatchNode]:
+    def getNodes(cls, server: str | None = None) -> list[TBatchNode]:
         """
-        Retrieve all nodes managed by the batch system.
+        Retrieve all nodes managed by the batch system on the specified or default batch server.
+
+        Args:
+            server (str | None): Optional name of the batch server to get nodes from.
 
         Returns:
             list[TBatchNode]: A list of node objects existing in the batch system.
@@ -490,7 +510,7 @@ class BatchInterface[
 
         # split by newline and filter out empty lines
         return [
-            (Path(directory) / line).resolve()
+            logical_resolve(Path(directory) / line)
             for line in result.stdout.splitlines()
             if line.strip()
         ]
@@ -664,7 +684,9 @@ class BatchInterface[
         cls._runRsync(src_dir, dest_dir, src_host, dest_host, command)
 
     @classmethod
-    def transformResources(cls, queue: str, provided_resources: Resources) -> Resources:
+    def transformResources(
+        cls, queue: str, server: str | None, provided_resources: Resources
+    ) -> Resources:
         """
         Transform user-provided Resources into a batch system-specific Resources instance.
 
@@ -674,6 +696,8 @@ class BatchInterface[
 
         Args:
             queue (str): The name of the queue for which the resources are being adapted.
+            server (str | None): Name of the server on which the queue is located.
+                If `None`, the queue is treated as being located on the current server.
             provided_resources (Resources): The raw resources specified by the user.
 
         Returns:

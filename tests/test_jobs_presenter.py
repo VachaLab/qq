@@ -30,13 +30,34 @@ def test_init_sets_all_attributes_and_creates_statistics():
         mock_stats_instance = Mock()
         mock_stats_class.return_value = mock_stats_instance
 
-        presenter = JobsPresenter(PBS, jobs, True, False)
+        presenter = JobsPresenter(PBS, jobs, True, False, None)
 
     assert presenter._batch_system == PBS
     assert presenter._jobs == jobs
     assert presenter._extra is True
     assert presenter._all is False
     assert presenter._stats == mock_stats_instance
+    assert presenter._server is None
+    mock_stats_class.assert_called_once_with()
+
+
+def test_init_with_server_sets_all_attributes_and_creates_statistics():
+    job1 = Mock()
+    job2 = Mock()
+    jobs = [job1, job2]
+
+    with patch("qq_lib.jobs.presenter.JobsStatistics") as mock_stats_class:
+        mock_stats_instance = Mock()
+        mock_stats_class.return_value = mock_stats_instance
+
+        presenter = JobsPresenter(PBS, jobs, True, False, "fake.server.com")
+
+    assert presenter._batch_system == PBS
+    assert presenter._jobs == jobs
+    assert presenter._extra is True
+    assert presenter._all is False
+    assert presenter._stats == mock_stats_instance
+    assert presenter._server == "fake.server.com"
     mock_stats_class.assert_called_once_with()
 
 
@@ -419,7 +440,7 @@ def parsed_jobs(sample_pbs_dump):
 
 
 def test_dump_yaml_roundtrip(parsed_jobs):
-    presenter = JobsPresenter(PBS, parsed_jobs, False, True)
+    presenter = JobsPresenter(PBS, parsed_jobs, False, True, None)
 
     # capture stdout
     captured = io.StringIO()
@@ -455,7 +476,7 @@ def test_dump_yaml_roundtrip(parsed_jobs):
 
 
 def test_create_jobs_info_panel_structure(parsed_jobs):
-    presenter = JobsPresenter(PBS, parsed_jobs, False, True)
+    presenter = JobsPresenter(PBS, parsed_jobs, False, True, None)
     panel_group = presenter.createJobsInfoPanel()
 
     assert isinstance(panel_group, Group)
@@ -466,6 +487,36 @@ def test_create_jobs_info_panel_structure(parsed_jobs):
 
     assert isinstance(main_panel.title, Text)
     assert "COLLECTED JOBS" in main_panel.title.plain
+
+    assert main_panel.subtitle is None
+
+    content = main_panel.renderable
+    assert isinstance(content, Group)
+    assert len(content.renderables) >= 2
+
+    jobs_table = content.renderables[0]
+    assert isinstance(jobs_table, Text)
+    assert all(
+        JobsPresenter._shortenJobId(job.getId()) in jobs_table.plain
+        for job in parsed_jobs
+    )
+
+
+def test_create_jobs_info_panel_structure_with_server(parsed_jobs):
+    presenter = JobsPresenter(PBS, parsed_jobs, False, True, "fake.server.com")
+    panel_group = presenter.createJobsInfoPanel()
+
+    assert isinstance(panel_group, Group)
+    assert len(panel_group.renderables) == 3
+
+    main_panel = panel_group.renderables[1]
+    assert isinstance(main_panel, Panel)
+
+    assert isinstance(main_panel.title, Text)
+    assert "COLLECTED JOBS" in main_panel.title.plain
+
+    assert isinstance(main_panel.subtitle, Text)
+    assert "fake.server.com" in main_panel.subtitle.plain
 
     content = main_panel.renderable
     assert isinstance(content, Group)
@@ -484,6 +535,7 @@ def test_jobs_presenter_create_jobs_info_panel_insert_extra_info(
     extra_flag, should_call
 ):
     presenter = JobsPresenter.__new__(JobsPresenter)
+    presenter._server = None
     presenter._extra = extra_flag
     presenter._createBasicJobsTable = Mock(return_value="BASIC_TABLE")
     presenter._stats = Mock()
@@ -1029,7 +1081,7 @@ def test_format_exit_code_returns_empty_string_for_various_states(state):
 
 
 def test_format_headers_returns_formatted_list():
-    presenter = JobsPresenter(PBS, [], False, False)
+    presenter = JobsPresenter(PBS, [], False, False, None)
     mock_cfg = Mock()
     mock_cfg.jobs_presenter.headers_style = "cyan"
 
@@ -1044,7 +1096,7 @@ def test_format_headers_returns_formatted_list():
 
 
 def test_format_headers_returns_empty_list_for_empty_input():
-    presenter = JobsPresenter(PBS, [], False, False)
+    presenter = JobsPresenter(PBS, [], False, False, None)
     mock_cfg = Mock()
     mock_cfg.jobs_presenter.headers_style = "cyan"
 
@@ -1180,6 +1232,7 @@ def test_create_job_row_returns_row_with_requested_headers():
 
     presenter = JobsPresenter.__new__(JobsPresenter)
     presenter._all = False
+    presenter._server = None
     presenter._stats = Mock()
 
     with (
@@ -1201,6 +1254,40 @@ def test_create_job_row_returns_row_with_requested_headers():
     assert "4" in result[2]
 
 
+def test_create_job_row_returns_row_with_requested_headers_with_server():
+    job = Mock()
+    job.getState.return_value = Mock(toCode=Mock(return_value="R"), color="green")
+    job.getId.return_value = "12345.fake.server.com"
+    job.getUser.return_value = "user1"
+    job.getName.return_value = "job_name"
+    job.getQueue.return_value = "default"
+    job.getNCPUs.return_value = 4
+    job.getNGPUs.return_value = 2
+    job.getNNodes.return_value = 1
+
+    presenter = JobsPresenter.__new__(JobsPresenter)
+    presenter._all = False
+    presenter._server = "fake.server.com"
+    presenter._stats = Mock()
+
+    with (
+        patch.object(
+            JobsPresenter, "_getJobTimes", return_value=(datetime.now(), datetime.now())
+        ),
+        patch.object(JobsPresenter, "_shortenJobName", return_value="job_name"),
+        patch.object(JobsPresenter, "_formatTime", return_value="time"),
+        patch.object(JobsPresenter, "_formatNodesOrComment", return_value="node"),
+        patch.object(JobsPresenter, "_formatUtilCPU", return_value="cpu"),
+        patch.object(JobsPresenter, "_formatUtilMem", return_value="mem"),
+    ):
+        result = presenter._createJobRow(job, ["S", "Job ID", "NCPUs"])
+
+    assert len(result) == 3
+    assert "R" in result[0]
+    assert "12345.fake.server.com" in result[1]
+    assert "4" in result[2]
+
+
 def test_create_job_row_calls_add_job_on_stats():
     job = Mock()
     state = Mock(toCode=Mock(return_value="R"), color="green")
@@ -1211,6 +1298,7 @@ def test_create_job_row_calls_add_job_on_stats():
 
     presenter = JobsPresenter.__new__(JobsPresenter)
     presenter._all = False
+    presenter._server = None
     presenter._stats = Mock()
     mock_cfg = Mock()
     mock_cfg.jobs_presenter.main_style = "cyan"

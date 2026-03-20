@@ -395,7 +395,9 @@ class NodesPresenter:
     Presenter class for displaying information about batch system nodes.
     """
 
-    def __init__(self, nodes: list[BatchNodeInterface], user: str, all: bool):
+    def __init__(
+        self, nodes: list[BatchNodeInterface], user: str, all: bool, server: str | None
+    ):
         """
         Initialize the presenter with a list of nodes.
 
@@ -404,10 +406,13 @@ class NodesPresenter:
                 to be presented.
             user (str): Name of the user for which the nodes are displayed.
             all (boolean): Display all nodes or only those that are available.
+            server (str | None): Batch server for which the nodes were collected.
+                `None` = default server.
         """
         self._nodes = nodes
         self._user = user
         self._display_all = all
+        self._server = server
 
         self._node_groups = self._createNodeGroups()
 
@@ -446,6 +451,11 @@ class NodesPresenter:
             title=Text(
                 f"NODE GROUP: {groups[0].name}",
                 style=CFG.nodes_presenter.title_style,
+                justify="center",
+            ),
+            subtitle=Text(
+                f"{self._server}",
+                style=CFG.jobs_presenter.subtitle_style,
                 justify="center",
             ),
             border_style=CFG.nodes_presenter.border_style,

@@ -16,7 +16,7 @@ from typing import NoReturn
 import qq_lib
 from qq_lib.archive.archiver import Archiver
 from qq_lib.batch.interface.meta import BatchMeta
-from qq_lib.core.common import construct_loop_job_name
+from qq_lib.core.common import construct_loop_job_name, logical_resolve
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
@@ -187,7 +187,7 @@ class Runner:
         self._updateInfoRunning()
 
         # get the actual name of the script to execute
-        script = Path(self._informer.info.script_name).resolve()
+        script = logical_resolve(Path(self._informer.info.script_name))
 
         # get paths to output files
         stdout_log = self._informer.info.stdout_file
@@ -556,8 +556,8 @@ class Runner:
             QQError: If the files could not be copied after retrying.
         """
         files_to_copy = [
-            Path(self._informer.info.stdout_file).resolve(),
-            Path(self._informer.info.stderr_file).resolve(),
+            logical_resolve(Path(self._informer.info.stdout_file)),
+            logical_resolve(Path(self._informer.info.stderr_file)),
         ]
 
         logger.debug(f"Copying runtime files '{files_to_copy}' to input directory.")
@@ -697,7 +697,7 @@ class Runner:
         that were explicitly copied via the `--include` submission option.
         """
         files = [
-            (self._work_dir / f.name).resolve()
+            logical_resolve(self._work_dir / f.name)
             for f in self._informer.info.included_files
         ]
 

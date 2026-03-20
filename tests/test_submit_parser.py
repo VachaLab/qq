@@ -392,6 +392,20 @@ def test_parser_get_archive_mode_calls_multi_from_str():
     assert result == mock_transfer_list
 
 
+def test_parser_get_server_empty_list():
+    parser = Parser.__new__(Parser)
+    parser._options = {}
+
+    result = parser.getServer()
+    assert result is None
+
+
+def test_parser_get_server_value():
+    parser = Parser.__new__(Parser)
+    parser._options = {"server": "fake.server.com"}
+    assert parser.getServer() == "fake.server.com"
+
+
 @pytest.fixture
 def temp_script_file():
     with tempfile.NamedTemporaryFile(mode="w+", delete=False) as tmp_file:

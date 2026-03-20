@@ -1,3 +1,9 @@
+## Version 0.10.0
+- Added the option to connect to different batch servers on Metacentrum-family clusters.
+- Paths are now resolved to absolute paths without resolving symlinks allowing compatibility between absolute paths on Robox and on Sokar.
+
+***
+
 ## Version 0.9.0
 - Added `continuous` jobs: a light-weight alternative to loop jobs. Continuous jobs automatically submit their continuation but do not track their cycle nor do they perform archival operations. See [the manual](https://vachalab.github.io/qq-manual/continuous_job.html) for more information.
 
