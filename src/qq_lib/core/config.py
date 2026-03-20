@@ -434,6 +434,15 @@ class BatchServersOptions:
         }
     )
 
+    # Dictionary mapping known server names to frontends.
+    known_output_hosts: dict[str, str] = field(
+        default_factory=lambda: {
+            "robox-pro.ceitec.muni.cz": "st1.ceitec.muni.cz",
+            "sokar-pbs.ncbr.muni.cz": "sokar.ncbr.muni.cz",
+            "pbs-m1.metacentrum.cz": "perian.metacentrum.cz",
+        }
+    )
+
 
 @dataclass
 class Config:

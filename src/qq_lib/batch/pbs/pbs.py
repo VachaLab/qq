@@ -79,7 +79,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         # account unused
         _ = account
 
-        cls._sharedGuard(res, env_vars)
+        cls._sharedGuard(res, env_vars, server)
 
         # set env vars required for Infinity modules
         # this can be removed once Infinity stops being supported
@@ -476,7 +476,9 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         return Path(scratch_dir)
 
     @classmethod
-    def _sharedGuard(cls, res: Resources, env_vars: dict[str, str]) -> None:
+    def _sharedGuard(
+        cls, res: Resources, env_vars: dict[str, str], server: str | None
+    ) -> None:
         """
         Ensure correct handling of shared vs. local submission directories.
 
@@ -487,13 +489,19 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         If the job is configured to use the submission directory as a working directory
         (`work-dir=input_dir` or 'job_dir') but that directory is not shared, a `QQError` is raised.
 
+        If the job is to be submitted to a potentially non-local server
+        but the directory is not shared, a `QQError` is raised.
+
         Args:
             res (Resources): The job's resource configuration.
             env_vars (dict[str, str]): Dictionary of environment variables to propagate to the job.
+            server (str | None): The target PBS server, or None if submitting to the default server.
 
         Raises:
             QQError: If the job is set to run directly in the submission
                     directory while submission is from a non-shared filesystem.
+            QQError: If the job is set to run on a non-default server while
+                submission is from a non-shared filesystem.
         """
         if cls.isShared(Path()):
             env_vars[CFG.env_vars.shared_submit] = "true"
@@ -501,6 +509,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
             # if job directory is used as working directory, it must always be shared
             raise QQError(
                 "Job was requested to run directly in the submission directory (work-dir='job_dir' or 'input_dir'), but submission is done from a local filesystem."
+            )
+        elif server is not None:
+            # if we are submitting to a different server
+            raise QQError(
+                f"Job was requested to be submitted to server '{server}' which is potentially non-local, but the submission is done from a local filesystem."
             )
 
     @classmethod
@@ -531,8 +544,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         Returns:
             str: The fully constructed qsub command string.
         """
-        qq_output = str((input_dir / job_name).with_suffix(CFG.suffixes.qq_out))
-        command = f"qsub -N {job_name} {cls._translateQueueServer(queue, server)} -j eo -e {qq_output} "
+        command = f"qsub -N {job_name} {cls._translateQueueServer(queue, server)} {cls._translateOutputServer(input_dir, job_name, server)} "
 
         # translate environment variables
         if env_vars:
@@ -574,11 +586,60 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
 
     @classmethod
     def _translateQueueServer(cls, queue: str, server: str | None) -> str:
-        """Translate the specification of the submission queue and the PBS server into a PBS option."""
+        """
+        Build the PBS queue destination argument for qsub.
+
+        Constructs the `-q` string from the queue name and optional server.
+        If a server is specified, the destination is formatted as `-q queue@server`,
+        otherwise only the queue name is used.
+
+        Args:
+            queue (str): The name of the target queue.
+            server (str | None): The target PBS server, or None if submitting to the default server.
+
+        Returns:
+            str: The PBS queue destination argument, e.g. `-q queue@server` or `-q queue`.
+        """
         if server:
             return f"-q {queue}@{server}"
 
         return f"-q {queue}"
+
+    @classmethod
+    def _translateOutputServer(
+        cls, input_dir: Path, job_name: str, server: str | None
+    ) -> str:
+        """
+        Build the PBS output redirection arguments for qsub.
+
+        Constructs the `-j eo -e` string pointing to the job's `.qqout` file.
+        If a server is specified and has a configured output host, that host is
+        prepended to the path as `host:path`. Otherwise, PBS will default to
+        delivering the output file to the submitting host.
+
+        Args:
+            input_dir (Path): Directory in which the output file will be placed.
+            job_name (str): Name of the job, used to construct the output filename.
+            server (str | None): The target PBS server, or None if submitting to the default server.
+
+        Returns:
+            str: The PBS output redirection arguments.
+        """
+        qq_output = str((input_dir / job_name).with_suffix(CFG.suffixes.qq_out))
+        if server:
+            if output_host := CFG.batch_servers_options.known_output_hosts.get(server):
+                logger.debug(
+                    f"Using output host '{output_host}' for server '{server}'."
+                )
+                return f"-j eo -e {output_host}:{qq_output}"
+
+            logger.warning(
+                f"No output host configured for server '{server}'. "
+                "PBS will deliver qqout file to the submitting host (this desktop), "
+                "which may fail if it is not accessible from the working node."
+            )
+
+        return f"-j eo -e {qq_output}"
 
     @classmethod
     def _translateEnvVars(cls, env_vars: dict[str, str]) -> str:

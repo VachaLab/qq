@@ -66,7 +66,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         _ = server
 
         # intentionally using PBS
-        PBS._sharedGuard(res, env_vars)
+        PBS._sharedGuard(res, env_vars, server)
 
         command = cls._translateSubmit(
             res, queue, script.parent, str(script), job_name, depend, env_vars, account

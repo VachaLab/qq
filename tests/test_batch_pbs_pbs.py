@@ -65,7 +65,7 @@ def test_shared_guard_sets_env_var():
 
     # patch isShared to return True
     with patch.object(PBS, "isShared", return_value=True):
-        PBS._sharedGuard(Resources(work_dir="scratch_local"), env_vars)
+        PBS._sharedGuard(Resources(work_dir="scratch_local"), env_vars, None)
         assert env_vars[CFG.env_vars.shared_submit] == "true"
         # previous env vars not removed
         assert env_vars[CFG.env_vars.guard] == "true"
@@ -76,7 +76,7 @@ def test_shared_guard_does_not_set_env_var():
 
     # patch isShared to return False
     with patch.object(PBS, "isShared", return_value=False):
-        PBS._sharedGuard(Resources(work_dir="scratch_local"), env_vars)
+        PBS._sharedGuard(Resources(work_dir="scratch_local"), env_vars, None)
         assert CFG.env_vars.shared_submit not in env_vars
         # previous env vars not removed
         assert env_vars[CFG.env_vars.guard] == "true"
@@ -88,7 +88,7 @@ def test_shared_guard_input_dir_does_not_raise(dir):
 
     # patch isShared to return True
     with patch.object(PBS, "isShared", return_value=True):
-        PBS._sharedGuard(Resources(work_dir=dir), env_vars)
+        PBS._sharedGuard(Resources(work_dir=dir), env_vars, None)
         assert env_vars[CFG.env_vars.shared_submit] == "true"
 
 
@@ -104,8 +104,26 @@ def test_shared_guard_input_dir_raises(dir):
             match="Job was requested to run directly in the submission directory",
         ),
     ):
-        PBS._sharedGuard(Resources(work_dir=dir), env_vars)
+        PBS._sharedGuard(Resources(work_dir=dir), env_vars, None)
         assert CFG.env_vars.shared_submit not in env_vars
+
+
+def test_shared_guard_raises_when_server_specified_and_not_shared():
+    with (
+        patch.object(PBS, "isShared", return_value=False),
+        pytest.raises(
+            QQError,
+            match="which is potentially non-local",
+        ),
+    ):
+        PBS._sharedGuard(Resources(work_dir="scratch_local"), {}, "server")
+
+
+def test_shared_guard_does_not_raise_when_server_specified_and_shared():
+    env_vars = {}
+    with patch.object(PBS, "isShared", return_value=True):
+        PBS._sharedGuard(Resources(work_dir="scratch_local"), env_vars, "sokar")
+        assert env_vars[CFG.env_vars.shared_submit] == "true"
 
 
 def test_sync_with_exclusions_shared_storage_sets_local(monkeypatch):
@@ -586,6 +604,23 @@ def test_translate_submit_with_server():
             {},
         )
         == f"qsub -N job -q gpu@server.random.address.com -j eo -e tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mpiprocs=1,mem=1048576kb script.sh"
+    )
+
+
+def test_translate_submit_with_known_server():
+    res = Resources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
+    assert (
+        PBS._translateSubmit(
+            res,
+            "gpu",
+            "sokar-pbs.ncbr.muni.cz",
+            Path("tmp"),
+            "script.sh",
+            "job",
+            [],
+            {},
+        )
+        == f"qsub -N job -q gpu@sokar-pbs.ncbr.muni.cz -j eo -e sokar.ncbr.muni.cz:tmp/job{CFG.suffixes.qq_out} -l ncpus=1,mpiprocs=1,mem=1048576kb script.sh"
     )
 
 
@@ -1711,3 +1746,63 @@ def test_modify_ams_env_vars_raises_for_unknown_server_with_ams_vars():
     env_vars = {"AMS_SITE": "old-value"}
     with pytest.raises(KeyError):
         PBS._modifyAMSEnvVars(env_vars, "unknown-server.example.com")
+
+
+@pytest.mark.parametrize(
+    "input_dir, job_name, expected_path",
+    [
+        (
+            Path("/mnt/shared/home/alice/jobs"),
+            "myjob",
+            "-j eo -e /mnt/shared/home/alice/jobs/myjob.qqout",
+        ),
+        (
+            Path("/mnt/shared/home/alice"),
+            "simulation",
+            "-j eo -e /mnt/shared/home/alice/simulation.qqout",
+        ),
+    ],
+)
+def test_translate_output_server_no_server(input_dir, job_name, expected_path):
+    with patch("qq_lib.batch.pbs.pbs.CFG.suffixes.qq_out", ".qqout"):
+        result = PBS._translateOutputServer(input_dir, job_name, None)
+        assert result == expected_path
+
+
+@pytest.mark.parametrize(
+    "server, output_host",
+    [
+        ("robox-pro.ceitec.muni.cz", "st1.ceitec.muni.cz"),
+        ("sokar-pbs.ncbr.muni.cz", "sokar.ncbr.muni.cz"),
+        ("pbs-m1.metacentrum.cz", "perian.metacentrum.cz"),
+    ],
+)
+def test_translate_output_server_known_server_with_output_host(server, output_host):
+    input_dir = Path("/mnt/shared/home/alice/jobs")
+    job_name = "myjob"
+    result = PBS._translateOutputServer(input_dir, job_name, server)
+    assert result == f"-j eo -e {output_host}:/mnt/shared/home/alice/jobs/myjob.qqout"
+
+
+def test_translate_output_server_known_server_without_output_host():
+    input_dir = Path("/mnt/shared/home/alice/jobs")
+    job_name = "myjob"
+    server = "unknown.fake.server.org"
+
+    result = PBS._translateOutputServer(input_dir, job_name, server)
+    assert result == "-j eo -e /mnt/shared/home/alice/jobs/myjob.qqout"
+
+
+def test_translate_output_server_warns_when_no_output_host():
+    server = "unknown.fake.server.org"
+
+    with (
+        patch("qq_lib.batch.pbs.pbs.logger.warning") as mock_warning,
+    ):
+        result = PBS._translateOutputServer(
+            Path("/mnt/shared/home/alice/jobs"), "myjob", server
+        )
+        mock_warning.assert_called_once()
+        assert server in mock_warning.call_args[0][0]
+
+        assert result == "-j eo -e /mnt/shared/home/alice/jobs/myjob.qqout"
