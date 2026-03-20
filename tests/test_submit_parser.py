@@ -406,6 +406,22 @@ def test_parser_get_server_value():
     assert parser.getServer() == "fake.server.com"
 
 
+def test_parser_get_interpreter_none():
+    parser = Parser.__new__(Parser)
+    parser._options = {}
+
+    result = parser.getInterpreter()
+    assert result is None
+
+
+def test_parser_get_interpreter_value():
+    parser = Parser.__new__(Parser)
+    parser._options = {"interpreter": "/usr/bin/python"}
+
+    result = parser.getInterpreter()
+    assert result == "/usr/bin/python"
+
+
 @pytest.fixture
 def temp_script_file():
     with tempfile.NamedTemporaryFile(mode="w+", delete=False) as tmp_file:

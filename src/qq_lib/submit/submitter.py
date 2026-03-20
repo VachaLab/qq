@@ -60,6 +60,7 @@ class Submitter:
         depend: list[Depend] | None = None,
         transfer_mode: list[TransferMode] | None = None,
         server: str | None = None,
+        interpreter: str | None = None,
     ):
         """
         Initialize a Submitter instance.
@@ -83,6 +84,8 @@ class Submitter:
                 working directory to the input directory. Defaults to [`Success()`].
             server (str | None): Optional name of the server to which the job should be submitted.
                 If `None`, the default batch server, as configured by the batch system is used.
+            intepreter (str | None): Optional executable name or absolute path of the interpreter to use to execute the script.
+                If not specified, the config default is used.
 
         Raises:
             QQError: If the script does not exist or has an invalid shebang line.
@@ -109,6 +112,7 @@ class Submitter:
         self._transfer_mode = transfer_mode or TransferMode.multiFromStr(
             CFG.transfer_files_options.default_transfer_mode
         )
+        self._interpreter = interpreter
 
         # script must exist
         if not self._script.is_file():
@@ -183,6 +187,7 @@ class Submitter:
                     account=self._account,
                     transfer_mode=self._transfer_mode,
                     server=self._server,
+                    interpreter=self._interpreter,
                 )
             )
             informer.toFile(self._info_file)

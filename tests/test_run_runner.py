@@ -4,6 +4,7 @@
 import os
 import shutil
 import signal
+import sys
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -1084,6 +1085,7 @@ def test_runner_execute_updates_info_and_runs_script(tmp_path):
     runner._updateInfoRunning = MagicMock()
     runner._informer = MagicMock()
     runner._informer.info.script_name = str(script_file)
+    runner._informer.info.interpreter = None
     runner._informer.info.stdout_file = stdout_file
     runner._informer.info.stderr_file = stderr_file
 
@@ -1100,6 +1102,60 @@ def test_runner_execute_updates_info_and_runs_script(tmp_path):
         patch("qq_lib.run.runner.sleep") as sleep_mock,
         patch("qq_lib.run.runner.logger"),
         patch("qq_lib.run.runner.CFG") as cfg_mock,
+        patch(
+            "qq_lib.run.runner.shutil.which", return_value="/usr/bin/bash"
+        ) as which_mock,
+    ):
+        cfg_mock.runner.subprocess_checks_wait_time = 0.1
+        cfg_mock.runner.default_interpreter = "bash"
+        mock_file = MagicMock()
+        open_mock.return_value.__enter__.return_value = mock_file
+
+        retcode = runner.execute()
+
+    which_mock.assert_called_once_with("bash")
+    runner._updateInfoRunning.assert_called_once()
+    popen_mock.assert_called_once_with(
+        ["/usr/bin/bash", str(script_file.resolve())],
+        stdout=mock_file,
+        stderr=mock_file,
+        text=True,
+    )
+    sleep_mock.assert_called()
+    assert retcode == 0
+
+
+def test_runner_execute_updates_info_and_runs_script_using_python(tmp_path):
+    script_file = tmp_path / "script.sh"
+    script_file.write_text("#!/bin/bash\necho Hello\n")
+
+    stdout_file = tmp_path / "stdout.log"
+    stderr_file = tmp_path / "stderr.log"
+
+    runner = Runner.__new__(Runner)
+    runner._updateInfoRunning = MagicMock()
+    runner._informer = MagicMock()
+    runner._informer.info.script_name = str(script_file)
+    runner._informer.info.interpreter = "python"
+    runner._informer.info.stdout_file = stdout_file
+    runner._informer.info.stderr_file = stderr_file
+
+    mock_process = MagicMock()
+    # poll() returns None twice, then 0 (finished)
+    mock_process.poll.side_effect = [None, None, 0]
+    mock_process.returncode = 0
+
+    with (
+        patch(
+            "qq_lib.run.runner.subprocess.Popen", return_value=mock_process
+        ) as popen_mock,
+        patch("qq_lib.run.runner.Path.open", create=True) as open_mock,
+        patch("qq_lib.run.runner.sleep") as sleep_mock,
+        patch("qq_lib.run.runner.logger"),
+        patch("qq_lib.run.runner.CFG") as cfg_mock,
+        patch(
+            "qq_lib.run.runner.shutil.which", return_value="/usr/bin/python"
+        ) as which_mock,
     ):
         cfg_mock.runner.subprocess_checks_wait_time = 0.1
         mock_file = MagicMock()
@@ -1107,9 +1163,10 @@ def test_runner_execute_updates_info_and_runs_script(tmp_path):
 
         retcode = runner.execute()
 
+    which_mock.assert_called_once_with("python")
     runner._updateInfoRunning.assert_called_once()
     popen_mock.assert_called_once_with(
-        ["bash", str(script_file.resolve())],
+        ["/usr/bin/python", str(script_file.resolve())],
         stdout=mock_file,
         stderr=mock_file,
         text=True,
@@ -1135,6 +1192,7 @@ def test_runner_execute_handles_no_resubmit_exit_code(tmp_path, job_type):
     runner._informer.info.script_name = str(script_file)
     runner._informer.info.stdout_file = stdout_file
     runner._informer.info.stderr_file = stderr_file
+    runner._informer.info.interpreter = None
     runner._informer.info.loop_info = MagicMock()
     runner._informer.info.job_type = job_type
     runner._should_resubmit = True
@@ -1151,8 +1209,10 @@ def test_runner_execute_handles_no_resubmit_exit_code(tmp_path, job_type):
         patch("qq_lib.run.runner.sleep") as sleep_mock,
         patch("qq_lib.run.runner.logger"),
         patch("qq_lib.run.runner.CFG") as cfg_mock,
+        patch("qq_lib.run.runner.shutil.which", return_value="/usr/bin/bash"),
     ):
         cfg_mock.runner.subprocess_checks_wait_time = 0.1
+        cfg_mock.runner.default_interpreter = "bash"
         cfg_mock.exit_codes.qq_run_no_resubmit = 95
         mock_file = MagicMock()
         open_mock.return_value.__enter__.return_value = mock_file
@@ -1161,7 +1221,7 @@ def test_runner_execute_handles_no_resubmit_exit_code(tmp_path, job_type):
 
     runner._updateInfoRunning.assert_called_once()
     popen_mock.assert_called_once_with(
-        ["bash", str(script_file.resolve())],
+        ["/usr/bin/bash", str(script_file.resolve())],
         stdout=mock_file,
         stderr=mock_file,
         text=True,
@@ -1570,3 +1630,45 @@ def test_runner_copy_files_calls_sync_selected(tmp_path):
     )
 
     assert runner._batch_system.syncSelected.call_count == 2
+
+
+def test_runner_get_interpreter_returns_full_path_when_interpreter_set():
+    informer_mock = MagicMock()
+    informer_mock.info.interpreter = Path(sys.executable).name
+
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    assert runner._getInterpreter() == shutil.which(Path(sys.executable).name)
+
+
+def test_runner_get_interpreter_returns_absolute_path():
+    informer_mock = MagicMock()
+    informer_mock.info.interpreter = Path(sys.executable).name
+
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    assert Path(runner._getInterpreter()).is_absolute()
+
+
+def test_runner_get_interpreter_falls_back_to_default_interpreter():
+    informer_mock = MagicMock()
+    informer_mock.info.interpreter = None
+
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    result = runner._getInterpreter()
+    assert result == shutil.which(CFG.runner.default_interpreter)
+
+
+def test_runner_get_interpreter_raises_when_interpreter_not_found():
+    informer_mock = MagicMock()
+    informer_mock.info.interpreter = "nonexistent-interpreter-xyz"
+
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    with pytest.raises(QQError, match="nonexistent-interpreter-xyz"):
+        runner._getInterpreter()

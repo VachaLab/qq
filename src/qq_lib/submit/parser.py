@@ -290,6 +290,18 @@ class Parser:
 
         return None
 
+    def getInterpreter(self) -> str | None:
+        """
+        Get the interpreter that should be used to run the script.
+
+        Returns:
+            str | None: The interpreter or `None` if not specified.
+        """
+        if (interpreter := self._options.get("interpreter")) is not None:
+            return str(interpreter)
+
+        return None
+
     @staticmethod
     def _stripAndSplit(string: str) -> list[str]:
         """

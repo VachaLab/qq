@@ -593,6 +593,7 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
     submitter._transfer_mode = [Success()]
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
     submitter._server = None
+    submitter._interpreter = "python3"
     env_vars = {CFG.env_vars.guard: "true"}
 
     with (
@@ -644,6 +645,7 @@ def test_submitter_submit(tmp_path):
     submitter._transfer_mode = [Always()]
     submitter._server = "fake.server.com"
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
+    submitter._interpreter = None
     env_vars = {CFG.env_vars.guard: "true"}
 
     with (
@@ -709,3 +711,4 @@ def test_submitter_submit(tmp_path):
     assert info_arg.depend == submitter._depend
     assert info_arg.transfer_mode == [Always()]
     assert info_arg.server == submitter._server
+    assert info_arg.interpreter is None

@@ -144,7 +144,7 @@ using qq directives of this format: `# qq <option> <value>`.
         f"Modes: {click.style('success', bold=True)} (exit code 0), {click.style('failure', bold=True)} (non-zero exit code), "
         f"{click.style('always', bold=True)}, {click.style('never', bold=True)}, "
         f"or a specific {click.style('exit code', bold=True)} number (e.g., 42). Combine modes; files transfer if {click.style('any', bold=True)} apply.\n"
-        f"Defaults to {click.style('success', bold=True)}. On transfer, the working directory is deleted; otherwise it is preserved.\n"
+        f"Defaults to {click.style(CFG.transfer_files_options.default_transfer_mode, bold=True)}. On transfer, the working directory is deleted; otherwise it is preserved.\n"
         f"Killed jobs are {click.style('never', bold=True)} transferred automatically. Ignored if the input directory is used as the working directory.\n"
         f"Examples: 'success', 'always', 'success:42', '1 2 3'.\n"
     ),
@@ -152,8 +152,8 @@ using qq directives of this format: `# qq <option> <value>`.
 @optgroup.option(
     "--interpreter",
     type=str,
-    default="bash",
-    help=f"Executable name or absolute path of the interpreter used to run the submitted script. Defaults to {click.style('bash', bold=True)}. The interpreter must be available on the computing node.",
+    default=None,
+    help=f"Executable name or absolute path of the interpreter used to run the submitted script. Defaults to {click.style(CFG.runner.default_interpreter, bold=True)}. The interpreter must be available on the computing node.",
 )
 @optgroup.option(
     "--batch-system",
@@ -284,7 +284,7 @@ using qq directives of this format: `# qq <option> <value>`.
     default=None,
     help=(
         f"Colon-, comma-, or space-separated list of archive modes controlling when working directory files are archived upon job completion.\n"
-        f"Supports the same modes as {click.style('--transfer-mode', bold=True)}. Defaults to {click.style('success', bold=True)}."
+        f"Supports the same modes as {click.style('--transfer-mode', bold=True)}. Defaults to {click.style(CFG.transfer_files_options.default_archive_mode, bold=True)}."
     ),
 )
 def submit(script: str, **kwargs) -> NoReturn:

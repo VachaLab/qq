@@ -73,6 +73,7 @@ class SubmitterFactory:
             self._getDepend(),
             self._getTransferMode(),
             server,
+            self._getInterpreter(),
         )
 
     def _getBatchSystem(self) -> type[BatchInterface]:
@@ -267,14 +268,34 @@ class SubmitterFactory:
 
         Priority:
             1. Command-line specification
-            2. Batch system specified in the script
-            3. None - the current batch server.
+            2. Batch server specified in the script
+            3. None - the current batch server
 
         Returns:
             str | None: The full name of the batch server to use,
                 or `None` for the current batch server.
         """
-        if raw := self._kwargs.get("server") or self._parser.getServer():
+        if raw := (self._kwargs.get("server") or self._parser.getServer()):
             return translate_server(raw)
+
+        return None
+
+    def _getInterpreter(self) -> str | None:
+        """
+        Determine the interpreter to use for running the script.
+
+        Priority:
+            1. Command-line specification
+            2. Interpreter specified in the script
+            3. None - the default intepreter
+
+        Returns:
+            str | None: The interpreter to use for running the script
+                or `None` to use the default intepreter.
+        """
+        if interpreter := (
+            self._kwargs.get("interpreter") or self._parser.getInterpreter()
+        ):
+            return interpreter
 
         return None

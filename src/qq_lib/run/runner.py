@@ -198,7 +198,7 @@ class Runner:
         try:
             with Path(stdout_log).open("w") as out, Path(stderr_log).open("w") as err:
                 self._process = subprocess.Popen(
-                    ["bash", str(script)],
+                    [self._getInterpreter(), str(script)],
                     stdout=out,
                     stderr=err,
                     text=True,
@@ -413,6 +413,29 @@ class Runner:
             max_tries=CFG.runner.retry_tries,
             wait_seconds=CFG.runner.retry_wait,
         ).run()
+
+    def _getInterpreter(self) -> str:
+        """
+        Resolve the fully qualified path to the job's interpreter.
+
+        Uses the interpreter specified in the job's info if set, otherwise falls
+        back to the configured default interpreter. The interpreter is resolved
+        via `shutil.which`, ensuring the returned path is absolute and
+        executable on the current node.
+
+        Returns:
+            str: The fully qualified path to the interpreter binary.
+
+        Raises:
+            QQError: If the interpreter cannot be found on the current node.
+        """
+        interpreter = self._informer.info.interpreter or CFG.runner.default_interpreter
+        if not (full := shutil.which(interpreter)):
+            raise QQError(
+                f"Interpreter '{interpreter}' is not available on node '{socket.getfqdn()}'."
+            )
+
+        return full
 
     def _updateInfoRunning(self) -> None:
         """

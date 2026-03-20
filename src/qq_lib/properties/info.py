@@ -119,6 +119,9 @@ class Info:
     # to the main batch server the input machine is connected to
     server: str | None = None
 
+    # Interpreter to use for running the submitted script
+    interpreter: str | None = None
+
     # Job start time
     start_time: datetime | None = None
 

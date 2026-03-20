@@ -104,6 +104,8 @@ class RunnerSettings:
     sigterm_to_sigkill: int = 5
     # Interval (in seconds) between successive checks of the running script's state.
     subprocess_checks_wait_time: int = 2
+    # Default intepreter used to run the submitted scripts in the qq environment.
+    default_interpreter: str = "bash"
 
 
 @dataclass

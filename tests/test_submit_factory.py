@@ -532,6 +532,44 @@ def test_submitter_factory_get_server_returns_none_if_no_cli_nor_parser():
     assert server is None
 
 
+def test_submitter_factory_get_interpreter_uses_cli_over_parser():
+    mock_parser = MagicMock()
+    parser_interpreter = "python"
+    mock_parser.getInterpreter.return_value = parser_interpreter
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {"interpreter": "bash"}
+
+    result = factory._getInterpreter()
+    assert result == "bash"
+
+
+def test_submitter_factory_get_interpreter_uses_parser_if_no_cli():
+    mock_parser = MagicMock()
+    parser_interpreter = "python"
+    mock_parser.getInterpreter.return_value = parser_interpreter
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {}
+
+    result = factory._getInterpreter()
+    assert result == "python"
+
+
+def test_submitter_factory_get_interpreter_returns_none_if_no_cli_no_parser():
+    mock_parser = MagicMock()
+    mock_parser.getInterpreter.return_value = None
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {}
+
+    result = factory._getInterpreter()
+    assert result is None
+
+
 @pytest.mark.parametrize("server", [None, "fake.server.org"])
 def test_submitter_factory_make_submitter_standard_job(server):
     mock_parser = MagicMock()
@@ -543,6 +581,7 @@ def test_submitter_factory_make_submitter_standard_job(server):
     depends = []
     account = "fake-account"
     transfer = [Always()]
+    interpreter = None
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
@@ -563,6 +602,9 @@ def test_submitter_factory_make_submitter_standard_job(server):
         patch.object(factory, "_getInclude", return_value=includes) as mock_get_incl,
         patch.object(factory, "_getDepend", return_value=depends) as mock_get_dep,
         patch.object(factory, "_getAccount", return_value=account) as mock_get_acct,
+        patch.object(
+            factory, "_getInterpreter", return_value=interpreter
+        ) as mock_get_interpreter,
         patch.object(
             factory, "_getTransferMode", return_value=transfer
         ) as mock_get_transfer,
@@ -585,6 +627,7 @@ def test_submitter_factory_make_submitter_standard_job(server):
     mock_get_dep.assert_called_once()
     mock_get_acct.assert_called_once()
     mock_get_transfer.assert_called_once()
+    mock_get_interpreter.assert_called_once()
 
     mock_submitter_class.assert_called_once_with(
         BatchSystem,
@@ -599,6 +642,7 @@ def test_submitter_factory_make_submitter_standard_job(server):
         depends,
         transfer,
         server,
+        interpreter,
     )
     assert result == mock_submit_instance
 
@@ -614,6 +658,7 @@ def test_submitter_factory_make_submitter_loop_job(server):
     depends = []
     account = None
     transfer = [Always()]
+    interpreter = "python3"
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
@@ -636,6 +681,9 @@ def test_submitter_factory_make_submitter_loop_job(server):
         patch.object(factory, "_getDepend", return_value=depends) as mock_get_dep,
         patch.object(factory, "_getAccount", return_value=account) as mock_get_acct,
         patch.object(
+            factory, "_getInterpreter", return_value=interpreter
+        ) as mock_get_interpreter,
+        patch.object(
             factory, "_getTransferMode", return_value=transfer
         ) as mock_get_transfer,
         patch.object(factory, "_getServer", return_value=server) as mock_get_server,
@@ -657,6 +705,7 @@ def test_submitter_factory_make_submitter_loop_job(server):
     mock_get_dep.assert_called_once()
     mock_get_acct.assert_called_once()
     mock_get_transfer.assert_called_once()
+    mock_get_interpreter.assert_called_once()
 
     mock_submitter_class.assert_called_once_with(
         BatchSystem,
@@ -671,5 +720,6 @@ def test_submitter_factory_make_submitter_loop_job(server):
         depends,
         transfer,
         server,
+        interpreter,
     )
     assert result == mock_submit_instance
