@@ -5,7 +5,7 @@
 
 """
 Get the estimated time of a Gromacs simulation finishing.
-Version 0.2.
+Version qq 0.10.0.
 Requires `uv`: https://docs.astral.sh/uv
 """
 
@@ -16,7 +16,7 @@ Requires `uv`: https://docs.astral.sh/uv
 # ]
 #
 # [tool.uv.sources]
-# qq = { git = "https://github.com/Ladme/qq.git", tag = "v0.9.0" }
+# qq = { git = "https://github.com/Ladme/qq.git", tag = "v0.10.0" }
 # ///
 
 import argparse

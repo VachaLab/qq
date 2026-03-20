@@ -315,6 +315,10 @@ class Submitter:
         """Get the submission server."""
         return self._server
 
+    def getInterpreter(self) -> str | None:
+        """Get the interpreter to use for running the script."""
+        return self._interpreter
+
     def _createEnvVarsDict(self) -> dict[str, str]:
         """
         Create a dictionary of environment variables provided to qq runtime.
