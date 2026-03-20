@@ -3,6 +3,7 @@
 - Paths are now resolved to absolute paths without following symlinks, ensuring compatibility across machines with different mount points (e.g. Robox and Sokar).
 - Improved hostname resolution to allow accessing working nodes of the Sokar cluster from machines outside the `ncbr.muni.cz` domain.
 - Added support for specifying a custom interpreter when submitting a job (e.g. Python, Julia).
+- Fixed log lines in `qqout` files being truncated.
 
 ***
 

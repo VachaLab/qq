@@ -11,6 +11,7 @@ optional timestamps, and apply standardized styling across the codebase.
 
 import logging
 import os
+import sys
 
 from rich.console import Console
 from rich.logging import RichHandler
@@ -28,17 +29,26 @@ def get_logger(name: str, show_time: bool = False) -> logging.Logger:
     debug_mode = os.environ.get(CFG.env_vars.debug_mode) is not None
     logger.setLevel(logging.DEBUG if debug_mode else logging.INFO)
 
-    console = Console(stderr=True)
-    handler = RichHandler(
-        console=console,
-        rich_tracebacks=True,
-        show_path=False,
-        show_level=True,
-        show_time=show_time or debug_mode,
-        log_time_format=CFG.date_formats.standard,
-        tracebacks_width=None,
-        tracebacks_code_width=None,
-    )
+    if sys.stderr.isatty():
+        console = Console(stderr=True)
+        handler = RichHandler(
+            console=console,
+            rich_tracebacks=True,
+            show_path=False,
+            show_level=True,
+            show_time=show_time or debug_mode,
+            log_time_format=CFG.date_formats.standard,
+            tracebacks_width=None,
+            tracebacks_code_width=None,
+        )
+    else:
+        handler = logging.StreamHandler(sys.stderr)
+        fmt = (
+            "%(asctime)s %(levelname)-8s %(message)s"
+            if (show_time or debug_mode)
+            else "%(levelname)-8s %(message)s"
+        )
+        handler.setFormatter(logging.Formatter(fmt, datefmt=CFG.date_formats.standard))
 
     handler.setLevel(logging.DEBUG if debug_mode else logging.INFO)
     logger.addHandler(handler)

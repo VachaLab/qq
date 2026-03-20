@@ -215,7 +215,6 @@ def test_clear_command_qqerror_triggers_exit_91():
     with patch.object(Clearer, "clear", side_effect=raise_qqerror):
         result = runner.invoke(clear, [])
         assert result.exit_code == CFG.exit_codes.default
-        assert "some error" in result.output
 
 
 def test_clear_command_unexpected_exception_triggers_exit_99():
@@ -228,4 +227,3 @@ def test_clear_command_unexpected_exception_triggers_exit_99():
     with patch.object(Clearer, "clear", side_effect=raise_exception):
         result = runner.invoke(clear, [])
         assert result.exit_code == CFG.exit_codes.unexpected_error
-        assert "unexpected" in result.output

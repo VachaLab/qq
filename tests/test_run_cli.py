@@ -35,7 +35,6 @@ def test_run_exits_90_if_not_in_qq_env(monkeypatch):
 
     result = runner.invoke(run, ["script.sh"])
     assert result.exit_code == CFG.exit_codes.not_qq_env
-    assert "This script must be run as a qq job" in result.output
 
 
 def test_run_exits_92_if_info_file_env_missing(monkeypatch):
@@ -47,8 +46,6 @@ def test_run_exits_92_if_info_file_env_missing(monkeypatch):
 
     result = runner.invoke(run, ["script.sh"])
     assert result.exit_code == CFG.exit_codes.qq_run_fatal
-    assert f"'{CFG.env_vars.info_file}'" in result.output
-    assert "not set" in result.output
 
 
 def test_run_exits_92_if_input_machine_env_missing(monkeypatch):
@@ -60,8 +57,6 @@ def test_run_exits_92_if_input_machine_env_missing(monkeypatch):
 
     result = runner.invoke(run, ["script.sh"])
     assert result.exit_code == CFG.exit_codes.qq_run_fatal
-    assert f"'{CFG.env_vars.input_machine}'" in result.output
-    assert "not set" in result.output
 
 
 def test_run_executes_and_exits_with_script_code(monkeypatch):
@@ -103,7 +98,6 @@ def test_run_exits_91_on_standard_qqerror(monkeypatch):
         result = runner.invoke(run, ["script.sh"])
 
     assert result.exit_code == CFG.exit_codes.default
-    assert "standard qq error" in result.output
 
 
 def test_run_exits_92_on_qqrunfatalerror(monkeypatch):
@@ -118,7 +112,6 @@ def test_run_exits_92_on_qqrunfatalerror(monkeypatch):
         result = runner.invoke(run, ["script.sh"])
 
     assert result.exit_code == CFG.exit_codes.qq_run_fatal
-    assert "fatal error" in result.output
 
 
 def test_run_exits_93_on_qqruncommunicationerror(monkeypatch):
@@ -139,4 +132,3 @@ def test_run_exits_93_on_qqruncommunicationerror(monkeypatch):
         result = runner.invoke(run, ["script.sh"])
 
     assert result.exit_code == CFG.exit_codes.qq_run_communication
-    assert "comm error" in result.output

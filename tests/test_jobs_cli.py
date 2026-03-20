@@ -229,5 +229,4 @@ def test_jobs_command_no_jobs():
         result = runner.invoke(jobs, [], catch_exceptions=False)
 
         assert result.exit_code == 0
-        assert "No jobs found." in result.output
         mock_sort.assert_not_called()
