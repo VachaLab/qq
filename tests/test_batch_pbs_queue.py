@@ -62,7 +62,7 @@ def test_acldata_get_host_or_init_initializes_and_caches():
     ACLData._host = None
     with (
         patch(
-            "qq_lib.batch.pbs.queue.socket.gethostname", return_value="new.host.org"
+            "qq_lib.batch.pbs.queue.socket.getfqdn", return_value="new.host.org"
         ) as mock_get,
         patch("qq_lib.batch.pbs.queue.logger"),
     ):

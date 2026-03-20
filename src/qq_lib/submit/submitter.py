@@ -165,7 +165,7 @@ class Submitter:
                     script_name=self._script_name,
                     queue=self._queue,
                     job_type=self._job_type,
-                    input_machine=socket.gethostname(),
+                    input_machine=socket.getfqdn(),
                     input_dir=self._input_dir,
                     job_state=NaiveState.QUEUED,
                     submission_time=datetime.now(),
@@ -330,7 +330,7 @@ class Submitter:
         env_vars[CFG.env_vars.info_file] = str(self._info_file)
 
         # contains the name of the input host
-        env_vars[CFG.env_vars.input_machine] = socket.gethostname()
+        env_vars[CFG.env_vars.input_machine] = socket.getfqdn()
 
         # contains the name of the used batch system
         env_vars[CFG.env_vars.batch_system] = str(self._batch_system)

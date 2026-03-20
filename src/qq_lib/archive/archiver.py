@@ -87,7 +87,7 @@ class Archiver:
             self._archive,
             dir,
             self._input_machine,
-            socket.gethostname(),
+            socket.getfqdn(),
             files,
             max_tries=CFG.archiver.retry_tries,
             wait_seconds=CFG.archiver.retry_wait,
@@ -117,7 +117,7 @@ class Archiver:
             self._batch_system.syncSelected,
             dir,
             self._archive,
-            socket.gethostname(),
+            socket.getfqdn(),
             self._input_machine,
             files,
             max_tries=CFG.archiver.retry_tries,
@@ -224,7 +224,7 @@ class Archiver:
         logger.debug(f"Regex for matching: {regex}.")
 
         # the directory must exist
-        if host and host != socket.gethostname():
+        if host and host != socket.getfqdn():
             # remote directory
             available_files: list[Path] = Retryer(
                 self._batch_system.listRemoteDir,

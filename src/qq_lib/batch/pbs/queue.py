@@ -74,7 +74,7 @@ class ACLData:
         if host := ACLData._host:
             return host
 
-        host = socket.gethostname()
+        host = socket.getfqdn()
         ACLData._host = host
         logger.debug(f"Initialized ACL host: {host}.")
         return host

@@ -322,7 +322,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
 
     @classmethod
     def deleteRemoteDir(cls, host: str, directory: Path) -> None:
-        if host == socket.gethostname():
+        if host == socket.getfqdn():
             # directory is available on the current host
             logger.debug(f"Deleting a directory '{directory}' on local host.")
             try:
@@ -947,7 +947,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
             logger.debug("Syncing directories on local filesystems.")
 
             # convert local hosts to none
-            local_hostname = socket.gethostname()
+            local_hostname = socket.getfqdn()
             src = None if src_host == local_hostname else src_host
             dest = None if dest_host == local_hostname else dest_host
 

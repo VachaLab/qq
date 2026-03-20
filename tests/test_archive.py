@@ -137,7 +137,7 @@ def touch_files(directory: Path, filenames):
         (directory / f).touch()
 
 
-HOSTS = [None, "fake_host", socket.gethostname()]
+HOSTS = [None, "fake_host", socket.getfqdn()]
 
 
 @pytest.mark.parametrize("host", HOSTS)

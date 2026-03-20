@@ -241,7 +241,7 @@ def test_submitter_create_env_vars_dict_sets_all_required_variables(
 
     assert env[CFG.env_vars.guard] == "true"
     assert env[CFG.env_vars.info_file] == str(submitter._info_file)
-    assert env[CFG.env_vars.input_machine] == socket.gethostname()
+    assert env[CFG.env_vars.input_machine] == socket.getfqdn()
     assert env[CFG.env_vars.batch_system] == str(submitter._batch_system)
     assert env[CFG.env_vars.input_dir] == str(submitter._input_dir)
     assert env[CFG.env_vars.nnodes] == str(submitter._resources.nnodes)
@@ -279,7 +279,7 @@ def test_submitter_create_env_vars_dict_sets_all_required_variables_with_per_nod
 
     assert env[CFG.env_vars.guard] == "true"
     assert env[CFG.env_vars.info_file] == str(submitter._info_file)
-    assert env[CFG.env_vars.input_machine] == socket.gethostname()
+    assert env[CFG.env_vars.input_machine] == socket.getfqdn()
     assert env[CFG.env_vars.batch_system] == str(submitter._batch_system)
     assert env[CFG.env_vars.input_dir] == str(submitter._input_dir)
     assert env[CFG.env_vars.nnodes] == str(submitter._resources.nnodes)
@@ -326,7 +326,7 @@ def test_submitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mode
 
     assert env[CFG.env_vars.guard] == "true"
     assert env[CFG.env_vars.info_file] == str(submitter._info_file)
-    assert env[CFG.env_vars.input_machine] == socket.gethostname()
+    assert env[CFG.env_vars.input_machine] == socket.getfqdn()
     assert env[CFG.env_vars.batch_system] == str(submitter._batch_system)
     assert env[CFG.env_vars.input_dir] == str(submitter._input_dir)
 
@@ -362,7 +362,7 @@ def test_submitter_create_env_vars_dict_continuous_job(tmp_path, debug_mode):
 
     assert env[CFG.env_vars.guard] == "true"
     assert env[CFG.env_vars.info_file] == str(submitter._info_file)
-    assert env[CFG.env_vars.input_machine] == socket.gethostname()
+    assert env[CFG.env_vars.input_machine] == socket.getfqdn()
     assert env[CFG.env_vars.batch_system] == str(submitter._batch_system)
     assert env[CFG.env_vars.input_dir] == str(submitter._input_dir)
     assert env[CFG.env_vars.no_resubmit] == str(CFG.exit_codes.qq_run_no_resubmit)
@@ -656,7 +656,7 @@ def test_submitter_submit(tmp_path):
         patch("qq_lib.submit.submitter.Informer") as mock_informer_class,
         patch("qq_lib.__version__", "1.0"),
         patch("getpass.getuser", return_value="testuser"),
-        patch("socket.gethostname", return_value="host123"),
+        patch("socket.getfqdn", return_value="host123"),
         patch("qq_lib.submit.submitter.datetime") as mock_datetime,
     ):
         mock_datetime.now.return_value = datetime(2025, 10, 14, 12, 0, 0)

@@ -108,7 +108,7 @@ def test_navigator_is_in_work_dir_work_dir_none():
     navigator = Navigator.__new__(Navigator)
     navigator._work_dir = None
     navigator._informer = MagicMock()
-    navigator._main_node = socket.gethostname()
+    navigator._main_node = socket.getfqdn()
 
     assert navigator._isInWorkDir() is False
 
@@ -120,7 +120,7 @@ def test_navigator_is_in_work_dir_scratch_main_node_mismatch():
     navigator._informer.usesScratch.return_value = True
     navigator._main_node = "otherhost"
 
-    with patch("socket.gethostname", return_value="currenthost"):
+    with patch("socket.getfqdn", return_value="currenthost"):
         assert navigator._isInWorkDir() is False
 
 
@@ -129,7 +129,7 @@ def test_navigator_is_in_work_dir_scratch_main_node_match():
     navigator._work_dir = Path.cwd()
     navigator._informer = MagicMock()
     navigator._informer.usesScratch.return_value = True
-    navigator._main_node = socket.gethostname()
+    navigator._main_node = socket.getfqdn()
 
     assert navigator._isInWorkDir() is True
 

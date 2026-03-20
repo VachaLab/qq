@@ -139,8 +139,7 @@ class Navigator(Operator):
             self._work_dir is not None
             and logical_resolve(self._work_dir) == logical_resolve(Path())
             and (
-                not self._informer.usesScratch()
-                or self._main_node == socket.gethostname()
+                not self._informer.usesScratch() or self._main_node == socket.getfqdn()
             )
         )
 

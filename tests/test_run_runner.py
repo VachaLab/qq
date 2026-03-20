@@ -26,7 +26,7 @@ def test_runner_init_success():
         patch("qq_lib.run.runner.signal.signal") as mock_signal,
         patch("qq_lib.run.runner.logger") as mock_logger,
         patch(
-            "qq_lib.run.runner.socket.gethostname", return_value="mockhost"
+            "qq_lib.run.runner.socket.getfqdn", return_value="mockhost"
         ) as mock_socket,
         patch("qq_lib.run.runner.qq_lib.__version__", "1.0.0"),
         patch("qq_lib.run.runner.BatchMeta.fromEnvVarOrGuess") as mock_batchmeta,
@@ -593,7 +593,7 @@ def test_runner_update_info_running_success():
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
         patch("qq_lib.run.runner.datetime") as datetime_mock,
-        patch("qq_lib.run.runner.socket.gethostname", return_value="host"),
+        patch("qq_lib.run.runner.socket.getfqdn", return_value="host"),
         patch("qq_lib.run.runner.Retryer", return_value=retryer_mock) as retryer_cls,
     ):
         now = datetime(2024, 1, 1)
@@ -633,7 +633,7 @@ def test_runner_update_info_running_raises_qqerror_on_failure():
     runner._reloadInfoAndEnsureValid = MagicMock()
 
     with (
-        patch("qq_lib.run.runner.socket.gethostname", return_value="localhost"),
+        patch("qq_lib.run.runner.socket.getfqdn", return_value="localhost"),
         patch("qq_lib.run.runner.CFG.runner.retry_wait", return_value=0.1),
         pytest.raises(QQError, match="Could not update qqinfo file"),
     ):
@@ -652,7 +652,7 @@ def test_runner_update_info_running_raises_on_empty_node_list():
     runner._reloadInfoAndEnsureValid = MagicMock()
 
     with (
-        patch("qq_lib.run.runner.socket.gethostname", return_value="localhost"),
+        patch("qq_lib.run.runner.socket.getfqdn", return_value="localhost"),
         patch("qq_lib.run.runner.CFG.runner.retry_wait", return_value=0.1),
         pytest.raises(
             QQError, match="Could not get the list of used nodes from the batch server"
@@ -704,7 +704,7 @@ def test_runner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
     with (
         patch("qq_lib.run.runner.Retryer") as retryer_cls,
         patch("qq_lib.run.runner.logger"),
-        patch("qq_lib.run.runner.socket.gethostname", return_value="localhost"),
+        patch("qq_lib.run.runner.socket.getfqdn", return_value="localhost"),
     ):
         retryer_cls.return_value.run.return_value = work_dir
         runner._setUpScratchDir()
@@ -765,7 +765,7 @@ def test_runner_set_up_scratch_dir_with_archiver_adds_archive_to_excluded():
     with (
         patch("qq_lib.run.runner.Retryer") as retryer_cls,
         patch("qq_lib.run.runner.logger"),
-        patch("qq_lib.run.runner.socket.gethostname", return_value="localhost"),
+        patch("qq_lib.run.runner.socket.getfqdn", return_value="localhost"),
     ):
         runner._setUpScratchDir()
 
@@ -886,7 +886,7 @@ def test_runner_finalize_with_scratch_and_archiver(mock_logger_info):
 
     with (
         patch("qq_lib.run.runner.Retryer") as retryer_mock,
-        patch("socket.gethostname", return_value="host"),
+        patch("socket.getfqdn", return_value="host"),
         patch.object(
             Runner, "_getExplicitlyIncludedFilesInWorkDir", return_value=[]
         ) as included_mock,
@@ -951,7 +951,7 @@ def test_runner_finalize_with_scratch_and_without_archiver(mock_logger_info):
 
     with (
         patch("qq_lib.run.runner.Retryer") as retryer_mock,
-        patch("socket.gethostname", return_value="host"),
+        patch("socket.getfqdn", return_value="host"),
     ):
         runner.finalize()
 
@@ -1061,7 +1061,7 @@ def test_runner_finalize_with_scratch_archiver_and_resubmit(mock_logger_info):
 
     with (
         patch("qq_lib.run.runner.Retryer") as retryer_mock,
-        patch("socket.gethostname", return_value="host"),
+        patch("socket.getfqdn", return_value="host"),
     ):
         runner.finalize()
 
@@ -1451,7 +1451,7 @@ def test_runner_copy_run_time_files_to_input_dir_retry_true():
     runner._input_dir = "/input"
 
     with (
-        patch("qq_lib.run.runner.socket.gethostname", return_value="host"),
+        patch("qq_lib.run.runner.socket.getfqdn", return_value="host"),
         patch("qq_lib.run.runner.Retryer") as mock_retryer,
     ):
         retry_instance = MagicMock()
@@ -1493,7 +1493,7 @@ def test_runner_copy_run_time_files_to_input_dir_retry_false():
     runner._work_dir = "/work"
     runner._input_dir = "/input"
 
-    with patch("qq_lib.run.runner.socket.gethostname", return_value="host"):
+    with patch("qq_lib.run.runner.socket.getfqdn", return_value="host"):
         runner._copyRunTimeFilesToInputDir(retry=False)
 
     expected_files = [
@@ -1537,7 +1537,7 @@ def test_runner_get_included_files_in_work_dir_resolves_paths(tmp_path):
     assert result == expected
 
 
-@patch("qq_lib.run.runner.socket.gethostname", return_value="local")
+@patch("qq_lib.run.runner.socket.getfqdn", return_value="local")
 def test_runner_copy_files_calls_sync_selected(tmp_path):
     runner = Runner.__new__(Runner)
     runner._work_dir = tmp_path / "work"

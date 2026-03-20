@@ -105,7 +105,7 @@ class Runner:
 
         logger.info(
             f"[qq-{str(self._batch_system)} v{qq_lib.__version__}] Initializing "
-            f"job '{self._informer.info.job_id}' on host '{socket.gethostname()}'."
+            f"job '{self._informer.info.job_id}' on host '{socket.getfqdn()}'."
         )
 
         # get input directory
@@ -274,7 +274,7 @@ class Runner:
                     self._batch_system.syncWithExclusions,
                     self._work_dir,
                     self._input_dir,
-                    socket.gethostname(),
+                    socket.getfqdn(),
                     self._informer.info.input_machine,
                     # exclude files that were copied to workdir from the outside of input dir (--include option)
                     # these files should not be copied to the input directory, since they were never inside it
@@ -382,7 +382,7 @@ class Runner:
             self._input_dir,
             self._work_dir,
             self._informer.info.input_machine,
-            socket.gethostname(),
+            socket.getfqdn(),
             excluded,
             max_tries=CFG.runner.retry_tries,
             wait_seconds=CFG.runner.retry_wait,
@@ -434,7 +434,7 @@ class Runner:
 
             self._informer.setRunning(
                 datetime.now(),
-                socket.gethostname(),
+                socket.getfqdn(),
                 nodes,
                 self._work_dir,
             )
@@ -567,7 +567,7 @@ class Runner:
                 self._batch_system.syncSelected,
                 self._work_dir,
                 self._input_dir,
-                socket.gethostname(),
+                socket.getfqdn(),
                 self._informer.info.input_machine,
                 include_files=files_to_copy,
                 max_tries=CFG.runner.retry_tries,
@@ -577,7 +577,7 @@ class Runner:
             self._batch_system.syncSelected(
                 self._work_dir,
                 self._input_dir,
-                socket.gethostname(),
+                socket.getfqdn(),
                 self._informer.info.input_machine,
                 files_to_copy,
             )
@@ -718,7 +718,7 @@ class Runner:
                 file.parent,
                 self._work_dir,
                 self._informer.info.input_machine,
-                socket.gethostname(),
+                socket.getfqdn(),
                 [file],
             )
 

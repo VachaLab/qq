@@ -323,7 +323,7 @@ class BatchInterface[
             QQError: If the navigation fails.
         """
         # if the directory is on the current host, we do not need to use ssh
-        if host == socket.gethostname():
+        if host == socket.getfqdn():
             cls._navigateSameHost(directory)
             return
 
@@ -859,7 +859,7 @@ class BatchInterface[
         logger.debug("Current host is the same as target host. Using 'cd'.")
         if not directory.is_dir():
             raise QQError(
-                f"Could not reach '{socket.gethostname()}:{str(directory)}': Could not change directory."
+                f"Could not reach '{socket.getfqdn()}:{str(directory)}': Could not change directory."
             )
 
         subprocess.run(["bash"], cwd=directory)

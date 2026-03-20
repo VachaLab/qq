@@ -1,6 +1,7 @@
 ## Version 0.10.0
 - Added the option to connect to different batch servers on Metacentrum-family clusters.
 - Paths are now resolved to absolute paths without resolving symlinks allowing compatibility between absolute paths on Robox and on Sokar.
+- Changed the way hostnames are obtained which should allow accessing working nodes of the sokar cluster from machines located outside of the `ncbr.muni.cz` domain.
 
 ***
 

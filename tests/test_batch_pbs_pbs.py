@@ -150,7 +150,7 @@ def test_sync_with_exclusions_local_src(monkeypatch):
 
     with (
         patch.object(BatchInterface, "syncWithExclusions") as mock_sync,
-        patch("socket.gethostname", return_value=local_host),
+        patch("socket.getfqdn", return_value=local_host),
     ):
         # source is local, destination is remote
         PBS.syncWithExclusions(
@@ -171,7 +171,7 @@ def test_sync_with_exclusions_local_dest(monkeypatch):
 
     with (
         patch.object(BatchInterface, "syncWithExclusions") as mock_sync,
-        patch("socket.gethostname", return_value=local_host),
+        patch("socket.getfqdn", return_value=local_host),
     ):
         # destination is local, source is remote
         PBS.syncWithExclusions(
@@ -192,7 +192,7 @@ def test_sync_with_exclusions_one_remote(monkeypatch):
 
     with (
         patch.object(BatchInterface, "syncWithExclusions") as mock_sync,
-        patch("socket.gethostname", return_value=local_host),
+        patch("socket.getfqdn", return_value=local_host),
     ):
         # source local, destination local -> uses None
         PBS.syncWithExclusions(src_dir, dest_dir, None, local_host, exclude_files)
@@ -207,7 +207,7 @@ def test_sync_with_exclusions_both_remote_raises(monkeypatch):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "")
 
     with (
-        patch("socket.gethostname", return_value="localhost"),
+        patch("socket.getfqdn", return_value="localhost"),
         pytest.raises(QQError, match="cannot be both remote"),
     ):
         # both source and destination are remote and job directory is not shared
@@ -238,7 +238,7 @@ def test_sync_selected_local_src(monkeypatch):
 
     with (
         patch.object(BatchInterface, "syncSelected") as mock_sync,
-        patch("socket.gethostname", return_value=local_host),
+        patch("socket.getfqdn", return_value=local_host),
     ):
         PBS.syncSelected(src_dir, dest_dir, local_host, "remotehost", include_files)
         mock_sync.assert_called_once_with(
@@ -256,7 +256,7 @@ def test_sync_selected_local_dest(monkeypatch):
 
     with (
         patch.object(BatchInterface, "syncSelected") as mock_sync,
-        patch("socket.gethostname", return_value=local_host),
+        patch("socket.getfqdn", return_value=local_host),
     ):
         PBS.syncSelected(src_dir, dest_dir, "remotehost", local_host, include_files)
         mock_sync.assert_called_once_with(
@@ -274,7 +274,7 @@ def test_sync_selected_one_remote(monkeypatch):
 
     with (
         patch.object(BatchInterface, "syncSelected") as mock_sync,
-        patch("socket.gethostname", return_value=local_host),
+        patch("socket.getfqdn", return_value=local_host),
     ):
         PBS.syncSelected(src_dir, dest_dir, None, local_host, include_files)
         mock_sync.assert_called_once_with(src_dir, dest_dir, None, None, include_files)
@@ -288,7 +288,7 @@ def test_sync_selected_both_remote_raises(monkeypatch):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "")
 
     with (
-        patch("socket.gethostname", return_value="localhost"),
+        patch("socket.getfqdn", return_value="localhost"),
         pytest.raises(QQError, match="cannot be both remote"),
     ):
         PBS.syncSelected(src_dir, dest_dir, "remote1", "remote2", include_files)
@@ -1589,7 +1589,7 @@ def test_pbs_delete_remote_dir_deletes_local(tmp_path):
 
     assert test_dir.exists()
 
-    host = socket.gethostname()
+    host = socket.getfqdn()
     PBS.deleteRemoteDir(host, test_dir)
 
     assert not test_dir.exists()
@@ -1603,7 +1603,7 @@ def test_pbs_delete_remote_dir_raises_error_on_local_failure(tmp_path, monkeypat
         raise PermissionError("access denied")
 
     monkeypatch.setattr(shutil, "rmtree", mock_rmtree)
-    host = socket.gethostname()
+    host = socket.getfqdn()
 
     with pytest.raises(
         QQError, match=f"Could not delete directory '{test_dir}': access denied."
