@@ -15,11 +15,11 @@ from qq_lib.core.common import (
     construct_loop_job_name,
     get_info_file,
     hhmmss_to_duration,
-    logical_resolve,
 )
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.info.informer import Informer
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.info import Info

@@ -7,9 +7,10 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from qq_lib.batch.interface import BatchInterface
-from qq_lib.core.common import is_printf_pattern, logical_resolve, printf_to_regex
+from qq_lib.core.common import is_printf_pattern, printf_to_regex
 from qq_lib.core.config import CFG
 from qq_lib.core.logger import get_logger
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.core.retryer import Retryer
 
 logger = get_logger(__name__, show_time=True)

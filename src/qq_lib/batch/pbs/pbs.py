@@ -14,10 +14,11 @@ from qq_lib.batch.interface.meta import batch_system
 from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
 from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.batch.pbs.queue import PBSQueue
-from qq_lib.core.common import equals_normalized, logical_resolve
+from qq_lib.core.common import equals_normalized
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.resources import Resources
 

@@ -36,7 +36,6 @@ from qq_lib.core.common import (
     is_printf_pattern,
     load_yaml_dumper,
     load_yaml_loader,
-    logical_resolve,
     printf_to_regex,
     split_files_list,
     to_snake_case,
@@ -1080,75 +1079,6 @@ def test_available_work_dirs_returns_joined_list():
 def test_available_work_dirs_returns_placeholder_on_error():
     with patch.object(BatchMeta, "fromEnvVarOrGuess", side_effect=QQError):
         assert available_work_dirs() == "??? (no batch system detected)"
-
-
-@pytest.mark.parametrize(
-    "path, base, expected",
-    [
-        # already absolute path is returned as-is
-        (
-            Path("/mnt/shared/home/alice/file.txt"),
-            None,
-            Path("/mnt/shared/home/alice/file.txt"),
-        ),
-        # absolute path with dot components gets normalized
-        (
-            Path("/mnt/shared/home/alice/./subdir/../file.txt"),
-            None,
-            Path("/mnt/shared/home/alice/file.txt"),
-        ),
-        # relative path is anchored to provided base
-        (
-            Path("file.txt"),
-            Path("/mnt/shared/home/alice"),
-            Path("/mnt/shared/home/alice/file.txt"),
-        ),
-        # relative path with .. is resolved against base
-        (
-            Path("../bob/file.txt"),
-            Path("/mnt/shared/home/alice"),
-            Path("/mnt/shared/home/bob/file.txt"),
-        ),
-        # deep relative path with multiple .. components
-        (
-            Path("../../projects/file.txt"),
-            Path("/mnt/shared/home/alice/subdir"),
-            Path("/mnt/shared/home/projects/file.txt"),
-        ),
-        # dot-only relative path resolves to base itself
-        (Path(), Path("/mnt/shared/home/alice"), Path("/mnt/shared/home/alice")),
-        # relative path with redundant separators (via string construction)
-        (
-            Path("subdir/./nested/../file.txt"),
-            Path("/mnt/shared/home/alice"),
-            Path("/mnt/shared/home/alice/subdir/file.txt"),
-        ),
-    ],
-)
-def test_logical_resolve(path, base, expected):
-    assert logical_resolve(path, base=base) == expected
-
-
-@pytest.mark.parametrize(
-    "path, pwd, expected",
-    [
-        # relative path uses $PWD when no base is given
-        (
-            Path("file.txt"),
-            "/mnt/shared/home/alice",
-            Path("/mnt/shared/home/alice/file.txt"),
-        ),
-        # $PWD is used as base and .. is resolved correctly
-        (
-            Path("../bob/file.txt"),
-            "/mnt/shared/home/alice",
-            Path("/mnt/shared/home/bob/file.txt"),
-        ),
-    ],
-)
-def test_logical_resolve_uses_pwd(monkeypatch, path, pwd, expected):
-    monkeypatch.setenv("PWD", pwd)
-    assert logical_resolve(path) == expected
 
 
 @pytest.mark.parametrize(

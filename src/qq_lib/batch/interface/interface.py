@@ -7,10 +7,11 @@ import subprocess
 from abc import ABC
 from pathlib import Path
 
-from qq_lib.core.common import convert_absolute_to_relative, logical_resolve
+from qq_lib.core.common import convert_absolute_to_relative
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.resources import Resources
 

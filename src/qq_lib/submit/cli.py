@@ -15,11 +15,11 @@ from qq_lib.core.common import (
     available_job_types,
     available_work_dirs,
     get_runtime_files,
-    logical_resolve,
 )
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.submit.factory import SubmitterFactory
 
 logger = get_logger(__name__)

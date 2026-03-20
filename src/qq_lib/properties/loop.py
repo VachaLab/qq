@@ -16,10 +16,10 @@ from pathlib import Path
 from typing import Self
 
 from qq_lib.archive.archiver import Archiver
-from qq_lib.core.common import logical_resolve
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.properties.transfer_mode import TransferMode
 
 logger = get_logger(__name__)

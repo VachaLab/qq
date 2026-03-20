@@ -8,7 +8,6 @@ This module provides helpers for working with qq job files, time durations,
 YAML I/O, string normalization, user prompts, path manipulation, and job-name construction.
 """
 
-import os
 import re
 from datetime import timedelta
 from functools import lru_cache
@@ -19,6 +18,8 @@ import yaml
 from rich.console import Console
 from rich.live import Live
 from rich.text import Text
+
+from qq_lib.core.logical_paths import logical_resolve
 
 from .config import CFG
 from .error import QQError
@@ -749,34 +750,3 @@ def translate_server(raw: str) -> str:
         str: Full name the the batch server.
     """
     return CFG.batch_servers_options.known_servers.get(raw, raw)
-
-
-def logical_resolve(path: Path, base: Path | None = None) -> Path:
-    """
-    Resolve a path to an absolute path without expanding symlinks.
-
-    `Path.resolve` and `Path.absolute` both produce the physical absolute path
-    by following symlinks and querying the kernel. On network storage systems where
-    the same filesystem is mounted at different physical paths on different machines
-    (but is accessible via a shared logical symlinked path on all of them),
-    this makes resolved paths machine-specific and non-portable.
-
-    This function replicates the useful part of `resolve()` - collapsing
-    `.`, `..`, and redundant separators - using `os.path.normpath`,
-    which is purely lexical and never touches the filesystem.
-
-    Args:
-        path (Path): The path to resolve. May be relative or absolute.
-        base (Path | None): The base directory to anchor relative paths to. Defaults to
-            the logical working directory from `$PWD`, which preserves
-            symlinks unlike `os.getcwd()`.
-
-    Returns:
-        Path: An absolute path with `.` and `..` components resolved, but symlinks left intact.
-    """
-    if not path.is_absolute():
-        if base is None:
-            # we need to use $PWD, because Path() expands incorrectly
-            base = Path(os.environ["PWD"])
-        path = base / path
-    return Path(os.path.normpath(path))

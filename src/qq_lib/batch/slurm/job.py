@@ -11,10 +11,11 @@ from typing import Self
 import yaml
 
 from qq_lib.batch.interface.job import BatchJobInterface
-from qq_lib.core.common import dhhmmss_to_duration, load_yaml_dumper, logical_resolve
+from qq_lib.core.common import dhhmmss_to_duration, load_yaml_dumper
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
 

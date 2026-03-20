@@ -16,7 +16,7 @@ from typing import NoReturn
 import qq_lib
 from qq_lib.archive.archiver import Archiver
 from qq_lib.batch.interface.meta import BatchMeta
-from qq_lib.core.common import construct_loop_job_name, logical_resolve
+from qq_lib.core.common import construct_loop_job_name
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
@@ -25,6 +25,7 @@ from qq_lib.core.error import (
     QQRunFatalError,
 )
 from qq_lib.core.logger import get_logger
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.core.retryer import Retryer
 from qq_lib.info.informer import Informer
 from qq_lib.properties.job_type import JobType

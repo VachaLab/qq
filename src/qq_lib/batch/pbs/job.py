@@ -14,10 +14,11 @@ from qq_lib.batch.interface import BatchJobInterface
 from qq_lib.batch.pbs.common import (
     parse_pbs_dump_to_dictionary,
 )
-from qq_lib.core.common import hhmmss_to_duration, load_yaml_dumper, logical_resolve
+from qq_lib.core.common import hhmmss_to_duration, load_yaml_dumper
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
 

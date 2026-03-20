@@ -14,8 +14,8 @@ import socket
 from pathlib import Path
 from typing import Self
 
-from qq_lib.core.common import logical_resolve
 from qq_lib.core.logger import get_logger
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.info.informer import Informer
 from qq_lib.properties.states import RealState
 
