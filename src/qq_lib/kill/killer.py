@@ -23,8 +23,8 @@ class Killer(Operator):
         Verify that the job is in a state where it can be terminated.
 
         Raises:
-            QQNotSuitableError: If the job has already finished successfully,
-                                has already been killed, or is currently exiting.
+            QQNotSuitableError: If the job has already been completed, killed,
+                                or is currently exiting.
         """
         if self._isCompleted():
             raise QQNotSuitableError(

@@ -497,7 +497,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
 
         # translate per-chunk resources
         if res.ncpus:
-            # we set MPI ranks and OpenMPI threads here, but these can be overriden
+            # we set MPI ranks and OpenMP threads here, but these can be overriden
             # in the body of the script
             # this setup is here only to allow for better accounting by Slurm
             trans_res.append("--ntasks-per-node=1")

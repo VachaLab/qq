@@ -10,7 +10,7 @@ symlinked path that is consistent across all machines (e.g.
 /storage/brno14-ceitec/home/user). Python's Path.resolve() and Path.cwd()
 query the kernel, which returns the physical path after resolving all symlinks.
 This makes resolved paths machine-specific and therefore non-portable when
-shared between machines (e.g. stored in a database or passed in a job submission).
+shared between machines (e.g. passed in a job submission).
 
 This module solves the problem by maintaining the logical current working
 directory in a module-level variable that is kept in sync with every os.chdir()
