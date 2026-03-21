@@ -86,7 +86,7 @@ using qq directives of this format: `# qq <option> <value>`.
     "--server",
     type=str,
     default=None,
-    help="Name of the batch server to submit the job to. If not specified, the job is submitted to the current (main) batch server.\n"
+    help="Name of the batch server to submit the job to. If not specified, the job is submitted to the default batch server.\n"
     "Only supported on Metacentrum-family clusters.",
 )
 @optgroup.option(
