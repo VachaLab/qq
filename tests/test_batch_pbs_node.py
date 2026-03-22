@@ -27,13 +27,13 @@ from qq_lib.properties.size import Size
     ],
 )
 def test_queues_availability_get_full_queue_name(queue, server, expected):
-    assert QueuesAvailability._getFullQueueName(queue, server) == expected
+    assert QueuesAvailability._get_full_queue_name(queue, server) == expected
 
 
 def test_queues_availability_get_or_init_returns_cached_value():
     QueuesAvailability._queues = {"gpu": {"user1": True}}
     with patch("qq_lib.batch.pbs.node.PBSQueue") as mock_pbsqueue:
-        result = QueuesAvailability.getOrInit("gpu", "user1", None)
+        result = QueuesAvailability.get_or_init("gpu", "user1", None)
     mock_pbsqueue.assert_not_called()
     assert result is True
 
@@ -41,7 +41,7 @@ def test_queues_availability_get_or_init_returns_cached_value():
 def test_queues_availability_get_or_init_with_server_returns_cached_value():
     QueuesAvailability._queues = {"gpu@server": {"user1": True}}
     with patch("qq_lib.batch.pbs.node.PBSQueue") as mock_pbsqueue:
-        result = QueuesAvailability.getOrInit("gpu", "user1", "server")
+        result = QueuesAvailability.get_or_init("gpu", "user1", "server")
     mock_pbsqueue.assert_not_called()
     assert result is True
 
@@ -50,11 +50,11 @@ def test_queues_availability_get_or_init_with_server_returns_cached_value():
 def test_queues_availability_get_or_init_queries_and_caches_value(mock_pbsqueue):
     QueuesAvailability._queues = {}
     mock_instance = MagicMock()
-    mock_instance.isAvailableToUser.return_value = True
+    mock_instance.is_available_to_user.return_value = True
     mock_pbsqueue.return_value = mock_instance
-    result = QueuesAvailability.getOrInit("cpu", "user2", None)
+    result = QueuesAvailability.get_or_init("cpu", "user2", None)
     mock_pbsqueue.assert_called_once_with("cpu", None)
-    mock_instance.isAvailableToUser.assert_called_once_with("user2")
+    mock_instance.is_available_to_user.assert_called_once_with("user2")
     assert result is True
     assert QueuesAvailability._queues == {"cpu": {"user2": True}}
 
@@ -65,11 +65,11 @@ def test_queues_availability_get_or_init_with_server_queries_and_caches_value(
 ):
     QueuesAvailability._queues = {}
     mock_instance = MagicMock()
-    mock_instance.isAvailableToUser.return_value = True
+    mock_instance.is_available_to_user.return_value = True
     mock_pbsqueue.return_value = mock_instance
-    result = QueuesAvailability.getOrInit("cpu", "user2", "server")
+    result = QueuesAvailability.get_or_init("cpu", "user2", "server")
     mock_pbsqueue.assert_called_once_with("cpu", "server")
-    mock_instance.isAvailableToUser.assert_called_once_with("user2")
+    mock_instance.is_available_to_user.assert_called_once_with("user2")
     assert result is True
     assert QueuesAvailability._queues == {"cpu@server": {"user2": True}}
 
@@ -83,11 +83,11 @@ def test_queues_availability_get_or_init_with_server_queries_and_caches_value_if
         "cpu@server2": {"user2": False},
     }
     mock_instance = MagicMock()
-    mock_instance.isAvailableToUser.return_value = True
+    mock_instance.is_available_to_user.return_value = True
     mock_pbsqueue.return_value = mock_instance
-    result = QueuesAvailability.getOrInit("cpu", "user2", "server")
+    result = QueuesAvailability.get_or_init("cpu", "user2", "server")
     mock_pbsqueue.assert_called_once_with("cpu", "server")
-    mock_instance.isAvailableToUser.assert_called_once_with("user2")
+    mock_instance.is_available_to_user.assert_called_once_with("user2")
     assert result is True
     assert QueuesAvailability._queues["cpu"]["user2"] is True
     assert QueuesAvailability._queues["cpu@server2"]["user2"] is False
@@ -98,11 +98,11 @@ def test_queues_availability_get_or_init_with_server_queries_and_caches_value_if
 def test_queues_availability_get_or_init_adds_to_existing_queue_entry(mock_pbsqueue):
     QueuesAvailability._queues = {"gpu": {"user1": True}}
     mock_instance = MagicMock()
-    mock_instance.isAvailableToUser.return_value = False
+    mock_instance.is_available_to_user.return_value = False
     mock_pbsqueue.return_value = mock_instance
-    result = QueuesAvailability.getOrInit("gpu", "user2", None)
+    result = QueuesAvailability.get_or_init("gpu", "user2", None)
     mock_pbsqueue.assert_called_once_with("gpu", None)
-    mock_instance.isAvailableToUser.assert_called_once_with("user2")
+    mock_instance.is_available_to_user.assert_called_once_with("user2")
     assert result is False
     assert QueuesAvailability._queues["gpu"]["user2"] is False
     assert QueuesAvailability._queues["gpu"]["user1"] is True
@@ -114,11 +114,11 @@ def test_queues_availability_get_or_init_with_server_adds_to_existing_queue_entr
 ):
     QueuesAvailability._queues = {"gpu@server": {"user1": True}}
     mock_instance = MagicMock()
-    mock_instance.isAvailableToUser.return_value = False
+    mock_instance.is_available_to_user.return_value = False
     mock_pbsqueue.return_value = mock_instance
-    result = QueuesAvailability.getOrInit("gpu", "user2", "server")
+    result = QueuesAvailability.get_or_init("gpu", "user2", "server")
     mock_pbsqueue.assert_called_once_with("gpu", "server")
-    mock_instance.isAvailableToUser.assert_called_once_with("user2")
+    mock_instance.is_available_to_user.assert_called_once_with("user2")
     assert result is False
     assert QueuesAvailability._queues["gpu@server"]["user2"] is False
     assert QueuesAvailability._queues["gpu@server"]["user1"] is True
@@ -191,14 +191,14 @@ def test_pbs_node_update_sets_info_even_if_parse_returns_empty(mock_parse, mock_
 def test_pbs_node_get_int_resource_returns_valid_int():
     node = PBSNode.__new__(PBSNode)
     node._info = {"resources_available.ncpus": "32"}
-    result = node._getIntResource("resources_available.ncpus")
+    result = node._get_int_resource("resources_available.ncpus")
     assert result == 32
 
 
 def test_pbs_node_get_int_resource_returns_none_when_missing():
     node = PBSNode.__new__(PBSNode)
     node._info = {}
-    result = node._getIntResource("resources_available.ncpus")
+    result = node._get_int_resource("resources_available.ncpus")
     assert result is None
 
 
@@ -206,7 +206,7 @@ def test_pbs_node_get_int_resource_returns_none_when_missing():
 def test_pbs_node_get_int_resource_returns_none_on_invalid_int(mock_logger_debug):
     node = PBSNode.__new__(PBSNode)
     node._info = {"resources_available.ncpus": "not_an_int"}
-    result = node._getIntResource("resources_available.ncpus")
+    result = node._get_int_resource("resources_available.ncpus")
     assert result is None
     mock_logger_debug.assert_called_once()
 
@@ -217,7 +217,7 @@ def test_pbs_node_get_free_int_resource_returns_correct_difference():
         "resources_available.ncpus": "32",
         "resources_assigned.ncpus": "8",
     }
-    result = node._getFreeIntResource("ncpus")
+    result = node._get_free_int_resource("ncpus")
     assert result == 24
 
 
@@ -227,21 +227,21 @@ def test_pbs_node_get_free_int_resource_returns_zero_when_negative():
         "resources_available.ncpus": "4",
         "resources_assigned.ncpus": "8",
     }
-    result = node._getFreeIntResource("ncpus")
+    result = node._get_free_int_resource("ncpus")
     assert result == 0
 
 
 def test_pbs_node_get_free_int_resource_returns_none_when_values_missing():
     node = PBSNode.__new__(PBSNode)
     node._info = {}
-    result = node._getFreeIntResource("ngpus")
+    result = node._get_free_int_resource("ngpus")
     assert result is None
 
 
 def test_pbs_node_get_size_resource_returns_valid_size():
     node = PBSNode.__new__(PBSNode)
     node._info = {"resources_available.mem": "8gb"}
-    result = node._getSizeResource("resources_available.mem")
+    result = node._get_size_resource("resources_available.mem")
     assert isinstance(result, Size)
     assert result.value == 8388608
 
@@ -249,14 +249,14 @@ def test_pbs_node_get_size_resource_returns_valid_size():
 def test_pbs_node_get_size_resource_returns_none_when_missing():
     node = PBSNode.__new__(PBSNode)
     node._info = {}
-    result = node._getSizeResource("resources_available.mem")
+    result = node._get_size_resource("resources_available.mem")
     assert result is None
 
 
 def test_pbs_node_get_size_resource_returns_none_when_invalid_value():
     node = PBSNode.__new__(PBSNode)
     node._info = {"resources_available.mem": "invalid_value"}
-    result = node._getSizeResource("resources_available.mem")
+    result = node._get_size_resource("resources_available.mem")
     assert result is None
 
 
@@ -266,7 +266,7 @@ def test_pbs_node_get_free_size_resource_returns_correct_difference():
         "resources_available.mem": "16gb",
         "resources_assigned.mem": "4gb",
     }
-    result = node._getFreeSizeResource("mem")
+    result = node._get_free_size_resource("mem")
     assert isinstance(result, Size)
     assert result.value == 12582912
 
@@ -277,7 +277,7 @@ def test_pbs_node_get_free_size_resource_returns_zero_when_negative():
         "resources_available.mem": "2gb",
         "resources_assigned.mem": "4gb",
     }
-    result = node._getFreeSizeResource("mem")
+    result = node._get_free_size_resource("mem")
     assert isinstance(result, Size)
     assert result.value == 0
 
@@ -285,14 +285,14 @@ def test_pbs_node_get_free_size_resource_returns_zero_when_negative():
 def test_pbs_node_get_free_size_resource_returns_none_when_missing():
     node = PBSNode.__new__(PBSNode)
     node._info = {}
-    result = node._getFreeSizeResource("mem")
+    result = node._get_free_size_resource("mem")
     assert result is None
 
 
 def test_pbs_node_get_ncpus_returns_int():
     node = PBSNode.__new__(PBSNode)
     node._info = {"resources_available.ncpus": "32"}
-    assert node.getNCPUs() == 32
+    assert node.get_n_cpus() == 32
 
 
 def test_pbs_node_get_nfree_cpus_returns_difference():
@@ -301,13 +301,13 @@ def test_pbs_node_get_nfree_cpus_returns_difference():
         "resources_available.ncpus": "32",
         "resources_assigned.ncpus": "12",
     }
-    assert node.getNFreeCPUs() == 20
+    assert node.get_n_free_cpus() == 20
 
 
 def test_pbs_node_get_ngpus_returns_int():
     node = PBSNode.__new__(PBSNode)
     node._info = {"resources_available.ngpus": "4"}
-    assert node.getNGPUs() == 4
+    assert node.get_n_gpus() == 4
 
 
 def test_pbs_node_get_nfree_gpus_returns_difference():
@@ -316,13 +316,13 @@ def test_pbs_node_get_nfree_gpus_returns_difference():
         "resources_available.ngpus": "4",
         "resources_assigned.ngpus": "1",
     }
-    assert node.getNFreeGPUs() == 3
+    assert node.get_n_free_gpus() == 3
 
 
 def test_pbs_node_get_cpu_memory_returns_size():
     node = PBSNode.__new__(PBSNode)
     node._info = {"resources_available.mem": "64gb"}
-    result = node.getCPUMemory()
+    result = node.get_cpu_memory()
     assert isinstance(result, Size)
     assert result.value == 67108864
 
@@ -333,7 +333,7 @@ def test_pbs_node_get_free_cpu_memory_returns_difference():
         "resources_available.mem": "64gb",
         "resources_assigned.mem": "16gb",
     }
-    result = node.getFreeCPUMemory()
+    result = node.get_free_cpu_memory()
     assert isinstance(result, Size)
     assert result.value == 50331648
 
@@ -341,7 +341,7 @@ def test_pbs_node_get_free_cpu_memory_returns_difference():
 def test_pbs_node_get_gpu_memory_returns_size():
     node = PBSNode.__new__(PBSNode)
     node._info = {"resources_available.gpu_mem": "24gb"}
-    result = node.getGPUMemory()
+    result = node.get_gpu_memory()
     assert isinstance(result, Size)
     assert result.value == 25165824
 
@@ -352,7 +352,7 @@ def test_pbs_node_get_free_gpu_memory_returns_difference():
         "resources_available.gpu_mem": "24gb",
         "resources_assigned.gpu_mem": "8gb",
     }
-    result = node.getFreeGPUMemory()
+    result = node.get_free_gpu_memory()
     assert isinstance(result, Size)
     assert result.value == 16777216
 
@@ -360,7 +360,7 @@ def test_pbs_node_get_free_gpu_memory_returns_difference():
 def test_pbs_node_get_local_scratch_returns_size():
     node = PBSNode.__new__(PBSNode)
     node._info = {"resources_available.scratch_local": "100gb"}
-    result = node.getLocalScratch()
+    result = node.get_local_scratch()
     assert isinstance(result, Size)
     assert result.value == 104857600
 
@@ -371,7 +371,7 @@ def test_pbs_node_get_free_local_scratch_returns_difference():
         "resources_available.scratch_local": "100gb",
         "resources_assigned.scratch_local": "40gb",
     }
-    result = node.getFreeLocalScratch()
+    result = node.get_free_local_scratch()
     assert isinstance(result, Size)
     assert result.value == 62914560
 
@@ -379,7 +379,7 @@ def test_pbs_node_get_free_local_scratch_returns_difference():
 def test_pbs_node_get_ssd_scratch_returns_size():
     node = PBSNode.__new__(PBSNode)
     node._info = {"resources_available.scratch_ssd": "50gb"}
-    result = node.getSSDScratch()
+    result = node.get_ssd_scratch()
     assert isinstance(result, Size)
     assert result.value == 52428800
 
@@ -390,7 +390,7 @@ def test_pbs_node_get_free_ssd_scratch_returns_difference():
         "resources_available.scratch_ssd": "50gb",
         "resources_assigned.scratch_ssd": "10gb",
     }
-    result = node.getFreeSSDScratch()
+    result = node.get_free_ssd_scratch()
     assert isinstance(result, Size)
     assert result.value == 41943040
 
@@ -398,7 +398,7 @@ def test_pbs_node_get_free_ssd_scratch_returns_difference():
 def test_pbs_node_get_shared_scratch_returns_size():
     node = PBSNode.__new__(PBSNode)
     node._info = {"resources_available.scratch_shared": "200gb"}
-    result = node.getSharedScratch()
+    result = node.get_shared_scratch()
     assert isinstance(result, Size)
     assert result.value == 209715200
 
@@ -409,7 +409,7 @@ def test_pbs_node_get_free_shared_scratch_returns_difference():
         "resources_available.scratch_shared": "200gb",
         "resources_assigned.scratch_shared": "50gb",
     }
-    result = node.getFreeSharedScratch()
+    result = node.get_free_shared_scratch()
     assert isinstance(result, Size)
     assert result.value == 157286400
 
@@ -422,7 +422,7 @@ def test_pbs_node_get_properties_returns_matching_true_keys():
         "resources_available.singularity": "True",
         "resv_enable": "True",
     }
-    result = node.getProperties()
+    result = node.get_properties()
     assert isinstance(result, list)
     assert set(result) == {"cl_cluster", "singularity"}
 
@@ -433,7 +433,7 @@ def test_pbs_node_get_properties_returns_empty_when_no_true_values():
         "resources_available.scratch_shm": "False",
         "resources_available.singularity": "False",
     }
-    result = node.getProperties()
+    result = node.get_properties()
     assert result == []
 
 
@@ -443,13 +443,13 @@ def test_pbs_node_get_properties_returns_empty_when_no_matching_keys():
         "scratch_shm": "True",
         "resv_enable": "True",
     }
-    result = node.getProperties()
+    result = node.get_properties()
     assert result == []
 
 
 def test_pbs_node_from_dict_creates_instance_with_correct_attributes():
     info = {"resources_available.ncpus": "32", "state": "free"}
-    node = PBSNode.fromDict("nodeA", None, info)
+    node = PBSNode.from_dict("nodeA", None, info)
     assert isinstance(node, PBSNode)
     assert node._name == "nodeA"
     assert node._server is None
@@ -458,7 +458,7 @@ def test_pbs_node_from_dict_creates_instance_with_correct_attributes():
 
 def test_pbs_node_from_dict_with_server_creates_instance_with_correct_attributes():
     info = {"resources_available.ncpus": "32", "state": "free"}
-    node = PBSNode.fromDict("nodeA", "server", info)
+    node = PBSNode.from_dict("nodeA", "server", info)
     assert isinstance(node, PBSNode)
     assert node._name == "nodeA"
     assert node._server == "server"
@@ -466,7 +466,7 @@ def test_pbs_node_from_dict_with_server_creates_instance_with_correct_attributes
 
 
 def test_pbs_node_from_dict_allows_empty_info_dict():
-    node = PBSNode.fromDict("nodeB", None, {})
+    node = PBSNode.from_dict("nodeB", None, {})
     assert isinstance(node, PBSNode)
     assert node._name == "nodeB"
     assert node._server is None
@@ -474,7 +474,7 @@ def test_pbs_node_from_dict_allows_empty_info_dict():
 
 
 def test_pbs_node_from_dict_with_server_allows_empty_info_dict():
-    node = PBSNode.fromDict("nodeB", "server", {})
+    node = PBSNode.from_dict("nodeB", "server", {})
     assert isinstance(node, PBSNode)
     assert node._name == "nodeB"
     assert node._server == "server"
@@ -486,7 +486,7 @@ def test_pbs_node_is_available_to_user_returns_false_when_state_missing():
     node._name = "node1"
     node._server = None
     node._info = {}
-    result = node.isAvailableToUser("user1")
+    result = node.is_available_to_user("user1")
     assert result is False
 
 
@@ -496,22 +496,22 @@ def test_pbs_node_is_available_to_user_returns_false_for_disabled_states(state):
     node._name = "node2"
     node._server = None
     node._info = {"state": state}
-    result = node.isAvailableToUser("user2")
+    result = node.is_available_to_user("user2")
     assert result is False
 
 
-@patch("qq_lib.batch.pbs.node.QueuesAvailability.getOrInit", return_value=True)
+@patch("qq_lib.batch.pbs.node.QueuesAvailability.get_or_init", return_value=True)
 def test_pbs_node_is_available_to_user_delegates_to_queues_availability(mock_getorinit):
     node = PBSNode.__new__(PBSNode)
     node._name = "node3"
     node._server = None
     node._info = {"state": "free", "queue": "gpu"}
-    result = node.isAvailableToUser("user3")
+    result = node.is_available_to_user("user3")
     mock_getorinit.assert_called_once_with("gpu", "user3", None)
     assert result is True
 
 
-@patch("qq_lib.batch.pbs.node.QueuesAvailability.getOrInit", return_value=True)
+@patch("qq_lib.batch.pbs.node.QueuesAvailability.get_or_init", return_value=True)
 def test_pbs_node_is_available_to_user_delegates_to_queues_availability_with_server(
     mock_getorinit,
 ):
@@ -519,7 +519,7 @@ def test_pbs_node_is_available_to_user_delegates_to_queues_availability_with_ser
     node._name = "node3"
     node._server = "server"
     node._info = {"state": "free", "queue": "gpu"}
-    result = node.isAvailableToUser("user3")
+    result = node.is_available_to_user("user3")
     mock_getorinit.assert_called_once_with("gpu", "user3", "server")
     assert result is True
 
@@ -529,14 +529,14 @@ def test_pbs_node_is_available_to_user_returns_true_when_no_queue_and_enabled_st
     node._name = "node4"
     node._server = None
     node._info = {"state": "free"}
-    result = node.isAvailableToUser("user4")
+    result = node.is_available_to_user("user4")
     assert result is True
 
 
 def test_pbs_node_get_name_returns_correct_name():
     node = PBSNode.__new__(PBSNode)
     node._name = "node1"
-    assert node.getName() == "node1"
+    assert node.get_name() == "node1"
 
 
 def test_pbs_node_to_yaml():
@@ -569,7 +569,7 @@ def test_pbs_node_to_yaml():
         "last_used_time": "Mon Oct 20 18:30:34 2025",
     }
 
-    result = node.toYaml()
+    result = node.to_yaml()
     expected_dict = {"Node": "zeroc1"} | node._info
     parsed_result = yaml.load(result, Loader=yaml.SafeLoader)
 

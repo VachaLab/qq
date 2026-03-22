@@ -16,12 +16,12 @@ def test_submit_successful(tmp_path):
     runner = CliRunner()
 
     submitter_mock = MagicMock()
-    submitter_mock.getInputDir.return_value = tmp_path
-    submitter_mock.continuesLoop.return_value = False
+    submitter_mock.get_input_dir.return_value = tmp_path
+    submitter_mock.continues_loop.return_value = False
     submitter_mock.submit.return_value = "job123"
 
     factory_mock = MagicMock()
-    factory_mock.makeSubmitter.return_value = submitter_mock
+    factory_mock.make_submitter.return_value = submitter_mock
 
     with (
         patch("qq_lib.submit.cli.Path.is_file", return_value=True),
@@ -36,7 +36,7 @@ def test_submit_successful(tmp_path):
         assert result.exit_code == 0
 
         mock_factory_class.assert_called_once()
-        factory_mock.makeSubmitter.assert_called_once()
+        factory_mock.make_submitter.assert_called_once()
         submitter_mock.submit.assert_called_once()
         info_messages = [call.args[0] for call in mock_logger.info.call_args_list]
         assert any("job123" in msg for msg in info_messages)
@@ -63,11 +63,11 @@ def test_submit_detects_runtime_files_and_aborts(tmp_path):
 
     runner = CliRunner()
     submitter_mock = MagicMock()
-    submitter_mock.getInputDir.return_value = tmp_path
-    submitter_mock.continuesLoop.return_value = False
+    submitter_mock.get_input_dir.return_value = tmp_path
+    submitter_mock.continues_loop.return_value = False
 
     factory_mock = MagicMock()
-    factory_mock.makeSubmitter.return_value = submitter_mock
+    factory_mock.make_submitter.return_value = submitter_mock
 
     with (
         patch("qq_lib.submit.cli.Path.is_file", return_value=True),
@@ -83,8 +83,8 @@ def test_submit_detects_runtime_files_and_aborts(tmp_path):
         assert result.exit_code == CFG.exit_codes.default
         error_messages = [call.args[0] for call in mock_logger.error.call_args_list]
         assert any("Submission aborted" in str(msg) for msg in error_messages)
-        factory_mock.makeSubmitter.assert_called_once()
-        submitter_mock.continuesLoop.assert_called_once()
+        factory_mock.make_submitter.assert_called_once()
+        submitter_mock.continues_loop.assert_called_once()
 
 
 def test_submit_continues_loop_even_with_runtime_files(tmp_path):
@@ -93,12 +93,12 @@ def test_submit_continues_loop_even_with_runtime_files(tmp_path):
 
     runner = CliRunner()
     submitter_mock = MagicMock()
-    submitter_mock.getInputDir.return_value = tmp_path
-    submitter_mock.continuesLoop.return_value = True
+    submitter_mock.get_input_dir.return_value = tmp_path
+    submitter_mock.continues_loop.return_value = True
     submitter_mock.submit.return_value = "job_loop"
 
     factory_mock = MagicMock()
-    factory_mock.makeSubmitter.return_value = submitter_mock
+    factory_mock.make_submitter.return_value = submitter_mock
 
     with (
         patch("qq_lib.submit.cli.Path.is_file", return_value=True),
@@ -114,9 +114,9 @@ def test_submit_continues_loop_even_with_runtime_files(tmp_path):
         assert result.exit_code == 0
         info_messages = [call.args[0] for call in mock_logger.info.call_args_list]
         assert any("job_loop" in msg for msg in info_messages)
-        factory_mock.makeSubmitter.assert_called_once()
+        factory_mock.make_submitter.assert_called_once()
         submitter_mock.submit.assert_called_once()
-        submitter_mock.continuesLoop.assert_called_once()
+        submitter_mock.continues_loop.assert_called_once()
 
 
 def test_submit_generic_exception_results_in_critical_log(tmp_path):
@@ -126,7 +126,7 @@ def test_submit_generic_exception_results_in_critical_log(tmp_path):
     runner = CliRunner()
 
     factory_mock = MagicMock()
-    factory_mock.makeSubmitter.side_effect = Exception("unexpected error")
+    factory_mock.make_submitter.side_effect = Exception("unexpected error")
 
     with (
         patch("qq_lib.submit.cli.Path.is_file", return_value=True),
@@ -140,4 +140,4 @@ def test_submit_generic_exception_results_in_critical_log(tmp_path):
             call.args[0] for call in mock_logger.critical.call_args_list
         ]
         assert any("unexpected error" in str(msg) for msg in critical_messages)
-        factory_mock.makeSubmitter.assert_called_once()
+        factory_mock.make_submitter.assert_called_once()

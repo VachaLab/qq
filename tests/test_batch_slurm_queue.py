@@ -18,7 +18,7 @@ def test_user_groups_get_groups_or_init_returns_cached_groups(mock_run):
     user = "user"
     UserGroups._groups.clear()
     UserGroups._groups[user] = ["dev", "admin"]
-    result = UserGroups.getGroupsOrInit(user)
+    result = UserGroups.get_groups_or_init(user)
     assert result == ["dev", "admin"]
     mock_run.assert_not_called()
 
@@ -28,7 +28,7 @@ def test_user_groups_get_groups_or_init_initializes_on_success(mock_run):
     user = "user"
     UserGroups._groups.clear()
     mock_run.return_value = MagicMock(returncode=0, stdout="dev qa")
-    result = UserGroups.getGroupsOrInit(user)
+    result = UserGroups.get_groups_or_init(user)
     assert result == ["dev", "qa"]
     assert UserGroups._groups[user] == ["dev", "qa"]
     mock_run.assert_called_once()
@@ -39,7 +39,7 @@ def test_user_groups_get_groups_or_init_returns_empty_on_failure(mock_run):
     user = "user"
     UserGroups._groups.clear()
     mock_run.return_value = MagicMock(returncode=1, stdout="")
-    result = UserGroups.getGroupsOrInit(user)
+    result = UserGroups.get_groups_or_init(user)
     assert result == []
     assert UserGroups._groups[user] == []
 
@@ -50,7 +50,7 @@ def test_user_groups_get_qos_or_init_returns_cached_qos(mock_run):
     user = "user"
     UserGroups._qos.clear()
     UserGroups._qos[user] = "high"
-    result = UserGroups.getQOSOrInit(user)
+    result = UserGroups.get_QOS_or_init(user)
     assert result == "high"
     mock_run.assert_not_called()
 
@@ -60,7 +60,7 @@ def test_user_groups_get_qos_or_init_returns_normal_on_failure(mock_run):
     user = "user"
     UserGroups._qos.clear()
     mock_run.return_value = MagicMock(returncode=1, stdout="")
-    result = UserGroups.getQOSOrInit(user)
+    result = UserGroups.get_QOS_or_init(user)
     assert result == "normal"  # default QOS
     assert UserGroups._qos[user] == "normal"
 
@@ -70,7 +70,7 @@ def test_user_groups_get_qos_or_init_returns_first_qos(mock_run):
     user = "user"
     UserGroups._qos.clear()
     mock_run.return_value = MagicMock(returncode=0, stdout="premium,low")
-    result = UserGroups.getQOSOrInit(user)
+    result = UserGroups.get_QOS_or_init(user)
     assert result == "premium"
 
 
@@ -79,7 +79,7 @@ def test_user_groups_get_qos_or_init_returns_normal_on_empty_stdout(mock_run):
     user = "user"
     UserGroups._qos.clear()
     mock_run.return_value = MagicMock(returncode=0, stdout="")
-    result = UserGroups.getQOSOrInit(user)
+    result = UserGroups.get_QOS_or_init(user)
     assert result == "normal"
 
 
@@ -100,7 +100,7 @@ def test_slurm_queue_update(mock_run, mock_parse):
         returncode=0, stdout="PartitionName=default State=UP"
     )
     mock_parse.return_value = {"PartitionName": "default", "State": "UP"}
-    with patch.object(queue, "_setJobNumbers") as mock_set_jobs:
+    with patch.object(queue, "_set_job_numbers") as mock_set_jobs:
         queue.update()
     mock_run.assert_called_once()
     mock_parse.assert_called_once_with("PartitionName=default State=UP")
@@ -120,28 +120,28 @@ def test_slurm_queue_update_raises_on_failure(mock_run):
 def test_slurm_queue_get_name():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._name = "cpu"
-    result = queue.getName()
+    result = queue.get_name()
     assert result == "cpu"
 
 
 def test_slurm_queue_get_priority_returns_none_when_tier_missing():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"PriorityJobFactor": "5"}
-    result = queue.getPriority()
+    result = queue.get_priority()
     assert result is None
 
 
 def test_slurm_queue_get_priority_returns_none_when_job_factor_missing():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"PriorityTier": "2"}
-    result = queue.getPriority()
+    result = queue.get_priority()
     assert result is None
 
 
 def test_slurm_queue_get_priority_returns_combined_string():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"PriorityTier": "2", "PriorityJobFactor": "10"}
-    result = queue.getPriority()
+    result = queue.get_priority()
     assert result == "T2 (10)"
 
 
@@ -150,35 +150,35 @@ def test_slurm_queue_get_total_jobs():
     queue._running_jobs = 5
     queue._queued_jobs = 3
     queue._other_jobs = 2
-    result = queue.getTotalJobs()
+    result = queue.get_total_jobs()
     assert result == 10
 
 
 def test_slurm_queue_get_running_jobs():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._running_jobs = 7
-    result = queue.getRunningJobs()
+    result = queue.get_running_jobs()
     assert result == 7
 
 
 def test_slurm_queue_get_queued_jobs():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._queued_jobs = 4
-    result = queue.getQueuedJobs()
+    result = queue.get_queued_jobs()
     assert result == 4
 
 
 def test_slurm_queue_get_other_jobs():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._other_jobs = 2
-    result = queue.getOtherJobs()
+    result = queue.get_other_jobs()
     assert result == 2
 
 
 def test_slurm_queue_get_max_walltime_converts_valid_time():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"MaxTime": "2-12:34:56"}
-    result = queue.getMaxWalltime()
+    result = queue.get_max_walltime()
     assert isinstance(result, timedelta)
     assert result == timedelta(days=2, hours=12, minutes=34, seconds=56)
 
@@ -186,41 +186,41 @@ def test_slurm_queue_get_max_walltime_converts_valid_time():
 def test_slurm_queue_get_max_nnodes_returns_int():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"MaxNodes": "8"}
-    result = queue.getMaxNNodes()
+    result = queue.get_max_n_nodes()
     assert result == 8
 
 
 def test_slurm_queue_get_max_nnodes_none():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {}
-    result = queue.getMaxNNodes()
+    result = queue.get_max_n_nodes()
     assert result is None
 
 
 def test_slurm_queue_get_max_nnodes_returns_none_if_invalid():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"MaxNodes": "invalid"}
-    result = queue.getMaxNNodes()
+    result = queue.get_max_n_nodes()
     assert result is None
 
 
 def test_slurm_queue_get_max_walltime_converts_simple_time():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"MaxTime": "10:00:00"}
-    result = queue.getMaxWalltime()
+    result = queue.get_max_walltime()
     assert result == timedelta(hours=10)
 
 
 def test_slurm_queue_get_max_walltime_returns_none_when_missing():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {}
-    result = queue.getMaxWalltime()
+    result = queue.get_max_walltime()
     assert result is None
 
 
 def test_slurm_queue_get_comment_returns_none():
     queue = SlurmQueue.__new__(SlurmQueue)
-    result = queue.getComment()
+    result = queue.get_comment()
     assert result is None
 
 
@@ -228,77 +228,77 @@ def test_slurm_queue_get_comment_returns_none():
 def test_slurm_queue_is_available_user_false_invalid_state(state):
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"State": state}
-    result = queue.isAvailableToUser("user")
+    result = queue.is_available_to_user("user")
     assert result is False
 
 
 def test_slurm_queue_is_available_user_false_not_in_allow_accounts():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"State": "UP", "AllowAccounts": "user2,user3"}
-    result = queue.isAvailableToUser("user1")
+    result = queue.is_available_to_user("user1")
     assert result is False
 
 
 def test_slurm_queue_is_available_user_false_in_deny_accounts():
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"State": "UP", "DenyAccounts": "user1"}
-    result = queue.isAvailableToUser("user1")
+    result = queue.is_available_to_user("user1")
     assert result is False
 
 
-@patch("qq_lib.batch.slurm.queue.UserGroups.getGroupsOrInit", return_value=["qa"])
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_groups_or_init", return_value=["qa"])
 def test_slurm_queue_is_available_user_false_not_in_allow_groups(mock_groups):
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"State": "UP", "AllowGroups": "dev"}
-    result = queue.isAvailableToUser("user1")
+    result = queue.is_available_to_user("user1")
     assert result is False
     mock_groups.assert_called_once_with("user1")
 
 
-@patch("qq_lib.batch.slurm.queue.UserGroups.getGroupsOrInit", return_value=["dev"])
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_groups_or_init", return_value=["dev"])
 def test_slurm_queue_is_available_user_false_in_deny_groups(mock_groups):
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"State": "UP", "DenyGroups": "dev"}
-    result = queue.isAvailableToUser("user1")
+    result = queue.is_available_to_user("user1")
     assert result is False
     mock_groups.assert_called_once_with("user1")
 
 
-@patch("qq_lib.batch.slurm.queue.UserGroups.getGroupsOrInit", return_value=["dev"])
-@patch("qq_lib.batch.slurm.queue.UserGroups.getQOSOrInit", return_value="normal")
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_groups_or_init", return_value=["dev"])
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_QOS_or_init", return_value="normal")
 def test_slurm_queue_is_available_user_false_qos_not_allowed(mock_qos, mock_groups):
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"State": "UP", "AllowQos": "premium,high"}
-    result = queue.isAvailableToUser("user1")
+    result = queue.is_available_to_user("user1")
     assert result is False
     mock_groups.assert_called_once_with("user1")
     mock_qos.assert_called_once_with("user1")
 
 
-@patch("qq_lib.batch.slurm.queue.UserGroups.getGroupsOrInit", return_value=["dev"])
-@patch("qq_lib.batch.slurm.queue.UserGroups.getQOSOrInit", return_value="normal")
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_groups_or_init", return_value=["dev"])
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_QOS_or_init", return_value="normal")
 def test_slurm_queue_is_available_user_false_qos_denied(mock_qos, mock_groups):
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"State": "UP", "DenyQos": "normal"}
-    result = queue.isAvailableToUser("user1")
+    result = queue.is_available_to_user("user1")
     assert result is False
     mock_groups.assert_called_once_with("user1")
     mock_qos.assert_called_once_with("user1")
 
 
-@patch("qq_lib.batch.slurm.queue.UserGroups.getGroupsOrInit", return_value=["dev"])
-@patch("qq_lib.batch.slurm.queue.UserGroups.getQOSOrInit", return_value="normal")
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_groups_or_init", return_value=["dev"])
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_QOS_or_init", return_value="normal")
 def test_slurm_queue_is_available_user_true_no_restrictions(mock_qos, mock_groups):
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"State": "UP"}
-    result = queue.isAvailableToUser("user1")
+    result = queue.is_available_to_user("user1")
     assert result is True
     mock_groups.assert_called_once_with("user1")
     mock_qos.assert_called_once_with("user1")
 
 
-@patch("qq_lib.batch.slurm.queue.UserGroups.getGroupsOrInit", return_value=["dev"])
-@patch("qq_lib.batch.slurm.queue.UserGroups.getQOSOrInit", return_value="normal")
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_groups_or_init", return_value=["dev"])
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_QOS_or_init", return_value="normal")
 def test_slurm_queue_is_available_user_true_all_allows(mock_qos, mock_groups):
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {
@@ -307,14 +307,14 @@ def test_slurm_queue_is_available_user_true_all_allows(mock_qos, mock_groups):
         "AllowGroups": "ALL",
         "AllowQos": "ALL",
     }
-    result = queue.isAvailableToUser("user1")
+    result = queue.is_available_to_user("user1")
     assert result is True
     mock_groups.assert_called_once_with("user1")
     mock_qos.assert_called_once_with("user1")
 
 
-@patch("qq_lib.batch.slurm.queue.UserGroups.getGroupsOrInit", return_value=["dev"])
-@patch("qq_lib.batch.slurm.queue.UserGroups.getQOSOrInit", return_value="normal")
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_groups_or_init", return_value=["dev"])
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_QOS_or_init", return_value="normal")
 def test_slurm_queue_is_available_user_true_all_allows_null_denies(
     mock_qos, mock_groups
 ):
@@ -328,7 +328,7 @@ def test_slurm_queue_is_available_user_true_all_allows_null_denies(
         "AllowQos": "ALL",
         "DenyQos": "(null)",
     }
-    result = queue.isAvailableToUser("user1")
+    result = queue.is_available_to_user("user1")
     assert result is True
     mock_groups.assert_called_once_with("user1")
     mock_qos.assert_called_once_with("user1")
@@ -336,13 +336,13 @@ def test_slurm_queue_is_available_user_true_all_allows_null_denies(
 
 def test_slurm_queue_get_destinations_returns_empty_list():
     queue = SlurmQueue.__new__(SlurmQueue)
-    result = queue.getDestinations()
+    result = queue.get_destinations()
     assert result == []
 
 
 def test_slurm_queue_from_route_only_returns_false():
     queue = SlurmQueue.__new__(SlurmQueue)
-    result = queue.fromRouteOnly()
+    result = queue.from_route_only()
     assert result is False
 
 
@@ -363,7 +363,7 @@ def test_slurm_queue_to_yaml_round_trip():
         "TRES": "cpu=768,mem=24300000M,node=1,billing=768",
     }
 
-    result = queue.toYaml()
+    result = queue.to_yaml()
     parsed = yaml.load(result, Loader=yaml.SafeLoader)
 
     assert parsed == queue._info
@@ -385,7 +385,7 @@ def test_slurm_queue_get_default_resources_calls_helper(mock_default):
         "State": "UP",
     }
 
-    result = queue.getDefaultResources()
+    result = queue.get_default_resources()
 
     assert result == "mocked_resources"
     mock_default.assert_called_once_with(
@@ -412,7 +412,7 @@ def test_slurm_queue_set_job_numbers(mock_run, mock_warning):
         stderr="",
     )
 
-    queue._setJobNumbers()
+    queue._set_job_numbers()
 
     assert queue._running_jobs == 5
     assert queue._queued_jobs == 3
@@ -428,7 +428,7 @@ def test_slurm_queue_set_job_numbers_raises_on_failure(mock_run):
     with pytest.raises(
         QQError, match="Could not get job numbers for queue 'cpu': permission denied."
     ):
-        queue._setJobNumbers()
+        queue._set_job_numbers()
 
 
 @patch("qq_lib.batch.slurm.queue.logger.warning")
@@ -442,7 +442,7 @@ def test_slurm_queue_set_job_numbers_handles_invalid_lines(mock_run, mock_warnin
         stderr="",
     )
 
-    queue._setJobNumbers()
+    queue._set_job_numbers()
 
     assert queue._queued_jobs == 0
     assert queue._running_jobs == 5
@@ -450,12 +450,12 @@ def test_slurm_queue_set_job_numbers_handles_invalid_lines(mock_run, mock_warnin
     mock_warning.assert_called_once()
 
 
-@patch.object(SlurmQueue, "_setJobNumbers")
+@patch.object(SlurmQueue, "_set_job_numbers")
 def test_slurm_queue_from_dict_creates_instance(mock_set_jobs):
     name = "cpu"
     info = {"PartitionName": "cpu", "State": "UP", "MaxTime": "2-00:00:00"}
 
-    queue = SlurmQueue.fromDict(name, info)
+    queue = SlurmQueue.from_dict(name, info)
 
     assert isinstance(queue, SlurmQueue)
     assert queue._name == "cpu"

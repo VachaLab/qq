@@ -53,7 +53,7 @@ def test_default_resources_from_dict_converts_and_filters_fields():
     }
     result = default_resources_from_dict(input_dict)
     assert isinstance(result, Resources)
-    assert result.mem_per_cpu == Size.fromString("4gb")
+    assert result.mem_per_cpu == Size.from_string("4gb")
     assert result.walltime == "2d 00:00:00"
     assert not hasattr(result, "ExtraField")
 
@@ -64,7 +64,7 @@ def test_default_resources_from_dict_def_mem_per_cpu_numeric():
     }
     result = default_resources_from_dict(input_dict)
     assert isinstance(result, Resources)
-    assert result.mem_per_cpu == Size.fromString("4096mb")
+    assert result.mem_per_cpu == Size.from_string("4096mb")
 
 
 def test_default_resources_from_dict_def_mem_per_node_numeric():
@@ -73,7 +73,7 @@ def test_default_resources_from_dict_def_mem_per_node_numeric():
     }
     result = default_resources_from_dict(input_dict)
     assert isinstance(result, Resources)
-    assert result.mem_per_node == Size.fromString("4096mb")
+    assert result.mem_per_node == Size.from_string("4096mb")
 
 
 def test_default_resources_from_dict_ignores_unlimited_values():

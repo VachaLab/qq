@@ -48,10 +48,10 @@ class Navigator(Operator):
                 which to load job information. Defaults to None meaning 'current machine'.
         """
         super().__init__(info_file, host)
-        self._setDestination()
+        self._set_destination()
 
     @classmethod
-    def fromInformer(cls, informer: Informer) -> Self:
+    def from_informer(cls, informer: Informer) -> Self:
         """
         Initialize a Navigator instance from an Informer.
 
@@ -63,16 +63,16 @@ class Navigator(Operator):
         Returns:
             Navigator: Initialized Navigator.
         """
-        navigator = super().fromInformer(informer)
-        navigator._setDestination()
+        navigator = super().from_informer(informer)
+        navigator._set_destination()
 
         return navigator
 
     def update(self):
         super().update()
-        self._setDestination()
+        self._set_destination()
 
-    def hasDestination(self) -> bool:
+    def has_destination(self) -> bool:
         """
         Check that the job has an assigned host and working directory.
 
@@ -82,7 +82,7 @@ class Navigator(Operator):
         """
         return self._work_dir is not None and self._main_node is not None
 
-    def getMainNode(self) -> str | None:
+    def get_main_node(self) -> str | None:
         """
         Get the hostname of the main node where the job is running.
 
@@ -91,7 +91,7 @@ class Navigator(Operator):
         """
         return self._main_node
 
-    def getWorkDir(self) -> Path | None:
+    def get_work_dir(self) -> Path | None:
         """
         Get the absolute path to the working directory of the job.
 
@@ -100,7 +100,7 @@ class Navigator(Operator):
         """
         return self._work_dir
 
-    def _setDestination(self) -> None:
+    def _set_destination(self) -> None:
         """
         Get the job's host and working directory from the wrapped informer.
 
@@ -111,7 +111,7 @@ class Navigator(Operator):
         Raises:
             QQError: If main_node or work_dir are not defined in the informer.
         """
-        destination = self._informer.getDestination()
+        destination = self._informer.get_destination()
         logger.debug(f"Destination: {destination}")
 
         if destination:
@@ -120,7 +120,7 @@ class Navigator(Operator):
             self._main_node = None
             self._work_dir = None
 
-    def _isInWorkDir(self) -> bool:
+    def _is_in_work_dir(self) -> bool:
         """
         Check if the current process is already in the job's working directory.
 
@@ -139,11 +139,11 @@ class Navigator(Operator):
             self._work_dir is not None
             and logical_resolve(self._work_dir) == logical_resolve(Path())
             and (
-                not self._informer.usesScratch() or self._main_node == socket.getfqdn()
+                not self._informer.uses_scratch() or self._main_node == socket.getfqdn()
             )
         )
 
-    def _isSynchronized(self) -> bool:
+    def _is_synchronized(self) -> bool:
         """
         Check whether the job has been synchronized.
 
@@ -155,10 +155,11 @@ class Navigator(Operator):
             return False
 
         return any(
-            mode.shouldTransfer(exit_code) for mode in self._informer.info.transfer_mode
+            mode.should_transfer(exit_code)
+            for mode in self._informer.info.transfer_mode
         )
 
-    def _isQueued(self) -> bool:
+    def _is_queued(self) -> bool:
         """Check if the job is queued, booting, held, or waiting."""
         return self._state in {
             RealState.QUEUED,
@@ -167,26 +168,26 @@ class Navigator(Operator):
             RealState.WAITING,
         }
 
-    def _isKilled(self) -> bool:
+    def _is_killed(self) -> bool:
         """Check if the job has been or is being killed."""
         return self._state == RealState.KILLED or (
             self._state == RealState.EXITING
             and self._informer.info.job_exit_code is None
         )
 
-    def _isFinished(self) -> bool:
+    def _is_finished(self) -> bool:
         """Check if the job has finished succesfully."""
         return self._state == RealState.FINISHED
 
-    def _isFailed(self) -> bool:
+    def _is_failed(self) -> bool:
         """Check if the job has failed."""
         return self._state == RealState.FAILED
 
-    def _isUnknownInconsistent(self) -> bool:
+    def _is_unknown_inconsistent(self) -> bool:
         """Check if the job is in an unknown or inconsistent state."""
         return self._state in {RealState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE}
 
-    def _isExitingSuccessfully(self) -> bool:
+    def _is_exiting_successfully(self) -> bool:
         """
         Check whether the job is currently successfully exiting.
         """
@@ -194,15 +195,15 @@ class Navigator(Operator):
             self._state == RealState.EXITING and self._informer.info.job_exit_code == 0
         )
 
-    def _isSuspended(self) -> bool:
+    def _is_suspended(self) -> bool:
         """Check if the job is currently suspended."""
         return self._state == RealState.SUSPENDED
 
-    def _isRunning(self) -> bool:
+    def _is_running(self) -> bool:
         """Check if the job is running."""
         return self._state == RealState.RUNNING
 
-    def _workDirIsInputDir(self) -> bool:
+    def _work_dir_is_input_dir(self) -> bool:
         """Check whether the working directory of the job is the input directory of the job."""
         # note that we cannot just compare directory paths, since
         # the same directory path may point to different directories
@@ -215,7 +216,7 @@ class Navigator(Operator):
             and logical_resolve(self._work_dir)
             == logical_resolve(self._informer.info.input_dir)
             and (
-                not self._informer.usesScratch()
+                not self._informer.uses_scratch()
                 or self._main_node == self._input_machine
             )
         )

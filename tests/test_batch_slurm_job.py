@@ -26,31 +26,31 @@ def test_slurm_job_init_calls_update_and_sets_attributes():
 def test_slurm_job_is_empty_true_when_info_empty():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {}
-    assert job.isEmpty() is True
+    assert job.is_empty() is True
 
 
 def test_slurm_job_is_empty_false_when_info_not_empty():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"key": "value"}
-    assert job.isEmpty() is False
+    assert job.is_empty() is False
 
 
 def test_slurm_job_get_id_returns_job_id():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "abc123"
-    assert job.getId() == "abc123"
+    assert job.get_id() == "abc123"
 
 
 def test_slurm_job_get_account_returns_value_when_present():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"Account": "fake-account"}
-    assert job.getAccount() == "fake-account"
+    assert job.get_account() == "fake-account"
 
 
 def test_slurm_job_get_account_returns_none_when_missing():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {}
-    assert job.getAccount() is None
+    assert job.get_account() is None
 
 
 @patch("qq_lib.batch.slurm.job.subprocess.run")
@@ -72,7 +72,7 @@ def test_slurm_job_update_scontrol_success(mock_parse, mock_run):
 
 
 @patch("qq_lib.batch.slurm.job.subprocess.run")
-@patch("qq_lib.batch.slurm.job.SlurmJob.fromSacctString")
+@patch("qq_lib.batch.slurm.job.SlurmJob.from_sacct_string")
 def test_slurm_job_update_scontrol_fail_sacct_success(mock_from_sacct, mock_run):
     first = MagicMock(returncode=1, stderr="fail1")
     second = MagicMock(returncode=0, stdout="success2")
@@ -105,7 +105,7 @@ def test_slurm_job_update_scontrol_and_sacct_fail(mock_run):
 def test_slurm_job_get_state_returns_unknown_when_no_jobstate():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {}
-    assert job.getState() == BatchState.UNKNOWN
+    assert job.get_state() == BatchState.UNKNOWN
 
 
 @pytest.mark.parametrize(
@@ -130,106 +130,108 @@ def test_slurm_job_get_state_returns_converted_value_for_all_states(
 ):
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"JobState": raw_state}
-    assert job.getState() == expected_state
+    assert job.get_state() == expected_state
 
 
 def test_slurm_job_get_state_returns_unknown_for_unmapped_value():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"JobState": "SOMETHING_ELSE"}
-    assert job.getState() == BatchState.UNKNOWN
+    assert job.get_state() == BatchState.UNKNOWN
 
 
 def test_slurm_job_get_state_returns_held_when_dependency_in_comment(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"JobState": "PENDING"}
-    monkeypatch.setattr(job, "getComment", lambda: "Reason: (Dependency)")
-    assert job.getState() == BatchState.HELD
+    monkeypatch.setattr(job, "get_comment", lambda: "Reason: (Dependency)")
+    assert job.get_state() == BatchState.HELD
 
 
 def test_slurm_job_get_state_returns_held_when_dependency_in_comment2(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"JobState": "PENDING"}
-    monkeypatch.setattr(job, "getComment", lambda: "Reason: (DependencyNeverSatisfied)")
-    assert job.getState() == BatchState.HELD
+    monkeypatch.setattr(
+        job, "get_comment", lambda: "Reason: (DependencyNeverSatisfied)"
+    )
+    assert job.get_state() == BatchState.HELD
 
 
 def test_slurm_job_get_state_returns_queued_when_no_dependency(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"JobState": "PENDING"}
-    monkeypatch.setattr(job, "getComment", lambda: "Reason: (JobArrayTaskLimit)")
-    assert job.getState() == BatchState.QUEUED
+    monkeypatch.setattr(job, "get_comment", lambda: "Reason: (JobArrayTaskLimit)")
+    assert job.get_state() == BatchState.QUEUED
 
 
 def test_slurm_job_get_comment_returns_reason_string():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"Reason": "(Dependency)"}
-    assert job.getComment() == "Reason: (Dependency)"
+    assert job.get_comment() == "Reason: (Dependency)"
 
 
 def test_slurm_job_get_comment_returns_none_when_reason_is_none_string():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"Reason": "None"}
-    assert job.getComment() is None
+    assert job.get_comment() is None
 
 
 def test_slurm_job_get_comment_returns_none_when_reason_missing():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {}
-    assert job.getComment() is None
+    assert job.get_comment() is None
 
 
 def test_slurm_job_get_estimated_returns_none_when_starttime_none(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "getStartTime", lambda: None)
-    assert job.getEstimated() is None
+    monkeypatch.setattr(job, "get_start_time", lambda: None)
+    assert job.get_estimated() is None
 
 
 def test_slurm_job_get_estimated_returns_none_when_starttime_string_none(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "getStartTime", lambda: "None")
-    assert job.getEstimated() is None
+    monkeypatch.setattr(job, "get_start_time", lambda: "None")
+    assert job.get_estimated() is None
 
 
 def test_slurm_job_get_estimated_returns_none_when_nodelist_missing(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "getStartTime", lambda: datetime.now())
+    monkeypatch.setattr(job, "get_start_time", lambda: datetime.now())
     job._info = {}
-    assert job.getEstimated() is None
+    assert job.get_estimated() is None
 
 
 def test_slurm_job_get_estimated_returns_none_when_nodelist_contains_none(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "getStartTime", lambda: datetime.now())
+    monkeypatch.setattr(job, "get_start_time", lambda: datetime.now())
     job._info = {"SchedNodeList": "None assigned"}
-    assert job.getEstimated() is None
+    assert job.get_estimated() is None
 
 
 def test_slurm_job_get_estimated_returns_tuple_when_valid(monkeypatch):
     fake_time = datetime.now()
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "getStartTime", lambda: fake_time)
+    monkeypatch.setattr(job, "get_start_time", lambda: fake_time)
     job._info = {"SchedNodeList": "node123"}
-    assert job.getEstimated() == (fake_time, "node123")
+    assert job.get_estimated() == (fake_time, "node123")
 
 
 def test_slurm_job_get_main_node_returns_batchhost_when_valid():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"BatchHost": "mainnode1"}
-    assert job.getMainNode() == "mainnode1"
+    assert job.get_main_node() == "mainnode1"
 
 
 def test_slurm_job_get_main_node_returns_none_when_batchhost_contains_none(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"BatchHost": "None"}
-    monkeypatch.setattr(job, "getNodes", lambda: [])
-    assert job.getMainNode() is None
+    monkeypatch.setattr(job, "get_nodes", lambda: [])
+    assert job.get_main_node() is None
 
 
 def test_slurm_job_get_main_node_returns_first_node_when_batchhost_missing(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     job._info = {}
-    monkeypatch.setattr(job, "getNodes", lambda: ["nodeA", "nodeB"])
-    assert job.getMainNode() == "nodeA"
+    monkeypatch.setattr(job, "get_nodes", lambda: ["nodeA", "nodeB"])
+    assert job.get_main_node() == "nodeA"
 
 
 def test_slurm_job_get_main_node_returns_none_when_no_batchhost_and_no_nodes(
@@ -237,184 +239,184 @@ def test_slurm_job_get_main_node_returns_none_when_no_batchhost_and_no_nodes(
 ):
     job = SlurmJob.__new__(SlurmJob)
     job._info = {}
-    monkeypatch.setattr(job, "getNodes", lambda: [])
-    assert job.getMainNode() is None
+    monkeypatch.setattr(job, "get_nodes", lambda: [])
+    assert job.get_main_node() is None
 
 
 def test_slurm_job_get_nodes_returns_expanded_list(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"NodeList": "node[1-3]"}
     monkeypatch.setattr(
-        SlurmJob, "_expandNodeList", lambda _: ["node1", "node2", "node3"]
+        SlurmJob, "_expand_node_list", lambda _: ["node1", "node2", "node3"]
     )
-    assert job.getNodes() == ["node1", "node2", "node3"]
+    assert job.get_nodes() == ["node1", "node2", "node3"]
 
 
 def test_slurm_job_get_nodes_returns_none_when_nodelist_contains_none():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"NodeList": "None"}
-    assert job.getNodes() is None
+    assert job.get_nodes() is None
 
 
 def test_slurm_job_get_nodes_returns_none_when_nodelist_missing():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {}
-    assert job.getNodes() is None
+    assert job.get_nodes() is None
 
 
 def test_slurm_job_get_short_nodes_returns_list_with_nodelist():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"NodeList": "node[1-3]"}
-    assert job.getShortNodes() == ["node[1-3]"]
+    assert job.get_short_nodes() == ["node[1-3]"]
 
 
 def test_slurm_job_get_short_nodes_returns_none_when_nodelist_contains_none():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"NodeList": "None"}
-    assert job.getShortNodes() is None
+    assert job.get_short_nodes() is None
 
 
 def test_slurm_job_get_short_nodes_returns_none_when_nodelist_missing():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {}
-    assert job.getShortNodes() is None
+    assert job.get_short_nodes() is None
 
 
 def test_slurm_job_get_name_returns_name():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"JobName": "test_job"}
-    assert job.getName() == "test_job"
+    assert job.get_name() == "test_job"
 
 
 def test_slurm_job_get_name_returns_none():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
     job._info = {}
-    assert job.getName() is None
+    assert job.get_name() is None
 
 
 def test_slurm_job_get_ncpus_returns_integer_value():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"NumCPUs": "16", "MinCPUsNode": "8", "NumNodes": "2"}
-    assert job.getNCPUs() == 16
+    assert job.get_n_cpus() == 16
 
 
 def test_slurm_job_get_ncpus_returns_min_value_when_range():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"NumCPUs": "8-32", "MinCPUsNode": "8", "NumNodes": "1"}
-    assert job.getNCPUs() == 8
+    assert job.get_n_cpus() == 8
 
 
 def test_slurm_job_get_ncpus_min_cpus_not_defined():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "321"
     job._info = {"NumCPUs": "16", "NumNodes": "2"}
-    assert job.getNCPUs() == 16
+    assert job.get_n_cpus() == 16
 
 
 def test_slurm_job_get_ncpus_nnodes_not_defined():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "321"
     job._info = {"NumCPUs": "16", "MinCPUsNode": "8"}
-    assert job.getNCPUs() == 16
+    assert job.get_n_cpus() == 16
 
 
 def test_slurm_job_get_ncpus_returns_min_cpus_if_higher():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"NumCPUs": "1", "MinCPUsNode": "8", "NumNodes": "2"}
-    assert job.getNCPUs() == 16
+    assert job.get_n_cpus() == 16
 
 
 def test_slurm_job_get_ncpus_returns_none_when_invalid_value():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "321"
     job._info = {"NumCPUs": "invalid"}
-    assert job.getNCPUs() is None
+    assert job.get_n_cpus() is None
 
 
 def test_slurm_job_get_ncpus_returns_none_when_key_missing():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "654"
     job._info = {}
-    assert job.getNCPUs() is None
+    assert job.get_n_cpus() is None
 
 
 def test_slurm_job_get_ngpus_returns_value_from_gpu_prefix(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "_getTres", lambda: "cpu=8,gpu=2,mem=16G")
-    assert job.getNGPUs() == 2
+    monkeypatch.setattr(job, "_get_tres", lambda: "cpu=8,gpu=2,mem=16G")
+    assert job.get_n_gpus() == 2
 
 
 def test_slurm_job_get_ngpus_returns_value_from_gres_gpu_prefix(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "_getTres", lambda: "gres/gpu=4,mem=32G")
-    assert job.getNGPUs() == 4
+    monkeypatch.setattr(job, "_get_tres", lambda: "gres/gpu=4,mem=32G")
+    assert job.get_n_gpus() == 4
 
 
 def test_slurm_job_get_ngpus_returns_value_from_gres_gpu_with_specification(
     monkeypatch,
 ):
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "_getTres", lambda: "gres/gpu:mi250=4,mem=32G")
-    assert job.getNGPUs() == 4
+    monkeypatch.setattr(job, "_get_tres", lambda: "gres/gpu:mi250=4,mem=32G")
+    assert job.get_n_gpus() == 4
 
 
 def test_slurm_job_get_ngpus_returns_none_when_no_gpu_entry(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "_getTres", lambda: "cpu=8,mem=16G")
-    assert job.getNGPUs() is None
+    monkeypatch.setattr(job, "_get_tres", lambda: "cpu=8,mem=16G")
+    assert job.get_n_gpus() is None
 
 
 def test_slurm_job_get_ngpus_returns_none_when_empty_tres(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "_getTres", lambda: "")
-    assert job.getNGPUs() is None
+    monkeypatch.setattr(job, "_get_tres", lambda: "")
+    assert job.get_n_gpus() is None
 
 
 def test_slurm_job_get_ngpus_returns_none_when_gpu_value_invalid(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "_getTres", lambda: "cpu=8,gpu=invalid,mem=16G")
-    assert job.getNGPUs() is None
+    monkeypatch.setattr(job, "_get_tres", lambda: "cpu=8,gpu=invalid,mem=16G")
+    assert job.get_n_gpus() is None
 
 
 def test_slurm_job_get_nnodes_returns_integer_value():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"NumNodes": "3"}
-    assert job.getNNodes() == 3
+    assert job.get_n_nodes() == 3
 
 
 def test_slurm_job_get_nnodes_returns_min_value_when_range():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"NumNodes": "2-5"}
-    assert job.getNNodes() == 2
+    assert job.get_n_nodes() == 2
 
 
 def test_slurm_job_get_nnodes_returns_none_when_invalid_value():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "321"
     job._info = {"NumNodes": "invalid"}
-    assert job.getNNodes() is None
+    assert job.get_n_nodes() is None
 
 
 def test_slurm_job_get_nnodes_returns_none_when_key_missing():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "654"
     job._info = {}
-    assert job.getNNodes() is None
+    assert job.get_n_nodes() is None
 
 
 def test_slurm_job_get_mem_returns_parsed_size(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "_getTres", lambda: "cpu=8,mem=16G,gres/gpu=1")
-    result = job.getMem()
+    monkeypatch.setattr(job, "_get_tres", lambda: "cpu=8,mem=16G,gres/gpu=1")
+    result = job.get_mem()
     assert isinstance(result, Size)
     assert result.value == 16 * 1024 * 1024  # in kb
 
 
 def test_slurm_job_get_mem_returns_parsed_size_mb(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "_getTres", lambda: "cpu=8,mem=800M,gres/gpu=1")
-    result = job.getMem()
+    monkeypatch.setattr(job, "_get_tres", lambda: "cpu=8,mem=800M,gres/gpu=1")
+    result = job.get_mem()
     assert isinstance(result, Size)
     assert result.value == 800 * 1024  # in kb
 
@@ -423,29 +425,29 @@ def test_slurm_job_get_mem_returns_parsed_size_mb(monkeypatch):
 def test_slurm_job_get_mem_returns_none_when_parsing_fails(mock_warning, monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "321"
-    monkeypatch.setattr(job, "_getTres", lambda: "cpu=4,mem=invalid")
-    assert job.getMem() is None
+    monkeypatch.setattr(job, "_get_tres", lambda: "cpu=4,mem=invalid")
+    assert job.get_mem() is None
     mock_warning.assert_called_once()
 
 
 def test_slurm_job_get_mem_returns_none_when_empty_tres(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "321"
-    monkeypatch.setattr(job, "_getTres", lambda: "")
-    assert job.getMem() is None
+    monkeypatch.setattr(job, "_get_tres", lambda: "")
+    assert job.get_mem() is None
 
 
 def test_slurm_job_get_mem_returns_none_when_mem_missing(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "654"
-    monkeypatch.setattr(job, "_getTres", lambda: "cpu=8,gres/gpu=1")
-    assert job.getMem() is None
+    monkeypatch.setattr(job, "_get_tres", lambda: "cpu=8,gres/gpu=1")
+    assert job.get_mem() is None
 
 
 def test_slurm_job_get_start_time_returns_parsed_datetime():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"StartTime": "2024-05-10T12:30:00"}
-    result = job.getStartTime()
+    result = job.get_start_time()
     assert isinstance(result, datetime)
     assert result == datetime(2024, 5, 10, 12, 30, 0)
 
@@ -454,7 +456,7 @@ def test_slurm_job_get_start_time_returns_none_when_invalid_value():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
     job._info = {"StartTime": "not_a_date"}
-    assert job.getStartTime() is None
+    assert job.get_start_time() is None
 
 
 @pytest.mark.parametrize("val", ["", "none", "n/a", "unknown"])
@@ -462,19 +464,19 @@ def test_slurm_job_get_start_time_returns_none_for_placeholder_values(val):
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
     job._info = {"StartTime": val}
-    assert job.getStartTime() is None
+    assert job.get_start_time() is None
 
 
 def test_slurm_job_get_start_time_returns_none_when_missing():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {}
-    assert job.getStartTime() is None
+    assert job.get_start_time() is None
 
 
 def test_slurm_job_get_submission_time_returns_parsed_datetime():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"SubmitTime": "2024-05-10T12:00:00"}
-    result = job.getSubmissionTime()
+    result = job.get_submission_time()
     assert isinstance(result, datetime)
     assert result == datetime(2024, 5, 10, 12, 0, 0)
 
@@ -483,13 +485,13 @@ def test_slurm_job_get_submission_time_returns_none_when_invalid():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
     job._info = {"SubmitTime": "invalid"}
-    assert job.getSubmissionTime() is None
+    assert job.get_submission_time() is None
 
 
 def test_slurm_job_get_completion_time_returns_parsed_datetime():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"EndTime": "2024-05-10T15:00:00"}
-    result = job.getCompletionTime()
+    result = job.get_completion_time()
     assert isinstance(result, datetime)
     assert result == datetime(2024, 5, 10, 15, 0, 0)
 
@@ -498,17 +500,17 @@ def test_slurm_job_get_completion_time_returns_none_when_invalid():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
     job._info = {"EndTime": "not_a_date"}
-    assert job.getCompletionTime() is None
+    assert job.get_completion_time() is None
 
 
 def test_slurm_job_get_modification_time_returns_completion_time(monkeypatch):
     fake_completion = datetime(2024, 5, 10, 17, 0, 0)
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "getCompletionTime", lambda: fake_completion)
+    monkeypatch.setattr(job, "get_completion_time", lambda: fake_completion)
     monkeypatch.setattr(
-        job, "getSubmissionTime", lambda: datetime(2024, 5, 10, 12, 0, 0)
+        job, "get_submission_time", lambda: datetime(2024, 5, 10, 12, 0, 0)
     )
-    assert job.getModificationTime() == fake_completion
+    assert job.get_modification_time() == fake_completion
 
 
 def test_slurm_job_get_modification_time_returns_submission_time_when_no_completion(
@@ -516,34 +518,34 @@ def test_slurm_job_get_modification_time_returns_submission_time_when_no_complet
 ):
     fake_submission = datetime(2024, 5, 10, 12, 0, 0)
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "getCompletionTime", lambda: None)
-    monkeypatch.setattr(job, "getSubmissionTime", lambda: fake_submission)
-    assert job.getModificationTime() == fake_submission
+    monkeypatch.setattr(job, "get_completion_time", lambda: None)
+    monkeypatch.setattr(job, "get_submission_time", lambda: fake_submission)
+    assert job.get_modification_time() == fake_submission
 
 
 def test_slurm_job_get_user_returns_username_before_parenthesis():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"UserId": "fake_user(1234)"}
-    assert job.getUser() == "fake_user"
+    assert job.get_user() == "fake_user"
 
 
 def test_slurm_job_get_user_returns_full_value_when_no_parenthesis():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"UserId": "user2"}
-    assert job.getUser() == "user2"
+    assert job.get_user() == "user2"
 
 
 def test_slurm_job_get_user_returns_none():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "789"
     job._info = {}
-    assert job.getUser() is None
+    assert job.get_user() is None
 
 
 def test_slurm_job_get_walltime_returns_correct_timedelta():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"TimeLimit": "2-12:34:56"}
-    result = job.getWalltime()
+    result = job.get_walltime()
     assert isinstance(result, timedelta)
     assert result == timedelta(days=2, hours=12, minutes=34, seconds=56)
 
@@ -552,78 +554,78 @@ def test_slurm_job_get_walltime_returns_none_when_missing():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
     job._info = {}
-    assert job.getWalltime() is None
+    assert job.get_walltime() is None
 
 
 def test_slurm_job_get_walltime_returns_none_when_invalid():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "456"
     job._info = {"TimeLimit": "invalid"}
-    assert job.getWalltime() is None
+    assert job.get_walltime() is None
 
 
 def test_slurm_job_get_queue_returns_partition_value():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"Partition": "default"}
-    assert job.getQueue() == "default"
+    assert job.get_queue() == "default"
 
 
 def test_slurm_job_get_queue_returns_none_when_missing():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
     job._info = {}
-    assert job.getQueue() is None
+    assert job.get_queue() is None
 
 
 def test_slurm_job_get_util_cpu_returns_none():
     job = SlurmJob.__new__(SlurmJob)
-    assert job.getUtilCPU() is None
+    assert job.get_util_cpu() is None
 
 
 def test_slurm_job_get_util_mem_returns_none():
     job = SlurmJob.__new__(SlurmJob)
-    assert job.getUtilMem() is None
+    assert job.get_util_mem() is None
 
 
 def test_slurm_job_get_exit_code_returns_first_nonzero_code():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"ExitCode": "2:0"}
-    assert job.getExitCode() == 2
+    assert job.get_exit_code() == 2
 
 
 def test_slurm_job_get_exit_code_returns_signal_when_first_zero():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"ExitCode": "0:9"}
-    assert job.getExitCode() == 9
+    assert job.get_exit_code() == 9
 
 
 def test_slurm_job_get_exit_code_returns_zero_when_both_zero():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"ExitCode": "0:0"}
-    assert job.getExitCode() == 0
+    assert job.get_exit_code() == 0
 
 
 def test_slurm_job_get_exit_code_returns_none_when_missing():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {}
-    assert job.getExitCode() is None
+    assert job.get_exit_code() is None
 
 
 def test_slurm_job_get_exit_code_returns_none_when_invalid_format():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"ExitCode": "invalid"}
-    assert job.getExitCode() is None
+    assert job.get_exit_code() is None
 
 
 def test_slurm_job_get_input_machine_returns_none():
     job = SlurmJob.__new__(SlurmJob)
-    assert job.getInputMachine() is None
+    assert job.get_input_machine() is None
 
 
 def test_slurm_job_get_input_dir_returns_resolved_path():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"WorkDir": "/tmp/testdir"}
-    resolved = job.getInputDir()
+    resolved = job.get_input_dir()
     assert isinstance(resolved, Path)
     assert resolved == Path("/tmp/testdir").resolve()
 
@@ -632,37 +634,37 @@ def test_slurm_job_get_input_dir_returns_none():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
     job._info = {}
-    assert job.getInputDir() is None
+    assert job.get_input_dir() is None
 
 
 def test_slurm_job_get_info_file_returns_path_when_file_exists(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     fake_path = Path("/tmp/testfile.qqinfo")
-    monkeypatch.setattr(job, "getInputDir", lambda: Path("/tmp"))
-    monkeypatch.setattr(job, "getName", lambda: "testfile")
+    monkeypatch.setattr(job, "get_input_dir", lambda: Path("/tmp"))
+    monkeypatch.setattr(job, "get_name", lambda: "testfile")
     monkeypatch.setattr(
         "qq_lib.batch.slurm.job.CFG.suffixes", MagicMock(qq_info=".qqinfo")
     )
     monkeypatch.setattr(Path, "is_file", lambda _: True)
-    result = job.getInfoFile()
+    result = job.get_info_file()
     assert result == fake_path
 
 
 def test_slurm_job_get_info_file_returns_none_when_file_missing(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "getInputDir", lambda: Path("/tmp"))
-    monkeypatch.setattr(job, "getName", lambda: "missingfile")
+    monkeypatch.setattr(job, "get_input_dir", lambda: Path("/tmp"))
+    monkeypatch.setattr(job, "get_name", lambda: "missingfile")
     monkeypatch.setattr(
         "qq_lib.batch.slurm.job.CFG.suffixes", MagicMock(qq_info=".qqinfo")
     )
     monkeypatch.setattr(Path, "is_file", lambda _: False)
-    assert job.getInfoFile() is None
+    assert job.get_info_file() is None
 
 
 def test_slurm_job_get_info_file_returns_none_when_permission_error(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "getInputDir", lambda: Path("/tmp"))
-    monkeypatch.setattr(job, "getName", lambda: "noaccessfile")
+    monkeypatch.setattr(job, "get_input_dir", lambda: Path("/tmp"))
+    monkeypatch.setattr(job, "get_name", lambda: "noaccessfile")
     monkeypatch.setattr(
         "qq_lib.batch.slurm.job.CFG.suffixes", MagicMock(qq_info=".qqinfo")
     )
@@ -672,7 +674,7 @@ def test_slurm_job_get_info_file_returns_none_when_permission_error(monkeypatch)
         raise PermissionError
 
     monkeypatch.setattr(Path, "is_file", raise_permission_error)
-    assert job.getInfoFile() is None
+    assert job.get_info_file() is None
 
 
 def test_slurm_job_to_yaml_returns_valid_yaml_string():
@@ -699,7 +701,7 @@ def test_slurm_job_to_yaml_returns_valid_yaml_string():
         "AllocTRES": "cpu=32,mem=128G,node=1,gres/gpu=4",
     }
 
-    yaml_str = job.toYaml()
+    yaml_str = job.to_yaml()
 
     assert isinstance(yaml_str, str)
     parsed = yaml.load(yaml_str, Loader=yaml.SafeLoader)
@@ -708,7 +710,7 @@ def test_slurm_job_to_yaml_returns_valid_yaml_string():
 
 def test_slurm_job_from_dict():
     info = {"JobName": "example_job", "JobState": "RUNNING"}
-    job = SlurmJob.fromDict("12345", info)
+    job = SlurmJob.from_dict("12345", info)
     assert isinstance(job, SlurmJob)
     assert job._job_id == "12345"
     assert job._info == info
@@ -738,7 +740,7 @@ def test_slurm_job_from_sacct_string_returns_valid_instance():
         "0:0",
     ]
     sacct_str = "|".join(fields)
-    job = SlurmJob.fromSacctString(sacct_str)
+    job = SlurmJob.from_sacct_string(sacct_str)
 
     assert isinstance(job, SlurmJob)
     assert job._job_id == "111111"
@@ -750,7 +752,7 @@ def test_slurm_job_from_sacct_string_returns_valid_instance():
 def test_slurm_job_from_sacct_string_raises_error_when_field_count_invalid():
     bad_str = "too|few|fields"
     with pytest.raises(QQError):
-        SlurmJob.fromSacctString(bad_str)
+        SlurmJob.from_sacct_string(bad_str)
 
 
 @patch("qq_lib.batch.slurm.job.subprocess.run")
@@ -760,7 +762,7 @@ def test_slurm_job_expand_node_list_returns_expanded_list(mock_run):
     mock_result.stdout = "node01\nnode02\nnode03\n"
     mock_run.return_value = mock_result
 
-    result = SlurmJob._expandNodeList("node[01-03]")
+    result = SlurmJob._expand_node_list("node[01-03]")
     assert result == ["node01", "node02", "node03"]
     mock_run.assert_called_once()
 
@@ -775,7 +777,7 @@ def test_slurm_job_expand_node_list_returns_unexpanded_on_failure(
     mock_result.stderr = "error"
     mock_run.return_value = mock_result
 
-    result = SlurmJob._expandNodeList("node[01-03]")
+    result = SlurmJob._expand_node_list("node[01-03]")
     assert result == ["node[01-03]"]
     mock_warning.assert_called_once()
 
@@ -783,38 +785,38 @@ def test_slurm_job_expand_node_list_returns_unexpanded_on_failure(
 def test_slurm_job_get_tres_returns_alloc_tres_when_valid():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"AllocTRES": "cpu=8,mem=16G", "ReqTRES": "cpu=4,mem=8G"}
-    assert job._getTres() == "cpu=8,mem=16G"
+    assert job._get_tres() == "cpu=8,mem=16G"
 
 
 @pytest.mark.parametrize("invalid_value", ["null", "None", "N/A", ""])
 def test_slurm_job_get_tres_falls_back_to_req_tres(invalid_value):
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"AllocTRES": invalid_value, "ReqTRES": "cpu=4,mem=8G"}
-    assert job._getTres() == "cpu=4,mem=8G"
+    assert job._get_tres() == "cpu=4,mem=8G"
 
 
 def test_slurm_job_get_tres_returns_empty_string_when_both_missing():
     job = SlurmJob.__new__(SlurmJob)
     job._info = {}
-    assert job._getTres() == ""
+    assert job._get_tres() == ""
 
 
 def test_slurm_job_assign_if_allocated_uses_alloc_value():
     info = {"AllocCPUs": "16", "ReqCPUs": "8"}
-    SlurmJob._assignIfAllocated(info, "AllocCPUs", "ReqCPUs", "NumCPUs")
+    SlurmJob._assign_if_allocated(info, "AllocCPUs", "ReqCPUs", "NumCPUs")
     assert info["NumCPUs"] == "16"
 
 
 @pytest.mark.parametrize("invalid_value", [None, "None", "", "0"])
 def test_slurm_job_assign_if_allocated_falls_back_to_req_value(invalid_value):
     info = {"AllocCPUs": invalid_value, "ReqCPUs": "8"}
-    SlurmJob._assignIfAllocated(info, "AllocCPUs", "ReqCPUs", "NumCPUs")
+    SlurmJob._assign_if_allocated(info, "AllocCPUs", "ReqCPUs", "NumCPUs")
     assert info["NumCPUs"] == "8"
 
 
 def test_slurm_job_assign_if_allocated_falls_back_to_zero_when_req_missing():
     info = {"AllocCPUs": "0"}
-    SlurmJob._assignIfAllocated(info, "AllocCPUs", "ReqCPUs", "NumCPUs")
+    SlurmJob._assign_if_allocated(info, "AllocCPUs", "ReqCPUs", "NumCPUs")
     assert info["NumCPUs"] == "0"
 
 
@@ -831,14 +833,14 @@ def test_slurm_job_assign_if_allocated_falls_back_to_zero_when_req_missing():
 def test_slurm_job_get_ids_for_sorting_returns_correct_groups(job_id, expected):
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = job_id
-    assert job.getIdsForSorting() == expected
+    assert job.get_ids_for_sorting() == expected
 
 
 @pytest.mark.parametrize("job_id", ["abc123", "_123", "", "x_y_z"])
 def test_slurm_job_get_ids_for_sorting_returns_zero_for_invalid(job_id):
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = job_id
-    assert job.getIdsForSorting() == [0]
+    assert job.get_ids_for_sorting() == [0]
 
 
 @patch("qq_lib.batch.slurm.job.subprocess.run")
@@ -851,12 +853,12 @@ def test_slurm_job_get_steps_returns_empty_on_nonzero_returncode(mock_run):
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
 
-    assert job.getSteps() == []
+    assert job.get_steps() == []
     mock_run.assert_called_once()
 
 
 @patch("qq_lib.batch.slurm.job.subprocess.run")
-@patch("qq_lib.batch.slurm.job.SlurmJob._stepFromSacctString")
+@patch("qq_lib.batch.slurm.job.SlurmJob._step_from_sacct_string")
 def test_slurm_job_get_steps_parses_numeric_steps(mock_step, mock_run):
     mock_result = MagicMock()
     mock_result.returncode = 0
@@ -873,7 +875,7 @@ def test_slurm_job_get_steps_parses_numeric_steps(mock_step, mock_run):
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
 
-    steps = job.getSteps()
+    steps = job.get_steps()
 
     assert len(steps) == 2
     mock_step.assert_any_call("a")
@@ -882,7 +884,7 @@ def test_slurm_job_get_steps_parses_numeric_steps(mock_step, mock_run):
 
 
 @patch("qq_lib.batch.slurm.job.subprocess.run")
-@patch("qq_lib.batch.slurm.job.SlurmJob._stepFromSacctString")
+@patch("qq_lib.batch.slurm.job.SlurmJob._step_from_sacct_string")
 def test_slurm_job_get_steps_skips_empty_lines(mock_step, mock_run):
     mock_result = MagicMock()
     mock_result.returncode = 0
@@ -899,7 +901,7 @@ def test_slurm_job_get_steps_skips_empty_lines(mock_step, mock_run):
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
 
-    steps = job.getSteps()
+    steps = job.get_steps()
 
     assert len(steps) == 2
     mock_step.assert_any_call("a")
@@ -908,7 +910,7 @@ def test_slurm_job_get_steps_skips_empty_lines(mock_step, mock_run):
 
 
 @patch("qq_lib.batch.slurm.job.subprocess.run")
-@patch("qq_lib.batch.slurm.job.SlurmJob._stepFromSacctString")
+@patch("qq_lib.batch.slurm.job.SlurmJob._step_from_sacct_string")
 def test_slurm_job_get_steps_skips_non_numeric_steps(mock_step, mock_run):
     mock_result = MagicMock()
     mock_result.returncode = 0
@@ -929,7 +931,7 @@ def test_slurm_job_get_steps_skips_non_numeric_steps(mock_step, mock_run):
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
 
-    steps = job.getSteps()
+    steps = job.get_steps()
 
     assert len(steps) == 2
     mock_run.assert_called_once()
@@ -938,19 +940,19 @@ def test_slurm_job_get_steps_skips_non_numeric_steps(mock_step, mock_run):
 def test_slurm_job_get_step_id_returns_step_part_when_present():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123.456"
-    assert job.getStepId() == "456"
+    assert job.get_step_id() == "456"
 
 
 def test_slurm_job_get_step_id_returns_none_when_no_step_part():
     job = SlurmJob.__new__(SlurmJob)
     job._job_id = "123"
-    assert job.getStepId() is None
+    assert job.get_step_id() is None
 
 
 def test_slurm_job_step_from_sacct_string_parses_fields_correctly():
     s = "123.1|RUNNING extra words|2025-11-14 14:45:16|2025-11-14 15:00:00"
 
-    result = SlurmJob._stepFromSacctString(s)
+    result = SlurmJob._step_from_sacct_string(s)
 
     assert isinstance(result, SlurmJob)
     assert result._job_id == "123.1"
@@ -968,4 +970,4 @@ def test_slurm_job_step_from_sacct_string_raises_on_invalid_field_count():
     with pytest.raises(
         QQError, match="Number of items in a sacct string for a slurm step"
     ):
-        SlurmJob._stepFromSacctString(s)
+        SlurmJob._step_from_sacct_string(s)

@@ -54,7 +54,7 @@ logger = get_logger(__name__)
 @click.option("--yaml", is_flag=True, help="Output job metadata in YAML format.")
 def jobs(user: str, extra: bool, all: bool, server: str | None, yaml: bool) -> NoReturn:
     try:
-        batch_system = BatchMeta.fromEnvVarOrGuess()
+        batch_system = BatchMeta.from_env_var_or_guess()
         if not user:
             # use the current user, if `--user` is not specified
             user = getpass.getuser()
@@ -63,21 +63,21 @@ def jobs(user: str, extra: bool, all: bool, server: str | None, yaml: bool) -> N
             server = translate_server(server)
 
         if all:
-            jobs = batch_system.getBatchJobs(user, server)
+            jobs = batch_system.get_batch_jobs(user, server)
         else:
-            jobs = batch_system.getUnfinishedBatchJobs(user, server)
+            jobs = batch_system.get_unfinished_batch_jobs(user, server)
 
         if not jobs:
             logger.info("No jobs found.")
             sys.exit(0)
 
-        batch_system.sortJobs(jobs)
+        batch_system.sort_jobs(jobs)
         presenter = JobsPresenter(batch_system, jobs, extra, all, server)
         if yaml:
-            presenter.dumpYaml()
+            presenter.dump_yaml()
         else:
             console = Console(record=False, markup=False)
-            panel = presenter.createJobsInfoPanel(console)
+            panel = presenter.create_jobs_info_panel(console)
             console.print(panel)
 
         sys.exit(0)

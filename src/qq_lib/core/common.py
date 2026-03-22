@@ -161,13 +161,13 @@ def get_info_file_from_job_id(job_id: str) -> Path:
         BatchMeta,
     )
 
-    BatchSystem = BatchMeta.fromEnvVarOrGuess()
-    job_info: BatchJobInterface = BatchSystem.getBatchJob(job_id)
+    BatchSystem = BatchMeta.from_env_var_or_guess()
+    job_info: BatchJobInterface = BatchSystem.get_batch_job(job_id)
 
-    if job_info.isEmpty():
+    if job_info.is_empty():
         raise QQError(f"Job '{job_id}' does not exist.")
 
-    if not (path := job_info.getInfoFile()):
+    if not (path := job_info.get_info_file()):
         raise QQError(f"Job '{job_id}' is not a valid qq job.")
 
     return path
@@ -722,8 +722,8 @@ def available_work_dirs() -> str:
     from qq_lib.batch.interface.meta import BatchMeta
 
     try:
-        batch_system = BatchMeta.fromEnvVarOrGuess()
-        work_dirs = batch_system.getSupportedWorkDirTypes()
+        batch_system = BatchMeta.from_env_var_or_guess()
+        work_dirs = batch_system.get_supported_work_dir_types()
         return ", ".join([f"'{work_dir_type}'" for work_dir_type in work_dirs])
     except QQError:
         return "??? (no batch system detected)"

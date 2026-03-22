@@ -51,11 +51,11 @@ def get_killer(directory: str) -> Killer | None:
         return None
 
     # get the last info file (the newest one) and load it into an informer
-    informer = Informer.fromFile(info_files[-1], None)
+    informer = Informer.from_file(info_files[-1], None)
 
     # construct a killer from informer
     if informer:
-        return Killer.fromInformer(informer)
+        return Killer.from_informer(informer)
     return None
 
 
@@ -70,7 +70,7 @@ def process_directory(directory: str) -> tuple[str, bool]:
 
     # make sure that the job is suitable to be killed
     try:
-        killer.ensureSuitable()
+        killer.ensure_suitable()
     except Exception:
         return (directory, False)
 

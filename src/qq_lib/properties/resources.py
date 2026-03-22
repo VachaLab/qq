@@ -98,12 +98,12 @@ class Resources(HasCouplingMethods):
         props: dict[str, str] | str | None = None,
     ):
         # convert sizes
-        mem = Resources._parseSize(mem)
-        mem_per_node = Resources._parseSize(mem_per_node)
-        mem_per_cpu = Resources._parseSize(mem_per_cpu)
-        work_size = Resources._parseSize(work_size)
-        work_size_per_node = Resources._parseSize(work_size_per_node)
-        work_size_per_cpu = Resources._parseSize(work_size_per_cpu)
+        mem = Resources._parse_size(mem)
+        mem_per_node = Resources._parse_size(mem_per_node)
+        mem_per_cpu = Resources._parse_size(mem_per_cpu)
+        work_size = Resources._parse_size(work_size)
+        work_size_per_node = Resources._parse_size(work_size_per_node)
+        work_size_per_cpu = Resources._parse_size(work_size_per_cpu)
 
         # convert walltime
         if isinstance(walltime, str) and ":" not in walltime:
@@ -111,7 +111,7 @@ class Resources(HasCouplingMethods):
 
         # convert properties to dictionary
         if isinstance(props, str):
-            props = Resources._parseProps(props)
+            props = Resources._parse_props(props)
 
         # convert nnodes, ncpus, and ngpus to integers
         if isinstance(nnodes, str):
@@ -146,11 +146,11 @@ class Resources(HasCouplingMethods):
 
         logger.debug(f"Resources: {self}")
 
-    def toDict(self) -> dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         """Return all fields as a dict, excluding fields set to None."""
         return {k: v for k, v in asdict(self).items() if v is not None}
 
-    def usesScratch(self) -> bool:
+    def uses_scratch(self) -> bool:
         """
         Determine if the job uses a scratch directory.
 
@@ -162,7 +162,7 @@ class Resources(HasCouplingMethods):
         ) and not equals_normalized(str(self.work_dir), "input_dir")
 
     @staticmethod
-    def mergeResources(*resources: "Resources") -> "Resources":
+    def merge_resources(*resources: "Resources") -> "Resources":
         """
         Merge multiple Resources objects.
 
@@ -185,7 +185,7 @@ class Resources(HasCouplingMethods):
 
         for f in fields(Resources):
             # check if this field is part of a coupling
-            if coupling := Resources.getCouplingForField(f.name):
+            if coupling := Resources.get_coupling_for_field(f.name):
                 # skip if coupling already processed
                 if coupling in processed_couplings:
                     continue
@@ -193,7 +193,7 @@ class Resources(HasCouplingMethods):
 
                 # find first resource where either field in the coupling is set
                 source_resource = next(
-                    (r for r in resources if coupling.hasValue(r)), None
+                    (r for r in resources if coupling.has_value(r)), None
                 )
 
                 # set all fields of the coupling
@@ -218,7 +218,7 @@ class Resources(HasCouplingMethods):
 
         return Resources(**merged_data)
 
-    def toCommandLine(self) -> list[str]:
+    def to_command_line(self) -> list[str]:
         """
         Convert resource settings into a command-line argument list for `qq submit`.
 
@@ -233,11 +233,11 @@ class Resources(HasCouplingMethods):
                 continue
 
             if isinstance(value, Size):
-                command_line.extend([f"--{field_name}", value.toStrExact()])
+                command_line.extend([f"--{field_name}", value.to_str_exact()])
             elif isinstance(value, int):
                 command_line.extend([f"--{field_name}", str(value)])
             elif isinstance(value, dict):
-                if value := self._propsToValue():
+                if value := self._props_to_value():
                     command_line.extend([f"--{field_name}", value])
             elif isinstance(value, str):
                 command_line.extend([f"--{field_name}", value])
@@ -249,7 +249,7 @@ class Resources(HasCouplingMethods):
         return command_line
 
     @staticmethod
-    def _parseSize(value: object) -> Size | None:
+    def _parse_size(value: object) -> Size | None:
         """
         Convert a raw value into a `Size` instance if possible.
 
@@ -261,7 +261,7 @@ class Resources(HasCouplingMethods):
             otherwise `None`.
         """
         if isinstance(value, str):
-            return Size.fromString(value)
+            return Size.from_string(value)
         if isinstance(value, dict):
             return Size(**value)  # ty: ignore[invalid-argument-type]
         if isinstance(value, Size):
@@ -269,7 +269,7 @@ class Resources(HasCouplingMethods):
         return None
 
     @staticmethod
-    def _parseProps(props: str) -> dict[str, str]:
+    def _parse_props(props: str) -> dict[str, str]:
         """
         Parse a properties string into a dictionary of key/value pairs.
 
@@ -309,7 +309,7 @@ class Resources(HasCouplingMethods):
 
         return result
 
-    def _propsToValue(self) -> str | None:
+    def _props_to_value(self) -> str | None:
         """
         Convert a properties dictionary into a command-line raw value string.
 

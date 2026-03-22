@@ -18,7 +18,7 @@ class Killer(Operator):
     Class managing the termination of qq jobs.
     """
 
-    def ensureSuitable(self) -> None:
+    def ensure_suitable(self) -> None:
         """
         Verify that the job is in a state where it can be terminated.
 
@@ -26,17 +26,17 @@ class Killer(Operator):
             QQNotSuitableError: If the job has already been completed, killed,
                                 or is currently exiting.
         """
-        if self._isCompleted():
+        if self._is_completed():
             raise QQNotSuitableError(
                 "Job cannot be terminated. Job is already completed."
             )
 
-        if self._isKilled():
+        if self._is_killed():
             raise QQNotSuitableError(
                 "Job cannot be terminated. Job has already been killed."
             )
 
-        if self._isExiting():
+        if self._is_exiting():
             raise QQNotSuitableError(
                 "Job cannot be terminated. Job is in an exiting state."
             )
@@ -52,19 +52,19 @@ class Killer(Operator):
             QQError: If the kill command fails.
         """
         # has to be performed before actually killing the job
-        should_update = self._shouldUpdateInfoFile(force)
+        should_update = self._should_update_info_file(force)
 
         if force:
-            self._batch_system.jobKillForce(self._informer.info.job_id)
+            self._batch_system.job_kill_force(self._informer.info.job_id)
         else:
-            self._batch_system.jobKill(self._informer.info.job_id)
+            self._batch_system.job_kill(self._informer.info.job_id)
 
         if should_update:
-            self._updateInfoFile()
+            self._update_info_file()
 
         return self._informer.info.job_id
 
-    def _shouldUpdateInfoFile(self, force: bool) -> bool:
+    def _should_update_info_file(self, force: bool) -> bool:
         """
         Determine whether the killer itself should log that
         the job has been killed into the info file.
@@ -79,28 +79,28 @@ class Killer(Operator):
         """
 
         return (
-            (force or self._isQueued() or self._isSuspended())
-            and not self._isCompleted()
-            and not self._isKilled()
-            and not self._isUnknownInconsistent()
+            (force or self._is_queued() or self._is_suspended())
+            and not self._is_completed()
+            and not self._is_killed()
+            and not self._is_unknown_inconsistent()
         )
 
-    def _updateInfoFile(self) -> None:
+    def _update_info_file(self) -> None:
         """
         Mark the job as killed in the info file and lock it to prevent overwriting.
         """
-        self._informer.setKilled(datetime.now())
-        self._informer.toFile(self._info_file)
+        self._informer.set_killed(datetime.now())
+        self._informer.to_file(self._info_file)
         # strictly speaking, we only need to lock the info file
         # when dealing with a booting job but doing it for the other jobs
         # which state is managed by `qq kill` does not hurt anything
-        self._lockFile(self._info_file)
+        self._lock_file(self._info_file)
 
-    def _isSuspended(self) -> bool:
+    def _is_suspended(self) -> bool:
         """Check if the job is currently suspended."""
         return self._state == RealState.SUSPENDED
 
-    def _isQueued(self) -> bool:
+    def _is_queued(self) -> bool:
         """Check if the job is queued, held, waiting, or booting."""
         return self._state in {
             RealState.QUEUED,
@@ -109,26 +109,26 @@ class Killer(Operator):
             RealState.BOOTING,
         }
 
-    def _isKilled(self) -> bool:
+    def _is_killed(self) -> bool:
         """Check if the job has already been killed."""
         return self._state == RealState.KILLED or (
             self._state == RealState.EXITING
             and self._informer.info.job_exit_code is None
         )
 
-    def _isCompleted(self) -> bool:
+    def _is_completed(self) -> bool:
         """Check if the job has finished or failed."""
         return self._state in {RealState.FINISHED, RealState.FAILED}
 
-    def _isExiting(self) -> bool:
+    def _is_exiting(self) -> bool:
         """Check if the job is currently exiting."""
         return self._state == RealState.EXITING
 
-    def _isUnknownInconsistent(self) -> bool:
+    def _is_unknown_inconsistent(self) -> bool:
         """Check if the job is in an unknown or inconsistent state."""
         return self._state in {RealState.UNKNOWN, RealState.IN_AN_INCONSISTENT_STATE}
 
-    def _lockFile(self, file_path: Path) -> None:
+    def _lock_file(self, file_path: Path) -> None:
         """
         Remove write permissions for an info file to prevent overwriting
         information about the killed job.

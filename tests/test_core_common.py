@@ -747,10 +747,10 @@ def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJob:
 
 def test_get_info_file_from_job_id_success():
     with (
-        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
+        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
         patch.object(
             PBS,
-            "getBatchJob",
+            "get_batch_job",
             return_value=_make_jobinfo_with_info(
                 {
                     "Variable_List": f"{CFG.env_vars.info_file}=/path/to/info_file.qqinfo,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
@@ -763,10 +763,10 @@ def test_get_info_file_from_job_id_success():
 
 def test_get_info_file_from_job_id_no_info():
     with (
-        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
+        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
         patch.object(
             PBS,
-            "getBatchJob",
+            "get_batch_job",
             return_value=_make_jobinfo_with_info(
                 {
                     "Variable_List": "SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
@@ -780,10 +780,10 @@ def test_get_info_file_from_job_id_no_info():
 
 def test_get_info_file_from_job_id_nonexistent_job():
     with (
-        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
+        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
         patch.object(
             PBS,
-            "getBatchJob",
+            "get_batch_job",
             return_value=_make_jobinfo_with_info({}),
         ),
         pytest.raises(QQError, match="does not exist"),
@@ -1068,16 +1068,18 @@ def test_construct_info_file_path_returns_expected_path():
 
 def test_available_work_dirs_returns_joined_list():
     mock_batch_system = MagicMock()
-    mock_batch_system.getSupportedWorkDirTypes.return_value = ["a", "b"]
+    mock_batch_system.get_supported_work_dir_types.return_value = ["a", "b"]
 
-    with patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=mock_batch_system):
+    with patch.object(
+        BatchMeta, "from_env_var_or_guess", return_value=mock_batch_system
+    ):
         expected = "'a', 'b'"
 
         assert available_work_dirs() == expected
 
 
 def test_available_work_dirs_returns_placeholder_on_error():
-    with patch.object(BatchMeta, "fromEnvVarOrGuess", side_effect=QQError):
+    with patch.object(BatchMeta, "from_env_var_or_guess", side_effect=QQError):
         assert available_work_dirs() == "??? (no batch system detected)"
 
 

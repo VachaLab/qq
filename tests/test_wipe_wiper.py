@@ -146,18 +146,18 @@ def test_wiper_ensure_suitable_raises_for_disallowed_states(
     wiper._state = state
     wiper._informer = MagicMock()
     wiper._informer.info.job_exit_code = job_exit_code
-    wiper._informer.getRealState.return_value = state
+    wiper._informer.get_real_state.return_value = state
     wiper._informer.info.transfer_mode = transfer_mode
 
     wiper._work_dir = Path("/workdir")
     wiper._main_node = "node"
     wiper._input_machine = "input"
     wiper._informer.info.input_dir = Path("/different_input")
-    wiper._informer.usesScratch.return_value = True
+    wiper._informer.uses_scratch.return_value = True
     wiper._batch_system = MagicMock()
 
     with pytest.raises(QQNotSuitableError, match=expected_message):
-        wiper.ensureSuitable()
+        wiper.ensure_suitable()
 
 
 def test_wiper_ensure_suitable_raises_when_destination_missing():
@@ -165,19 +165,19 @@ def test_wiper_ensure_suitable_raises_when_destination_missing():
     wiper._state = RealState.FAILED
     wiper._informer = MagicMock()
     wiper._informer.info.job_exit_code = 1
-    wiper._informer.getRealState.return_value = RealState.FAILED
+    wiper._informer.get_real_state.return_value = RealState.FAILED
 
     wiper._work_dir = None
     wiper._main_node = None
     wiper._input_machine = "input"
     wiper._informer.info.input_dir = Path("/input")
-    wiper._informer.usesScratch.return_value = True
+    wiper._informer.uses_scratch.return_value = True
     wiper._batch_system = MagicMock()
 
     with pytest.raises(
         QQNotSuitableError, match="Job does not have a working directory."
     ):
-        wiper.ensureSuitable()
+        wiper.ensure_suitable()
 
 
 def test_wiper_ensure_suitable_raises_when_workdir_is_inputdir():
@@ -185,20 +185,20 @@ def test_wiper_ensure_suitable_raises_when_workdir_is_inputdir():
     wiper._state = RealState.FAILED
     wiper._informer = MagicMock()
     wiper._informer.info.job_exit_code = 1
-    wiper._informer.getRealState.return_value = RealState.FAILED
+    wiper._informer.get_real_state.return_value = RealState.FAILED
     same_path = Path("/shared/path")
 
     wiper._work_dir = same_path
     wiper._main_node = "main"
     wiper._input_machine = "main"
     wiper._informer.info.input_dir = same_path
-    wiper._informer.usesScratch.return_value = False
+    wiper._informer.uses_scratch.return_value = False
     wiper._batch_system = MagicMock()
 
     with pytest.raises(
         QQNotSuitableError, match="Working directory of the job is the input directory"
     ):
-        wiper.ensureSuitable()
+        wiper.ensure_suitable()
 
 
 @pytest.mark.parametrize(
@@ -274,15 +274,15 @@ def test_wiper_ensure_suitable_passes_for_allowed_states(
     wiper._informer = MagicMock()
     wiper._informer.info.job_exit_code = job_exit_code
     wiper._informer.info.transfer_mode = transfer_mode
-    wiper._informer.getRealState.return_value = state
+    wiper._informer.get_real_state.return_value = state
     wiper._work_dir = Path("/valid/workdir")
     wiper._main_node = "main"
     wiper._input_machine = "input"
     wiper._informer.info.input_dir = Path("/different")
-    wiper._informer.usesScratch.return_value = True
+    wiper._informer.uses_scratch.return_value = True
     wiper._batch_system = MagicMock()
 
-    wiper.ensureSuitable()
+    wiper.ensure_suitable()
 
 
 @pytest.mark.parametrize(
@@ -306,8 +306,8 @@ def test_wiper_wipe_raises_for_invalid_conditions(
     has_destination, workdir_is_inputdir, expected_exception, expected_message
 ):
     wiper = Wiper.__new__(Wiper)
-    wiper.hasDestination = MagicMock(return_value=has_destination)
-    wiper._workDirIsInputDir = MagicMock(return_value=workdir_is_inputdir)
+    wiper.has_destination = MagicMock(return_value=has_destination)
+    wiper._work_dir_is_input_dir = MagicMock(return_value=workdir_is_inputdir)
     wiper._batch_system = MagicMock()
     wiper._informer = MagicMock()
     wiper._main_node = "node"
@@ -319,10 +319,10 @@ def test_wiper_wipe_raises_for_invalid_conditions(
 
 @patch("qq_lib.wipe.wiper.logger.info")
 def test_wiper_delete_success_calls_logger_and_deletes(mock_logger_info):
-    # Successful deletion should call logger and deleteRemoteDir
+    # Successful deletion should call logger and delete_remote_dir
     wiper = Wiper.__new__(Wiper)
-    wiper.hasDestination = MagicMock(return_value=True)
-    wiper._workDirIsInputDir = MagicMock(return_value=False)
+    wiper.has_destination = MagicMock(return_value=True)
+    wiper._work_dir_is_input_dir = MagicMock(return_value=False)
     wiper._batch_system = MagicMock()
     wiper._informer = MagicMock()
     wiper._informer.info.job_id = "job123"
@@ -333,6 +333,6 @@ def test_wiper_delete_success_calls_logger_and_deletes(mock_logger_info):
 
     assert result == "job123"
     mock_logger_info.assert_called_once()
-    wiper._batch_system.deleteRemoteDir.assert_called_once_with(
+    wiper._batch_system.delete_remote_dir.assert_called_once_with(
         "main_node", Path("/some/workdir")
     )

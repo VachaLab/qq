@@ -21,7 +21,7 @@ from qq_lib.properties.states import NaiveState
 
 @pytest.fixture(autouse=True)
 def register():
-    BatchMeta.registerBatchSystem(PBS)
+    BatchMeta.register_batch_system(PBS)
 
 
 @pytest.fixture
@@ -56,7 +56,7 @@ def sample_info(sample_resources):
 
 
 def test_to_dict_skips_none(sample_info):
-    result = sample_info._toDict()
+    result = sample_info._to_dict()
     assert "start_time" not in result
     assert "completion_time" not in result
     assert "job_exit_code" not in result
@@ -69,7 +69,7 @@ def test_to_dict_skips_none(sample_info):
 
 
 def test_to_dict_contains_all_non_none_fields(sample_info):
-    result = sample_info._toDict()
+    result = sample_info._to_dict()
     expected_fields = {
         "batch_system",
         "qq_version",
@@ -93,12 +93,12 @@ def test_to_dict_contains_all_non_none_fields(sample_info):
 
 
 def test_to_yaml_returns_string(sample_info):
-    yaml_str = sample_info._toYaml()
+    yaml_str = sample_info._to_yaml()
     assert isinstance(yaml_str, str)
 
 
 def test_to_yaml_contains_fields(sample_info):
-    yaml_str = sample_info._toYaml()
+    yaml_str = sample_info._to_yaml()
     data: dict[str, Any] = yaml.safe_load(yaml_str)
 
     assert data["batch_system"] == "PBS"
@@ -110,7 +110,7 @@ def test_to_yaml_contains_fields(sample_info):
 
 
 def test_to_yaml_skips_none_fields(sample_info):
-    yaml_str = sample_info._toYaml()
+    yaml_str = sample_info._to_yaml()
     data: dict[str, Any] = yaml.safe_load(yaml_str)
 
     assert "start_time" not in data
@@ -120,7 +120,7 @@ def test_to_yaml_skips_none_fields(sample_info):
 
 def test_export_to_file_creates_file(sample_info, tmp_path):
     file_path = tmp_path / "qqinfo.yaml"
-    sample_info.toFile(file_path)
+    sample_info.to_file(file_path)
 
     assert file_path.exists()
     assert file_path.is_file()
@@ -128,7 +128,7 @@ def test_export_to_file_creates_file(sample_info, tmp_path):
 
 def test_export_to_file_contains_yaml(sample_info, tmp_path):
     file_path = tmp_path / "qqinfo.yaml"
-    sample_info.toFile(file_path)
+    sample_info.to_file(file_path)
 
     content = file_path.read_text()
 
@@ -141,7 +141,7 @@ def test_export_to_file_contains_yaml(sample_info, tmp_path):
     assert data["batch_system"] == str(sample_info.batch_system)
     assert data["job_state"] == str(sample_info.job_state)
 
-    resources_dict = sample_info.resources.toDict()
+    resources_dict = sample_info.resources.to_dict()
     assert data["resources"] == resources_dict
 
     assert data["excluded_files"] == [str(p) for p in sample_info.excluded_files]
@@ -149,7 +149,7 @@ def test_export_to_file_contains_yaml(sample_info, tmp_path):
 
 def test_export_to_file_skips_none_fields(sample_info, tmp_path):
     file_path = tmp_path / "qqinfo.yaml"
-    sample_info.toFile(file_path)
+    sample_info.to_file(file_path)
 
     content = file_path.read_text()
     data = yaml.safe_load(content)
@@ -164,13 +164,13 @@ def test_export_to_file_invalid_path(sample_info):
     invalid_file = Path("/this/path/does/not/exist/qqinfo.yaml")
 
     with pytest.raises(QQError, match="Cannot create or write to file"):
-        sample_info.toFile(invalid_file)
+        sample_info.to_file(invalid_file)
 
 
 def test_from_dict_roundtrip(sample_info):
     # convert to dict and back
-    data = sample_info._toDict()
-    reconstructed = Info._fromDict(data)
+    data = sample_info._to_dict()
+    reconstructed = Info._from_dict(data)
 
     # basic fields
     for field_name in [
@@ -220,26 +220,26 @@ def test_from_dict_multiple_excluded_files(sample_info):
     sample_info.excluded_files.append(Path("excluded3.txt"))
 
     # convert to dict and back
-    data = sample_info._toDict()
-    reconstructed = Info._fromDict(data)
+    data = sample_info._to_dict()
+    reconstructed = Info._from_dict(data)
 
     assert reconstructed.excluded_files == [Path(p) for p in sample_info.excluded_files]
 
 
 def test_from_dict_empty_excluded(sample_info):
-    data = sample_info._toDict()
+    data = sample_info._to_dict()
     data["excluded_files"] = []
 
-    reconstructed = Info._fromDict(data)
+    reconstructed = Info._from_dict(data)
     assert len(reconstructed.excluded_files) == 0
 
 
 def test_load_from_file(tmp_path, sample_info):
     file_path = tmp_path / "qqinfo.yaml"
 
-    sample_info.toFile(file_path)
+    sample_info.to_file(file_path)
 
-    loaded_info = Info.fromFile(file_path)
+    loaded_info = Info.from_file(file_path)
 
     assert loaded_info.job_id == sample_info.job_id
     assert loaded_info.job_name == sample_info.job_name
@@ -249,7 +249,7 @@ def test_load_from_file(tmp_path, sample_info):
 def test_load_from_file_missing(tmp_path):
     missing_file = tmp_path / "nonexistent.yaml"
     with pytest.raises(QQError, match="does not exist"):
-        Info.fromFile(missing_file)
+        Info.from_file(missing_file)
 
 
 def test_from_file_invalid_yaml(tmp_path):
@@ -257,7 +257,7 @@ def test_from_file_invalid_yaml(tmp_path):
     file.write_text("key: : value")
 
     with pytest.raises(QQError, match=r"Could not parse the qq info file"):
-        Info.fromFile(file)
+        Info.from_file(file)
 
 
 def test_from_file_missing_required_field(tmp_path):
@@ -281,7 +281,7 @@ def test_from_file_missing_required_field(tmp_path):
     file.write_text(yaml.dump(data))
 
     with pytest.raises(QQError, match=r"Invalid qq info file"):
-        Info.fromFile(file)
+        Info.from_file(file)
 
 
 def test_get_command_line_for_resubmit_basic(sample_info):
@@ -289,7 +289,7 @@ def test_get_command_line_for_resubmit_basic(sample_info):
     sample_info.account = None
     sample_info.excluded_files = []
 
-    assert sample_info.getCommandLineForResubmit() == [
+    assert sample_info.get_command_line_for_resubmit() == [
         "script.sh",
         "--queue",
         "default",
@@ -310,7 +310,7 @@ def test_get_command_line_for_resubmit_basic_with_server(sample_info):
     sample_info.excluded_files = []
     sample_info.server = "fake.server.com"
 
-    assert sample_info.getCommandLineForResubmit() == [
+    assert sample_info.get_command_line_for_resubmit() == [
         "script.sh",
         "--queue",
         "default",
@@ -332,7 +332,7 @@ def test_get_command_line_for_continuous(sample_info):
     sample_info.excluded_files = [Path("exclude.txt"), Path("inner/exclude2.txt")]
     sample_info.included_files = [Path("include.txt"), Path("inner/include2.txt")]
 
-    assert sample_info.getCommandLineForResubmit() == [
+    assert sample_info.get_command_line_for_resubmit() == [
         "script.sh",
         "--queue",
         "default",
@@ -366,7 +366,7 @@ def test_get_command_line_full(sample_info):
     )
     sample_info.server = "fake.server.com"
 
-    assert sample_info.getCommandLineForResubmit() == [
+    assert sample_info.get_command_line_for_resubmit() == [
         "script.sh",
         "--queue",
         "default",

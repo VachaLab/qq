@@ -50,7 +50,7 @@ class Size:
         self.value = value * self._unit_map[unit]
 
     @classmethod
-    def fromString(cls, s: str) -> Self:
+    def from_string(cls, s: str) -> Self:
         """
         Create a Size object from a string.
 
@@ -114,11 +114,11 @@ class Size:
         # should not get here
         return f"{self.value}kb"
 
-    def toStrExact(self) -> str:
+    def to_str_exact(self) -> str:
         """Convert the Size to string while keeping it in kilobytes."""
         return f"{self.value}kb"
 
-    def toStrExactSlurm(self) -> str:
+    def to_str_exact_slurm(self) -> str:
         """Convert the Size to string while keeping it in kilobytes. Use K for the unit."""
         return f"{self.value}K"
 

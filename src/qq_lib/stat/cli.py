@@ -46,27 +46,27 @@ logger = get_logger(__name__)
 @click.option("--yaml", is_flag=True, help="Output job metadata in YAML format.")
 def stat(extra: bool, all: bool, server: str | None, yaml: bool) -> NoReturn:
     try:
-        batch_system = BatchMeta.fromEnvVarOrGuess()
+        batch_system = BatchMeta.from_env_var_or_guess()
 
         if server:
             server = translate_server(server)
 
         if all:
-            jobs = batch_system.getAllBatchJobs(server)
+            jobs = batch_system.get_all_batch_jobs(server)
         else:
-            jobs = batch_system.getAllUnfinishedBatchJobs(server)
+            jobs = batch_system.get_all_unfinished_batch_jobs(server)
 
         if not jobs:
             logger.info("No jobs found.")
             sys.exit(0)
 
-        batch_system.sortJobs(jobs)
+        batch_system.sort_jobs(jobs)
         presenter = JobsPresenter(batch_system, jobs, extra, all, server)
         if yaml:
-            presenter.dumpYaml()
+            presenter.dump_yaml()
         else:
             console = Console(record=False, markup=False)
-            panel = presenter.createJobsInfoPanel(console)
+            panel = presenter.create_jobs_info_panel(console)
             console.print(panel)
 
         sys.exit(0)

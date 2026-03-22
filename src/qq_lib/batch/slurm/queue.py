@@ -31,7 +31,7 @@ class UserGroups:
     _qos: dict[str, str] = {}
 
     @staticmethod
-    def getGroupsOrInit(user: str) -> list[str]:
+    def get_groups_or_init(user: str) -> list[str]:
         """
         Retrieve the cached group memberships for a user, initializing them if needed.
 
@@ -64,7 +64,7 @@ class UserGroups:
         return groups
 
     @staticmethod
-    def getQOSOrInit(user: str) -> str:
+    def get_QOS_or_init(user: str) -> str:
         if qos := UserGroups._qos.get(user):
             return qos
 
@@ -120,12 +120,12 @@ class SlurmQueue(BatchQueueInterface):
             raise QQError(f"Queue '{self._name}' does not exist.")
 
         self._info = parse_slurm_dump_to_dictionary(result.stdout)
-        self._setJobNumbers()
+        self._set_job_numbers()
 
-    def getName(self) -> str:
+    def get_name(self) -> str:
         return self._name
 
-    def getPriority(self) -> str | None:
+    def get_priority(self) -> str | None:
         if not (tier := self._info.get("PriorityTier")):
             return None
 
@@ -134,25 +134,25 @@ class SlurmQueue(BatchQueueInterface):
 
         return f"T{tier} ({job_factor})"
 
-    def getTotalJobs(self) -> int | None:
+    def get_total_jobs(self) -> int | None:
         return self._running_jobs + self._queued_jobs + self._other_jobs
 
-    def getRunningJobs(self) -> int | None:
+    def get_running_jobs(self) -> int | None:
         return self._running_jobs
 
-    def getQueuedJobs(self) -> int | None:
+    def get_queued_jobs(self) -> int | None:
         return self._queued_jobs
 
-    def getOtherJobs(self) -> int | None:
+    def get_other_jobs(self) -> int | None:
         return self._other_jobs
 
-    def getMaxWalltime(self) -> timedelta | None:
+    def get_max_walltime(self) -> timedelta | None:
         if raw := self._info.get("MaxTime"):
             return dhhmmss_to_duration(raw)
 
         return None
 
-    def getMaxNNodes(self) -> int | None:
+    def get_max_n_nodes(self) -> int | None:
         if not (raw := self._info.get("MaxNodes")):
             return None
 
@@ -162,10 +162,10 @@ class SlurmQueue(BatchQueueInterface):
             logger.debug(f"Could not parse the 'MaxNodes' property as integer: {e}.")
             return None
 
-    def getComment(self) -> str | None:
+    def get_comment(self) -> str | None:
         return None
 
-    def isAvailableToUser(self, user: str) -> bool:
+    def is_available_to_user(self, user: str) -> bool:
         # check the queue's state
         state = self._info.get("State", "DOWN")
         if state not in ["UP", "DRAIN"]:
@@ -187,7 +187,7 @@ class SlurmQueue(BatchQueueInterface):
             return False
 
         # check allowed groups
-        user_groups = UserGroups.getGroupsOrInit(user)
+        user_groups = UserGroups.get_groups_or_init(user)
         allow_groups = parse_list(self._info.get("AllowGroups", "ALL"))
         if allow_groups and not any(group in allow_groups for group in user_groups):
             return False
@@ -198,7 +198,7 @@ class SlurmQueue(BatchQueueInterface):
             return False
 
         # check allowed QOS
-        user_qos = UserGroups.getQOSOrInit(user)
+        user_qos = UserGroups.get_QOS_or_init(user)
         allow_qos = parse_list(self._info.get("AllowQos", "ALL"))
         if allow_qos and user_qos not in allow_qos:
             return False
@@ -207,23 +207,23 @@ class SlurmQueue(BatchQueueInterface):
         deny_qos = parse_list(self._info.get("DenyQos", "(null)"))
         return not (deny_qos and user_qos in deny_qos)
 
-    def getDestinations(self) -> list[str]:
+    def get_destinations(self) -> list[str]:
         # no destinations
         return []
 
-    def fromRouteOnly(self) -> bool:
+    def from_route_only(self) -> bool:
         return False
 
-    def toYaml(self) -> str:
+    def to_yaml(self) -> str:
         return yaml.dump(
             self._info, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
-    def getDefaultResources(self) -> Resources:
+    def get_default_resources(self) -> Resources:
         return default_resources_from_dict(self._info)
 
     @classmethod
-    def fromDict(cls, name: str, info: dict[str, str]) -> Self:
+    def from_dict(cls, name: str, info: dict[str, str]) -> Self:
         """
         Construct a new instance of SlurmQueue from a queue name and a dictionary of queue information.
 
@@ -241,11 +241,11 @@ class SlurmQueue(BatchQueueInterface):
         queue = cls.__new__(cls)
         queue._name = name
         queue._info = info
-        queue._setJobNumbers()
+        queue._set_job_numbers()
 
         return queue
 
-    def _setJobNumbers(self) -> None:
+    def _set_job_numbers(self) -> None:
         """
         Get and set the numbers of jobs in this queue.
         """

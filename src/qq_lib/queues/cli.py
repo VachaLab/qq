@@ -47,22 +47,22 @@ If the `--all` flag is specified, display all queues, including those not availa
 @click.option("--yaml", is_flag=True, help="Output queue metadata in YAML format.")
 def queues(all: bool, server: str | None, yaml: bool) -> NoReturn:
     try:
-        BatchSystem = BatchMeta.fromEnvVarOrGuess()
+        BatchSystem = BatchMeta.from_env_var_or_guess()
         if server:
             server = translate_server(server)
 
-        queues: list[BatchQueueInterface] = BatchSystem.getQueues(server)
+        queues: list[BatchQueueInterface] = BatchSystem.get_queues(server)
         user = getpass.getuser()
 
         if not all:
-            queues = [q for q in queues if q.isAvailableToUser(user)]
+            queues = [q for q in queues if q.is_available_to_user(user)]
 
         presenter = QueuesPresenter(queues, user, all, server)
         if yaml:
-            presenter.dumpYaml()
+            presenter.dump_yaml()
         else:
             console = Console(record=False, markup=False)
-            panel = presenter.createQueuesInfoPanel(console)
+            panel = presenter.create_queues_info_panel(console)
             console.print(panel)
         sys.exit(0)
     except QQError as e:

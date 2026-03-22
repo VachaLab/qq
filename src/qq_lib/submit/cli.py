@@ -297,10 +297,13 @@ def submit(script: str, **kwargs) -> NoReturn:
 
         # parse options from the command line and from the script itself
         factory = SubmitterFactory(logical_resolve(script_path), **kwargs)
-        submitter = factory.makeSubmitter()
+        submitter = factory.make_submitter()
 
         # guard against multiple submissions from the same directory
-        if get_runtime_files(submitter.getInputDir()) and not submitter.continuesLoop():
+        if (
+            get_runtime_files(submitter.get_input_dir())
+            and not submitter.continues_loop()
+        ):
             raise QQError(
                 "Detected qq runtime files in the submission directory. Submission aborted."
             )

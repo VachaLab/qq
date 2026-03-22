@@ -27,7 +27,7 @@ class QueuesAvailability:
     _queues: dict[str, dict[str, bool]] = {}
 
     @staticmethod
-    def getOrInit(queue: str, user: str, server: str | None) -> bool:
+    def get_or_init(queue: str, user: str, server: str | None) -> bool:
         """
         Retrieve the availability of a queue for the given user.
 
@@ -44,30 +44,30 @@ class QueuesAvailability:
         # check whether the availability is cached
         if (
             avail_dict := QueuesAvailability._queues.get(
-                QueuesAvailability._getFullQueueName(queue, server)
+                QueuesAvailability._get_full_queue_name(queue, server)
             )
         ) is not None and (available := avail_dict.get(user)) is not None:
             return available
 
         # get the availability by querying the batch system
-        available = PBSQueue(queue, server).isAvailableToUser(user)
+        available = PBSQueue(queue, server).is_available_to_user(user)
 
         # cache the result
         try:
             QueuesAvailability._queues[
-                QueuesAvailability._getFullQueueName(queue, server)
+                QueuesAvailability._get_full_queue_name(queue, server)
             ][user] = available
         except KeyError:
             QueuesAvailability._queues[
-                QueuesAvailability._getFullQueueName(queue, server)
+                QueuesAvailability._get_full_queue_name(queue, server)
             ] = {user: available}
         logger.debug(
-            f"Initialized availability of '{QueuesAvailability._getFullQueueName(queue, server)}' for user '{user}'."
+            f"Initialized availability of '{QueuesAvailability._get_full_queue_name(queue, server)}' for user '{user}'."
         )
         return available
 
     @staticmethod
-    def _getFullQueueName(queue: str, server: str | None) -> str:
+    def _get_full_queue_name(queue: str, server: str | None) -> str:
         """
         Format a queue name with an optional server qualifier.
 
@@ -119,59 +119,59 @@ class PBSNode(BatchNodeInterface):
 
         self._info = parse_pbs_dump_to_dictionary(result.stdout)
 
-    def getName(self) -> str:
+    def get_name(self) -> str:
         return self._name
 
-    def getNCPUs(self) -> int | None:
-        return self._getIntResource("resources_available.ncpus")
+    def get_n_cpus(self) -> int | None:
+        return self._get_int_resource("resources_available.ncpus")
 
-    def getNFreeCPUs(self) -> int | None:
-        return self._getFreeIntResource("ncpus")
+    def get_n_free_cpus(self) -> int | None:
+        return self._get_free_int_resource("ncpus")
 
-    def getNGPUs(self) -> int | None:
-        return self._getIntResource("resources_available.ngpus")
+    def get_n_gpus(self) -> int | None:
+        return self._get_int_resource("resources_available.ngpus")
 
-    def getNFreeGPUs(self) -> int | None:
-        return self._getFreeIntResource("ngpus")
+    def get_n_free_gpus(self) -> int | None:
+        return self._get_free_int_resource("ngpus")
 
-    def getCPUMemory(self) -> Size | None:
-        return self._getSizeResource("resources_available.mem")
+    def get_cpu_memory(self) -> Size | None:
+        return self._get_size_resource("resources_available.mem")
 
-    def getFreeCPUMemory(self) -> Size | None:
-        return self._getFreeSizeResource("mem")
+    def get_free_cpu_memory(self) -> Size | None:
+        return self._get_free_size_resource("mem")
 
-    def getGPUMemory(self) -> Size | None:
-        return self._getSizeResource("resources_available.gpu_mem")
+    def get_gpu_memory(self) -> Size | None:
+        return self._get_size_resource("resources_available.gpu_mem")
 
-    def getFreeGPUMemory(self) -> Size | None:
-        return self._getFreeSizeResource("gpu_mem")
+    def get_free_gpu_memory(self) -> Size | None:
+        return self._get_free_size_resource("gpu_mem")
 
-    def getLocalScratch(self) -> Size | None:
-        return self._getSizeResource("resources_available.scratch_local")
+    def get_local_scratch(self) -> Size | None:
+        return self._get_size_resource("resources_available.scratch_local")
 
-    def getFreeLocalScratch(self) -> Size | None:
-        return self._getFreeSizeResource("scratch_local")
+    def get_free_local_scratch(self) -> Size | None:
+        return self._get_free_size_resource("scratch_local")
 
-    def getSSDScratch(self) -> Size | None:
-        return self._getSizeResource("resources_available.scratch_ssd")
+    def get_ssd_scratch(self) -> Size | None:
+        return self._get_size_resource("resources_available.scratch_ssd")
 
-    def getFreeSSDScratch(self) -> Size | None:
-        return self._getFreeSizeResource("scratch_ssd")
+    def get_free_ssd_scratch(self) -> Size | None:
+        return self._get_free_size_resource("scratch_ssd")
 
-    def getSharedScratch(self) -> Size | None:
-        return self._getSizeResource("resources_available.scratch_shared")
+    def get_shared_scratch(self) -> Size | None:
+        return self._get_size_resource("resources_available.scratch_shared")
 
-    def getFreeSharedScratch(self) -> Size | None:
-        return self._getFreeSizeResource("scratch_shared")
+    def get_free_shared_scratch(self) -> Size | None:
+        return self._get_free_size_resource("scratch_shared")
 
-    def getProperties(self) -> list[str]:
+    def get_properties(self) -> list[str]:
         return [
             key.split(".", 1)[-1]
             for key in self._info
             if "resources_available" in key and self._info[key] == "True"
         ]
 
-    def isAvailableToUser(self, user: str) -> bool:
+    def is_available_to_user(self, user: str) -> bool:
         if not (state := self._info.get("state")):
             logger.debug(f"Could not get state information for node '{self._name}'.")
             return False
@@ -183,12 +183,12 @@ class PBSNode(BatchNodeInterface):
             return False
 
         if queue := self._info.get("queue"):
-            return QueuesAvailability.getOrInit(queue, user, self._server)
+            return QueuesAvailability.get_or_init(queue, user, self._server)
 
         return True
 
     @classmethod
-    def fromDict(cls, name: str, server: str | None, info: dict[str, str]) -> Self:
+    def from_dict(cls, name: str, server: str | None, info: dict[str, str]) -> Self:
         """
         Construct a new instance of PBSNode from node name and a dictionary of node information.
 
@@ -210,14 +210,14 @@ class PBSNode(BatchNodeInterface):
 
         return node
 
-    def toYaml(self) -> str:
+    def to_yaml(self) -> str:
         # we need to add node name to the start of the dictionary
         to_dump = {"Node": self._name} | self._info
         return yaml.dump(
             to_dump, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
-    def _getIntResource(self, res: str) -> int | None:
+    def _get_int_resource(self, res: str) -> int | None:
         """
         Retrieve an integer-valued resource from the node information.
 
@@ -235,7 +235,7 @@ class PBSNode(BatchNodeInterface):
             logger.debug(f"Could not parse the value '{val}' of resource '{res}': {e}.")
             return None
 
-    def _getFreeIntResource(self, res: str) -> int | None:
+    def _get_free_int_resource(self, res: str) -> int | None:
         """
         Compute the number of free units for an integer-valued resource.
 
@@ -249,18 +249,18 @@ class PBSNode(BatchNodeInterface):
         Returns:
             int | None: The number of unallocated (free) resource units, or None if unavailable.
         """
-        if not (full := self._getIntResource(f"resources_available.{res}")):
+        if not (full := self._get_int_resource(f"resources_available.{res}")):
             return None
 
         # if the `resources_assigned` property is missing, we assume it means that there are no resources assigned
-        assigned = self._getIntResource(f"resources_assigned.{res}") or 0
+        assigned = self._get_int_resource(f"resources_assigned.{res}") or 0
 
         if (diff := full - assigned) >= 0:
             return diff
 
         return 0
 
-    def _getSizeResource(self, res: str) -> Size | None:
+    def _get_size_resource(self, res: str) -> Size | None:
         """
         Retrieve a Size resource from the node information.
 
@@ -274,12 +274,12 @@ class PBSNode(BatchNodeInterface):
             return None
 
         try:
-            return Size.fromString(val)
+            return Size.from_string(val)
         except Exception as e:
             logger.debug(f"Could not parse the value '{val}' of resource '{res}': {e}.")
             return None
 
-    def _getFreeSizeResource(self, res: str) -> Size | None:
+    def _get_free_size_resource(self, res: str) -> Size | None:
         """
         Compute the amount of free space for a Size resource.
 
@@ -293,11 +293,11 @@ class PBSNode(BatchNodeInterface):
         Returns:
             Size | None: The available (free) size for the resource, or `None` if unavailable.
         """
-        if not (full := self._getSizeResource(f"resources_available.{res}")):
+        if not (full := self._get_size_resource(f"resources_available.{res}")):
             return None
 
         # if the `resources_assigned` property is missing, we assume it means that there are no resources assigned
-        assigned = self._getSizeResource(f"resources_assigned.{res}") or Size(0, "kb")
+        assigned = self._get_size_resource(f"resources_assigned.{res}") or Size(0, "kb")
 
         try:
             return full - assigned

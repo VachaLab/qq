@@ -40,7 +40,7 @@ SHEBANG = f"#!/usr/bin/env -S {CFG.binary_name} run"
 def shebang(script: str | None) -> NoReturn:
     try:
         if script:
-            _replaceOrAddShebang(Path(script))
+            _replace_or_add_shebang(Path(script))
         else:
             print(SHEBANG)
         sys.exit(0)
@@ -54,7 +54,7 @@ def shebang(script: str | None) -> NoReturn:
         sys.exit(CFG.exit_codes.unexpected_error)
 
 
-def _replaceOrAddShebang(file: Path) -> None:
+def _replace_or_add_shebang(file: Path) -> None:
     """
     Replaces or adds a shebang line to a file.
 

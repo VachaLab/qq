@@ -11,7 +11,7 @@ class BatchNodeInterface(ABC):
     Abstract base class for obtaining information about compute nodes.
 
     The implementation of the constructor is arbitrary and should only
-    be used inside the corresponding implementation of `BatchInterface.getNodes`.
+    be used inside the corresponding implementation of `BatchInterface.get_nodes`.
     """
 
     @abstractmethod
@@ -24,7 +24,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def getName(self) -> str:
+    def get_name(self) -> str:
         """
         Retrieve the name of the node.
 
@@ -33,7 +33,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def getNCPUs(self) -> int | None:
+    def get_n_cpus(self) -> int | None:
         """
         Retrieve the total number of CPU cores available on the node.
 
@@ -42,7 +42,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def getNFreeCPUs(self) -> int | None:
+    def get_n_free_cpus(self) -> int | None:
         """
         Retrieve the number of currently available (unallocated) CPU cores.
 
@@ -51,7 +51,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def getNGPUs(self) -> int | None:
+    def get_n_gpus(self) -> int | None:
         """
         Retrieve the total number of GPUs available on the node.
 
@@ -60,7 +60,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def getNFreeGPUs(self) -> int | None:
+    def get_n_free_gpus(self) -> int | None:
         """
         Retrieve the number of currently available (unallocated) GPUs.
 
@@ -69,7 +69,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def getCPUMemory(self) -> Size | None:
+    def get_cpu_memory(self) -> Size | None:
         """
         Retrieve the total CPU memory capacity of the node.
 
@@ -78,7 +78,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def getFreeCPUMemory(self) -> Size | None:
+    def get_free_cpu_memory(self) -> Size | None:
         """
         Retrieve the currently available CPU memory.
 
@@ -87,7 +87,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def getGPUMemory(self) -> Size | None:
+    def get_gpu_memory(self) -> Size | None:
         """
         Retrieve the total GPU memory capacity of the node.
 
@@ -96,7 +96,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def getFreeGPUMemory(self) -> Size | None:
+    def get_free_gpu_memory(self) -> Size | None:
         """
         Retrieve the currently available GPU memory.
 
@@ -105,7 +105,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def getLocalScratch(self) -> Size | None:
+    def get_local_scratch(self) -> Size | None:
         """
         Retrieve the total local scratch storage capacity of the node.
 
@@ -114,7 +114,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def getFreeLocalScratch(self) -> Size | None:
+    def get_free_local_scratch(self) -> Size | None:
         """
         Retrieve the available local scratch storage space.
 
@@ -123,7 +123,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def getSSDScratch(self) -> Size | None:
+    def get_ssd_scratch(self) -> Size | None:
         """
         Retrieve the total SSD-based scratch storage capacity.
 
@@ -132,7 +132,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def getFreeSSDScratch(self) -> Size | None:
+    def get_free_ssd_scratch(self) -> Size | None:
         """
         Retrieve the currently available SSD-based scratch storage space.
 
@@ -141,7 +141,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def getSharedScratch(self) -> Size | None:
+    def get_shared_scratch(self) -> Size | None:
         """
         Retrieve the total capacity of shared scratch storage accessible from the node.
 
@@ -150,7 +150,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def getFreeSharedScratch(self) -> Size | None:
+    def get_free_shared_scratch(self) -> Size | None:
         """
         Retrieve the available space in shared scratch storage.
 
@@ -159,7 +159,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def getProperties(self) -> list[str]:
+    def get_properties(self) -> list[str]:
         """
         Get the list of properties or labels assigned to the node.
 
@@ -168,7 +168,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def isAvailableToUser(self, user: str) -> bool:
+    def is_available_to_user(self, user: str) -> bool:
         """
         Check if the node is available to the specified user.
 
@@ -180,7 +180,7 @@ class BatchNodeInterface(ABC):
         """
 
     @abstractmethod
-    def toYaml(self) -> str:
+    def to_yaml(self) -> str:
         """
         Return all information about the node in YAML format.
 

@@ -13,7 +13,7 @@ from qq_lib.kill.cli import kill, kill_job
 
 def test_kill_job_force_skips_suitability_and_logs_killed():
     with (
-        patch("qq_lib.kill.cli.Killer.fromInformer") as mock_killer_ctor,
+        patch("qq_lib.kill.cli.Killer.from_informer") as mock_killer_ctor,
         patch("qq_lib.kill.cli.logger.info") as mock_logger,
         patch("qq_lib.kill.cli.yes_or_no_prompt") as mock_prompt,
         patch("qq_lib.kill.cli.console"),
@@ -24,7 +24,7 @@ def test_kill_job_force_skips_suitability_and_logs_killed():
 
         kill_job(MagicMock(), force=True, yes=False)
 
-        mock_killer.ensureSuitable.assert_not_called()
+        mock_killer.ensure_suitable.assert_not_called()
         mock_killer.kill.assert_called_once_with(True)
         mock_prompt.assert_not_called()
         mock_logger.assert_called_once_with("Killed the job '1234'.")
@@ -32,7 +32,7 @@ def test_kill_job_force_skips_suitability_and_logs_killed():
 
 def test_kill_job_prompts_yes_and_kills():
     with (
-        patch("qq_lib.kill.cli.Killer.fromInformer") as mock_killer_ctor,
+        patch("qq_lib.kill.cli.Killer.from_informer") as mock_killer_ctor,
         patch("qq_lib.kill.cli.logger.info") as mock_logger,
         patch("qq_lib.kill.cli.console"),
         patch("qq_lib.kill.cli.yes_or_no_prompt", return_value=True),
@@ -43,14 +43,14 @@ def test_kill_job_prompts_yes_and_kills():
 
         kill_job(MagicMock(), force=False, yes=False)
 
-        mock_killer.ensureSuitable.assert_called_once()
+        mock_killer.ensure_suitable.assert_called_once()
         mock_killer.kill.assert_called_once_with(False)
         mock_logger.assert_called_once_with("Killed the job '5678'.")
 
 
 def test_kill_job_prompts_no_and_aborts():
     with (
-        patch("qq_lib.kill.cli.Killer.fromInformer") as mock_killer_ctor,
+        patch("qq_lib.kill.cli.Killer.from_informer") as mock_killer_ctor,
         patch("qq_lib.kill.cli.logger.info") as mock_logger,
         patch("qq_lib.kill.cli.console"),
         patch("qq_lib.kill.cli.yes_or_no_prompt", return_value=False),
@@ -74,7 +74,7 @@ def test_kill_invokes_repeater_and_exits_success(tmp_path):
 
     with (
         patch("qq_lib.kill.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.kill.cli.Informer.fromFile", return_value=informer_mock),
+        patch("qq_lib.kill.cli.Informer.from_file", return_value=informer_mock),
         patch("qq_lib.kill.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.kill.cli.logger"),
     ):
@@ -82,7 +82,7 @@ def test_kill_invokes_repeater_and_exits_success(tmp_path):
 
     assert result.exit_code == 0
 
-    calls = [c[0][0] for c in repeater_mock.onException.call_args_list]
+    calls = [c[0][0] for c in repeater_mock.on_exception.call_args_list]
     assert QQNotSuitableError in calls
     assert QQError in calls
 
@@ -100,7 +100,7 @@ def test_kill_catches_qqerror_and_exits_91(tmp_path):
 
     with (
         patch("qq_lib.kill.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.kill.cli.Informer.fromFile", return_value=informer_mock),
+        patch("qq_lib.kill.cli.Informer.from_file", return_value=informer_mock),
         patch("qq_lib.kill.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.kill.cli.logger") as mock_logger,
     ):
@@ -121,7 +121,7 @@ def test_kill_catches_generic_exception_and_exits_99(tmp_path):
 
     with (
         patch("qq_lib.kill.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.kill.cli.Informer.fromFile", return_value=informer_mock),
+        patch("qq_lib.kill.cli.Informer.from_file", return_value=informer_mock),
         patch("qq_lib.kill.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.kill.cli.logger") as mock_logger,
     ):
@@ -137,7 +137,7 @@ def test_kill_with_job_id_invokes_repeater():
     informer_mock = MagicMock()
 
     with (
-        patch("qq_lib.kill.cli.Informer.fromJobId", return_value=informer_mock),
+        patch("qq_lib.kill.cli.Informer.from_job_id", return_value=informer_mock),
         patch("qq_lib.kill.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.kill.cli.logger"),
     ):

@@ -27,7 +27,7 @@ class JobType(Enum):
         return self.name.lower()
 
     @classmethod
-    def fromStr(cls, s: str) -> Self:
+    def from_str(cls, s: str) -> Self:
         """
         Convert a string to the corresponding JobType enum variant.
 

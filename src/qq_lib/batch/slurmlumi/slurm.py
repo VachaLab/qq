@@ -27,15 +27,15 @@ class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
     SUPPORTED_SCRATCHES = ["scratch", "flash"]
 
     @classmethod
-    def envName(cls) -> str:
+    def env_name(cls) -> str:
         return "SlurmLumi"
 
     @classmethod
-    def isAvailable(cls) -> bool:
+    def is_available(cls) -> bool:
         return shutil.which("lumi-allocations") is not None
 
     @classmethod
-    def jobSubmit(
+    def job_submit(
         cls,
         res: Resources,
         queue: str,
@@ -46,18 +46,18 @@ class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
         account: str | None = None,
         server: str | None = None,
     ) -> str:
-        # set the 'lumi_scratch_type' env var to be able to decide in getScratchDir
+        # set the 'lumi_scratch_type' env var to be able to decide in get_scratch_dir
         # whether to create a scratch directory on /scratch or on /flash
-        if res.usesScratch():
+        if res.uses_scratch():
             assert res.work_dir is not None
             env_vars[CFG.env_vars.lumi_scratch_type] = res.work_dir
 
-        return super().jobSubmit(
+        return super().job_submit(
             res, queue, script, job_name, depend, env_vars, account, server
         )
 
     @classmethod
-    def createWorkDirOnScratch(cls, job_id: str) -> Path:
+    def create_work_dir_on_scratch(cls, job_id: str) -> Path:
         if not (account := os.environ.get(CFG.env_vars.slurm_job_account)):
             raise QQError(f"No account is defined for job '{job_id}'.")
 
@@ -97,14 +97,14 @@ class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
         ) from last_exception
 
     @classmethod
-    def getSupportedWorkDirTypes(cls) -> list[str]:
+    def get_supported_work_dir_types(cls) -> list[str]:
         return cls.SUPPORTED_SCRATCHES + [
             "input_dir",
             "job_dir",  # same as input_dir
         ]
 
     @classmethod
-    def _getDefaultResources(cls) -> Resources:
+    def _get_default_resources(cls) -> Resources:
         return Resources(
             nnodes=1,
             ncpus_per_node=128,

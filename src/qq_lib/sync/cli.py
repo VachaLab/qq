@@ -68,18 +68,18 @@ def sync(job: str | None, files: str | None) -> NoReturn:
     """
     try:
         if job:
-            informers = [Informer.fromJobId(job)]
+            informers = [Informer.from_job_id(job)]
         else:
             if not (
                 informers := [
-                    Informer.fromFile(info) for info in get_info_files(Path.cwd())
+                    Informer.from_file(info) for info in get_info_files(Path.cwd())
                 ]
             ):
                 raise QQError("No qq job info file found.")
 
         repeater = Repeater(informers, _sync_job, _split_files(files))
-        repeater.onException(QQNotSuitableError, handle_not_suitable_error)
-        repeater.onException(QQError, handle_general_qq_error)
+        repeater.on_exception(QQNotSuitableError, handle_not_suitable_error)
+        repeater.on_exception(QQError, handle_general_qq_error)
         repeater.run()
         print()
         sys.exit(0)
@@ -119,10 +119,10 @@ def _sync_job(informer: Informer, files: list[str] | None) -> None:
         QQError: If an error occurs during synchronization setup or execution.
     """
 
-    syncer = Syncer.fromInformer(informer)
-    syncer.printInfo(console)
+    syncer = Syncer.from_informer(informer)
+    syncer.print_info(console)
 
     # make sure that the job is suitable to be synced
-    syncer.ensureSuitable()
+    syncer.ensure_suitable()
 
     syncer.sync(files)

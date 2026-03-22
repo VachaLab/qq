@@ -37,12 +37,14 @@ class Cder:
         Raises:
             QQError: If the job does not exist.
         """
-        path = Cder._getInputDirFromJobId(self._BatchSystem, self._job_id)
+        path = Cder._get_input_dir_from_job_id(self._BatchSystem, self._job_id)
         logger.debug(f"Changing directory to '{path}'.")
         return str(path)
 
     @staticmethod
-    def _getInputDirFromJobId(BatchSystem: type[BatchInterface], job_id: str) -> Path:
+    def _get_input_dir_from_job_id(
+        BatchSystem: type[BatchInterface], job_id: str
+    ) -> Path:
         """
         Query the batch system for the input directory of a job.
 
@@ -56,9 +58,9 @@ class Cder:
         Raises:
             QQError: If the specified job does not exist.
         """
-        job_info: BatchJobInterface = BatchSystem.getBatchJob(job_id)
+        job_info: BatchJobInterface = BatchSystem.get_batch_job(job_id)
 
-        if job_info.isEmpty():
+        if job_info.is_empty():
             raise QQError(f"Job '{job_id}' does not exist.")
 
-        return job_info.getInputDir()
+        return job_info.get_input_dir()

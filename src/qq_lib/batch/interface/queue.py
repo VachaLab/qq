@@ -13,7 +13,7 @@ class BatchQueueInterface(ABC):
     from a batch scheduling system.
 
     The implementation of the constructor is arbitrary and should only
-    be used inside the corresponding implementation of `BatchInterface.getQueues`.
+    be used inside the corresponding implementation of `BatchInterface.get_queues`.
     """
 
     @abstractmethod
@@ -26,7 +26,7 @@ class BatchQueueInterface(ABC):
         """
 
     @abstractmethod
-    def getName(self) -> str:
+    def get_name(self) -> str:
         """
         Retrieve the name of the queue.
 
@@ -35,7 +35,7 @@ class BatchQueueInterface(ABC):
         """
 
     @abstractmethod
-    def getPriority(self) -> str | None:
+    def get_priority(self) -> str | None:
         """
         Retrieve the scheduling priority of the queue.
 
@@ -45,7 +45,7 @@ class BatchQueueInterface(ABC):
         """
 
     @abstractmethod
-    def getTotalJobs(self) -> int | None:
+    def get_total_jobs(self) -> int | None:
         """
         Retrieve the total number of jobs currently in the queue.
 
@@ -55,7 +55,7 @@ class BatchQueueInterface(ABC):
         """
 
     @abstractmethod
-    def getRunningJobs(self) -> int | None:
+    def get_running_jobs(self) -> int | None:
         """
         Retrieve the number of jobs currently running in the queue.
 
@@ -65,7 +65,7 @@ class BatchQueueInterface(ABC):
         """
 
     @abstractmethod
-    def getQueuedJobs(self) -> int | None:
+    def get_queued_jobs(self) -> int | None:
         """
         Retrieve the number of jobs waiting to start in the queue.
 
@@ -75,7 +75,7 @@ class BatchQueueInterface(ABC):
         """
 
     @abstractmethod
-    def getOtherJobs(self) -> int | None:
+    def get_other_jobs(self) -> int | None:
         """
         Retrieve the number of jobs in other states (non-running and non-queued).
 
@@ -86,7 +86,7 @@ class BatchQueueInterface(ABC):
         """
 
     @abstractmethod
-    def getMaxWalltime(self) -> timedelta | None:
+    def get_max_walltime(self) -> timedelta | None:
         """
         Retrieve the maximum walltime allowed for jobs in the queue.
 
@@ -95,7 +95,7 @@ class BatchQueueInterface(ABC):
         """
 
     @abstractmethod
-    def getMaxNNodes(self) -> int | None:
+    def get_max_n_nodes(self) -> int | None:
         """
         Retrieve the maximum number of nodes that can be requested in the queue.
 
@@ -104,7 +104,7 @@ class BatchQueueInterface(ABC):
         """
 
     @abstractmethod
-    def getComment(self) -> str | None:
+    def get_comment(self) -> str | None:
         """
         Retrieve the comment or description associated with the queue.
 
@@ -114,7 +114,7 @@ class BatchQueueInterface(ABC):
         """
 
     @abstractmethod
-    def isAvailableToUser(self, user: str) -> bool:
+    def is_available_to_user(self, user: str) -> bool:
         """
         Check whether the specified user has access to this queue.
 
@@ -126,7 +126,7 @@ class BatchQueueInterface(ABC):
         """
 
     @abstractmethod
-    def getDestinations(self) -> list[str]:
+    def get_destinations(self) -> list[str]:
         """
         Retrieve all destinations available for this queue route.
 
@@ -135,7 +135,7 @@ class BatchQueueInterface(ABC):
         """
 
     @abstractmethod
-    def fromRouteOnly(self) -> bool:
+    def from_route_only(self) -> bool:
         """
         Determine whether this queue can only be accessed via a route.
 
@@ -145,7 +145,7 @@ class BatchQueueInterface(ABC):
         """
 
     @abstractmethod
-    def toYaml(self) -> str:
+    def to_yaml(self) -> str:
         """
         Return all information about the queue from the batch system in YAML format.
 
@@ -154,7 +154,7 @@ class BatchQueueInterface(ABC):
         """
 
     @abstractmethod
-    def getDefaultResources(self) -> Resources:
+    def get_default_resources(self) -> Resources:
         """
         Return the default resource definitions for this queue.
 

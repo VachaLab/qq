@@ -38,7 +38,7 @@ class DependType(Enum):
     AFTER_COMPLETION = 3
 
     @classmethod
-    def fromStr(cls, string: str) -> "DependType":
+    def from_str(cls, string: str) -> "DependType":
         """
         Convert a dependency string keyword to a `DependType`.
 
@@ -69,7 +69,7 @@ class DependType(Enum):
 
         raise QQError(f"Unknown dependency type '{string}'")
 
-    def toStr(self) -> str:
+    def to_str(self) -> str:
         """
         Convert the dependency type to its corresponding string keyword.
 
@@ -115,7 +115,7 @@ class Depend:
     jobs: list[str]
 
     @classmethod
-    def fromStr(cls, raw_depend: str):
+    def from_str(cls, raw_depend: str):
         """
         Initialize a `Depend` object by parsing a raw dependency specification.
 
@@ -135,7 +135,7 @@ class Depend:
             jobs = raw_jobs.split(":")
             if any(x.strip() == "" for x in jobs):
                 raise QQError("Missing job id.")
-            type = DependType.fromStr(raw_type)
+            type = DependType.from_str(raw_type)
             return cls(type, jobs)
         except Exception as e:
             raise QQError(
@@ -143,7 +143,7 @@ class Depend:
             ) from e
 
     @classmethod
-    def multiFromStr(cls, raw: str) -> list[Self]:
+    def multi_from_str(cls, raw: str) -> list[Self]:
         """
         Parse a combined dependency string into a list of `Depend` objects.
 
@@ -160,9 +160,9 @@ class Depend:
             QQError: If any dependency expression within the string is malformed.
         """
         logger.debug(f"Full depend string to parse: '{raw}'.")
-        return [Depend.fromStr(dep) for dep in re.split(r"[,\s]+", raw.strip()) if dep]
+        return [Depend.from_str(dep) for dep in re.split(r"[,\s]+", raw.strip()) if dep]
 
-    def toStr(self) -> str:
+    def to_str(self) -> str:
         """
         Convert the full Depend object to a string representation.
 
@@ -173,4 +173,4 @@ class Depend:
             str: String representation combining the dependency type keyword and
                 the colon-separated list of job IDs.
         """
-        return f"{self.type.toStr()}={':'.join(self.jobs)}"
+        return f"{self.type.to_str()}={':'.join(self.jobs)}"

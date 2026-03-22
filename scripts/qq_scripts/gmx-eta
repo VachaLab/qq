@@ -34,8 +34,8 @@ from qq_lib.info import Informer
 def get_informer(id: str | None) -> Informer:
     """Get informer for the given job id or for the newest job in the current directory."""
     if id:
-        return Informer.fromJobId(id)
-    return Informer.fromFile(get_info_files(Path())[-1])
+        return Informer.from_job_id(id)
+    return Informer.from_file(get_info_files(Path())[-1])
 
 
 def get_eta_from_content(content: str) -> datetime | None:
@@ -65,15 +65,17 @@ def main():
     args = parser.parse_args()
 
     informer = get_informer(args.job_id)
-    navigator = Navigator.fromInformer(informer)
+    navigator = Navigator.from_informer(informer)
 
-    if (main_node := navigator.getMainNode()) and (work_dir := navigator.getWorkDir()):
-        BatchSystem = BatchMeta.fromEnvVarOrGuess()
+    if (main_node := navigator.get_main_node()) and (
+        work_dir := navigator.get_work_dir()
+    ):
+        BatchSystem = BatchMeta.from_env_var_or_guess()
         # use the batch system to read the remote file with Gromacs output
         # split the lines and reverse the content to read from the end
         try:
             content = reversed(
-                BatchSystem.readRemoteFile(
+                BatchSystem.read_remote_file(
                     main_node, work_dir / informer.info.stderr_file
                 ).splitlines()
             )

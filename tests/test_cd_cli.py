@@ -15,7 +15,7 @@ from qq_lib.cd.cli import cd
 @pytest.fixture(autouse=True)
 def register():
     BatchMeta._registry.clear()
-    BatchMeta.registerBatchSystem(PBS)
+    BatchMeta.register_batch_system(PBS)
 
 
 def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJob:
@@ -31,8 +31,8 @@ def test_cd_command_success_pbs_o_workdir():
     job_info = _make_jobinfo_with_info({"Variable_List": env_vars})
 
     with (
-        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
-        patch.object(PBS, "getBatchJob", return_value=job_info),
+        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
+        patch.object(PBS, "get_batch_job", return_value=job_info),
     ):
         result = runner.invoke(cd, ["1234"])
         assert result.exit_code == 0
@@ -45,8 +45,8 @@ def test_cd_command_success_input_dir():
     job_info = _make_jobinfo_with_info({"Variable_List": env_vars})
 
     with (
-        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
-        patch.object(PBS, "getBatchJob", return_value=job_info),
+        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
+        patch.object(PBS, "get_batch_job", return_value=job_info),
     ):
         result = runner.invoke(cd, ["1234"])
         assert result.exit_code == 0
@@ -58,8 +58,8 @@ def test_cd_command_job_does_not_exist():
     job_info_empty = _make_jobinfo_with_info({})
 
     with (
-        patch.object(BatchMeta, "fromEnvVarOrGuess", return_value=PBS),
-        patch.object(PBS, "getBatchJob", return_value=job_info_empty),
+        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
+        patch.object(PBS, "get_batch_job", return_value=job_info_empty),
     ):
         result = runner.invoke(cd, ["1234"])
         assert result.exit_code == CFG.exit_codes.default

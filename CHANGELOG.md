@@ -4,6 +4,7 @@
 - Improved hostname resolution to allow accessing working nodes of the Sokar cluster from machines outside the `ncbr.muni.cz` domain.
 - Added support for specifying a custom interpreter when submitting a job (e.g. Python, Julia).
 - Fixed log lines in `qqout` files being truncated.
+- **Breaking Python API change:** Changed camelCase originally used for methods to snake_case.
 
 ***
 

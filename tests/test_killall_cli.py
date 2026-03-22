@@ -27,7 +27,7 @@ def test_informers_from_jobs():
     informer2 = MagicMock()
 
     with patch(
-        "qq_lib.killall.cli.Informer.fromBatchJob",
+        "qq_lib.killall.cli.Informer.from_batch_job",
         side_effect=[informer1, QQError(), informer2],
     ):
         result = _informers_from_jobs([job_good, job_bad, job_good2])
@@ -43,15 +43,15 @@ def test_informers_from_jobs_no_jobs():
 def test_killall_no_jobs_exits_zero():
     runner = CliRunner()
     with (
-        patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
+        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
         patch("qq_lib.killall.cli.logger") as logger_mock,
     ):
         batch_system = batch_meta_mock.return_value
-        batch_system.getUnfinishedBatchJobs.return_value = []
+        batch_system.get_unfinished_batch_jobs.return_value = []
 
         result = runner.invoke(killall)
 
-        batch_system.getUnfinishedBatchJobs.assert_called_once_with(
+        batch_system.get_unfinished_batch_jobs.assert_called_once_with(
             getpass.getuser(), None
         )
         logger_mock.info.assert_called_once_with(
@@ -65,16 +65,16 @@ def test_killall_jobs_but_no_info_files_exits_zero():
     job_mock = MagicMock(spec=BatchJobInterface)
 
     with (
-        patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
+        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
         patch("qq_lib.killall.cli._informers_from_jobs", return_value=[]),
         patch("qq_lib.killall.cli.logger") as logger_mock,
     ):
         batch_system = batch_meta_mock.return_value
-        batch_system.getUnfinishedBatchJobs.return_value = [job_mock]
+        batch_system.get_unfinished_batch_jobs.return_value = [job_mock]
 
         result = runner.invoke(killall)
 
-        batch_system.getUnfinishedBatchJobs.assert_called_once_with(
+        batch_system.get_unfinished_batch_jobs.assert_called_once_with(
             getpass.getuser(), None
         )
         logger_mock.info.assert_called_once_with(
@@ -91,7 +91,7 @@ def test_killall_yes_flag_invokes_repeater():
     job_mock = MagicMock(spec=BatchJobInterface)
 
     with (
-        patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
+        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
         patch("qq_lib.killall.cli._informers_from_jobs", return_value=[informer_mock]),
         patch(
             "qq_lib.killall.cli.Repeater", return_value=repeater_mock
@@ -99,17 +99,17 @@ def test_killall_yes_flag_invokes_repeater():
         patch("qq_lib.killall.cli.logger"),
     ):
         batch_system = batch_meta_mock.return_value
-        batch_system.getUnfinishedBatchJobs.return_value = [job_mock]
+        batch_system.get_unfinished_batch_jobs.return_value = [job_mock]
 
         result = runner.invoke(killall, ["--yes"])
 
-        batch_system.getUnfinishedBatchJobs.assert_called_once_with(
+        batch_system.get_unfinished_batch_jobs.assert_called_once_with(
             getpass.getuser(), None
         )
-        repeater_mock.onException.assert_any_call(
+        repeater_mock.on_exception.assert_any_call(
             QQNotSuitableError, _log_error_and_continue
         )
-        repeater_mock.onException.assert_any_call(QQError, _log_error_and_continue)
+        repeater_mock.on_exception.assert_any_call(QQError, _log_error_and_continue)
         repeater_cls.assert_called_once_with(
             [informer_mock],
             kill_job,
@@ -128,7 +128,7 @@ def test_killall_force_flag_invokes_repeater():
     job_mock = MagicMock(spec=BatchJobInterface)
 
     with (
-        patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
+        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
         patch("qq_lib.killall.cli._informers_from_jobs", return_value=[informer_mock]),
         patch(
             "qq_lib.killall.cli.Repeater", return_value=repeater_mock
@@ -136,11 +136,11 @@ def test_killall_force_flag_invokes_repeater():
         patch("qq_lib.killall.cli.logger"),
     ):
         batch_system = batch_meta_mock.return_value
-        batch_system.getUnfinishedBatchJobs.return_value = [job_mock]
+        batch_system.get_unfinished_batch_jobs.return_value = [job_mock]
 
         result = runner.invoke(killall, ["--force"])
 
-        batch_system.getUnfinishedBatchJobs.assert_called_once_with(
+        batch_system.get_unfinished_batch_jobs.assert_called_once_with(
             getpass.getuser(), None
         )
         repeater_cls.assert_called_once_with(
@@ -163,7 +163,7 @@ def test_killall_user_prompt_yes(monkeypatch):
     job_mock = MagicMock(spec=BatchJobInterface)
 
     with (
-        patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
+        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
         patch("qq_lib.killall.cli._informers_from_jobs", return_value=[informer_mock]),
         patch(
             "qq_lib.killall.cli.Repeater", return_value=repeater_mock
@@ -171,11 +171,11 @@ def test_killall_user_prompt_yes(monkeypatch):
         patch("qq_lib.killall.cli.logger"),
     ):
         batch_system = batch_meta_mock.return_value
-        batch_system.getUnfinishedBatchJobs.return_value = [job_mock]
+        batch_system.get_unfinished_batch_jobs.return_value = [job_mock]
 
         result = runner.invoke(killall)
 
-        batch_system.getUnfinishedBatchJobs.assert_called_once_with(
+        batch_system.get_unfinished_batch_jobs.assert_called_once_with(
             getpass.getuser(), None
         )
         repeater_cls.assert_called_once_with(
@@ -197,16 +197,16 @@ def test_killall_user_prompt_no(monkeypatch):
     job_mock = MagicMock(spec=BatchJobInterface)
 
     with (
-        patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
+        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
         patch("qq_lib.killall.cli._informers_from_jobs", return_value=[informer_mock]),
         patch("qq_lib.killall.cli.logger") as logger_mock,
     ):
         batch_system = batch_meta_mock.return_value
-        batch_system.getUnfinishedBatchJobs.return_value = [job_mock]
+        batch_system.get_unfinished_batch_jobs.return_value = [job_mock]
 
         result = runner.invoke(killall)
 
-        batch_system.getUnfinishedBatchJobs.assert_called_once_with(
+        batch_system.get_unfinished_batch_jobs.assert_called_once_with(
             getpass.getuser(), None
         )
         logger_mock.info.assert_called_with("Operation aborted.")
@@ -216,14 +216,14 @@ def test_killall_user_prompt_no(monkeypatch):
 def test_killall_with_full_server_name_forwards_server():
     runner = CliRunner()
     with (
-        patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
+        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
         patch("qq_lib.killall.cli.logger"),
     ):
         batch_system = batch_meta_mock.return_value
 
         runner.invoke(killall, args=["--server", "fake.server.org"])
 
-        batch_system.getUnfinishedBatchJobs.assert_called_once_with(
+        batch_system.get_unfinished_batch_jobs.assert_called_once_with(
             getpass.getuser(), "fake.server.org"
         )
 
@@ -231,14 +231,14 @@ def test_killall_with_full_server_name_forwards_server():
 def test_killall_with_server_shortcut_translates_and_forwards_server():
     runner = CliRunner()
     with (
-        patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
+        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
         patch("qq_lib.killall.cli.logger"),
     ):
         batch_system = batch_meta_mock.return_value
 
         runner.invoke(killall, args=["--server", "sokar"])
 
-        batch_system.getUnfinishedBatchJobs.assert_called_once_with(
+        batch_system.get_unfinished_batch_jobs.assert_called_once_with(
             getpass.getuser(), "sokar-pbs.ncbr.muni.cz"
         )
 
@@ -248,13 +248,13 @@ def test_killall_qqerror_in_main_loop_exits_91():
     runner = CliRunner()
 
     with (
-        patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
+        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
         patch("qq_lib.killall.cli._informers_from_jobs", return_value=[informer_mock]),
         patch("qq_lib.killall.cli.Repeater", side_effect=QQError("fail")),
         patch("qq_lib.killall.cli.logger"),
     ):
         batch_system = batch_meta_mock.return_value
-        batch_system.getUnfinishedBatchJobs.return_value = [MagicMock()]
+        batch_system.get_unfinished_batch_jobs.return_value = [MagicMock()]
 
         result = runner.invoke(killall, ["--yes"])
 
@@ -269,13 +269,13 @@ def test_killall_generic_exception_exits_99():
         raise RuntimeError("unexpected")
 
     with (
-        patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
+        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
         patch("qq_lib.killall.cli._informers_from_jobs", return_value=[informer_mock]),
         patch("qq_lib.killall.cli.Repeater", side_effect=raise_exception),
         patch("qq_lib.killall.cli.logger"),
     ):
         batch_system = batch_meta_mock.return_value
-        batch_system.getUnfinishedBatchJobs.return_value = [MagicMock()]
+        batch_system.get_unfinished_batch_jobs.return_value = [MagicMock()]
 
         result = runner.invoke(killall, ["--yes"])
 

@@ -49,11 +49,11 @@ def info(job: str | None, short: bool) -> NoReturn:
     """
     try:
         if job:
-            informers = [Informer.fromJobId(job)]
+            informers = [Informer.from_job_id(job)]
         else:
             if not (
                 informers := [
-                    Informer.fromFile(info) for info in get_info_files(Path.cwd())
+                    Informer.from_file(info) for info in get_info_files(Path.cwd())
                 ]
             ):
                 raise QQError("No qq job info file found.")
@@ -80,7 +80,7 @@ def _info_for_job(informer: Informer, short: bool) -> None:
     presenter = Presenter(informer)
     console = Console()
     if short:
-        console.print(presenter.getShortInfo())
+        console.print(presenter.get_short_info())
     else:
-        panel = presenter.createFullInfoPanel(console)
+        panel = presenter.create_full_info_panel(console)
         console.print(panel)

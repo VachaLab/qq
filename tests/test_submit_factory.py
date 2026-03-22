@@ -44,7 +44,7 @@ def test_submitter_factory_init(tmp_path):
 def test_submitter_factory_get_depend_from_command_line():
     mock_parser = MagicMock()
     parser_depend = [MagicMock(), MagicMock()]
-    mock_parser.getDepend.return_value = parser_depend
+    mock_parser.get_depend.return_value = parser_depend
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
@@ -53,9 +53,9 @@ def test_submitter_factory_get_depend_from_command_line():
     cli_depend_list = [MagicMock(), MagicMock()]
 
     with patch.object(
-        Depend, "multiFromStr", return_value=cli_depend_list
+        Depend, "multi_from_str", return_value=cli_depend_list
     ) as mock_multi:
-        result = factory._getDepend()
+        result = factory._get_depend()
 
     mock_multi.assert_called_once_with("afterok=1234,afterany=2345")
     assert result == cli_depend_list
@@ -64,13 +64,13 @@ def test_submitter_factory_get_depend_from_command_line():
 def test_submitter_factory_get_depend_from_parser():
     mock_parser = MagicMock()
     parser_depend = [MagicMock(), MagicMock()]
-    mock_parser.getDepend.return_value = parser_depend
+    mock_parser.get_depend.return_value = parser_depend
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {}
 
-    result = factory._getDepend()
+    result = factory._get_depend()
 
     assert result == parser_depend
 
@@ -78,7 +78,7 @@ def test_submitter_factory_get_depend_from_parser():
 def test_submitter_factory_get_transfer_mode_from_command_line():
     mock_parser = MagicMock()
     parser_transfer_mode = [MagicMock(), MagicMock()]
-    mock_parser.getTransferMode.return_value = parser_transfer_mode
+    mock_parser.get_transfer_mode.return_value = parser_transfer_mode
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
@@ -87,9 +87,9 @@ def test_submitter_factory_get_transfer_mode_from_command_line():
     cli_transfer_list = [MagicMock(), MagicMock()]
 
     with patch.object(
-        TransferMode, "multiFromStr", return_value=cli_transfer_list
+        TransferMode, "multi_from_str", return_value=cli_transfer_list
     ) as mock_multi:
-        result = factory._getTransferMode()
+        result = factory._get_transfer_mode()
 
     mock_multi.assert_called_once_with("success,1")
     assert result == cli_transfer_list
@@ -98,20 +98,20 @@ def test_submitter_factory_get_transfer_mode_from_command_line():
 def test_submitter_factory_get_transfer_mode_from_parser():
     mock_parser = MagicMock()
     parser_transfer_mode = [MagicMock(), MagicMock()]
-    mock_parser.getTransferMode.return_value = parser_transfer_mode
+    mock_parser.get_transfer_mode.return_value = parser_transfer_mode
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {}
 
-    result = factory._getTransferMode()
+    result = factory._get_transfer_mode()
     assert result == parser_transfer_mode
 
 
 def test_submitter_factory_get_exclude_from_command_line():
     mock_parser = MagicMock()
     parser_excludes = [Path("/tmp/file1"), Path("/tmp/file2")]
-    mock_parser.getExclude.return_value = parser_excludes
+    mock_parser.get_exclude.return_value = parser_excludes
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
@@ -122,7 +122,7 @@ def test_submitter_factory_get_exclude_from_command_line():
     with patch(
         "qq_lib.submit.factory.split_files_list", return_value=cli_excludes
     ) as mock_split:
-        result = factory._getExclude()
+        result = factory._get_exclude()
 
     mock_split.assert_called_once_with("/tmp/file3,/tmp/file4")
     assert result == cli_excludes
@@ -131,20 +131,20 @@ def test_submitter_factory_get_exclude_from_command_line():
 def test_submitter_factory_get_exclude_from_parser():
     mock_parser = MagicMock()
     parser_excludes = [Path("/tmp/file1"), Path("/tmp/file2")]
-    mock_parser.getExclude.return_value = parser_excludes
+    mock_parser.get_exclude.return_value = parser_excludes
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {}
 
-    result = factory._getExclude()
+    result = factory._get_exclude()
     assert result == parser_excludes
 
 
 def test_submitter_factory_get_include_from_command_line():
     mock_parser = MagicMock()
     parser_includes = [Path("/tmp/file1"), Path("/tmp/file2")]
-    mock_parser.getInclude.return_value = parser_includes
+    mock_parser.get_include.return_value = parser_includes
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
@@ -155,7 +155,7 @@ def test_submitter_factory_get_include_from_command_line():
     with patch(
         "qq_lib.submit.factory.split_files_list", return_value=cli_includes
     ) as mock_split:
-        result = factory._getInclude()
+        result = factory._get_include()
 
     mock_split.assert_called_once_with("/tmp/file3,/tmp/file4")
     assert result == cli_includes
@@ -164,22 +164,22 @@ def test_submitter_factory_get_include_from_command_line():
 def test_submitter_factory_get_include_from_parser():
     mock_parser = MagicMock()
     parser_includes = [Path("/tmp/file1"), Path("/tmp/file2")]
-    mock_parser.getInclude.return_value = parser_includes
+    mock_parser.get_include.return_value = parser_includes
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {}
 
-    result = factory._getInclude()
+    result = factory._get_include()
     assert result == parser_includes
 
 
 def test_submitter_factory_get_loop_info_uses_cli_over_parser():
     mock_parser = MagicMock()
-    mock_parser.getLoopStart.return_value = 2
-    mock_parser.getLoopEnd.return_value = 5
-    mock_parser.getArchive.return_value = Path("storage")
-    mock_parser.getArchiveFormat.return_value = "job%02d"
+    mock_parser.get_loop_start.return_value = 2
+    mock_parser.get_loop_end.return_value = 5
+    mock_parser.get_archive.return_value = Path("storage")
+    mock_parser.get_archive_format.return_value = "job%02d"
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._input_dir = Path("fake_path")
@@ -191,7 +191,7 @@ def test_submitter_factory_get_loop_info_uses_cli_over_parser():
         "archive_format": "job%04d",
     }
 
-    loop_info = factory._getLoopInfo()
+    loop_info = factory._get_loop_info()
 
     assert isinstance(loop_info, LoopInfo)
     assert loop_info.start == 10
@@ -202,17 +202,17 @@ def test_submitter_factory_get_loop_info_uses_cli_over_parser():
 
 def test_submitter_factory_get_loop_info_falls_back_to_parser():
     mock_parser = MagicMock()
-    mock_parser.getLoopStart.return_value = 2
-    mock_parser.getLoopEnd.return_value = 5
-    mock_parser.getArchive.return_value = Path("archive")
-    mock_parser.getArchiveFormat.return_value = "job%02d"
+    mock_parser.get_loop_start.return_value = 2
+    mock_parser.get_loop_end.return_value = 5
+    mock_parser.get_archive.return_value = Path("archive")
+    mock_parser.get_archive_format.return_value = "job%02d"
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._input_dir = Path("fake_path")
     factory._parser = mock_parser
     factory._kwargs = {}  # nothing from CLI
 
-    loop_info = factory._getLoopInfo()
+    loop_info = factory._get_loop_info()
 
     assert isinstance(loop_info, LoopInfo)
     assert loop_info.start == 2
@@ -223,10 +223,10 @@ def test_submitter_factory_get_loop_info_falls_back_to_parser():
 
 def test_submitter_factory_get_loop_info_mixed_cli_parser_and_defaults():
     mock_parser = MagicMock()
-    mock_parser.getLoopStart.return_value = None
-    mock_parser.getLoopEnd.return_value = 50
-    mock_parser.getArchive.return_value = None
-    mock_parser.getArchiveFormat.return_value = "job%02d"
+    mock_parser.get_loop_start.return_value = None
+    mock_parser.get_loop_end.return_value = 50
+    mock_parser.get_archive.return_value = None
+    mock_parser.get_archive_format.return_value = "job%02d"
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._input_dir = Path("fake_path")
@@ -235,7 +235,7 @@ def test_submitter_factory_get_loop_info_mixed_cli_parser_and_defaults():
         "loop_start": 10,
     }
 
-    loop_info = factory._getLoopInfo()
+    loop_info = factory._get_loop_info()
 
     assert isinstance(loop_info, LoopInfo)
     assert loop_info.start == 10  # CLI
@@ -246,18 +246,18 @@ def test_submitter_factory_get_loop_info_mixed_cli_parser_and_defaults():
 
 def test_submitter_factory_get_loop_info_mixed_cli_parser_and_defaults_with_archive_mode():
     mock_parser = MagicMock()
-    mock_parser.getLoopStart.return_value = None
-    mock_parser.getLoopEnd.return_value = 50
-    mock_parser.getArchive.return_value = None
-    mock_parser.getArchiveFormat.return_value = "job%02d"
-    mock_parser.getArchiveMode.return_value = [Success(), ExitCode(3)]
+    mock_parser.get_loop_start.return_value = None
+    mock_parser.get_loop_end.return_value = 50
+    mock_parser.get_archive.return_value = None
+    mock_parser.get_archive_format.return_value = "job%02d"
+    mock_parser.get_archive_mode.return_value = [Success(), ExitCode(3)]
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._input_dir = Path("fake_path")
     factory._parser = mock_parser
     factory._kwargs = {"loop_start": 10, "archive_mode": "never"}
 
-    loop_info = factory._getLoopInfo()
+    loop_info = factory._get_loop_info()
 
     assert isinstance(loop_info, LoopInfo)
     assert loop_info.start == 10  # CLI
@@ -270,7 +270,7 @@ def test_submitter_factory_get_loop_info_mixed_cli_parser_and_defaults_with_arch
 def test_submitter_factory_get_resources():
     mock_parser = MagicMock()
     parser_resources = Resources(ncpus=4, mem="4gb")
-    mock_parser.getResources.return_value = parser_resources
+    mock_parser.get_resources.return_value = parser_resources
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
@@ -279,12 +279,12 @@ def test_submitter_factory_get_resources():
     mock_batch_system = MagicMock()
 
     transformed_resources = Resources(ncpus=999, mem="999gb")
-    mock_batch_system.transformResources.return_value = transformed_resources
+    mock_batch_system.transform_resources.return_value = transformed_resources
 
-    result = factory._getResources(mock_batch_system, "default", None)
+    result = factory._get_resources(mock_batch_system, "default", None)
 
-    assert mock_batch_system.transformResources.call_args[0][1] is None
-    merged_resources_arg = mock_batch_system.transformResources.call_args[0][2]
+    assert mock_batch_system.transform_resources.call_args[0][1] is None
+    merged_resources_arg = mock_batch_system.transform_resources.call_args[0][2]
 
     # CLI overrides parser where provided
     assert merged_resources_arg.ncpus == 8
@@ -297,7 +297,7 @@ def test_submitter_factory_get_resources():
 def test_submitter_factory_get_resources_with_server():
     mock_parser = MagicMock()
     parser_resources = Resources(ncpus=4, mem="4gb")
-    mock_parser.getResources.return_value = parser_resources
+    mock_parser.get_resources.return_value = parser_resources
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
@@ -306,12 +306,12 @@ def test_submitter_factory_get_resources_with_server():
     mock_batch_system = MagicMock()
 
     transformed_resources = Resources(ncpus=999, mem="999gb")
-    mock_batch_system.transformResources.return_value = transformed_resources
+    mock_batch_system.transform_resources.return_value = transformed_resources
 
-    result = factory._getResources(mock_batch_system, "default", "server")
+    result = factory._get_resources(mock_batch_system, "default", "server")
 
-    assert mock_batch_system.transformResources.call_args[0][1] == "server"
-    merged_resources_arg = mock_batch_system.transformResources.call_args[0][2]
+    assert mock_batch_system.transform_resources.call_args[0][1] == "server"
+    merged_resources_arg = mock_batch_system.transform_resources.call_args[0][2]
 
     # CLI overrides parser where provided
     assert merged_resources_arg.ncpus == 8
@@ -323,77 +323,77 @@ def test_submitter_factory_get_resources_with_server():
 
 def test_submitter_factory_get_queue_uses_cli_over_parser():
     mock_parser = MagicMock()
-    mock_parser.getQueue.return_value = "parser_queue"
+    mock_parser.get_queue.return_value = "parser_queue"
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {"queue": "cli_queue"}
 
-    queue = factory._getQueue()
+    queue = factory._get_queue()
     assert queue == "cli_queue"
 
 
 def test_submitter_factory_get_queue_uses_parser_if_no_cli():
     mock_parser = MagicMock()
-    mock_parser.getQueue.return_value = "parser_queue"
+    mock_parser.get_queue.return_value = "parser_queue"
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {}  # no CLI queue
 
-    queue = factory._getQueue()
+    queue = factory._get_queue()
     assert queue == "parser_queue"
 
 
 def test_submitter_factory_get_queue_raises_error_if_missing():
     mock_parser = MagicMock()
-    mock_parser.getQueue.return_value = None
+    mock_parser.get_queue.return_value = None
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {}
 
     with pytest.raises(QQError, match="Submission queue not specified."):
-        factory._getQueue()
+        factory._get_queue()
 
 
 def test_submitter_factory_get_account_uses_cli_over_parser():
     mock_parser = MagicMock()
-    mock_parser.getAccount.return_value = "parser_account"
+    mock_parser.get_account.return_value = "parser_account"
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {"account": "cli_account"}
 
-    account = factory._getAccount()
+    account = factory._get_account()
     assert account == "cli_account"
 
 
 def test_submitter_factory_get_account_uses_parser_if_no_cli():
     mock_parser = MagicMock()
-    mock_parser.getAccount.return_value = "parser_account"
+    mock_parser.get_account.return_value = "parser_account"
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {}  # no CLI account
 
-    account = factory._getAccount()
+    account = factory._get_account()
     assert account == "parser_account"
 
 
 def test_submitter_factory_get_job_type_uses_cli_over_parser():
     mock_parser = MagicMock()
     parser_job_type = JobType.LOOP
-    mock_parser.getJobType.return_value = parser_job_type
+    mock_parser.get_job_type.return_value = parser_job_type
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {"job_type": "standard"}
 
     with patch.object(
-        JobType, "fromStr", return_value=JobType.STANDARD
+        JobType, "from_str", return_value=JobType.STANDARD
     ) as mock_from_str:
-        result = factory._getJobType()
+        result = factory._get_job_type()
 
     mock_from_str.assert_called_once_with("standard")
     assert result == JobType.STANDARD
@@ -402,40 +402,40 @@ def test_submitter_factory_get_job_type_uses_cli_over_parser():
 def test_submitter_factory_get_job_type_uses_parser_if_no_cli():
     mock_parser = MagicMock()
     parser_job_type = JobType.LOOP
-    mock_parser.getJobType.return_value = parser_job_type
+    mock_parser.get_job_type.return_value = parser_job_type
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {}  # no CLI job_type
 
-    result = factory._getJobType()
+    result = factory._get_job_type()
     assert result == parser_job_type
 
 
 def test_submitter_factory_get_job_type_defaults_to_standard_if_missing():
     mock_parser = MagicMock()
-    mock_parser.getJobType.return_value = None
+    mock_parser.get_job_type.return_value = None
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {}
 
-    result = factory._getJobType()
+    result = factory._get_job_type()
     assert result == JobType.STANDARD
 
 
 def test_submitter_factory_get_batch_system_uses_cli_over_parser_and_env():
     mock_parser = MagicMock()
     parser_batch = MagicMock(spec=BatchInterface)
-    mock_parser.getBatchSystem.return_value = parser_batch
+    mock_parser.get_batch_system.return_value = parser_batch
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {"batch_system": "PBS"}
 
     mock_class = MagicMock(spec=BatchInterface)
-    with patch.object(BatchMeta, "fromStr", return_value=mock_class) as mock_from_str:
-        result = factory._getBatchSystem()
+    with patch.object(BatchMeta, "from_str", return_value=mock_class) as mock_from_str:
+        result = factory._get_batch_system()
 
     mock_from_str.assert_called_once_with("PBS")
     assert result == mock_class
@@ -444,19 +444,19 @@ def test_submitter_factory_get_batch_system_uses_cli_over_parser_and_env():
 def test_submitter_factory_get_batch_system_uses_parser_if_no_cli():
     mock_parser = MagicMock()
     parser_batch = MagicMock(spec=BatchInterface)
-    mock_parser.getBatchSystem.return_value = parser_batch
+    mock_parser.get_batch_system.return_value = parser_batch
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {}  # no CLI
 
-    result = factory._getBatchSystem()
+    result = factory._get_batch_system()
     assert result == parser_batch
 
 
 def test_submitter_factory_get_batch_system_uses_env_guess_if_no_cli_or_parser():
     mock_parser = MagicMock()
-    mock_parser.getBatchSystem.return_value = None
+    mock_parser.get_batch_system.return_value = None
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
@@ -464,9 +464,9 @@ def test_submitter_factory_get_batch_system_uses_env_guess_if_no_cli_or_parser()
 
     mock_guess = MagicMock(spec=BatchInterface)
     with patch.object(
-        BatchMeta, "fromEnvVarOrGuess", return_value=mock_guess
+        BatchMeta, "from_env_var_or_guess", return_value=mock_guess
     ) as mock_method:
-        result = factory._getBatchSystem()
+        result = factory._get_batch_system()
 
     mock_method.assert_called_once()
     assert result == mock_guess
@@ -474,99 +474,99 @@ def test_submitter_factory_get_batch_system_uses_env_guess_if_no_cli_or_parser()
 
 def test_submitter_factory_get_server_uses_cli_over_parser():
     mock_parser = MagicMock()
-    mock_parser.getServer.return_value = "parser_server"
+    mock_parser.get_server.return_value = "parser_server"
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {"server": "cli_server"}
 
-    server = factory._getServer()
+    server = factory._get_server()
     assert server == "cli_server"
 
 
 def test_submitter_factory_get_server_uses_cli_over_parser_known_server():
     mock_parser = MagicMock()
-    mock_parser.getServer.return_value = "sokar"
+    mock_parser.get_server.return_value = "sokar"
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {"server": "robox"}
 
-    server = factory._getServer()
+    server = factory._get_server()
     assert server == "robox-pro.ceitec.muni.cz"
 
 
 def test_submitter_factory_get_server_uses_parser_if_no_cli():
     mock_parser = MagicMock()
-    mock_parser.getServer.return_value = "parser_server"
+    mock_parser.get_server.return_value = "parser_server"
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {}  # no CLI server
 
-    server = factory._getServer()
+    server = factory._get_server()
     assert server == "parser_server"
 
 
 def test_submitter_factory_get_server_uses_parser_if_no_cli_known_server():
     mock_parser = MagicMock()
-    mock_parser.getServer.return_value = "sokar"
+    mock_parser.get_server.return_value = "sokar"
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {}  # no CLI server
 
-    server = factory._getServer()
+    server = factory._get_server()
     assert server == "sokar-pbs.ncbr.muni.cz"
 
 
 def test_submitter_factory_get_server_returns_none_if_no_cli_nor_parser():
     mock_parser = MagicMock()
-    mock_parser.getServer.return_value = None
+    mock_parser.get_server.return_value = None
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {}
 
-    server = factory._getServer()
+    server = factory._get_server()
     assert server is None
 
 
 def test_submitter_factory_get_interpreter_uses_cli_over_parser():
     mock_parser = MagicMock()
     parser_interpreter = "python"
-    mock_parser.getInterpreter.return_value = parser_interpreter
+    mock_parser.get_interpreter.return_value = parser_interpreter
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {"interpreter": "bash"}
 
-    result = factory._getInterpreter()
+    result = factory._get_interpreter()
     assert result == "bash"
 
 
 def test_submitter_factory_get_interpreter_uses_parser_if_no_cli():
     mock_parser = MagicMock()
     parser_interpreter = "python"
-    mock_parser.getInterpreter.return_value = parser_interpreter
+    mock_parser.get_interpreter.return_value = parser_interpreter
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {}
 
-    result = factory._getInterpreter()
+    result = factory._get_interpreter()
     assert result == "python"
 
 
 def test_submitter_factory_get_interpreter_returns_none_if_no_cli_no_parser():
     mock_parser = MagicMock()
-    mock_parser.getInterpreter.return_value = None
+    mock_parser.get_interpreter.return_value = None
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {}
 
-    result = factory._getInterpreter()
+    result = factory._get_interpreter()
     assert result is None
 
 
@@ -574,7 +574,7 @@ def test_submitter_factory_get_interpreter_returns_none_if_no_cli_no_parser():
 def test_submitter_factory_make_submitter_standard_job(server):
     mock_parser = MagicMock()
     mock_parser.parse = MagicMock()
-    mock_parser.getJobType.return_value = JobType.STANDARD
+    mock_parser.get_job_type.return_value = JobType.STANDARD
     resources = Resources()
     excludes = [Path("/tmp/file1")]
     includes = [Path("included_file")]
@@ -593,28 +593,28 @@ def test_submitter_factory_make_submitter_standard_job(server):
 
     with (
         patch.object(
-            factory, "_getBatchSystem", return_value=BatchSystem
+            factory, "_get_batch_system", return_value=BatchSystem
         ) as mock_get_batch,
-        patch.object(factory, "_getQueue", return_value=queue) as mock_get_queue,
-        patch.object(factory, "_getLoopInfo") as mock_get_loop,
-        patch.object(factory, "_getResources", return_value=resources) as mock_get_res,
-        patch.object(factory, "_getExclude", return_value=excludes) as mock_get_excl,
-        patch.object(factory, "_getInclude", return_value=includes) as mock_get_incl,
-        patch.object(factory, "_getDepend", return_value=depends) as mock_get_dep,
-        patch.object(factory, "_getAccount", return_value=account) as mock_get_acct,
+        patch.object(factory, "_get_queue", return_value=queue) as mock_get_queue,
+        patch.object(factory, "_get_loop_info") as mock_get_loop,
+        patch.object(factory, "_get_resources", return_value=resources) as mock_get_res,
+        patch.object(factory, "_get_exclude", return_value=excludes) as mock_get_excl,
+        patch.object(factory, "_get_include", return_value=includes) as mock_get_incl,
+        patch.object(factory, "_get_depend", return_value=depends) as mock_get_dep,
+        patch.object(factory, "_get_account", return_value=account) as mock_get_acct,
         patch.object(
-            factory, "_getInterpreter", return_value=interpreter
+            factory, "_get_interpreter", return_value=interpreter
         ) as mock_get_interpreter,
         patch.object(
-            factory, "_getTransferMode", return_value=transfer
+            factory, "_get_transfer_mode", return_value=transfer
         ) as mock_get_transfer,
-        patch.object(factory, "_getServer", return_value=server) as mock_get_server,
+        patch.object(factory, "_get_server", return_value=server) as mock_get_server,
         patch("qq_lib.submit.factory.Submitter") as mock_submitter_class,
     ):
         mock_submit_instance = MagicMock()
         mock_submitter_class.return_value = mock_submit_instance
 
-        result = factory.makeSubmitter()
+        result = factory.make_submitter()
 
     mock_parser.parse.assert_called_once()
     mock_get_batch.assert_called_once()
@@ -651,7 +651,7 @@ def test_submitter_factory_make_submitter_standard_job(server):
 def test_submitter_factory_make_submitter_loop_job(server):
     mock_parser = MagicMock()
     mock_parser.parse = MagicMock()
-    mock_parser.getJobType.return_value = JobType.LOOP
+    mock_parser.get_job_type.return_value = JobType.LOOP
     resources = Resources()
     excludes = [Path("/tmp/file1")]
     includes = [Path("included_file")]
@@ -671,28 +671,30 @@ def test_submitter_factory_make_submitter_loop_job(server):
 
     with (
         patch.object(
-            factory, "_getBatchSystem", return_value=BatchSystem
+            factory, "_get_batch_system", return_value=BatchSystem
         ) as mock_get_batch,
-        patch.object(factory, "_getQueue", return_value=queue) as mock_get_queue,
-        patch.object(factory, "_getLoopInfo", return_value=loop_info) as mock_get_loop,
-        patch.object(factory, "_getResources", return_value=resources) as mock_get_res,
-        patch.object(factory, "_getExclude", return_value=excludes) as mock_get_excl,
-        patch.object(factory, "_getInclude", return_value=includes) as mock_get_incl,
-        patch.object(factory, "_getDepend", return_value=depends) as mock_get_dep,
-        patch.object(factory, "_getAccount", return_value=account) as mock_get_acct,
+        patch.object(factory, "_get_queue", return_value=queue) as mock_get_queue,
         patch.object(
-            factory, "_getInterpreter", return_value=interpreter
+            factory, "_get_loop_info", return_value=loop_info
+        ) as mock_get_loop,
+        patch.object(factory, "_get_resources", return_value=resources) as mock_get_res,
+        patch.object(factory, "_get_exclude", return_value=excludes) as mock_get_excl,
+        patch.object(factory, "_get_include", return_value=includes) as mock_get_incl,
+        patch.object(factory, "_get_depend", return_value=depends) as mock_get_dep,
+        patch.object(factory, "_get_account", return_value=account) as mock_get_acct,
+        patch.object(
+            factory, "_get_interpreter", return_value=interpreter
         ) as mock_get_interpreter,
         patch.object(
-            factory, "_getTransferMode", return_value=transfer
+            factory, "_get_transfer_mode", return_value=transfer
         ) as mock_get_transfer,
-        patch.object(factory, "_getServer", return_value=server) as mock_get_server,
+        patch.object(factory, "_get_server", return_value=server) as mock_get_server,
         patch("qq_lib.submit.factory.Submitter") as mock_submitter_class,
     ):
         mock_submit_instance = MagicMock()
         mock_submitter_class.return_value = mock_submit_instance
 
-        result = factory.makeSubmitter()
+        result = factory.make_submitter()
 
     mock_parser.parse.assert_called_once()
     mock_get_batch.assert_called_once()

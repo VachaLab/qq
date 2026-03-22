@@ -42,7 +42,7 @@ class BatchInterface[
     _SSH_FAIL = 255
 
     @classmethod
-    def envName(cls) -> str:
+    def env_name(cls) -> str:
         """
         Return the name of the batch system environment.
 
@@ -50,11 +50,11 @@ class BatchInterface[
             str: The batch system name.
         """
         raise NotImplementedError(
-            f"envName method is not implemented for {cls.__name__}"
+            f"env_name method is not implemented for {cls.__name__}"
         )
 
     @classmethod
-    def isAvailable(cls) -> bool:
+    def is_available(cls) -> bool:
         """
         Determine whether the batch system is available on the current host.
 
@@ -65,11 +65,11 @@ class BatchInterface[
             bool: True if the batch system is available, False otherwise.
         """
         raise NotImplementedError(
-            f"isAvailable method is not implemented for {cls.__name__}"
+            f"is_available method is not implemented for {cls.__name__}"
         )
 
     @classmethod
-    def getJobId(cls) -> str | None:
+    def get_job_id(cls) -> str | None:
         """
         Get the id of the current job from the corresponding batch system's environment variable.
 
@@ -79,11 +79,11 @@ class BatchInterface[
             str | None: Index of the job or None if the collective variable is not set.
         """
         raise NotImplementedError(
-            f"getJobId method is not implemented for {cls.__name__}"
+            f"get_job_id method is not implemented for {cls.__name__}"
         )
 
     @classmethod
-    def createWorkDirOnScratch(cls, job_id: str) -> Path:
+    def create_work_dir_on_scratch(cls, job_id: str) -> Path:
         """
         Create the working directory on scratch for the given job.
 
@@ -97,11 +97,11 @@ class BatchInterface[
             QQError: If the working directory could not be created.
         """
         raise NotImplementedError(
-            f"createWorkDirOnScratch method is not implemented for {cls.__name__}"
+            f"create_work_dir_on_scratch method is not implemented for {cls.__name__}"
         )
 
     @classmethod
-    def jobSubmit(
+    def job_submit(
         cls,
         res: Resources,
         queue: str,
@@ -134,11 +134,11 @@ class BatchInterface[
             QQError: If the job submission fails.
         """
         raise NotImplementedError(
-            f"jobSubmit method is not implemented for {cls.__name__}"
+            f"job_submit method is not implemented for {cls.__name__}"
         )
 
     @classmethod
-    def jobKill(cls, job_id: str) -> None:
+    def job_kill(cls, job_id: str) -> None:
         """
         Terminate a job gracefully. This assumes that job has time for cleanup.
 
@@ -149,11 +149,11 @@ class BatchInterface[
             QQError: If the job could not be killed.
         """
         raise NotImplementedError(
-            f"jobKill method is not implemented for {cls.__name__}"
+            f"job_kill method is not implemented for {cls.__name__}"
         )
 
     @classmethod
-    def jobKillForce(cls, job_id: str) -> None:
+    def job_kill_force(cls, job_id: str) -> None:
         """
         Forcefully terminate a job. This assumes that the job has no time for cleanup.
 
@@ -164,11 +164,11 @@ class BatchInterface[
             QQError: If the job could not be killed.
         """
         raise NotImplementedError(
-            f"jobKillForce method is not implemented for {cls.__name__}"
+            f"job_kill_force method is not implemented for {cls.__name__}"
         )
 
     @classmethod
-    def getBatchJob(cls, job_id: str) -> TBatchJob:
+    def get_batch_job(cls, job_id: str) -> TBatchJob:
         """
         Retrieve information about a job from the batch system.
 
@@ -182,11 +182,11 @@ class BatchInterface[
             TBatchJob: Object containing the job's metadata and state.
         """
         raise NotImplementedError(
-            f"getBatchJob method is not implemented for {cls.__name__}"
+            f"get_batch_job method is not implemented for {cls.__name__}"
         )
 
     @classmethod
-    def getUnfinishedBatchJobs(
+    def get_unfinished_batch_jobs(
         cls, user: str, server: str | None = None
     ) -> list[TBatchJob]:
         """
@@ -203,11 +203,11 @@ class BatchInterface[
             list[TBatchJob]: A list of job info objects representing the user's unfinished jobs.
         """
         raise NotImplementedError(
-            f"getUnfinishedBatchJobs method is not implemented for {cls.__name__}"
+            f"get_unfinished_batch_jobs method is not implemented for {cls.__name__}"
         )
 
     @classmethod
-    def getBatchJobs(cls, user: str, server: str | None = None) -> list[TBatchJob]:
+    def get_batch_jobs(cls, user: str, server: str | None = None) -> list[TBatchJob]:
         """
         Retrieve information about all jobs submitted by a specific user (including finished jobs)
         on the specified or default batch server.
@@ -222,11 +222,13 @@ class BatchInterface[
             list[TBatchJob]: A list of job info objects representing all jobs of the user.
         """
         raise NotImplementedError(
-            f"getBatchJobs method is not implemented for {cls.__name__}"
+            f"get_batch_jobs method is not implemented for {cls.__name__}"
         )
 
     @classmethod
-    def getAllUnfinishedBatchJobs(cls, server: str | None = None) -> list[TBatchJob]:
+    def get_all_unfinished_batch_jobs(
+        cls, server: str | None = None
+    ) -> list[TBatchJob]:
         """
         Retrieve information about unfinished jobs of all users on the specified or default batch server.
 
@@ -239,11 +241,11 @@ class BatchInterface[
             list[TBatchJob]: A list of job info objects representing unfinished jobs of all users.
         """
         raise NotImplementedError(
-            f"getAllUnfinishedBatchJobs method is not implemented for {cls.__name__}"
+            f"get_all_unfinished_batch_jobs method is not implemented for {cls.__name__}"
         )
 
     @classmethod
-    def getAllBatchJobs(cls, server: str | None = None) -> list[TBatchJob]:
+    def get_all_batch_jobs(cls, server: str | None = None) -> list[TBatchJob]:
         """
         Retrieve information about all jobs of all users on the specified or default batch server.
 
@@ -256,11 +258,11 @@ class BatchInterface[
             list[TBatchJob]: A list of job info objects representing all jobs of all users.
         """
         raise NotImplementedError(
-            f"getAllBatchJobs method is not implemented for {cls.__name__}"
+            f"get_all_batch_jobs method is not implemented for {cls.__name__}"
         )
 
     @classmethod
-    def getQueues(cls, server: str | None = None) -> list[TBatchQueue]:
+    def get_queues(cls, server: str | None = None) -> list[TBatchQueue]:
         """
         Retrieve all queues managed by the batch system on the specified or default batch server.
 
@@ -271,11 +273,11 @@ class BatchInterface[
             list[TBatchQueue]: A list of queue objects existing in the batch system.
         """
         raise NotImplementedError(
-            f"getQueues method is not implemented for {cls.__name__}"
+            f"get_queues method is not implemented for {cls.__name__}"
         )
 
     @classmethod
-    def getNodes(cls, server: str | None = None) -> list[TBatchNode]:
+    def get_nodes(cls, server: str | None = None) -> list[TBatchNode]:
         """
         Retrieve all nodes managed by the batch system on the specified or default batch server.
 
@@ -286,11 +288,11 @@ class BatchInterface[
             list[TBatchNode]: A list of node objects existing in the batch system.
         """
         raise NotImplementedError(
-            f"getNodes method is not implemented for {cls.__name__}"
+            f"get_nodes method is not implemented for {cls.__name__}"
         )
 
     @classmethod
-    def getSupportedWorkDirTypes(cls) -> list[str]:
+    def get_supported_work_dir_types(cls) -> list[str]:
         """
         Retrieve the list of supported types of working directories
         (i.e., strings that can be used with the `--work-dir` option).
@@ -299,11 +301,11 @@ class BatchInterface[
             list[str]: A list of supported types of working directories.
         """
         raise NotImplementedError(
-            f"getSupportedWorkDirTypes method is not implemented for {cls.__name__}"
+            f"get_supported_work_dir_types method is not implemented for {cls.__name__}"
         )
 
     @classmethod
-    def navigateToDestination(cls, host: str, directory: Path) -> None:
+    def navigate_to_destination(cls, host: str, directory: Path) -> None:
         """
         Open a new terminal on the specified host and change the working directory
         to the given path, handing control over to the user.
@@ -325,11 +327,11 @@ class BatchInterface[
         """
         # if the directory is on the current host, we do not need to use ssh
         if host == socket.getfqdn():
-            cls._navigateSameHost(directory)
+            cls._navigate_same_host(directory)
             return
 
         # the directory is on an another node
-        ssh_command = cls._translateSSHCommand(host, directory)
+        ssh_command = cls._translate_SSH_command(host, directory)
         logger.debug(f"Using ssh: '{' '.join(ssh_command)}'")
         result = subprocess.run(ssh_command)
 
@@ -349,7 +351,7 @@ class BatchInterface[
             )
 
     @classmethod
-    def readRemoteFile(cls, host: str, file: Path) -> str:
+    def read_remote_file(cls, host: str, file: Path) -> str:
         """
         Read the contents of a file on a remote host and return it as a string.
 
@@ -391,7 +393,7 @@ class BatchInterface[
         return result.stdout
 
     @classmethod
-    def writeRemoteFile(cls, host: str, file: Path, content: str) -> None:
+    def write_remote_file(cls, host: str, file: Path, content: str) -> None:
         """
         Write the given content to a file on a remote host, overwriting it if it exists.
 
@@ -431,7 +433,7 @@ class BatchInterface[
             )
 
     @classmethod
-    def makeRemoteDir(cls, host: str, directory: Path) -> None:
+    def make_remote_dir(cls, host: str, directory: Path) -> None:
         """
         Create a directory at the specified path on a remote host.
 
@@ -469,7 +471,7 @@ class BatchInterface[
             )
 
     @classmethod
-    def listRemoteDir(cls, host: str, directory: Path) -> list[Path]:
+    def list_remote_dir(cls, host: str, directory: Path) -> list[Path]:
         """
         List all files and directories (absolute paths) in the specified directory on a remote host.
 
@@ -517,7 +519,7 @@ class BatchInterface[
         ]
 
     @classmethod
-    def deleteRemoteDir(cls, host: str, directory: Path) -> None:
+    def delete_remote_dir(cls, host: str, directory: Path) -> None:
         """
         Delete a directory on a remote host.
 
@@ -554,7 +556,7 @@ class BatchInterface[
             )
 
     @classmethod
-    def moveRemoteFiles(
+    def move_remote_files(
         cls, host: str, files: list[Path], moved_files: list[Path]
     ) -> None:
         """
@@ -577,7 +579,7 @@ class BatchInterface[
             QQError: If the SSH command fails, the files cannot be moved or
                     the length of `files` does not match the length of `moved_files`.
         """
-        mv_command = cls._translateMoveCommand(files, moved_files)
+        mv_command = cls._translate_move_command(files, moved_files)
 
         result = subprocess.run(
             [
@@ -598,7 +600,7 @@ class BatchInterface[
             )
 
     @classmethod
-    def syncWithExclusions(
+    def sync_with_exclusions(
         cls,
         src_dir: Path,
         dest_dir: Path,
@@ -633,15 +635,15 @@ class BatchInterface[
             else []
         )
 
-        command = cls._translateRsyncExcludedCommand(
+        command = cls._translate_rsync_excluded_command(
             src_dir, dest_dir, src_host, dest_host, relative_excluded
         )
         logger.debug(f"Rsync command: {command}.")
 
-        cls._runRsync(src_dir, dest_dir, src_host, dest_host, command)
+        cls._run_rsync(src_dir, dest_dir, src_host, dest_host, command)
 
     @classmethod
-    def syncSelected(
+    def sync_selected(
         cls,
         src_dir: Path,
         dest_dir: Path,
@@ -665,7 +667,7 @@ class BatchInterface[
                 None if the destination is local.
             include_files (list[Path] | None): Optional list of absolute file paths to include in syncing.
                 These paths are converted relative to `src_dir`.
-                This argument is optional only for consistency with syncWithExclusions.
+                This argument is optional only for consistency with sync_with_exclusions.
 
         Raises:
             QQError: If the rsync command fails or times out.
@@ -677,15 +679,15 @@ class BatchInterface[
             else []
         )
 
-        command = cls._translateRsyncIncludedCommand(
+        command = cls._translate_rsync_included_command(
             src_dir, dest_dir, src_host, dest_host, relative_included
         )
         logger.debug(f"Rsync command: {command}.")
 
-        cls._runRsync(src_dir, dest_dir, src_host, dest_host, command)
+        cls._run_rsync(src_dir, dest_dir, src_host, dest_host, command)
 
     @classmethod
-    def transformResources(
+    def transform_resources(
         cls, queue: str, server: str | None, provided_resources: Resources
     ) -> Resources:
         """
@@ -709,11 +711,11 @@ class BatchInterface[
             QQError: If any of the provided parameters are invalid or inconsistent.
         """
         raise NotImplementedError(
-            f"transformResources method is not implemented for {cls.__name__}"
+            f"transform_resources method is not implemented for {cls.__name__}"
         )
 
     @classmethod
-    def isShared(cls, directory: Path) -> bool:
+    def is_shared(cls, directory: Path) -> bool:
         """
         Determine whether a given directory resides on a shared filesystem.
 
@@ -779,22 +781,22 @@ class BatchInterface[
             )
 
     @classmethod
-    def sortJobs(cls, jobs: list[TBatchJob]) -> None:
+    def sort_jobs(cls, jobs: list[TBatchJob]) -> None:
         """
         Sort a list of batch system jobs by a defined attribute.
 
         The default implementation sorts the jobs alphabetically by their job ID,
-        as returned by `job.getId()`. Subclasses may override this method to
+        as returned by `job.get_id()`. Subclasses may override this method to
         implement custom sorting logic.
 
         Args:
             jobs (list[TBatchJob]): A list of batch job objects to be sorted
                 in-place.
         """
-        jobs.sort(key=lambda job: job.getId())
+        jobs.sort(key=lambda job: job.get_id())
 
     @classmethod
-    def jobsPresenterColumnsToShow(cls) -> set[str]:
+    def jobs_presenter_columns_to_show(cls) -> set[str]:
         """
         Get a set of columns that should be shown in the output of JobsPresenter (`qq jobs`)
         for this batch system.
@@ -824,7 +826,7 @@ class BatchInterface[
         }
 
     @classmethod
-    def _translateSSHCommand(cls, host: str, directory: Path) -> list[str]:
+    def _translate_SSH_command(cls, host: str, directory: Path) -> list[str]:
         """
         Construct the SSH command to navigate to a remote directory.
 
@@ -848,7 +850,7 @@ class BatchInterface[
         ]
 
     @classmethod
-    def _navigateSameHost(cls, directory: Path) -> None:
+    def _navigate_same_host(cls, directory: Path) -> None:
         """
         Navigate to a directory on the current host using a subprocess.
 
@@ -869,7 +871,7 @@ class BatchInterface[
         # no matter what the user does inside the terminal
 
     @classmethod
-    def _translateMoveCommand(cls, files: list[Path], moved_files: list[Path]) -> str:
+    def _translate_move_command(cls, files: list[Path], moved_files: list[Path]) -> str:
         """
         Translate lists of source and destination file paths into a single shell
         command string for moving the files.
@@ -900,7 +902,7 @@ class BatchInterface[
         return " && ".join(mv_commands)
 
     @classmethod
-    def _translateRsyncExcludedCommand(
+    def _translate_rsync_excluded_command(
         cls,
         src_dir: Path,
         dest_dir: Path,
@@ -952,7 +954,7 @@ class BatchInterface[
         return command
 
     @classmethod
-    def _translateRsyncIncludedCommand(
+    def _translate_rsync_included_command(
         cls,
         src_dir: Path,
         dest_dir: Path,
@@ -1004,7 +1006,7 @@ class BatchInterface[
         return command
 
     @classmethod
-    def _runRsync(
+    def _run_rsync(
         cls,
         src_dir: Path,
         dest_dir: Path,
@@ -1025,7 +1027,7 @@ class BatchInterface[
             dest_host (str | None): Optional hostname of the destination machine if remote;
                 None if the destination is local.
             command (list[str]): List of command-line arguments for rsync, typically
-                generated by `_translateRsyncExcludedCommand` or `_translateRsyncIncludedCommand`.
+                generated by `_translate_rsync_excluded_command` or `_translate_rsync_included_command`.
 
         Raises:
             QQError: If the rsync command fails (non-zero exit code) or

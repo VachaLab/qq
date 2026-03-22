@@ -46,7 +46,7 @@ def test_field_coupling_contains_with_unrelated_field():
 
 def test_field_coupling_get_fields():
     coupling = FieldCoupling("foo", "bar", "baz", "qux")
-    assert coupling.getFields() == ("foo", "bar", "baz", "qux")
+    assert coupling.get_fields() == ("foo", "bar", "baz", "qux")
 
 
 def test_field_coupling_has_value_with_first_set():
@@ -58,7 +58,7 @@ def test_field_coupling_has_value_with_first_set():
 
     coupling = FieldCoupling("foo", "bar", "baz")
     instance = MockClass(foo="value")
-    assert coupling.hasValue(instance) is True
+    assert coupling.has_value(instance) is True
 
 
 def test_field_coupling_has_value_with_last_set():
@@ -70,7 +70,7 @@ def test_field_coupling_has_value_with_last_set():
 
     coupling = FieldCoupling("foo", "bar", "baz")
     instance = MockClass(baz="value")
-    assert coupling.hasValue(instance) is True
+    assert coupling.has_value(instance) is True
 
 
 def test_field_coupling_has_value_with_two_set():
@@ -82,7 +82,7 @@ def test_field_coupling_has_value_with_two_set():
 
     coupling = FieldCoupling("foo", "bar", "baz")
     instance = MockClass(foo="value1", bar="value2")
-    assert coupling.hasValue(instance) is True
+    assert coupling.has_value(instance) is True
 
 
 def test_field_coupling_has_value_with_all_set():
@@ -94,7 +94,7 @@ def test_field_coupling_has_value_with_all_set():
 
     coupling = FieldCoupling("foo", "bar", "baz")
     instance = MockClass(foo="value1", bar="value2", baz="value3")
-    assert coupling.hasValue(instance) is True
+    assert coupling.has_value(instance) is True
 
 
 def test_field_coupling_has_value_with_neither_set():
@@ -106,7 +106,7 @@ def test_field_coupling_has_value_with_neither_set():
 
     coupling = FieldCoupling("foo", "bar", "baz")
     instance = MockClass()
-    assert coupling.hasValue(instance) is False
+    assert coupling.has_value(instance) is False
 
 
 def test_decorator_single_coupling_dominant_overrides_recessive():
@@ -245,11 +245,11 @@ def test_decorator_get_coupling_for_field():
         foo: str | None = None
         bar: str | None = None
 
-    coupling = TestClass.getCouplingForField("foo")
+    coupling = TestClass.get_coupling_for_field("foo")
     assert coupling is not None
     assert coupling.fields == ["foo", "bar"]
 
-    coupling = TestClass.getCouplingForField("bar")
+    coupling = TestClass.get_coupling_for_field("bar")
     assert coupling is not None
     assert coupling.fields == ["foo", "bar"]
 
@@ -262,7 +262,7 @@ def test_decorator_get_coupling_for_field_returns_none_for_uncoupled():
         bar: str | None = None
         baz: str | None = None
 
-    coupling = TestClass.getCouplingForField("baz")
+    coupling = TestClass.get_coupling_for_field("baz")
     assert coupling is None
 
 
@@ -279,11 +279,11 @@ def test_decorator_get_coupling_for_field_with_multiple_couplings():
         qux: str | None = None
         corge: str | None = None
 
-    coupling1 = TestClass.getCouplingForField("foo")
+    coupling1 = TestClass.get_coupling_for_field("foo")
     assert coupling1 is not None
     assert coupling1.fields == ["foo", "bar"]
 
-    coupling2 = TestClass.getCouplingForField("corge")
+    coupling2 = TestClass.get_coupling_for_field("corge")
     assert coupling2 is not None
     assert coupling2.fields == ["baz", "qux", "corge"]
 
@@ -334,7 +334,7 @@ def test_decorator_empty_decorator():
     obj = TestClass(foo="F", bar="B")
     assert obj.foo == "F"
     assert obj.bar == "B"
-    assert TestClass.getCouplingForField("foo") is None
+    assert TestClass.get_coupling_for_field("foo") is None
 
 
 def test_field_coupling_get_most_dominant_set_field_first():
@@ -346,7 +346,7 @@ def test_field_coupling_get_most_dominant_set_field_first():
 
     coupling = FieldCoupling("alpha", "beta", "gamma")
     instance = MockClass(alpha="A", beta="B", gamma="C")
-    assert coupling.getMostDominantSetField(instance) == "alpha"
+    assert coupling.get_most_dominant_set_field(instance) == "alpha"
 
 
 def test_field_coupling_get_most_dominant_set_field_middle():
@@ -358,7 +358,7 @@ def test_field_coupling_get_most_dominant_set_field_middle():
 
     coupling = FieldCoupling("alpha", "beta", "gamma")
     instance = MockClass(beta="B", gamma="C")
-    assert coupling.getMostDominantSetField(instance) == "beta"
+    assert coupling.get_most_dominant_set_field(instance) == "beta"
 
 
 def test_field_coupling_get_most_dominant_set_field_last():
@@ -370,7 +370,7 @@ def test_field_coupling_get_most_dominant_set_field_last():
 
     coupling = FieldCoupling("alpha", "beta", "gamma")
     instance = MockClass(gamma="C")
-    assert coupling.getMostDominantSetField(instance) == "gamma"
+    assert coupling.get_most_dominant_set_field(instance) == "gamma"
 
 
 def test_field_coupling_get_most_dominant_set_field_none_set():
@@ -382,7 +382,7 @@ def test_field_coupling_get_most_dominant_set_field_none_set():
 
     coupling = FieldCoupling("alpha", "beta", "gamma")
     instance = MockClass()
-    assert coupling.getMostDominantSetField(instance) is None
+    assert coupling.get_most_dominant_set_field(instance) is None
 
 
 def test_field_coupling_enforce_first_dominant_kept():

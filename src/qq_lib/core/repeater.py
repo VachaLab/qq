@@ -50,7 +50,7 @@ class Repeater:
         self._args = args
         self._kwargs = kwargs
 
-    def onException(
+    def on_exception(
         self,
         exc_type: type[BaseException],
         handler: Callable[[BaseException, Self], Any],

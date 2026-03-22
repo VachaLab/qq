@@ -35,11 +35,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
     """
 
     @classmethod
-    def envName(cls) -> str:
+    def env_name(cls) -> str:
         return "Slurm"
 
     @classmethod
-    def isAvailable(cls) -> bool:
+    def is_available(cls) -> bool:
         return (
             shutil.which("sbatch") is not None
             and shutil.which("it4ifree") is None
@@ -47,11 +47,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         )
 
     @classmethod
-    def getJobId(cls) -> str | None:
+    def get_job_id(cls) -> str | None:
         return os.environ.get("SLURM_JOB_ID")
 
     @classmethod
-    def jobSubmit(
+    def job_submit(
         cls,
         res: Resources,
         queue: str,
@@ -66,9 +66,9 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         _ = server
 
         # intentionally using PBS
-        PBS._sharedGuard(res, env_vars, server)
+        PBS._shared_guard(res, env_vars, server)
 
-        command = cls._translateSubmit(
+        command = cls._translate_submit(
             res, queue, script.parent, str(script), job_name, depend, env_vars, account
         )
         logger.debug(command)
@@ -91,8 +91,8 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         return result.stdout.split()[-1]
 
     @classmethod
-    def jobKill(cls, job_id: str) -> None:
-        command = cls._translateKill(job_id)
+    def job_kill(cls, job_id: str) -> None:
+        command = cls._translate_kill(job_id)
         logger.debug(command)
 
         # run the kill command
@@ -109,8 +109,8 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
             raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}.")
 
     @classmethod
-    def jobKillForce(cls, job_id: str) -> None:
-        command = cls._translateKillForce(job_id)
+    def job_kill_force(cls, job_id: str) -> None:
+        command = cls._translate_kill_force(job_id)
         logger.debug(command)
 
         # run the kill command
@@ -127,11 +127,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
             raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}.")
 
     @classmethod
-    def getBatchJob(cls, job_id: str) -> SlurmJob:
+    def get_batch_job(cls, job_id: str) -> SlurmJob:
         return SlurmJob(job_id)
 
     @classmethod
-    def getUnfinishedBatchJobs(
+    def get_unfinished_batch_jobs(
         cls, user: str, server: str | None = None
     ) -> list[SlurmJob]:
         # server unused
@@ -141,20 +141,20 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         command = f"sacct -u {user} --state RUNNING --allocations --noheader --parsable2 --array --format={SACCT_FIELDS}"
         logger.debug(command)
 
-        sacct_jobs = cls._getBatchJobsUsingSacctCommand(command)
+        sacct_jobs = cls._get_batch_jobs_using_sacct_command(command)
 
         # get pending jobs using squeue
         command = f'squeue -u {user} --array -t PENDING -h -o "%i"'
         logger.debug(command)
 
-        squeue_jobs = cls._getBatchJobsUsingSqueueCommand(command)
+        squeue_jobs = cls._get_batch_jobs_using_squeue_command(command)
 
         # filter out duplicate jobs
-        merged = {job.getId(): job for job in sacct_jobs + squeue_jobs}
+        merged = {job.get_id(): job for job in sacct_jobs + squeue_jobs}
         return list(merged.values())
 
     @classmethod
-    def getBatchJobs(cls, user: str, server: str | None = None) -> list[SlurmJob]:
+    def get_batch_jobs(cls, user: str, server: str | None = None) -> list[SlurmJob]:
         # server unused
         _ = server
 
@@ -162,20 +162,20 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         command = f"sacct -u {user} --allocations --noheader --parsable2 --array --format={SACCT_FIELDS}"
         logger.debug(command)
 
-        sacct_jobs = cls._getBatchJobsUsingSacctCommand(command)
+        sacct_jobs = cls._get_batch_jobs_using_sacct_command(command)
 
         # get pending jobs using squeue
         command = f'squeue -u {user} --array -t PENDING -h -o "%i"'
         logger.debug(command)
 
-        squeue_jobs = cls._getBatchJobsUsingSqueueCommand(command)
+        squeue_jobs = cls._get_batch_jobs_using_squeue_command(command)
 
         # filter out duplicate jobs
-        merged = {job.getId(): job for job in sacct_jobs + squeue_jobs}
+        merged = {job.get_id(): job for job in sacct_jobs + squeue_jobs}
         return list(merged.values())
 
     @classmethod
-    def getAllUnfinishedBatchJobs(cls, server: str | None = None) -> list[SlurmJob]:
+    def get_all_unfinished_batch_jobs(cls, server: str | None = None) -> list[SlurmJob]:
         # server unused
         _ = server
 
@@ -183,20 +183,20 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         command = f"sacct --state RUNNING --allusers --allocations --noheader --parsable2 --array --format={SACCT_FIELDS}"
         logger.debug(command)
 
-        sacct_jobs = cls._getBatchJobsUsingSacctCommand(command)
+        sacct_jobs = cls._get_batch_jobs_using_sacct_command(command)
 
         # get pending jobs using squeue
         command = 'squeue --array -t PENDING -h -o "%i"'
         logger.debug(command)
 
-        squeue_jobs = cls._getBatchJobsUsingSqueueCommand(command)
+        squeue_jobs = cls._get_batch_jobs_using_squeue_command(command)
 
         # filter out duplicate jobs
-        merged = {job.getId(): job for job in sacct_jobs + squeue_jobs}
+        merged = {job.get_id(): job for job in sacct_jobs + squeue_jobs}
         return list(merged.values())
 
     @classmethod
-    def getAllBatchJobs(cls, server: str | None = None) -> list[SlurmJob]:
+    def get_all_batch_jobs(cls, server: str | None = None) -> list[SlurmJob]:
         # server unused
         _ = server
 
@@ -204,20 +204,20 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         command = f"sacct --allusers --allocations --noheader --parsable2 --array --format={SACCT_FIELDS}"
         logger.debug(command)
 
-        sacct_jobs = cls._getBatchJobsUsingSacctCommand(command)
+        sacct_jobs = cls._get_batch_jobs_using_sacct_command(command)
 
         # get pending jobs using squeue
         command = 'squeue --array -t PENDING -h -o "%i"'
         logger.debug(command)
 
-        squeue_jobs = cls._getBatchJobsUsingSqueueCommand(command)
+        squeue_jobs = cls._get_batch_jobs_using_squeue_command(command)
 
         # filter out duplicate jobs
-        merged = {job.getId(): job for job in sacct_jobs + squeue_jobs}
+        merged = {job.get_id(): job for job in sacct_jobs + squeue_jobs}
         return list(merged.values())
 
     @classmethod
-    def getQueues(cls, server: str | None = None) -> list[SlurmQueue]:
+    def get_queues(cls, server: str | None = None) -> list[SlurmQueue]:
         # server unused
         _ = server
 
@@ -241,12 +241,12 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         queues = []
         for line in result.stdout.splitlines():
             info = parse_slurm_dump_to_dictionary(line)
-            queues.append(SlurmQueue.fromDict(info["PartitionName"], info))
+            queues.append(SlurmQueue.from_dict(info["PartitionName"], info))
 
         return queues
 
     @classmethod
-    def getNodes(cls, server: str | None = None) -> list[SlurmNode]:
+    def get_nodes(cls, server: str | None = None) -> list[SlurmNode]:
         # server unused
         _ = server
 
@@ -270,38 +270,38 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         nodes = []
         for line in result.stdout.splitlines():
             info = parse_slurm_dump_to_dictionary(line)
-            nodes.append(SlurmNode.fromDict(info["NodeName"], info))
+            nodes.append(SlurmNode.from_dict(info["NodeName"], info))
 
         return nodes
 
     @classmethod
-    def readRemoteFile(cls, host: str, file: Path) -> str:
-        return PBS.readRemoteFile(host, file)
+    def read_remote_file(cls, host: str, file: Path) -> str:
+        return PBS.read_remote_file(host, file)
 
     @classmethod
-    def writeRemoteFile(cls, host: str, file: Path, content: str) -> None:
-        PBS.writeRemoteFile(host, file, content)
+    def write_remote_file(cls, host: str, file: Path, content: str) -> None:
+        PBS.write_remote_file(host, file, content)
 
     @classmethod
-    def makeRemoteDir(cls, host: str, directory: Path) -> None:
-        PBS.makeRemoteDir(host, directory)
+    def make_remote_dir(cls, host: str, directory: Path) -> None:
+        PBS.make_remote_dir(host, directory)
 
     @classmethod
-    def listRemoteDir(cls, host: str, directory: Path) -> list[Path]:
-        return PBS.listRemoteDir(host, directory)
+    def list_remote_dir(cls, host: str, directory: Path) -> list[Path]:
+        return PBS.list_remote_dir(host, directory)
 
     @classmethod
-    def deleteRemoteDir(cls, host: str, directory: Path) -> None:
-        PBS.deleteRemoteDir(host, directory)
+    def delete_remote_dir(cls, host: str, directory: Path) -> None:
+        PBS.delete_remote_dir(host, directory)
 
     @classmethod
-    def moveRemoteFiles(
+    def move_remote_files(
         cls, host: str, files: list[Path], moved_files: list[Path]
     ) -> None:
-        PBS.moveRemoteFiles(host, files, moved_files)
+        PBS.move_remote_files(host, files, moved_files)
 
     @classmethod
-    def syncWithExclusions(
+    def sync_with_exclusions(
         cls,
         src_dir: Path,
         dest_dir: Path,
@@ -309,10 +309,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         dest_host: str | None,
         exclude_files: list[Path] | None = None,
     ) -> None:
-        PBS.syncWithExclusions(src_dir, dest_dir, src_host, dest_host, exclude_files)
+        PBS.sync_with_exclusions(src_dir, dest_dir, src_host, dest_host, exclude_files)
 
     @classmethod
-    def syncSelected(
+    def sync_selected(
         cls,
         src_dir: Path,
         dest_dir: Path,
@@ -320,14 +320,14 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         dest_host: str | None,
         include_files: list[Path] | None = None,
     ) -> None:
-        PBS.syncSelected(src_dir, dest_dir, src_host, dest_host, include_files)
+        PBS.sync_selected(src_dir, dest_dir, src_host, dest_host, include_files)
 
     @classmethod
-    def sortJobs(cls, jobs: list[SlurmJob]) -> None:
-        jobs.sort(key=lambda job: job.getIdsForSorting())
+    def sort_jobs(cls, jobs: list[SlurmJob]) -> None:
+        jobs.sort(key=lambda job: job.get_ids_for_sorting())
 
     @classmethod
-    def jobsPresenterColumnsToShow(cls) -> set[str]:
+    def jobs_presenter_columns_to_show(cls) -> set[str]:
         return {
             "S",
             "Job ID",
@@ -343,7 +343,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         }
 
     @classmethod
-    def _translateKill(cls, job_id: str) -> str:
+    def _translate_kill(cls, job_id: str) -> str:
         """
         Generate the Slurm kill command for a job using SIGTERM.
 
@@ -356,7 +356,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         return f"scancel {job_id}"
 
     @classmethod
-    def _translateKillForce(cls, job_id: str) -> str:
+    def _translate_kill_force(cls, job_id: str) -> str:
         """
         Generate the Slurm kill command for a job using SIGKILL.
 
@@ -369,7 +369,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         return f"scancel --signal=KILL {job_id}"
 
     @classmethod
-    def _translateSubmit(
+    def _translate_submit(
         cls,
         res: Resources,
         queue: str,
@@ -404,13 +404,13 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
 
         # translate environment variables
         if env_vars:
-            command += f"--export ALL,{cls._translateEnvVars(env_vars)} "
+            command += f"--export ALL,{cls._translate_env_vars(env_vars)} "
 
         # handle number of nodes
         command += f"--nodes {res.nnodes} "
 
         # handle per-chunk resources
-        translated = cls._translatePerChunkResources(res)
+        translated = cls._translate_per_chunk_resources(res)
         command += " ".join(translated) + " "
 
         # handle properties
@@ -430,7 +430,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
             command += f"--time={res.walltime} "
 
         # handle dependencies
-        if converted_depend := cls._translateDependencies(depend):
+        if converted_depend := cls._translate_dependencies(depend):
             command += f"--dependency={converted_depend} "
 
         # add script
@@ -439,7 +439,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         return command
 
     @classmethod
-    def _translateEnvVars(cls, env_vars: dict[str, str]) -> str:
+    def _translate_env_vars(cls, env_vars: dict[str, str]) -> str:
         """
         Convert a dictionary of environment variables into a formatted string.
 
@@ -458,7 +458,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         return ",".join(converted)
 
     @classmethod
-    def _translatePerChunkResources(cls, res: Resources) -> list[str]:
+    def _translate_per_chunk_resources(cls, res: Resources) -> list[str]:
         """
         Convert a Resources object into a list of per-node resource specifications.
 
@@ -507,11 +507,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
             trans_res.append(f"--cpus-per-task={res.ncpus_per_node}")
 
         if res.mem:
-            trans_res.append(f"--mem={(res.mem // res.nnodes).toStrExactSlurm()}")
+            trans_res.append(f"--mem={(res.mem // res.nnodes).to_str_exact_slurm()}")
         elif res.mem_per_node:
-            trans_res.append(f"--mem={res.mem_per_node.toStrExactSlurm()}")
+            trans_res.append(f"--mem={res.mem_per_node.to_str_exact_slurm()}")
         elif res.mem_per_cpu:
-            trans_res.append(f"--mem-per-cpu={res.mem_per_cpu.toStrExactSlurm()}")
+            trans_res.append(f"--mem-per-cpu={res.mem_per_cpu.to_str_exact_slurm()}")
         else:
             # memory not set in any way
             raise QQError(
@@ -526,7 +526,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         return trans_res
 
     @classmethod
-    def _translateDependencies(cls, depend: list[Depend]) -> str | None:
+    def _translate_dependencies(cls, depend: list[Depend]) -> str | None:
         """
         Convert a list of `Depend` objects into a Slurm-compatible dependency string.
 
@@ -540,10 +540,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         if not depend:
             return None
 
-        return ",".join(Depend.toStr(x).replace("=", ":") for x in depend)
+        return ",".join(Depend.to_str(x).replace("=", ":") for x in depend)
 
     @classmethod
-    def _getDefaultServerResources(cls) -> Resources:
+    def _get_default_server_resources(cls) -> Resources:
         """
         Return a Resources object representing the default resources for a batch job.
 
@@ -568,10 +568,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         info = parse_slurm_dump_to_dictionary(result.stdout, "\n")
         server_resources = default_resources_from_dict(info)
 
-        return Resources.mergeResources(server_resources, cls._getDefaultResources())
+        return Resources.merge_resources(server_resources, cls._get_default_resources())
 
     @classmethod
-    def _getDefaultResources(cls) -> Resources:
+    def _get_default_resources(cls) -> Resources:
         """
         Return a Resources object representing the default, hard-coded resources for a batch job.
         """
@@ -585,7 +585,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
         )
 
     @classmethod
-    def _getBatchJobsUsingSacctCommand(cls, command: str) -> list[SlurmJob]:
+    def _get_batch_jobs_using_sacct_command(cls, command: str) -> list[SlurmJob]:
         """
         Execute `sacct` to retrieve information about Slurm jobs and parse it.
 
@@ -620,12 +620,12 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta
             if sacct_string.strip() == "":
                 continue
 
-            jobs.append(SlurmJob.fromSacctString(sacct_string))
+            jobs.append(SlurmJob.from_sacct_string(sacct_string))
 
         return jobs
 
     @classmethod
-    def _getBatchJobsUsingSqueueCommand(cls, command: str) -> list[SlurmJob]:
+    def _get_batch_jobs_using_squeue_command(cls, command: str) -> list[SlurmJob]:
         """
         Execute `squeue` and `scontrol show job` to retrieve information about Slurm jobs.
 

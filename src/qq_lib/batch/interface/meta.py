@@ -26,20 +26,20 @@ class BatchMeta(ABCMeta):
         """
         Get the string representation of the batch system class.
         """
-        return cls.envName()
+        return cls.env_name()
 
     @classmethod
-    def registerBatchSystem(cls, batch_cls: type[BatchInterface]) -> None:
+    def register_batch_system(cls, batch_cls: type[BatchInterface]) -> None:
         """
         Register a batch system class in the metaclass registry.
 
         Args:
             batch_cls: Subclass of BatchInterface to register.
         """
-        cls._registry[batch_cls.envName()] = batch_cls
+        cls._registry[batch_cls.env_name()] = batch_cls
 
     @classmethod
-    def fromStr(mcs, name: str) -> type[BatchInterface]:
+    def from_str(mcs, name: str) -> type[BatchInterface]:
         """
         Return the batch system class registered with the given name.
 
@@ -67,7 +67,7 @@ class BatchMeta(ABCMeta):
             type[BatchInterface]: The first available batch system class.
         """
         for BatchSystem in mcs._registry.values():
-            if BatchSystem.isAvailable():
+            if BatchSystem.is_available():
                 logger.debug(f"Guessed batch system: {str(BatchSystem)}.")
                 return BatchSystem
 
@@ -77,7 +77,7 @@ class BatchMeta(ABCMeta):
         )
 
     @classmethod
-    def fromEnvVarOrGuess(mcs) -> type[BatchInterface]:
+    def from_env_var_or_guess(mcs) -> type[BatchInterface]:
         """
         Select a batch system based on the environment variable or by guessing.
 
@@ -98,7 +98,7 @@ class BatchMeta(ABCMeta):
             logger.debug(
                 f"Using batch system name from an environment variable: {name}."
             )
-            return BatchMeta.fromStr(name)
+            return BatchMeta.from_str(name)
 
         return BatchMeta.guess()
 
@@ -110,7 +110,7 @@ class BatchMeta(ABCMeta):
         Args:
             name (str | None): Optional name of the batch system to obtain.
                 - If provided, returns the class registered under this name.
-                - If `None`, falls back to `fromEnvVarOrGuess` to determine
+                - If `None`, falls back to `from_env_var_or_guess` to determine
                 the batch system from the environment variable or by guessing.
 
         Returns:
@@ -118,12 +118,12 @@ class BatchMeta(ABCMeta):
 
         Raises:
             QQError: If `name` is provided but no batch system with that name is registered,
-                    or if `name` is `None` and `fromEnvVarOrGuess` fails.
+                    or if `name` is `None` and `from_env_var_or_guess` fails.
         """
         if name:
-            return BatchMeta.fromStr(name)
+            return BatchMeta.from_str(name)
 
-        return BatchMeta.fromEnvVarOrGuess()
+        return BatchMeta.from_env_var_or_guess()
 
 
 def batch_system(cls):
@@ -132,5 +132,5 @@ def batch_system(cls):
 
     Has to be added to every implementation of `BatchInterface`.
     """
-    BatchMeta.registerBatchSystem(cls)
+    BatchMeta.register_batch_system(cls)
     return cls

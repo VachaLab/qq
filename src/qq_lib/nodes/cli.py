@@ -49,22 +49,22 @@ Nodes are grouped heuristically into node groups based on their names.""",
 @click.option("--yaml", is_flag=True, help="Output node metadata in YAML format.")
 def nodes(all: bool, server: str | None, yaml: bool) -> NoReturn:
     try:
-        BatchSystem = BatchMeta.fromEnvVarOrGuess()
+        BatchSystem = BatchMeta.from_env_var_or_guess()
         if server:
             server = translate_server(server)
 
-        nodes: list[BatchNodeInterface] = BatchSystem.getNodes(server)
+        nodes: list[BatchNodeInterface] = BatchSystem.get_nodes(server)
         user = getpass.getuser()
 
         if not all:
-            nodes = [n for n in nodes if n.isAvailableToUser(user)]
+            nodes = [n for n in nodes if n.is_available_to_user(user)]
 
         presenter = NodesPresenter(nodes, user, all, server)
         if yaml:
-            presenter.dumpYaml()
+            presenter.dump_yaml()
         else:
             console = Console(record=False, markup=False)
-            panel = presenter.createNodesInfoPanel(console)
+            panel = presenter.create_nodes_info_panel(console)
             console.print(panel)
         sys.exit(0)
     except QQError as e:

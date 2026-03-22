@@ -14,7 +14,7 @@ class Wiper(Navigator):
     Class to manage deleting working directory of a job.
     """
 
-    def ensureSuitable(self) -> None:
+    def ensure_suitable(self) -> None:
         """
         Verify that the job is in a state where its working directory can be deleted.
 
@@ -22,32 +22,32 @@ class Wiper(Navigator):
             QQNotSuitableError: If the working directory is not expected to exist
                 or if the working directory is the input directory.
         """
-        if self._workDirIsInputDir():
+        if self._work_dir_is_input_dir():
             raise QQNotSuitableError(
                 "Working directory of the job is the input directory of the job. Cannot delete the input directory."
             )
 
-        if self._isQueued():
+        if self._is_queued():
             raise QQNotSuitableError(
-                f"Job is {str(self._informer.getRealState()).lower()} and does not have a working directory yet."
+                f"Job is {str(self._informer.get_real_state()).lower()} and does not have a working directory yet."
             )
 
-        if self._isRunning() or self._isSuspended():
+        if self._is_running() or self._is_suspended():
             raise QQNotSuitableError(
-                f"Job is {str(self._informer.getRealState()).lower()}. It is not safe to delete the working directory."
+                f"Job is {str(self._informer.get_real_state()).lower()}. It is not safe to delete the working directory."
             )
 
-        if self._isSynchronized():
+        if self._is_synchronized():
             raise QQNotSuitableError(
                 "Job has been completed and was synchronized: working directory no longer exists."
             )
 
-        if self._isFinished():
+        if self._is_finished():
             raise QQNotSuitableError(
                 "It may not be safe to delete the working directory of a successfully finished job. Rerun as 'qq wipe --force' if sure."
             )
 
-        if not self.hasDestination():
+        if not self.has_destination():
             raise QQNotSuitableError("Job does not have a working directory.")
 
     def wipe(self) -> str:
@@ -60,7 +60,7 @@ class Wiper(Navigator):
         Raises:
             QQError: If the working directory of the job does not exist or cannot be deleted.
         """
-        if not self.hasDestination():
+        if not self.has_destination():
             raise QQError(
                 "Host ('main_node') or working directory ('work_dir') are not defined."
             )
@@ -70,7 +70,7 @@ class Wiper(Navigator):
         assert self._work_dir and self._main_node
 
         # we cannot delete the input directory even if the `--force` flag is used
-        if self._workDirIsInputDir():
+        if self._work_dir_is_input_dir():
             raise QQError(
                 "Working directory of the job is the input directory of the job. Cannot delete the input directory."
             )
@@ -78,6 +78,6 @@ class Wiper(Navigator):
         logger.info(
             f"Deleting working directory '{str(self._work_dir)}' on '{self._main_node}'."
         )
-        self._batch_system.deleteRemoteDir(self._main_node, self._work_dir)
+        self._batch_system.delete_remote_dir(self._main_node, self._work_dir)
 
         return self._informer.info.job_id
