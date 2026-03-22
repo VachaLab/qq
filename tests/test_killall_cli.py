@@ -51,7 +51,9 @@ def test_killall_no_jobs_exits_zero():
 
         result = runner.invoke(killall)
 
-        batch_system.getUnfinishedBatchJobs.assert_called_once_with(getpass.getuser())
+        batch_system.getUnfinishedBatchJobs.assert_called_once_with(
+            getpass.getuser(), None
+        )
         logger_mock.info.assert_called_once_with(
             "You have no active jobs. Nothing to kill."
         )
@@ -72,6 +74,9 @@ def test_killall_jobs_but_no_info_files_exits_zero():
 
         result = runner.invoke(killall)
 
+        batch_system.getUnfinishedBatchJobs.assert_called_once_with(
+            getpass.getuser(), None
+        )
         logger_mock.info.assert_called_once_with(
             "You have no active qq jobs (and 1 other jobs). Nothing to kill."
         )
@@ -98,6 +103,9 @@ def test_killall_yes_flag_invokes_repeater():
 
         result = runner.invoke(killall, ["--yes"])
 
+        batch_system.getUnfinishedBatchJobs.assert_called_once_with(
+            getpass.getuser(), None
+        )
         repeater_mock.onException.assert_any_call(
             QQNotSuitableError, _log_error_and_continue
         )
@@ -132,6 +140,9 @@ def test_killall_force_flag_invokes_repeater():
 
         result = runner.invoke(killall, ["--force"])
 
+        batch_system.getUnfinishedBatchJobs.assert_called_once_with(
+            getpass.getuser(), None
+        )
         repeater_cls.assert_called_once_with(
             [informer_mock],
             kill_job,
@@ -164,6 +175,9 @@ def test_killall_user_prompt_yes(monkeypatch):
 
         result = runner.invoke(killall)
 
+        batch_system.getUnfinishedBatchJobs.assert_called_once_with(
+            getpass.getuser(), None
+        )
         repeater_cls.assert_called_once_with(
             [informer_mock],
             kill_job,
@@ -192,8 +206,41 @@ def test_killall_user_prompt_no(monkeypatch):
 
         result = runner.invoke(killall)
 
+        batch_system.getUnfinishedBatchJobs.assert_called_once_with(
+            getpass.getuser(), None
+        )
         logger_mock.info.assert_called_with("Operation aborted.")
         assert result.exit_code == 0
+
+
+def test_killall_with_full_server_name_forwards_server():
+    runner = CliRunner()
+    with (
+        patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
+        patch("qq_lib.killall.cli.logger"),
+    ):
+        batch_system = batch_meta_mock.return_value
+
+        runner.invoke(killall, args=["--server", "fake.server.org"])
+
+        batch_system.getUnfinishedBatchJobs.assert_called_once_with(
+            getpass.getuser(), "fake.server.org"
+        )
+
+
+def test_killall_with_server_shortcut_translates_and_forwards_server():
+    runner = CliRunner()
+    with (
+        patch("qq_lib.killall.cli.BatchMeta.fromEnvVarOrGuess") as batch_meta_mock,
+        patch("qq_lib.killall.cli.logger"),
+    ):
+        batch_system = batch_meta_mock.return_value
+
+        runner.invoke(killall, args=["--server", "sokar"])
+
+        batch_system.getUnfinishedBatchJobs.assert_called_once_with(
+            getpass.getuser(), "sokar-pbs.ncbr.muni.cz"
+        )
 
 
 def test_killall_qqerror_in_main_loop_exits_91():
