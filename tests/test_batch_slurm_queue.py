@@ -50,7 +50,7 @@ def test_user_groups_get_qos_or_init_returns_cached_qos(mock_run):
     user = "user"
     UserGroups._qos.clear()
     UserGroups._qos[user] = "high"
-    result = UserGroups.get_QOS_or_init(user)
+    result = UserGroups.get_qos_or_init(user)
     assert result == "high"
     mock_run.assert_not_called()
 
@@ -60,7 +60,7 @@ def test_user_groups_get_qos_or_init_returns_normal_on_failure(mock_run):
     user = "user"
     UserGroups._qos.clear()
     mock_run.return_value = MagicMock(returncode=1, stdout="")
-    result = UserGroups.get_QOS_or_init(user)
+    result = UserGroups.get_qos_or_init(user)
     assert result == "normal"  # default QOS
     assert UserGroups._qos[user] == "normal"
 
@@ -70,7 +70,7 @@ def test_user_groups_get_qos_or_init_returns_first_qos(mock_run):
     user = "user"
     UserGroups._qos.clear()
     mock_run.return_value = MagicMock(returncode=0, stdout="premium,low")
-    result = UserGroups.get_QOS_or_init(user)
+    result = UserGroups.get_qos_or_init(user)
     assert result == "premium"
 
 
@@ -79,7 +79,7 @@ def test_user_groups_get_qos_or_init_returns_normal_on_empty_stdout(mock_run):
     user = "user"
     UserGroups._qos.clear()
     mock_run.return_value = MagicMock(returncode=0, stdout="")
-    result = UserGroups.get_QOS_or_init(user)
+    result = UserGroups.get_qos_or_init(user)
     assert result == "normal"
 
 
@@ -265,7 +265,7 @@ def test_slurm_queue_is_available_user_false_in_deny_groups(mock_groups):
 
 
 @patch("qq_lib.batch.slurm.queue.UserGroups.get_groups_or_init", return_value=["dev"])
-@patch("qq_lib.batch.slurm.queue.UserGroups.get_QOS_or_init", return_value="normal")
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_qos_or_init", return_value="normal")
 def test_slurm_queue_is_available_user_false_qos_not_allowed(mock_qos, mock_groups):
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"State": "UP", "AllowQos": "premium,high"}
@@ -276,7 +276,7 @@ def test_slurm_queue_is_available_user_false_qos_not_allowed(mock_qos, mock_grou
 
 
 @patch("qq_lib.batch.slurm.queue.UserGroups.get_groups_or_init", return_value=["dev"])
-@patch("qq_lib.batch.slurm.queue.UserGroups.get_QOS_or_init", return_value="normal")
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_qos_or_init", return_value="normal")
 def test_slurm_queue_is_available_user_false_qos_denied(mock_qos, mock_groups):
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"State": "UP", "DenyQos": "normal"}
@@ -287,7 +287,7 @@ def test_slurm_queue_is_available_user_false_qos_denied(mock_qos, mock_groups):
 
 
 @patch("qq_lib.batch.slurm.queue.UserGroups.get_groups_or_init", return_value=["dev"])
-@patch("qq_lib.batch.slurm.queue.UserGroups.get_QOS_or_init", return_value="normal")
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_qos_or_init", return_value="normal")
 def test_slurm_queue_is_available_user_true_no_restrictions(mock_qos, mock_groups):
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {"State": "UP"}
@@ -298,7 +298,7 @@ def test_slurm_queue_is_available_user_true_no_restrictions(mock_qos, mock_group
 
 
 @patch("qq_lib.batch.slurm.queue.UserGroups.get_groups_or_init", return_value=["dev"])
-@patch("qq_lib.batch.slurm.queue.UserGroups.get_QOS_or_init", return_value="normal")
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_qos_or_init", return_value="normal")
 def test_slurm_queue_is_available_user_true_all_allows(mock_qos, mock_groups):
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._info = {
@@ -314,7 +314,7 @@ def test_slurm_queue_is_available_user_true_all_allows(mock_qos, mock_groups):
 
 
 @patch("qq_lib.batch.slurm.queue.UserGroups.get_groups_or_init", return_value=["dev"])
-@patch("qq_lib.batch.slurm.queue.UserGroups.get_QOS_or_init", return_value="normal")
+@patch("qq_lib.batch.slurm.queue.UserGroups.get_qos_or_init", return_value="normal")
 def test_slurm_queue_is_available_user_true_all_allows_null_denies(
     mock_qos, mock_groups
 ):

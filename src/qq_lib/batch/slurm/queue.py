@@ -64,7 +64,7 @@ class UserGroups:
         return groups
 
     @staticmethod
-    def get_QOS_or_init(user: str) -> str:
+    def get_qos_or_init(user: str) -> str:
         if qos := UserGroups._qos.get(user):
             return qos
 
@@ -198,7 +198,7 @@ class SlurmQueue(BatchQueueInterface):
             return False
 
         # check allowed QOS
-        user_qos = UserGroups.get_QOS_or_init(user)
+        user_qos = UserGroups.get_qos_or_init(user)
         allow_qos = parse_list(self._info.get("AllowQos", "ALL"))
         if allow_qos and user_qos not in allow_qos:
             return False

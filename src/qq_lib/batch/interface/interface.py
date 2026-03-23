@@ -91,7 +91,7 @@ class BatchInterface[
             job_id (int): Unique identifier of the job.
 
         Returns:
-            Path: Absolute path to the working directory on directory.
+            Path: Absolute path to the working directory on scratch.
 
         Raises:
             QQError: If the working directory could not be created.
@@ -140,7 +140,7 @@ class BatchInterface[
     @classmethod
     def job_kill(cls, job_id: str) -> None:
         """
-        Terminate a job gracefully. This assumes that job has time for cleanup.
+        Terminate a job gracefully. The job should have time for proper cleanup.
 
         Args:
             job_id (str): Identifier of the job to terminate.
@@ -155,7 +155,7 @@ class BatchInterface[
     @classmethod
     def job_kill_force(cls, job_id: str) -> None:
         """
-        Forcefully terminate a job. This assumes that the job has no time for cleanup.
+        Forcefully terminate a job. There may be no time for proper cleanup.
 
         Args:
             job_id (str): Identifier of the job to forcefully terminate.
@@ -190,17 +190,17 @@ class BatchInterface[
         cls, user: str, server: str | None = None
     ) -> list[TBatchJob]:
         """
-        Retrieve information about all unfinished jobs submitted by `user`
+        Retrieve information about all uncompleted jobs submitted by `user`
         on the specified or default batch server.
 
         The jobs can be returned in arbitrary order.
 
         Args:
-            user (str): Username for which to fetch unfinished jobs.
+            user (str): Username for which to fetch uncompleted jobs.
             server (str | None): Optional name of the batch server to get jobs from.
 
         Returns:
-            list[TBatchJob]: A list of job info objects representing the user's unfinished jobs.
+            list[TBatchJob]: A list of job info objects representing the user's uncompleted jobs.
         """
         raise NotImplementedError(
             f"get_unfinished_batch_jobs method is not implemented for {cls.__name__}"
@@ -230,7 +230,7 @@ class BatchInterface[
         cls, server: str | None = None
     ) -> list[TBatchJob]:
         """
-        Retrieve information about unfinished jobs of all users on the specified or default batch server.
+        Retrieve information about uncompleted jobs of all users on the specified or default batch server.
 
         The jobs can be returned in arbitrary order.
 
@@ -238,7 +238,7 @@ class BatchInterface[
             server (str | None): Optional name of the batch server to get jobs from.
 
         Returns:
-            list[TBatchJob]: A list of job info objects representing unfinished jobs of all users.
+            list[TBatchJob]: A list of job info objects representing uncompleted jobs of all users.
         """
         raise NotImplementedError(
             f"get_all_unfinished_batch_jobs method is not implemented for {cls.__name__}"
@@ -331,7 +331,7 @@ class BatchInterface[
             return
 
         # the directory is on an another node
-        ssh_command = cls._translate_SSH_command(host, directory)
+        ssh_command = cls._translate_ssh_command(host, directory)
         logger.debug(f"Using ssh: '{' '.join(ssh_command)}'")
         result = subprocess.run(ssh_command)
 
@@ -826,7 +826,7 @@ class BatchInterface[
         }
 
     @classmethod
-    def _translate_SSH_command(cls, host: str, directory: Path) -> list[str]:
+    def _translate_ssh_command(cls, host: str, directory: Path) -> list[str]:
         """
         Construct the SSH command to navigate to a remote directory.
 

@@ -116,7 +116,7 @@ class Info:
 
     # Batch server the job was submitted to
     # Can be `None` which indicates the job was submitted
-    # to the main batch server the input machine is connected to
+    # to the default (main) batch server the input machine is connected to
     server: str | None = None
 
     # Interpreter to use for running the submitted script

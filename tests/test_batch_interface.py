@@ -17,7 +17,7 @@ from qq_lib.core.error import QQError
 def test_translate_ssh_command():
     host = "node1"
     directory = Path("/tmp/work")
-    cmd = BatchInterface._translate_SSH_command(host, directory)
+    cmd = BatchInterface._translate_ssh_command(host, directory)
     assert cmd == [
         "ssh",
         "-o PasswordAuthentication=no",
