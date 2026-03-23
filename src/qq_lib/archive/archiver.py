@@ -133,7 +133,7 @@ class Archiver:
             wait_seconds=CFG.archiver.retry_wait,
         ).run()
 
-    def archive_run_time_files(self, job_name: str, cycle: int) -> None:
+    def archive_runtime_files(self, job_name: str, cycle: int) -> None:
         """
         Archive qq runtime files from a specific job located in the input directory.
 

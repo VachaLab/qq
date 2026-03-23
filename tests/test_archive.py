@@ -398,7 +398,7 @@ def test_archive_runtime_files_moves_and_renames(
     ]
     touch_files(input_dir, filenames)
 
-    archiver.archive_run_time_files("script\\+0005", 5)
+    archiver.archive_runtime_files("script\\+0005", 5)
 
     # check moved files exist in archive with renamed pattern
     expected_files = [
@@ -432,7 +432,7 @@ def test_archive_runtime_files_moves_and_renames_job_name_with_extension(
     ]
     touch_files(input_dir, filenames)
 
-    archiver.archive_run_time_files("script\\+0005.sh", 5)
+    archiver.archive_runtime_files("script\\+0005.sh", 5)
 
     # check moved files exist in archive with renamed pattern
     expected_files = [
@@ -463,7 +463,7 @@ def test_archive_runtime_files_nothing_to_archive(
     # no relevant runtime files in input_dir
     touch_files(input_dir, ["other.txt", "script+0006.qqinfo", "script+0004.qqout"])
 
-    archiver.archive_run_time_files("script\\+0005", 5)
+    archiver.archive_runtime_files("script\\+0005", 5)
 
     # archive dir should remain empty
     assert list(archive_dir.iterdir()) == []

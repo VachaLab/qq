@@ -153,7 +153,7 @@ class Runner:
             logger.debug(
                 f"Archiving run time files from cycle {self._informer.info.loop_info.current - 1}."
             )
-            self._archiver.archive_run_time_files(
+            self._archiver.archive_runtime_files(
                 # we need to escape the '+' character
                 construct_loop_job_name(
                     self._informer.info.script_name,
@@ -289,7 +289,7 @@ class Runner:
             else:
                 # copy only the runtime files to input directory
                 # and keep the working directory
-                self._copy_run_time_files_to_input_dir(retry=True)
+                self._copy_runtime_files_to_input_dir(retry=True)
 
         if self._process.returncode == 0:
             # update the qqinfo file
@@ -569,7 +569,7 @@ class Runner:
                 f"Could not update qqinfo file '{self._info_file}' at JOB KILL: {e}."
             )
 
-    def _copy_run_time_files_to_input_dir(self, retry: bool = True) -> None:
+    def _copy_runtime_files_to_input_dir(self, retry: bool = True) -> None:
         """
         Copy .out and .err runtime files from the working directory to the input directory.
 
@@ -770,7 +770,7 @@ class Runner:
 
         # copy runtime files to input dir without retrying
         if self._use_scratch:
-            self._copy_run_time_files_to_input_dir(retry=False)
+            self._copy_runtime_files_to_input_dir(retry=False)
 
     def _handle_sigterm(self, _signum: int, _frame: FrameType | None) -> NoReturn:
         """

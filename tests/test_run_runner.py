@@ -231,7 +231,7 @@ def test_runner_cleanup_with_running_process():
         patch("qq_lib.run.runner.logger") as mock_logger,
         patch("qq_lib.run.runner.sleep") as mock_sleep,
         patch("qq_lib.run.runner.CFG") as cfg_mock,
-        patch.object(Runner, "_copy_run_time_files_to_input_dir") as mock_copy,
+        patch.object(Runner, "_copy_runtime_files_to_input_dir") as mock_copy,
     ):
         cfg_mock.runner.sigterm_to_sigkill = 3
         runner._cleanup()
@@ -255,7 +255,7 @@ def test_runner_cleanup_with_timeout():
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
         patch("qq_lib.run.runner.sleep") as mock_sleep,
-        patch.object(Runner, "_copy_run_time_files_to_input_dir") as mock_copy,
+        patch.object(Runner, "_copy_runtime_files_to_input_dir") as mock_copy,
     ):
         runner._cleanup()
 
@@ -277,7 +277,7 @@ def test_runner_cleanup_without_running_process():
 
     with (
         patch("qq_lib.run.runner.logger"),
-        patch.object(Runner, "_copy_run_time_files_to_input_dir") as mock_copy,
+        patch.object(Runner, "_copy_runtime_files_to_input_dir") as mock_copy,
     ):
         runner._cleanup()
 
@@ -304,7 +304,7 @@ def test_runner_cleanup_with_running_process_no_scratch():
         patch("qq_lib.run.runner.logger") as mock_logger,
         patch("qq_lib.run.runner.sleep") as mock_sleep,
         patch("qq_lib.run.runner.CFG") as cfg_mock,
-        patch.object(Runner, "_copy_run_time_files_to_input_dir") as mock_copy,
+        patch.object(Runner, "_copy_runtime_files_to_input_dir") as mock_copy,
     ):
         cfg_mock.runner.sigterm_to_sigkill = 3
         runner._cleanup()
@@ -830,7 +830,7 @@ def test_runner_log_failure_and_exit_calls_fallback_on_exception():
 
 
 @patch("qq_lib.run.runner.logger.info")
-@patch.object(Runner, "_copy_run_time_files_to_input_dir")
+@patch.object(Runner, "_copy_runtime_files_to_input_dir")
 def test_runner_finalize_failure_updates_info_failed(mock_copy, mock_logger_info):
     runner = Runner.__new__(Runner)
     runner._process = MagicMock()
@@ -851,7 +851,7 @@ def test_runner_finalize_failure_updates_info_failed(mock_copy, mock_logger_info
 
 
 @patch("qq_lib.run.runner.logger.info")
-@patch.object(Runner, "_copy_run_time_files_to_input_dir")
+@patch.object(Runner, "_copy_runtime_files_to_input_dir")
 def test_runner_finalize_failure_updates_info_failed_no_scratch(
     mock_copy, mock_logger_info
 ):
@@ -1254,7 +1254,7 @@ def test_runner_prepare_with_scratch_and_archiver():
         runner.prepare()
 
     runner._archiver.make_archive_dir.assert_called_once()
-    runner._archiver.archive_run_time_files.assert_called_once_with(
+    runner._archiver.archive_runtime_files.assert_called_once_with(
         "run_job_loop_1\\+", 1
     )
     runner._set_up_scratch_dir.assert_called_once()
@@ -1295,7 +1295,7 @@ def test_runner_prepare_without_scratch_and_with_archiver():
         runner.prepare()
 
     runner._archiver.make_archive_dir.assert_called_once()
-    runner._archiver.archive_run_time_files.assert_called_once_with("task_loop_4\\+", 4)
+    runner._archiver.archive_runtime_files.assert_called_once_with("task_loop_4\\+", 4)
     runner._set_up_shared_dir.assert_called_once()
     runner._set_up_scratch_dir.assert_not_called()
 
@@ -1502,7 +1502,7 @@ def test_runner_reload_info_and_ensure_valid_raises_on_killed_state():
     runner._ensure_matches_job.assert_called_once_with("12345")
 
 
-def test_runner_copy_run_time_files_to_input_dir_retry_true():
+def test_runner_copy_runtime_files_to_input_dir_retry_true():
     informer = MagicMock()
     informer.info.stdout_file = "/tmp/std.out"
     informer.info.stderr_file = "/tmp/std.err"
@@ -1523,7 +1523,7 @@ def test_runner_copy_run_time_files_to_input_dir_retry_true():
         retry_instance = MagicMock()
         mock_retryer.return_value = retry_instance
 
-        runner._copy_run_time_files_to_input_dir(retry=True)
+        runner._copy_runtime_files_to_input_dir(retry=True)
 
     expected_files = [
         Path("/tmp/std.out").resolve(),
@@ -1545,7 +1545,7 @@ def test_runner_copy_run_time_files_to_input_dir_retry_true():
     batch_system.sync_selected.assert_not_called()
 
 
-def test_runner_copy_run_time_files_to_input_dir_retry_false():
+def test_runner_copy_runtime_files_to_input_dir_retry_false():
     informer = MagicMock()
     informer.info.stdout_file = "/tmp/std.out"
     informer.info.stderr_file = "/tmp/std.err"
@@ -1560,7 +1560,7 @@ def test_runner_copy_run_time_files_to_input_dir_retry_false():
     runner._input_dir = "/input"
 
     with patch("qq_lib.run.runner.socket.getfqdn", return_value="host"):
-        runner._copy_run_time_files_to_input_dir(retry=False)
+        runner._copy_runtime_files_to_input_dir(retry=False)
 
     expected_files = [
         Path("/tmp/std.out").resolve(),

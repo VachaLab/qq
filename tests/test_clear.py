@@ -31,7 +31,7 @@ def test_clearer_delete_files_deletes_all_files():
     mock_file2.unlink.assert_called_once()
 
 
-def test_clearer_collect_run_time_files_returns_files_from_helper(tmp_path):
+def test_clearer_collect_runtime_files_returns_files_from_helper(tmp_path):
     clearer = Clearer(tmp_path)
     expected_files = [
         tmp_path / f"a{CFG.suffixes.qq_info}",
@@ -41,7 +41,7 @@ def test_clearer_collect_run_time_files_returns_files_from_helper(tmp_path):
     with patch(
         "qq_lib.clear.clearer.get_runtime_files", return_value=expected_files
     ) as mock_get:
-        result = clearer._collect_run_time_files()
+        result = clearer._collect_runtime_files()
 
         mock_get.assert_called_once_with(tmp_path)
         assert result == set(expected_files)
@@ -109,7 +109,7 @@ def test_clearer_clear_deletes_only_safe_files(tmp_path):
 
     with (
         patch.object(
-            Clearer, "_collect_run_time_files", return_value={safe_file, excluded_file}
+            Clearer, "_collect_runtime_files", return_value={safe_file, excluded_file}
         ),
         patch.object(Clearer, "_collect_excluded_files", return_value={excluded_file}),
         patch.object(Clearer, "_delete_files") as mock_delete,
@@ -132,7 +132,7 @@ def test_clearer_clear_deletes_no_files_are_safe(tmp_path):
 
     with (
         patch.object(
-            Clearer, "_collect_run_time_files", return_value={excluded1, excluded2}
+            Clearer, "_collect_runtime_files", return_value={excluded1, excluded2}
         ),
         patch.object(
             Clearer, "_collect_excluded_files", return_value={excluded1, excluded2}
@@ -155,7 +155,7 @@ def test_clearer_clear_force_deletes_all_files(tmp_path):
     file2 = tmp_path / f"file2{CFG.suffixes.qq_out}"
 
     with (
-        patch.object(Clearer, "_collect_run_time_files", return_value={file1, file2}),
+        patch.object(Clearer, "_collect_runtime_files", return_value={file1, file2}),
         patch.object(Clearer, "_collect_excluded_files") as mock_excluded,
         patch.object(Clearer, "_delete_files") as mock_delete,
         patch("qq_lib.clear.clearer.logger.info") as mock_info,
@@ -173,7 +173,7 @@ def test_clearer_clear_logs_info_when_no_files(tmp_path):
     clearer = Clearer(tmp_path)
 
     with (
-        patch.object(Clearer, "_collect_run_time_files", return_value=set()),
+        patch.object(Clearer, "_collect_runtime_files", return_value=set()),
         patch.object(Clearer, "_delete_files") as mock_delete,
         patch("qq_lib.clear.clearer.logger.info") as mock_info,
     ):

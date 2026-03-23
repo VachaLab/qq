@@ -40,7 +40,7 @@ class Clearer:
             force (bool): If True, remove all qq runtime files, even if unsafe.
         """
         # get all qq runtime files
-        files = self._collect_run_time_files()
+        files = self._collect_runtime_files()
         logger.debug(f"All qq runtime files: {files}.")
         if not files:
             logger.info("Nothing to clear.")
@@ -69,7 +69,7 @@ class Clearer:
                 f"{len(excluded)} qq files could not be safely cleared. Rerun as '{CFG.binary_name} clear --force' to clear them forcibly."
             )
 
-    def _collect_run_time_files(self) -> set[Path]:
+    def _collect_runtime_files(self) -> set[Path]:
         """
         Collect all qq runtime files in the directory.
 
