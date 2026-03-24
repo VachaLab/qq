@@ -2,7 +2,7 @@
 ########################################
 #     Script for running Gromacs       #
 #     multidir loop jobs using qq      #
-#         script version: 0.5          #
+#         script version: 0.6          #
 #      support: ladmeb@gmail.com       #
 ########################################
 
@@ -265,14 +265,26 @@ fi
 
 IFS=" "
 # run the simulation
-if [[ "${QQ_BATCH_SYSTEM}" == *"Slurm"* ]]; then
+if [[ "${QQ_BATCH_SYSTEM}" == *"SlurmLumi"* ]]; then
+    # specific behavior for LUMI (doubling the number of OpenMP threads used in mdrun)
+    export OMP_NUM_THREADS=$((NTOMP * 2))
+
+    srun \
+    --ntasks=${MPI} \
+    --cpus-per-task=${NTOMP} \
+    gmx_mpi mdrun -v -deffnm ${CURR} ${CPI} \
+    -cpo ${NEXT} -cpt 1 -pf ${CURR}_pf.xvg -px ${CURR}_px.xvg \
+    ${PLUMED} -ntomp $((NTOMP * 2)) ${APPEND} -nb ${NB} \
+    -multidir ${CLIENTS[*]} ${REPLEX} ${HREX} -pin on
+
+elif [[ "${QQ_BATCH_SYSTEM}" == *"Slurm"* ]]; then
     srun \
     --ntasks=${MPI} \
     --cpus-per-task=${NTOMP} \
     gmx_mpi mdrun -v -deffnm ${CURR} ${CPI} \
     -cpo ${NEXT} -cpt 1 -pf ${CURR}_pf.xvg -px ${CURR}_px.xvg \
     ${PLUMED} -ntomp ${NTOMP} ${APPEND} -nb ${NB} \
-    -multidir ${CLIENTS[*]} ${REPLEX} ${HREX}
+    -multidir ${CLIENTS[*]} ${REPLEX} ${HREX} -pin on
 else
     mpirun \
     -display-allocation \
