@@ -480,14 +480,30 @@ class Runner:
         Get a list of nodes used to execute this job. The nodes are obtained by
         querying the batch system.
 
+        If the batch server is not available and only one node was requested, uses
+        `socket.getfqdn()` instead and prints warning.
+
         Returns:
             list[str]: Names of nodes used to execute the job.
 
         Raises:
-            QQError: If the batch system is unable to provide information about the nodes after retries.
+            QQError: If the batch system is unable to provide information about the nodes after retries
+                and more than one node is used.
         """
         nodes = self._informer.get_nodes()
         if not nodes:
+            # if the batch server is not reachable but the requested number of nodes is one,
+            # we assume that only one node is actually being used and Runner thus runs on this node
+            # we can then get the node name from socket
+            # this avoids issues with occasional inaccessibility of the batch server in
+            # the unstable Metacentrum environment
+            if self._informer.info.resources.nnodes == 1:
+                node = socket.getfqdn()
+                logger.warning(
+                    f"Could not get the list of used nodes from the batch server. Assuming the only node is the current node '{node}'."
+                )
+                return [node]
+
             raise QQError("Could not get the list of used nodes from the batch server")
 
         return nodes

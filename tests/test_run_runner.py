@@ -571,6 +571,7 @@ def test_runner_get_nodes_success():
 def test_runner_get_nodes_raises_on_failure():
     informer_mock = MagicMock()
     informer_mock.get_nodes.return_value = None
+    informer_mock.info.resources.nnodes = 2
 
     runner = Runner.__new__(Runner)
     runner._informer = informer_mock
@@ -579,6 +580,18 @@ def test_runner_get_nodes_raises_on_failure():
         QQError, match="Could not get the list of used nodes from the batch server"
     ):
         runner._get_nodes()
+
+
+def test_runner_get_nodes_fails_to_reach_batch_server_calls_socket():
+    informer_mock = MagicMock()
+    informer_mock.get_nodes.return_value = None
+    informer_mock.info.resources.nnodes = 1
+
+    runner = Runner.__new__(Runner)
+    runner._informer = informer_mock
+
+    with patch("socket.getfqdn", return_value="node"):
+        assert runner._get_nodes() == ["node"]
 
 
 def test_runner_update_info_running_success():

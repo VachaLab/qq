@@ -5,6 +5,7 @@
 - Added support for specifying a custom interpreter when submitting a job (e.g. Python, Julia).
 - Fixed log lines in `qqout` files being truncated.
 - **Breaking Python API change:** Changed camelCase originally used for methods to snake_case.
+- Single-node qq jobs should fail less often in Metacentrum due to a temporarily unreachable batch server.
 
 ***
 
