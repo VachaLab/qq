@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 
 @click.command(
     short_help="Display a summary of a user's jobs.",
-    help="Display a summary of your jobs or those of a specified user. By default, only unfinished jobs are shown.",
+    help="Display a summary of your jobs or those of a specified user. By default, only uncompleted jobs are shown.",
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
 )
@@ -43,7 +43,7 @@ logger = get_logger(__name__)
     "-a",
     "--all",
     is_flag=True,
-    help="Include both unfinished and finished jobs in the summary.",
+    help="Include both completed and uncompleted jobs in the summary.",
 )
 @click.option(
     "-s",
