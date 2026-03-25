@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from qq_lib.batch.slurm import SlurmNode
+from qq_lib.batch.slurmlumi.node import SlurmLumiNode
 from qq_lib.batch.slurmlumi.slurm import SlurmLumi
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -112,3 +114,41 @@ def test_slurmlumi_create_work_dir_on_scratch_third_attempt_succeeds(mock_user):
 def test_slurmlumi_get_supported_work_dir_types_returns_combined_list():
     expected = ["scratch", "flash", "input_dir", "job_dir"]
     assert SlurmLumi.get_supported_work_dir_types() == expected
+
+
+@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+@patch("qq_lib.batch.slurm.slurm.parse_slurm_dump_to_dictionary")
+@patch("qq_lib.batch.slurm.slurm.SlurmNode.from_dict")
+def test_slurmlumi_get_nodes_success(mock_from_dict, mock_parser, mock_run):
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "NodeName=node1 Arch=x86_64\nNodeName=node2 Arch=x86_64"
+    mock_run.return_value = mock_result
+
+    mock_parser.side_effect = [
+        {"NodeName": "node1", "Arch": "x86_64"},
+        {"NodeName": "node2", "Arch": "x86_64"},
+    ]
+
+    mock_node1 = MagicMock(spec=SlurmNode)
+    mock_node2 = MagicMock(spec=SlurmNode)
+    mock_from_dict.side_effect = [mock_node1, mock_node2]
+
+    result = SlurmLumi.get_nodes()
+
+    mock_run.assert_called_once_with(
+        ["bash"],
+        input="scontrol show node -o",
+        text=True,
+        check=False,
+        capture_output=True,
+        errors="replace",
+    )
+
+    assert mock_parser.call_count == 2
+    mock_from_dict.assert_any_call("node1", {"NodeName": "node1", "Arch": "x86_64"})
+    mock_from_dict.assert_any_call("node2", {"NodeName": "node2", "Arch": "x86_64"})
+
+    assert result == [mock_node1, mock_node2]
+    assert isinstance(result[0], SlurmLumiNode)
+    assert isinstance(result[1], SlurmLumiNode)

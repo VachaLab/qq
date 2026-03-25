@@ -6,6 +6,7 @@
 - Fixed log lines in `qqout` files being truncated.
 - **Breaking Python API change:** Changed camelCase originally used for methods to snake_case.
 - Single-node qq jobs should fail less often in Metacentrum due to a temporarily unreachable batch server.
+- On LUMI, `qq nodes` now shows the physical number of CPU cores available on each node, not the number of threads.
 
 ***
 

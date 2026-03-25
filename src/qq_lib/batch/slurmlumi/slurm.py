@@ -5,9 +5,12 @@ import getpass
 import os
 import shutil
 from pathlib import Path
+from typing import cast
 
 from qq_lib.batch.interface.meta import BatchMeta, batch_system
+from qq_lib.batch.slurm import Slurm
 from qq_lib.batch.slurmit4i import SlurmIT4I
+from qq_lib.batch.slurmlumi.node import SlurmLumiNode
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -95,6 +98,14 @@ class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
         raise QQError(
             f"Could not create a working directory on {storage_type} for job '{job_id}' after {CFG.slurm_lumi_options.scratch_dir_attempts} attempts: {last_exception}"
         ) from last_exception
+
+    @classmethod
+    def get_nodes(cls, server: str | None = None) -> list[SlurmLumiNode]:  # ty: ignore[invalid-method-override]
+        nodes = Slurm.get_nodes(server)
+        for node in nodes:
+            node.__class__ = SlurmLumiNode
+
+        return cast("list[SlurmLumiNode]", nodes)
 
     @classmethod
     def get_supported_work_dir_types(cls) -> list[str]:
