@@ -256,8 +256,13 @@ def test_from_file_invalid_yaml(tmp_path):
     file = tmp_path / "bad.yaml"
     file.write_text("key: : value")
 
-    with pytest.raises(QQError, match=r"Could not parse the qq info file"):
+    with pytest.raises(QQError, match=r"Failed to parse YAML"):
         Info.from_file(file)
+
+
+def test_from_file_is_directory(tmp_path):
+    with pytest.raises(QQError, match=r"Expected a file but path is a directory"):
+        Info.from_file(tmp_path)
 
 
 def test_from_file_missing_required_field(tmp_path):

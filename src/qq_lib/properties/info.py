@@ -174,11 +174,21 @@ class Info:
                 # local file
                 logger.debug(f"Loading qq info from '{file}'.")
 
-                if not file.exists():
+                try:
+                    with file.open("r") as input:
+                        data: dict[str, object] = yaml.load(input, Loader=SafeLoader)
+                except FileNotFoundError:
                     raise QQError(f"qq info file '{file}' does not exist.")
-
-                with file.open("r") as input:
-                    data: dict[str, object] = yaml.load(input, Loader=SafeLoader)
+                except PermissionError:
+                    raise QQError(
+                        f"No permission to read file '{file}' or access its parent directory."
+                    )
+                except IsADirectoryError:
+                    raise QQError(f"Expected a file but path is a directory: {file}.")
+                except UnicodeDecodeError as e:
+                    raise QQError(f"File is not valid UTF-8 text: {file}.") from e
+                except yaml.YAMLError as e:
+                    raise QQError(f"Failed to parse YAML in {file}: {e}.") from e
 
             return cls._from_dict(data)
         except yaml.YAMLError as e:
