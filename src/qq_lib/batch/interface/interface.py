@@ -377,6 +377,7 @@ class BatchInterface[
                 "ssh",
                 "-o PasswordAuthentication=no",
                 "-o GSSAPIAuthentication=yes",
+                "-o StrictHostKeyChecking=no",  # allow unknown hosts
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 "-q",  # suppress some SSH messages
                 host,
@@ -418,6 +419,7 @@ class BatchInterface[
                 "ssh",
                 "-o PasswordAuthentication=no",
                 "-o GSSAPIAuthentication=yes",
+                "-o StrictHostKeyChecking=no",  # allow unknown hosts
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
                 f"cat > {file}",
@@ -456,6 +458,7 @@ class BatchInterface[
                 "ssh",
                 "-o PasswordAuthentication=no",
                 "-o GSSAPIAuthentication=yes",
+                "-o StrictHostKeyChecking=no",  # allow unknown hosts
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
                 # ignore an error if the directory already exists
@@ -498,6 +501,7 @@ class BatchInterface[
                 "ssh",
                 "-o PasswordAuthentication=no",
                 "-o GSSAPIAuthentication=yes",
+                "-o StrictHostKeyChecking=no",  # allow unknown hosts
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
                 f"ls -A {directory}",
@@ -542,6 +546,7 @@ class BatchInterface[
                 "ssh",
                 "-o PasswordAuthentication=no",
                 "-o GSSAPIAuthentication=yes",
+                "-o StrictHostKeyChecking=no",  # allow unknown hosts
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
                 f"yes | rm -r {directory}",
@@ -586,6 +591,7 @@ class BatchInterface[
                 "ssh",
                 "-o PasswordAuthentication=no",
                 "-o GSSAPIAuthentication=yes",
+                "-o StrictHostKeyChecking=no",  # allow unknown hosts
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
                 mv_command,
@@ -766,6 +772,7 @@ class BatchInterface[
                 "ssh",
                 "-o PasswordAuthentication=no",
                 "-o GSSAPIAuthentication=yes",
+                "-o StrictHostKeyChecking=no",  # allow unknown hosts
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 "-q",  # suppress some SSH messages
                 input_machine,
@@ -843,6 +850,7 @@ class BatchInterface[
             "ssh",
             "-o PasswordAuthentication=no",  # never ask for password
             "-o GSSAPIAuthentication=yes",  # allow Kerberos tickets
+            "-o StrictHostKeyChecking=no",  # allow unknown hosts
             f"-o ConnectTimeout={CFG.timeouts.ssh}",
             host,
             "-t",
@@ -941,7 +949,8 @@ class BatchInterface[
         command = [
             "rsync",
             "-e",
-            "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",  # allow Kerberos tickets and never ask for password
+            # allow Kerberos tickets, never ask for password, allow unknown hosts
+            "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
             "-rltD",
         ]
         for file in relative_excluded:
@@ -987,7 +996,8 @@ class BatchInterface[
         command = [
             "rsync",
             "-e",
-            "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",  # allow Kerberos tickets and never ask for password
+            # allow Kerberos tickets, never ask for password, allow unknown hosts
+            "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
             "-rltD",
         ]
         for file in relative_included:

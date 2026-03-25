@@ -22,6 +22,7 @@ def test_translate_ssh_command():
         "ssh",
         "-o PasswordAuthentication=no",
         "-o GSSAPIAuthentication=yes",
+        "-o StrictHostKeyChecking=no",
         f"-o ConnectTimeout={CFG.timeouts.ssh}",
         host,
         "-t",
@@ -286,7 +287,7 @@ def test_translate_rsync_excluded_command_local_to_local():
     assert cmd == [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "/source/",
         "/dest",
@@ -302,7 +303,7 @@ def test_translate_rsync_excluded_command_local_to_remote():
     assert cmd == [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "/source/",
         "remotehost:/dest",
@@ -318,7 +319,7 @@ def test_translate_rsync_excluded_command_remote_to_local():
     assert cmd == [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "remotehost:/source/",
         "/dest",
@@ -335,7 +336,7 @@ def test_translate_rsync_excluded_command_with_excludes():
     expected = [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "--exclude",
         "temp",
@@ -354,7 +355,7 @@ def test_translate_rsync_excluded_command_empty_excludes_list():
     expected = [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "/source/",
         "/dest",
@@ -467,7 +468,7 @@ def test_translate_rsync_included_command_local_to_local():
     expected = [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "--include",
         "file1.txt",
@@ -497,7 +498,7 @@ def test_translate_rsync_included_command_local_to_remote():
     expected = [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "--include",
         "file1.txt",
@@ -523,7 +524,7 @@ def test_translate_rsync_included_command_remote_to_local():
     expected = [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "--include",
         "file1.txt",
@@ -549,7 +550,7 @@ def test_translate_rsync_included_command_no_files():
     expected = [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "--exclude",
         "*",
@@ -676,6 +677,7 @@ def test_batchinterface_delete_remote_dir_success(mock_run):
             "ssh",
             "-o PasswordAuthentication=no",
             "-o GSSAPIAuthentication=yes",
+            "-o StrictHostKeyChecking=no",
             f"-o ConnectTimeout={CFG.timeouts.ssh}",
             "remote_host",
             "yes | rm -r /remote/dir",
