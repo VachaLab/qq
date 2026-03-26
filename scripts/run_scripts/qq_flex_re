@@ -3,7 +3,7 @@
 #     Script for running Gromacs       #
 #  flexible-length replica exchange    #
 #              using qq                #
-#         script version: 0.6          #
+#         script version: 0.7          #
 #      support: ladmeb@gmail.com       #
 ########################################
 
@@ -275,18 +275,7 @@ fi
 
 IFS=" "
 # run the simulation
-if [[ "${QQ_BATCH_SYSTEM}" == *"SlurmLumi"* ]]; then
-    # specific behavior for LUMI (doubling the number of OpenMP threads used in mdrun)
-    export OMP_NUM_THREADS=$((NTOMP * 2))
-
-    srun \
-    --ntasks=${MPI} \
-    --cpus-per-task=${NTOMP} \
-    gmx_mpi mdrun -v -deffnm ${CURR} ${CPI} \
-    -cpo ${NEXT} -cpt 1 -pf ${CURR}_pf.xvg -px ${CURR}_px.xvg \
-    ${PLUMED} -ntomp $((NTOMP * 2)) ${APPEND} -nb ${NB} \
-    -multidir ${CLIENTS[*]} ${REPLEX} ${HREX} -pin on -maxh ${MAX_TIME}
-elif [[ "${QQ_BATCH_SYSTEM}" == *"Slurm"* ]]; then
+if [[ "${QQ_BATCH_SYSTEM}" == *"Slurm"* ]]; then
     srun \
     --ntasks=${MPI} \
     --cpus-per-task=${NTOMP} \
