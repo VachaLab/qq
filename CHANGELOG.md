@@ -1,18 +1,25 @@
 ## Version 0.10.0
-- Added support for submitting jobs to different batch servers on Metacentrum-family clusters.
+
+### New features
+- Added support for submitting jobs to different batch servers on Metacentrum-family clusters. See [the manual](https://vachalab.github.io/qq-manual/servers.html) for more information.
+- Added support for specifying a custom interpreter when submitting a job (e.g. Python, Julia). See [the manual](https://vachalab.github.io/qq-manual/interpreters.html) for more information.
+
+### Python API changes
+- **Breaking Python API change:** Renamed methods from camelCase to snake_case.
+
+### Small changes and bug fixes
 - Paths are now resolved to absolute paths without following symlinks, ensuring compatibility across machines with different mount points (e.g. Robox and Sokar).
-- Improved hostname resolution to allow accessing working nodes of the Sokar cluster from machines outside the `ncbr.muni.cz` domain.
-- Added support for specifying a custom interpreter when submitting a job (e.g. Python, Julia).
+- Improved hostname resolution to allow accessing worker nodes of the Sokar cluster from machines outside the `ncbr.muni.cz` domain.
 - Fixed log lines in `qqout` files being truncated.
-- **Breaking Python API change:** Changed camelCase originally used for methods to snake_case.
-- Single-node qq jobs should fail less often in Metacentrum due to a temporarily unreachable batch server.
+- Single-node qq jobs should no longer fail on Metacentrum when a batch server is temporarily unreachable during job initialization.
 - On LUMI, `qq nodes` now shows the physical number of CPU cores available on each node, not the number of threads.
-- **Bug fix:** Fixed incorrect conversion of default walltime associated with Slurm partitions.
+- qq no longer includes completed array tasks within uncompleted array jobs in the output of `qq jobs` and `qq stat`, unless the `-a`/`--all` option is used.
+- **Bug fix:** Fixed incorrect conversion of default walltime of Slurm partitions.
 
 ***
 
 ## Version 0.9.0
-- Added `continuous` jobs: a light-weight alternative to loop jobs. Continuous jobs automatically submit their continuation but do not track their cycle nor do they perform archival operations. See [the manual](https://vachalab.github.io/qq-manual/continuous_job.html) for more information.
+- Added `continuous` jobs: a light-weight alternative to loop jobs. Continuous jobs automatically submit their continuation but do not track their cycle nor do they perform archival operations. See [the manual](https://vachalab.github.io/qq-manual/job_types/continuous_job.html) for more information.
 
 ***
 
