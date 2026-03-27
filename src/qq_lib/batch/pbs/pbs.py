@@ -169,7 +169,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         if server:
             command += f" @{server}"
         logger.debug(command)
-        return cls._get_batch_jobs_using_command(command)
+        return cls._get_batch_jobs_using_command(command, include_completed=False)
 
     @classmethod
     def get_batch_jobs(cls, user: str, server: str | None = None) -> list[PBSJob]:
@@ -177,7 +177,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         if server:
             command += f" @{server}"
         logger.debug(command)
-        return cls._get_batch_jobs_using_command(command)
+        return cls._get_batch_jobs_using_command(command, include_completed=True)
 
     @classmethod
     def get_all_unfinished_batch_jobs(cls, server: str | None = None) -> list[PBSJob]:
@@ -185,7 +185,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         if server:
             command += f" @{server}"
         logger.debug(command)
-        return cls._get_batch_jobs_using_command(command)
+        return cls._get_batch_jobs_using_command(command, include_completed=False)
 
     @classmethod
     def get_all_batch_jobs(cls, server: str | None = None) -> list[PBSJob]:
@@ -193,7 +193,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         if server:
             command += f" @{server}"
         logger.debug(command)
-        return cls._get_batch_jobs_using_command(command)
+        return cls._get_batch_jobs_using_command(command, include_completed=True)
 
     @classmethod
     def get_queues(cls, server: str | None = None) -> list[PBSQueue]:
@@ -960,12 +960,16 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
                 )
 
     @classmethod
-    def _get_batch_jobs_using_command(cls, command: str) -> list[PBSJob]:
+    def _get_batch_jobs_using_command(
+        cls, command: str, include_completed: bool
+    ) -> list[PBSJob]:
         """
         Execute a shell command to retrieve information about PBS jobs and parse it.
 
         Args:
             command (str): The shell command to execute, typically a PBS query command.
+            include_completed (bool): Include both completed and uncompleted jobs.
+                If `False`, completed jobs are filtered out from the output.
 
         Returns:
             list[PBSJob]: A list of `PBSJob` instances corresponding to the jobs
@@ -994,9 +998,17 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         for data, job_id in parse_multi_pbs_dump_to_dictionaries(
             result.stdout.strip(), "Job Id"
         ):
-            # ignore top-level array jobs
             job = PBSJob.from_dict(job_id, data)
+
+            # ignore top-level array jobs
             if job.is_array_job():
+                continue
+
+            # unless all jobs are to be shown, filter out completed jobs
+            # this is necessary because the output from PBS will always contain
+            # completed job tasks from array jobs that are uncompleted
+            # we do not want qq to show them
+            if not include_completed and job.is_completed():
                 continue
 
             jobs.append(job)

@@ -331,3 +331,14 @@ class BatchJobInterface(ABC):
         Returns:
             bool: `True` if the job is a top-level array job, else `False`.
         """
+
+    def is_completed(self) -> bool:
+        """
+        Return `True` if the job is completed according to the batch system.
+
+        By default, a completed job is a job that is FINISHED or FAILED.
+
+        Returns:
+            bool: `True` if the job is completed, else `False`.
+        """
+        return self.get_state() in {BatchState.FINISHED, BatchState.FAILED}
