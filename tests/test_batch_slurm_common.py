@@ -54,7 +54,8 @@ def test_default_resources_from_dict_converts_and_filters_fields():
     result = default_resources_from_dict(input_dict)
     assert isinstance(result, Resources)
     assert result.mem_per_cpu == Size.from_string("4gb")
-    assert result.walltime == "2d 00:00:00"
+    # gets parsed into 2d and then converted to 48:00:00 inside Resources
+    assert result.walltime == "48:00:00"
     assert not hasattr(result, "ExtraField")
 
 
