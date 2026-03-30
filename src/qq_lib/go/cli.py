@@ -60,18 +60,18 @@ def go(job: str | None) -> NoReturn:
     """
     try:
         if job:
-            informers = [Informer.fromJobId(job)]
+            informers = [Informer.from_job_id(job)]
         else:
             if not (
                 informers := [
-                    Informer.fromFile(info) for info in get_info_files(Path.cwd())
+                    Informer.from_file(info) for info in get_info_files(Path.cwd())
                 ]
             ):
                 raise QQError("No qq job info file found.")
 
         repeater = Repeater(informers, _go_to_job)
-        repeater.onException(QQNotSuitableError, handle_not_suitable_error)
-        repeater.onException(QQError, handle_general_qq_error)
+        repeater.on_exception(QQNotSuitableError, handle_not_suitable_error)
+        repeater.on_exception(QQError, handle_general_qq_error)
         repeater.run()
         print()
         sys.exit(0)
@@ -93,11 +93,11 @@ def _go_to_job(informer: Informer) -> None:
     Raises:
         QQError: If the navigation fails.
     """
-    goer = Goer.fromInformer(informer)
-    goer.printInfo(console)
+    goer = Goer.from_informer(informer)
+    goer.print_info(console)
 
     # make sure that the job is not in a state without a working directory
-    goer.ensureSuitable()
+    goer.ensure_suitable()
 
     # navigate to the working directory
     goer.go()

@@ -15,10 +15,10 @@ def test_operator_init_with_host(tmp_path):
 
     informer_mock = MagicMock()
     informer_mock.batch_system = PBS
-    informer_mock.getRealState.return_value = RealState.RUNNING
+    informer_mock.get_real_state.return_value = RealState.RUNNING
 
     with patch(
-        "qq_lib.core.operator.Informer.fromFile", return_value=informer_mock
+        "qq_lib.core.operator.Informer.from_file", return_value=informer_mock
     ) as from_file_mock:
         operator = Operator(info_file, host)
 
@@ -35,10 +35,10 @@ def test_operator_init_without_host(tmp_path):
 
     informer_mock = MagicMock()
     informer_mock.batch_system = PBS
-    informer_mock.getRealState.return_value = RealState.RUNNING
+    informer_mock.get_real_state.return_value = RealState.RUNNING
 
     with patch(
-        "qq_lib.core.operator.Informer.fromFile", return_value=informer_mock
+        "qq_lib.core.operator.Informer.from_file", return_value=informer_mock
     ) as from_file_mock:
         operator = Operator(info_file)
 
@@ -56,7 +56,7 @@ def test_operator_update(tmp_path):
 
     old_informer = MagicMock()
     new_informer = MagicMock()
-    new_informer.getRealState.return_value = RealState.RUNNING
+    new_informer.get_real_state.return_value = RealState.RUNNING
 
     operator = Operator.__new__(Operator)
     operator._informer = old_informer
@@ -64,7 +64,7 @@ def test_operator_update(tmp_path):
     operator._input_machine = host
 
     with patch(
-        "qq_lib.core.operator.Informer.fromFile", return_value=new_informer
+        "qq_lib.core.operator.Informer.from_file", return_value=new_informer
     ) as from_file_mock:
         operator.update()
 
@@ -78,7 +78,7 @@ def test_operator_get_informer():
     operator = Operator.__new__(Operator)
     operator._informer = informer_mock
 
-    result = operator.getInformer()
+    result = operator.get_informer()
 
     assert result == informer_mock
 
@@ -86,19 +86,19 @@ def test_operator_get_informer():
 def test_operator_matches_job_returns_true():
     operator = Operator.__new__(Operator)
     operator._informer = MagicMock()
-    operator._informer.matchesJob.return_value = True
+    operator._informer.matches_job.return_value = True
 
-    assert operator.matchesJob("12345") is True
-    operator._informer.matchesJob.assert_called_once_with("12345")
+    assert operator.matches_job("12345") is True
+    operator._informer.matches_job.assert_called_once_with("12345")
 
 
 def test_operator_matches_job_returns_false():
     operator = Operator.__new__(Operator)
     operator._informer = MagicMock()
-    operator._informer.matchesJob.return_value = False
+    operator._informer.matches_job.return_value = False
 
-    assert operator.matchesJob("99999") is False
-    operator._informer.matchesJob.assert_called_once_with("99999")
+    assert operator.matches_job("99999") is False
+    operator._informer.matches_job.assert_called_once_with("99999")
 
 
 def test_operator_print_info():
@@ -110,12 +110,12 @@ def test_operator_print_info():
     with patch("qq_lib.core.operator.Presenter") as mock_presenter_cls:
         mock_presenter_instance = MagicMock()
         mock_presenter_cls.return_value = mock_presenter_instance
-        mock_presenter_instance.createJobStatusPanel.return_value = mock_panel
+        mock_presenter_instance.create_job_status_panel.return_value = mock_panel
 
-        operator.printInfo(mock_console)
+        operator.print_info(mock_console)
 
         mock_presenter_cls.assert_called_once_with(operator._informer)
-        mock_presenter_instance.createJobStatusPanel.assert_called_once_with(
+        mock_presenter_instance.create_job_status_panel.assert_called_once_with(
             mock_console
         )
         mock_console.print.assert_called_once_with(mock_panel)
@@ -123,12 +123,12 @@ def test_operator_print_info():
 
 def test_operator_from_informer_initializes_fields():
     informer = MagicMock()
-    informer.getInfoFile.return_value = "info_path"
+    informer.get_info_file.return_value = "info_path"
     informer.info.input_machine = "machineA"
     informer.batch_system = PBS
-    informer.getRealState.return_value = RealState.RUNNING
+    informer.get_real_state.return_value = RealState.RUNNING
 
-    op = Operator.fromInformer(informer)
+    op = Operator.from_informer(informer)
 
     assert op._informer is informer
     assert op._info_file == "info_path"

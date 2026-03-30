@@ -5,7 +5,7 @@ from dataclasses import fields
 from pathlib import Path
 
 from qq_lib.batch.interface import BatchInterface, BatchMeta
-from qq_lib.core.common import split_files_list
+from qq_lib.core.common import split_files_list, translate_server
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
@@ -38,7 +38,7 @@ class SubmitterFactory:
         self._input_dir = script.parent
         self._kwargs = kwargs
 
-    def makeSubmitter(self) -> Submitter:
+    def make_submitter(self) -> Submitter:
         """
         Construct and return a Submitter instance.
 
@@ -50,29 +50,33 @@ class SubmitterFactory:
         """
         self._parser.parse()
 
-        BatchSystem = self._getBatchSystem()
-        queue = self._getQueue()
+        BatchSystem = self._get_batch_system()
+        queue = self._get_queue()
 
-        if (job_type := self._getJobType()) == JobType.LOOP:
-            loop_info = self._getLoopInfo()
+        if (job_type := self._get_job_type()) == JobType.LOOP:
+            loop_info = self._get_loop_info()
         else:
             loop_info = None
+
+        server = self._get_server()
 
         return Submitter(
             BatchSystem,
             queue,
-            self._getAccount(),
+            self._get_account(),
             self._script,
             job_type,
-            self._getResources(BatchSystem, queue),
+            self._get_resources(BatchSystem, queue, server),
             loop_info,
-            self._getExclude(),
-            self._getInclude(),
-            self._getDepend(),
-            self._getTransferMode(),
+            self._get_exclude(),
+            self._get_include(),
+            self._get_depend(),
+            self._get_transfer_mode(),
+            server,
+            self._get_interpreter(),
         )
 
-    def _getBatchSystem(self) -> type[BatchInterface]:
+    def _get_batch_system(self) -> type[BatchInterface]:
         """
         Determine which batch system to use for the job submission.
 
@@ -86,10 +90,10 @@ class SubmitterFactory:
             type[BatchInterface]: The selected batch system class.
         """
         if batch_system := self._kwargs.get("batch_system"):
-            return BatchMeta.fromStr(batch_system)
-        return self._parser.getBatchSystem() or BatchMeta.fromEnvVarOrGuess()
+            return BatchMeta.from_str(batch_system)
+        return self._parser.get_batch_system() or BatchMeta.from_env_var_or_guess()
 
-    def _getJobType(self) -> JobType:
+    def _get_job_type(self) -> JobType:
         """
         Determine the type of job to submit.
 
@@ -102,10 +106,10 @@ class SubmitterFactory:
             JobType: The determined job type.
         """
         if job_type := self._kwargs.get("job_type"):
-            return JobType.fromStr(job_type)
-        return self._parser.getJobType() or JobType.STANDARD
+            return JobType.from_str(job_type)
+        return self._parser.get_job_type() or JobType.STANDARD
 
-    def _getQueue(self) -> str:
+    def _get_queue(self) -> str:
         """
         Determine the submission queue to use.
 
@@ -119,11 +123,13 @@ class SubmitterFactory:
         Raises:
             QQError: If no queue is specified either in kwargs or in the script.
         """
-        if not (queue := self._kwargs.get("queue") or self._parser.getQueue()):
+        if not (queue := self._kwargs.get("queue") or self._parser.get_queue()):
             raise QQError("Submission queue not specified.")
         return queue
 
-    def _getResources(self, BatchSystem: type[BatchInterface], queue: str) -> Resources:
+    def _get_resources(
+        self, BatchSystem: type[BatchInterface], queue: str, server: str | None
+    ) -> Resources:
         """
         Get the resource requirements for the job by merging the requirements specified on the command
         line with requirements specified inside the submitted script.
@@ -133,6 +139,7 @@ class SubmitterFactory:
         Args:
             BatchSystem (type[BatchInterface]): The batch system class to use.
             queue (str): The submission queue.
+            server (str | None): The submission server. `None` = the current main server.
 
         Returns:
             Resources: A merged Resources object containing the final resource requirements.
@@ -142,14 +149,15 @@ class SubmitterFactory:
             **{k: v for k, v in self._kwargs.items() if k in field_names}
         )
 
-        return BatchSystem.transformResources(
+        return BatchSystem.transform_resources(
             queue,
-            Resources.mergeResources(
-                command_line_resources, self._parser.getResources()
+            server,
+            Resources.merge_resources(
+                command_line_resources, self._parser.get_resources()
             ),
         )
 
-    def _getLoopInfo(self) -> LoopInfo:
+    def _get_loop_info(self) -> LoopInfo:
         """
         Construct LoopInfo holding information about the loop job.
 
@@ -160,21 +168,21 @@ class SubmitterFactory:
             QQError: If required loop job parameters are missing or invalid.
         """
         return LoopInfo(
-            self._kwargs.get("loop_start") or self._parser.getLoopStart() or 1,
-            self._kwargs.get("loop_end") or self._parser.getLoopEnd(),
+            self._kwargs.get("loop_start") or self._parser.get_loop_start() or 1,
+            self._kwargs.get("loop_end") or self._parser.get_loop_end(),
             self._input_dir
-            / (self._kwargs.get("archive") or self._parser.getArchive() or "storage"),
+            / (self._kwargs.get("archive") or self._parser.get_archive() or "storage"),
             self._kwargs.get("archive_format")
-            or self._parser.getArchiveFormat()
+            or self._parser.get_archive_format()
             or "job%04d",
             input_dir=self._input_dir,
-            archive_mode=TransferMode.multiFromStr(
+            archive_mode=TransferMode.multi_from_str(
                 self._kwargs.get("archive_mode") or ""
             )
-            or self._parser.getArchiveMode(),
+            or self._parser.get_archive_mode(),
         )
 
-    def _getExclude(self) -> list[Path]:
+    def _get_exclude(self) -> list[Path]:
         """
         Determine the files to exclude from being copied to the job's working directory.
 
@@ -188,10 +196,10 @@ class SubmitterFactory:
             list[Path]: List of relative file paths to exclude.
         """
         return (
-            split_files_list(self._kwargs.get("exclude")) or self._parser.getExclude()
+            split_files_list(self._kwargs.get("exclude")) or self._parser.get_exclude()
         )
 
-    def _getInclude(self) -> list[Path]:
+    def _get_include(self) -> list[Path]:
         """
         Determine the files to explicitly copy to the job's working directory.
 
@@ -205,10 +213,10 @@ class SubmitterFactory:
             list[Path]: List of file paths to include.
         """
         return (
-            split_files_list(self._kwargs.get("include")) or self._parser.getInclude()
+            split_files_list(self._kwargs.get("include")) or self._parser.get_include()
         )
 
-    def _getDepend(self) -> list[Depend]:
+    def _get_depend(self) -> list[Depend]:
         """
         Determine the list of dependencies.
 
@@ -222,20 +230,20 @@ class SubmitterFactory:
             list[Depend]: List of job dependencies.
         """
         return (
-            Depend.multiFromStr(self._kwargs.get("depend") or "")
-            or self._parser.getDepend()
+            Depend.multi_from_str(self._kwargs.get("depend") or "")
+            or self._parser.get_depend()
         )
 
-    def _getAccount(self) -> str | None:
+    def _get_account(self) -> str | None:
         """
         Determine the account name to use for the job.
 
         Returns:
             str | None: The account name or None if not defined.
         """
-        return self._kwargs.get("account") or self._parser.getAccount()
+        return self._kwargs.get("account") or self._parser.get_account()
 
-    def _getTransferMode(self) -> list[TransferMode]:
+    def _get_transfer_mode(self) -> list[TransferMode]:
         """
         Determine the mode specifying when files should be
         transferred from the working directory to the input directory.
@@ -250,6 +258,44 @@ class SubmitterFactory:
             list[TransferMode]: List of transfer modes.
         """
         return (
-            TransferMode.multiFromStr(self._kwargs.get("transfer_mode") or "")
-            or self._parser.getTransferMode()
+            TransferMode.multi_from_str(self._kwargs.get("transfer_mode") or "")
+            or self._parser.get_transfer_mode()
         )
+
+    def _get_server(self) -> str | None:
+        """
+        Determine the batch server to submit the job to.
+
+        Priority:
+            1. Command-line specification
+            2. Batch server specified in the script
+            3. None - the current batch server
+
+        Returns:
+            str | None: The full name of the batch server to use,
+                or `None` for the current batch server.
+        """
+        if raw := (self._kwargs.get("server") or self._parser.get_server()):
+            return translate_server(raw)
+
+        return None
+
+    def _get_interpreter(self) -> str | None:
+        """
+        Determine the interpreter to use for running the script.
+
+        Priority:
+            1. Command-line specification
+            2. Interpreter specified in the script
+            3. None - the default intepreter
+
+        Returns:
+            str | None: The interpreter to use for running the script
+                or `None` to use the default intepreter.
+        """
+        if interpreter := (
+            self._kwargs.get("interpreter") or self._parser.get_interpreter()
+        ):
+            return interpreter
+
+        return None

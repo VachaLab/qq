@@ -20,14 +20,14 @@ from qq_lib.nodes.presenter import NodeGroup, NodeGroupStats, NodesPresenter
 from qq_lib.properties.size import Size
 
 
-@patch.object(NodeGroup, "_shouldShowProperties", return_value=True)
-@patch.object(NodeGroup, "_shouldShowSharedScratch", return_value=True)
-@patch.object(NodeGroup, "_shouldShowSSDScratch", return_value=True)
-@patch.object(NodeGroup, "_shouldShowLocalScratch", return_value=True)
-@patch.object(NodeGroup, "_shouldShowGPUMem", return_value=True)
-@patch.object(NodeGroup, "_shouldShowGPUs", return_value=True)
-@patch.object(NodeGroup, "_setSharedProperties")
-@patch.object(NodeGroup, "_sortNodes")
+@patch.object(NodeGroup, "_should_show_properties", return_value=True)
+@patch.object(NodeGroup, "_should_show_shared_scratch", return_value=True)
+@patch.object(NodeGroup, "_should_show_ssd_scratch", return_value=True)
+@patch.object(NodeGroup, "_should_show_local_scratch", return_value=True)
+@patch.object(NodeGroup, "_should_show_gpu_mem", return_value=True)
+@patch.object(NodeGroup, "_should_show_gpus", return_value=True)
+@patch.object(NodeGroup, "_set_shared_properties")
+@patch.object(NodeGroup, "_sort_nodes")
 def test_node_group_init(
     mock_sort,
     mock_set_props,
@@ -62,160 +62,160 @@ def test_node_group_init(
 
 
 def test_node_group_should_show_gpus_returns_true_if_any_node_has_gpus():
-    node1 = MagicMock(spec=["getNGPUs"])
-    node1.getNGPUs.return_value = 0
-    node2 = MagicMock(spec=["getNGPUs"])
-    node2.getNGPUs.return_value = 4
+    node1 = MagicMock(spec=["get_n_gpus"])
+    node1.get_n_gpus.return_value = 0
+    node2 = MagicMock(spec=["get_n_gpus"])
+    node2.get_n_gpus.return_value = 4
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
-    assert group._shouldShowGPUs() is True
+    assert group._should_show_gpus() is True
 
 
 def test_node_group_should_show_gpus_returns_false_if_no_node_has_gpus():
-    node1 = MagicMock(spec=["getNGPUs"])
-    node1.getNGPUs.return_value = 0
-    node2 = MagicMock(spec=["getNGPUs"])
-    node2.getNGPUs.return_value = 0
+    node1 = MagicMock(spec=["get_n_gpus"])
+    node1.get_n_gpus.return_value = 0
+    node2 = MagicMock(spec=["get_n_gpus"])
+    node2.get_n_gpus.return_value = 0
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
-    assert group._shouldShowGPUs() is False
+    assert group._should_show_gpus() is False
 
 
 def test_node_group_should_show_gpu_mem_returns_true_if_any_node_has_gpu_mem():
-    node1 = MagicMock(spec=["getGPUMemory"])
-    node1.getGPUMemory.return_value = Size(0, "kb")
-    node2 = MagicMock(spec=["getGPUMemory"])
-    node2.getGPUMemory.return_value = Size(4, "gb")
+    node1 = MagicMock(spec=["get_gpu_memory"])
+    node1.get_gpu_memory.return_value = Size(0, "kb")
+    node2 = MagicMock(spec=["get_gpu_memory"])
+    node2.get_gpu_memory.return_value = Size(4, "gb")
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
-    assert group._shouldShowGPUMem() is True
+    assert group._should_show_gpu_mem() is True
 
 
 def test_node_group_should_show_gpu_mem_returns_false_if_no_node_has_gpu_mem():
-    node1 = MagicMock(spec=["getGPUMemory"])
-    node1.getGPUMemory.return_value = Size(0, "kb")
-    node2 = MagicMock(spec=["getGPUMemory"])
-    node2.getGPUMemory.return_value = Size(0, "gb")
+    node1 = MagicMock(spec=["get_gpu_memory"])
+    node1.get_gpu_memory.return_value = Size(0, "kb")
+    node2 = MagicMock(spec=["get_gpu_memory"])
+    node2.get_gpu_memory.return_value = Size(0, "gb")
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
-    assert group._shouldShowGPUMem() is False
+    assert group._should_show_gpu_mem() is False
 
 
 def test_node_group_should_show_local_scratch_returns_true_if_any_has_space():
-    node1 = MagicMock(spec=["getLocalScratch"])
-    node1.getLocalScratch.return_value = Size(0, "gb")
-    node2 = MagicMock(spec=["getLocalScratch"])
-    node2.getLocalScratch.return_value = Size(1024, "gb")
+    node1 = MagicMock(spec=["get_local_scratch"])
+    node1.get_local_scratch.return_value = Size(0, "gb")
+    node2 = MagicMock(spec=["get_local_scratch"])
+    node2.get_local_scratch.return_value = Size(1024, "gb")
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
-    assert group._shouldShowLocalScratch() is True
+    assert group._should_show_local_scratch() is True
 
 
 def test_node_group_should_show_local_scratch_returns_false_if_all_zero():
-    node1 = MagicMock(spec=["getLocalScratch"])
-    node1.getLocalScratch.return_value = Size(0)
-    node2 = MagicMock(spec=["getLocalScratch"])
-    node2.getLocalScratch.return_value = Size(0)
+    node1 = MagicMock(spec=["get_local_scratch"])
+    node1.get_local_scratch.return_value = Size(0)
+    node2 = MagicMock(spec=["get_local_scratch"])
+    node2.get_local_scratch.return_value = Size(0)
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
-    assert group._shouldShowLocalScratch() is False
+    assert group._should_show_local_scratch() is False
 
 
 def test_node_group_should_show_ssd_scratch_returns_true_if_any_has_space():
-    node1 = MagicMock(spec=["getSSDScratch"])
-    node1.getSSDScratch.return_value = Size(0, "kb")
-    node2 = MagicMock(spec=["getSSDScratch"])
-    node2.getSSDScratch.return_value = Size(1024, "gb")
+    node1 = MagicMock(spec=["get_ssd_scratch"])
+    node1.get_ssd_scratch.return_value = Size(0, "kb")
+    node2 = MagicMock(spec=["get_ssd_scratch"])
+    node2.get_ssd_scratch.return_value = Size(1024, "gb")
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
-    assert group._shouldShowSSDScratch() is True
+    assert group._should_show_ssd_scratch() is True
 
 
 def test_node_group_should_show_ssd_scratch_returns_false_if_all_zero():
-    node1 = MagicMock(spec=["getSSDScratch"])
-    node1.getSSDScratch.return_value = Size(0, "kb")
-    node2 = MagicMock(spec=["getSSDScratch"])
-    node2.getSSDScratch.return_value = Size(0, "kb")
+    node1 = MagicMock(spec=["get_ssd_scratch"])
+    node1.get_ssd_scratch.return_value = Size(0, "kb")
+    node2 = MagicMock(spec=["get_ssd_scratch"])
+    node2.get_ssd_scratch.return_value = Size(0, "kb")
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
-    assert group._shouldShowSSDScratch() is False
+    assert group._should_show_ssd_scratch() is False
 
 
 def test_node_group_should_show_shared_scratch_returns_true_if_any_has_space():
-    node1 = MagicMock(spec=["getSharedScratch"])
-    node1.getSharedScratch.return_value = Size(0)
-    node2 = MagicMock(spec=["getSharedScratch"])
-    node2.getSharedScratch.return_value = Size(1024, "gb")
+    node1 = MagicMock(spec=["get_shared_scratch"])
+    node1.get_shared_scratch.return_value = Size(0)
+    node2 = MagicMock(spec=["get_shared_scratch"])
+    node2.get_shared_scratch.return_value = Size(1024, "gb")
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
-    assert group._shouldShowSharedScratch() is True
+    assert group._should_show_shared_scratch() is True
 
 
 def test_node_group_should_show_shared_scratch_returns_false_if_all_zero():
-    node1 = MagicMock(spec=["getSharedScratch"])
-    node1.getSharedScratch.return_value = Size(0, "kb")
-    node2 = MagicMock(spec=["getSharedScratch"])
-    node2.getSharedScratch.return_value = Size(0)
+    node1 = MagicMock(spec=["get_shared_scratch"])
+    node1.get_shared_scratch.return_value = Size(0, "kb")
+    node2 = MagicMock(spec=["get_shared_scratch"])
+    node2.get_shared_scratch.return_value = Size(0)
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
-    assert group._shouldShowSharedScratch() is False
+    assert group._should_show_shared_scratch() is False
 
 
 def test_node_group_should_show_properties_returns_true_if_not_all_shared():
-    node1 = MagicMock(spec=["getProperties"])
-    node1.getProperties.return_value = ["fast", "gpu"]
-    node2 = MagicMock(spec=["getProperties"])
-    node2.getProperties.return_value = ["fast"]
+    node1 = MagicMock(spec=["get_properties"])
+    node1.get_properties.return_value = ["fast", "gpu"]
+    node2 = MagicMock(spec=["get_properties"])
+    node2.get_properties.return_value = ["fast"]
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
     group._shared_properties = {"fast"}
-    assert group._shouldShowProperties() is True
+    assert group._should_show_properties() is True
 
 
 def test_node_group_should_show_properties_returns_false_if_all_shared():
-    node1 = MagicMock(spec=["getProperties"])
-    node1.getProperties.return_value = ["fast", "gpu"]
-    node2 = MagicMock(spec=["getProperties"])
-    node2.getProperties.return_value = ["fast", "gpu"]
+    node1 = MagicMock(spec=["get_properties"])
+    node1.get_properties.return_value = ["fast", "gpu"]
+    node2 = MagicMock(spec=["get_properties"])
+    node2.get_properties.return_value = ["fast", "gpu"]
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
     group._shared_properties = {"fast", "gpu"}
-    assert group._shouldShowProperties() is False
+    assert group._should_show_properties() is False
 
 
 @patch(
-    "qq_lib.nodes.presenter.NodesPresenter._formatNodeProperties",
+    "qq_lib.nodes.presenter.NodesPresenter._format_node_properties",
     return_value=Text("props"),
 )
 @patch(
-    "qq_lib.nodes.presenter.NodesPresenter._formatSizeProperty",
+    "qq_lib.nodes.presenter.NodesPresenter._format_size_property",
     return_value=Text("mem"),
 )
 @patch(
-    "qq_lib.nodes.presenter.NodesPresenter._formatProcessingUnits",
+    "qq_lib.nodes.presenter.NodesPresenter._format_processing_units",
     return_value=Text("cpus"),
 )
 @patch(
-    "qq_lib.nodes.presenter.NodesPresenter._formatStateMark",
+    "qq_lib.nodes.presenter.NodesPresenter._format_state_mark",
     return_value=Text("state"),
 )
 def test_node_group_add_node_row_all_shows(
     mock_state_mark, mock_proc_units, mock_size, mock_props
 ):
     node = MagicMock()
-    node.isAvailableToUser.return_value = True
-    node.getNFreeCPUs.return_value = 8
-    node.getNCPUs.return_value = 16
-    node.getNFreeGPUs.return_value = 1
-    node.getNGPUs.return_value = 2
-    node.getFreeCPUMemory.return_value = "32gb"
-    node.getCPUMemory.return_value = "64gb"
-    node.getFreeGPUMemory.return_value = "8gb"
-    node.getFreeLocalScratch.return_value = "100gb"
-    node.getFreeSSDScratch.return_value = "200gb"
-    node.getFreeSharedScratch.return_value = "300gb"
-    node.getProperties.return_value = ["gpu", "fast"]
-    node.getName.return_value = "node1"
+    node.is_available_to_user.return_value = True
+    node.get_n_free_cpus.return_value = 8
+    node.get_n_cpus.return_value = 16
+    node.get_n_free_gpus.return_value = 1
+    node.get_n_gpus.return_value = 2
+    node.get_free_cpu_memory.return_value = "32gb"
+    node.get_cpu_memory.return_value = "64gb"
+    node.get_free_gpu_memory.return_value = "8gb"
+    node.get_free_local_scratch.return_value = "100gb"
+    node.get_free_ssd_scratch.return_value = "200gb"
+    node.get_free_shared_scratch.return_value = "300gb"
+    node.get_properties.return_value = ["gpu", "fast"]
+    node.get_name.return_value = "node1"
 
     group = NodeGroup.__new__(NodeGroup)
     group._user = "user1"
@@ -231,10 +231,10 @@ def test_node_group_add_node_row_all_shows(
     table = Table()
     table.add_row = MagicMock()  # ty: ignore[invalid-assignment]
 
-    group._addNodeRow(node, table)
+    group._add_node_row(node, table)
 
-    node.isAvailableToUser.assert_called_once_with("user1")
-    group.stats.addNode.assert_called_once_with(16, 8, 2, 1, ["gpu", "fast"])
+    node.is_available_to_user.assert_called_once_with("user1")
+    group.stats.add_node.assert_called_once_with(16, 8, 2, 1, ["gpu", "fast"])
     mock_state_mark.assert_called_once_with(8, 16, 1, 2, True)
     mock_proc_units.assert_any_call(8, 16, True)
     mock_size.assert_any_call("32gb", "64gb", CFG.nodes_presenter.main_text_style)
@@ -247,34 +247,34 @@ def test_node_group_add_node_row_all_shows(
 
 
 @patch(
-    "qq_lib.nodes.presenter.NodesPresenter._formatNodeProperties",
+    "qq_lib.nodes.presenter.NodesPresenter._format_node_properties",
     return_value=Text("props"),
 )
 @patch(
-    "qq_lib.nodes.presenter.NodesPresenter._formatSizeProperty",
+    "qq_lib.nodes.presenter.NodesPresenter._format_size_property",
     return_value=Text("mem"),
 )
 @patch(
-    "qq_lib.nodes.presenter.NodesPresenter._formatProcessingUnits",
+    "qq_lib.nodes.presenter.NodesPresenter._format_processing_units",
     return_value=Text("cpus"),
 )
 @patch(
-    "qq_lib.nodes.presenter.NodesPresenter._formatStateMark",
+    "qq_lib.nodes.presenter.NodesPresenter._format_state_mark",
     return_value=Text("state"),
 )
 def test_node_group_add_node_row_all_shows_false(
     mock_state_mark, mock_proc_units, mock_size, mock_props
 ):
     node = MagicMock()
-    node.isAvailableToUser.return_value = False
-    node.getNFreeCPUs.return_value = 4
-    node.getNCPUs.return_value = 8
-    node.getNFreeGPUs.return_value = 0
-    node.getNGPUs.return_value = 0
-    node.getFreeCPUMemory.return_value = "16gb"
-    node.getCPUMemory.return_value = "32gb"
-    node.getProperties.return_value = []
-    node.getName.return_value = "node2"
+    node.is_available_to_user.return_value = False
+    node.get_n_free_cpus.return_value = 4
+    node.get_n_cpus.return_value = 8
+    node.get_n_free_gpus.return_value = 0
+    node.get_n_gpus.return_value = 0
+    node.get_free_cpu_memory.return_value = "16gb"
+    node.get_cpu_memory.return_value = "32gb"
+    node.get_properties.return_value = []
+    node.get_name.return_value = "node2"
 
     group = NodeGroup.__new__(NodeGroup)
     group._user = "user2"
@@ -290,10 +290,10 @@ def test_node_group_add_node_row_all_shows_false(
     table = Table()
     table.add_row = MagicMock()  # ty: ignore[invalid-assignment]
 
-    group._addNodeRow(node, table)
+    group._add_node_row(node, table)
 
-    node.isAvailableToUser.assert_called_once_with("user2")
-    group.stats.addNode.assert_called_once_with(8, 4, 0, 0, [])
+    node.is_available_to_user.assert_called_once_with("user2")
+    group.stats.add_node.assert_called_once_with(8, 4, 0, 0, [])
     mock_state_mark.assert_called_once_with(4, 8, 0, 0, False)
     mock_proc_units.assert_any_call(4, 8, False)
     mock_props.assert_not_called()
@@ -307,28 +307,28 @@ def test_node_group_add_node_row_all_shows_false(
 
 def test_node_group_set_shared_properties_with_common_values():
     node1 = MagicMock()
-    node1.getProperties.return_value = ["gpu", "fast", "linux"]
+    node1.get_properties.return_value = ["gpu", "fast", "linux"]
     node2 = MagicMock()
-    node2.getProperties.return_value = ["gpu", "fast", "debian"]
+    node2.get_properties.return_value = ["gpu", "fast", "debian"]
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
 
-    group._setSharedProperties()
+    group._set_shared_properties()
 
-    node1.getProperties.assert_called_once()
-    node2.getProperties.assert_called_once()
+    node1.get_properties.assert_called_once()
+    node2.get_properties.assert_called_once()
     assert group._shared_properties == ["fast", "gpu"]
 
 
 def test_node_group_set_shared_properties_with_no_common_values():
     node1 = MagicMock()
-    node1.getProperties.return_value = ["gpu"]
+    node1.get_properties.return_value = ["gpu"]
     node2 = MagicMock()
-    node2.getProperties.return_value = ["cpu"]
+    node2.get_properties.return_value = ["cpu"]
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
 
-    group._setSharedProperties()
+    group._set_shared_properties()
 
     assert group._shared_properties == []
 
@@ -337,7 +337,7 @@ def test_node_group_set_shared_properties_with_empty_nodes_list():
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = []
 
-    group._setSharedProperties()
+    group._set_shared_properties()
 
     assert not hasattr(group, "_shared_properties")
 
@@ -346,31 +346,31 @@ def test_node_group_sort_nodes_sorts_alphanumerically():
     node_a = MagicMock()
     node_b = MagicMock()
     node_c = MagicMock()
-    node_a.getName.return_value = "node10"
-    node_b.getName.return_value = "node2"
-    node_c.getName.return_value = "node1"
+    node_a.get_name.return_value = "node10"
+    node_b.get_name.return_value = "node2"
+    node_c.get_name.return_value = "node1"
 
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node_a, node_b, node_c]
 
-    group._sortNodes()
+    group._sort_nodes()
 
-    sorted_names = [n.getName() for n in group.nodes]
+    sorted_names = [n.get_name() for n in group.nodes]
     assert sorted_names == ["node1", "node2", "node10"]
 
 
 def test_node_group_sort_nodes_handles_mixed_case_names():
     node_a = MagicMock()
     node_b = MagicMock()
-    node_a.getName.return_value = "Node2"
-    node_b.getName.return_value = "node1"
+    node_a.get_name.return_value = "Node2"
+    node_b.get_name.return_value = "node1"
 
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node_a, node_b]
 
-    group._sortNodes()
+    group._sort_nodes()
 
-    sorted_names = [n.getName() for n in group.nodes]
+    sorted_names = [n.get_name() for n in group.nodes]
     assert sorted_names == ["node1", "Node2"]
 
 
@@ -378,21 +378,21 @@ def test_node_group_sort_nodes_handles_dash_and_number_sequences():
     node_a = MagicMock()
     node_b = MagicMock()
     node_c = MagicMock()
-    node_a.getName.return_value = "node5-18"
-    node_b.getName.return_value = "node5-3"
-    node_c.getName.return_value = "node4-20"
+    node_a.get_name.return_value = "node5-18"
+    node_b.get_name.return_value = "node5-3"
+    node_c.get_name.return_value = "node4-20"
 
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node_a, node_b, node_c]
 
-    group._sortNodes()
+    group._sort_nodes()
 
-    sorted_names = [n.getName() for n in group.nodes]
+    sorted_names = [n.get_name() for n in group.nodes]
     assert sorted_names == ["node4-20", "node5-3", "node5-18"]
 
 
 @patch(
-    "qq_lib.nodes.presenter.NodesPresenter._formatMetadataTable",
+    "qq_lib.nodes.presenter.NodesPresenter._format_metadata_table",
     return_value="mock_table",
 )
 def test_node_group_create_metadata_table_calls_formatter(mock_format):
@@ -400,7 +400,7 @@ def test_node_group_create_metadata_table_calls_formatter(mock_format):
     group._shared_properties = ["gpu", "fast"]
     group.stats = MagicMock()
 
-    result = group.createMetadataTable()
+    result = group.create_metadata_table()
 
     mock_format.assert_called_once_with(
         ["gpu", "fast"], "Shared properties", group.stats
@@ -408,7 +408,7 @@ def test_node_group_create_metadata_table_calls_formatter(mock_format):
     assert result == "mock_table"
 
 
-@patch("qq_lib.nodes.presenter.NodeGroup._addNodeRow")
+@patch("qq_lib.nodes.presenter.NodeGroup._add_node_row")
 def test_node_group_create_nodes_table(mock_add_row):
     node1 = MagicMock()
     node2 = MagicMock()
@@ -422,7 +422,7 @@ def test_node_group_create_nodes_table(mock_add_row):
     group._show_shared = True
     group._show_props = True
 
-    table = group.createNodesTable()
+    table = group.create_nodes_table()
 
     expected_headers = [
         "",
@@ -446,7 +446,7 @@ def test_node_group_create_nodes_table(mock_add_row):
     assert isinstance(table, Table)
 
 
-@patch("qq_lib.nodes.presenter.NodeGroup._addNodeRow")
+@patch("qq_lib.nodes.presenter.NodeGroup._add_node_row")
 def test_node_group_create_nodes_table_respects_disabled_columns(mock_add_row):
     node = MagicMock()
     group = NodeGroup.__new__(NodeGroup)
@@ -458,7 +458,7 @@ def test_node_group_create_nodes_table_respects_disabled_columns(mock_add_row):
     group._show_shared = False
     group._show_props = False
 
-    table = group.createNodesTable()
+    table = group.create_nodes_table()
 
     expected_headers = ["", "Name", "NCPUs", "CPU Mem"]
     actual_headers = [col.header.plain for col in table.columns]
@@ -468,14 +468,16 @@ def test_node_group_create_nodes_table_respects_disabled_columns(mock_add_row):
     assert isinstance(table, Table)
 
 
-@patch("qq_lib.nodes.presenter.NodeGroup.createNodesTable", return_value="nodes_table")
 @patch(
-    "qq_lib.nodes.presenter.NodeGroup.createMetadataTable",
+    "qq_lib.nodes.presenter.NodeGroup.create_nodes_table", return_value="nodes_table"
+)
+@patch(
+    "qq_lib.nodes.presenter.NodeGroup.create_metadata_table",
     return_value="metadata_table",
 )
 def test_node_group_create_full_info_panel_returns_group(mock_metadata, mock_nodes):
     group = NodeGroup.__new__(NodeGroup)
-    result = group.createFullInfoPanel()
+    result = group.create_full_info_panel()
 
     mock_nodes.assert_called_once_with()
     mock_metadata.assert_called_once_with()
@@ -487,7 +489,7 @@ def test_node_group_create_full_info_panel_returns_group(mock_metadata, mock_nod
 def test_node_group_stats_add_node_updates_totals_and_properties():
     stats = NodeGroupStats()
 
-    stats.addNode(16, 8, 2, 1, ["gpu", "fast"])
+    stats.add_node(16, 8, 2, 1, ["gpu", "fast"])
 
     assert stats.n_nodes == 1
     assert stats.n_cpus == 16
@@ -500,8 +502,8 @@ def test_node_group_stats_add_node_updates_totals_and_properties():
 def test_node_group_stats_add_node_accumulates_multiple_calls():
     stats = NodeGroupStats()
 
-    stats.addNode(8, 4, 1, 1, ["gpu"])
-    stats.addNode(16, 8, 0, 0, ["fast", "linux"])
+    stats.add_node(8, 4, 1, 1, ["gpu"])
+    stats.add_node(16, 8, 0, 0, ["fast", "linux"])
 
     assert stats.n_nodes == 2
     assert stats.n_cpus == 24
@@ -514,7 +516,7 @@ def test_node_group_stats_add_node_accumulates_multiple_calls():
 def test_node_group_stats_add_node_handles_empty_properties():
     stats = NodeGroupStats()
 
-    stats.addNode(4, 2, 0, 0, [])
+    stats.add_node(4, 2, 0, 0, [])
 
     assert stats.n_nodes == 1
     assert stats.n_cpus == 4
@@ -534,7 +536,7 @@ def test_node_group_stats_sum_stats_single():
         properties={"gpu"},
     )
 
-    result = NodeGroupStats.sumStats(s1)
+    result = NodeGroupStats.sum_stats(s1)
 
     assert result.n_nodes == 1
     assert result.n_cpus == 16
@@ -562,7 +564,7 @@ def test_node_group_stats_sum_stats_multiple():
         properties={"gpu", "linux"},
     )
 
-    result = NodeGroupStats.sumStats(s1, s2)
+    result = NodeGroupStats.sum_stats(s1, s2)
 
     assert isinstance(result, NodeGroupStats)
     assert result.n_nodes == 5
@@ -574,7 +576,7 @@ def test_node_group_stats_sum_stats_multiple():
 
 
 def test_node_group_stats_sum_stats_no():
-    result = NodeGroupStats.sumStats()
+    result = NodeGroupStats.sum_stats()
     assert result.n_nodes == 0
     assert result.n_cpus == 0
     assert result.n_free_cpus == 0
@@ -589,7 +591,7 @@ def test_node_group_stats_create_stats_table_includes_gpu_columns(mock_add_row):
         n_nodes=3, n_cpus=48, n_free_cpus=24, n_gpus=6, n_free_gpus=3
     )
 
-    table = stats.createStatsTable()
+    table = stats.create_stats_table()
 
     headers = [
         col.header.plain if isinstance(col.header, Text) else col.header
@@ -622,7 +624,7 @@ def test_node_group_stats_create_stats_table_excludes_gpu_columns_when_none(
         n_nodes=2, n_cpus=32, n_free_cpus=12, n_gpus=0, n_free_gpus=0
     )
 
-    table = stats.createStatsTable()
+    table = stats.create_stats_table()
 
     headers = [
         col.header.plain if isinstance(col.header, Text) else col.header
@@ -646,32 +648,49 @@ def test_node_group_stats_create_stats_table_excludes_gpu_columns_when_none(
 
 
 @patch(
-    "qq_lib.nodes.presenter.NodesPresenter._createNodeGroups",
+    "qq_lib.nodes.presenter.NodesPresenter._create_node_groups",
     return_value=["group1", "group2"],
 )
 def test_nodes_presenter_init(mock_create_groups):
     nodes = [MagicMock(), MagicMock()]
-    presenter = NodesPresenter(nodes, "user1", True)
+    presenter = NodesPresenter(nodes, "user1", True, None)
 
     assert presenter._nodes == nodes
     assert presenter._user == "user1"
     assert presenter._display_all is True
+    assert presenter._server is None
     mock_create_groups.assert_called_once_with()
     assert presenter._node_groups == ["group1", "group2"]
 
 
 @patch(
-    "qq_lib.nodes.presenter.NodesPresenter._formatPropertiesSection",
+    "qq_lib.nodes.presenter.NodesPresenter._create_node_groups",
+    return_value=["group1", "group2"],
+)
+def test_nodes_presenter_init_with_server(mock_create_groups):
+    nodes = [MagicMock(), MagicMock()]
+    presenter = NodesPresenter(nodes, "user1", True, "server")
+
+    assert presenter._nodes == nodes
+    assert presenter._user == "user1"
+    assert presenter._display_all is True
+    assert presenter._server == "server"
+    mock_create_groups.assert_called_once_with()
+    assert presenter._node_groups == ["group1", "group2"]
+
+
+@patch(
+    "qq_lib.nodes.presenter.NodesPresenter._format_properties_section",
     return_value="props_section",
 )
 def test_nodes_presenter_format_metadata_table_creates_table(mock_props_section):
     stats = MagicMock()
-    stats.createStatsTable.return_value = "stats_table"
+    stats.create_stats_table.return_value = "stats_table"
 
-    result = NodesPresenter._formatMetadataTable(["gpu", "fast"], "Shared", stats)
+    result = NodesPresenter._format_metadata_table(["gpu", "fast"], "Shared", stats)
 
     mock_props_section.assert_called_once_with(["gpu", "fast"], "Shared")
-    stats.createStatsTable.assert_called_once_with()
+    stats.create_stats_table.assert_called_once_with()
 
     assert isinstance(result, Table)
     assert len(result.columns) == 2
@@ -682,7 +701,7 @@ def test_nodes_presenter_format_properties_section_returns_expected_text():
     props = ["gpu", "fast", "linux"]
     title = "Shared properties"
 
-    result = NodesPresenter._formatPropertiesSection(props, title)
+    result = NodesPresenter._format_properties_section(props, title)
 
     assert isinstance(result, Text)
     assert result.plain.startswith("Shared properties:")
@@ -707,7 +726,7 @@ def test_nodes_presenter_format_properties_section_returns_expected_text():
 def test_nodes_presenter_format_state_mark_returns_correct_style(
     free_cpus, total_cpus, free_gpus, total_gpus, available, expected_style
 ):
-    result = NodesPresenter._formatStateMark(
+    result = NodesPresenter._format_state_mark(
         free_cpus, total_cpus, free_gpus, total_gpus, available
     )
 
@@ -721,7 +740,7 @@ def test_nodes_presenter_format_node_properties():
     shared = ["linux"]
     style = "bold"
 
-    result = NodesPresenter._formatNodeProperties(props, shared, style)
+    result = NodesPresenter._format_node_properties(props, shared, style)
 
     assert isinstance(result, Text)
     assert result.plain == "gpu, fast"
@@ -733,7 +752,7 @@ def test_nodes_presenter_format_node_properties_all_shared():
     shared = ["gpu", "fast"]
     style = "bold"
 
-    result = NodesPresenter._formatNodeProperties(props, shared, style)
+    result = NodesPresenter._format_node_properties(props, shared, style)
 
     assert isinstance(result, Text)
     assert result.plain == ""
@@ -745,7 +764,7 @@ def test_nodes_presenter_format_size_property():
     total = Size(32, "gb")
     style = "bright_green"
 
-    result = NodesPresenter._formatSizeProperty(free, total, style)
+    result = NodesPresenter._format_size_property(free, total, style)
 
     assert isinstance(result, Text)
     assert result.plain == "8gb / 32gb"
@@ -766,7 +785,7 @@ def test_nodes_presenter_format_size_property():
 def test_nodes_presenter_format_processing_units_returns_correct_style(
     free, total, available, expected_style
 ):
-    result = NodesPresenter._formatProcessingUnits(free, total, available)
+    result = NodesPresenter._format_processing_units(free, total, available)
 
     assert isinstance(result, Text)
     assert result.plain == f"{free} / {total}"
@@ -791,7 +810,7 @@ def test_nodes_presenter_interleave():
 
 def test_nodes_presenter_create_separator_returns_expected_group():
     title = "GPU Nodes"
-    result = NodesPresenter._createSeparator(title)
+    result = NodesPresenter._create_separator(title)
 
     assert isinstance(result, Group)
     assert len(result.renderables) == 3
@@ -812,16 +831,16 @@ def test_nodes_presenter_create_node_groups_creates_group_for_common_prefix(
     node2 = MagicMock()
     node3 = MagicMock()
     node4 = MagicMock()
-    node1.getName.return_value = "node1"
-    node2.getName.return_value = "node2"
-    node3.getName.return_value = "node3"
-    node4.getName.return_value = "misc1"
+    node1.get_name.return_value = "node1"
+    node2.get_name.return_value = "node2"
+    node3.get_name.return_value = "node3"
+    node4.get_name.return_value = "misc1"
 
     presenter = NodesPresenter.__new__(NodesPresenter)
     presenter._nodes = [node1, node2, node3, node4]
     presenter._user = "user1"
 
-    result = presenter._createNodeGroups()
+    result = presenter._create_node_groups()
 
     assert mock_nodegroup.call_count == 2
     prefixes = [call.args[0] for call in mock_nodegroup.call_args_list]
@@ -836,14 +855,14 @@ def test_nodes_presenter_create_node_groups_assigns_all_to_all_nodes_when_no_pre
 ):
     node1 = MagicMock()
     node2 = MagicMock()
-    node1.getName.return_value = "x1"
-    node2.getName.return_value = "y2"
+    node1.get_name.return_value = "x1"
+    node2.get_name.return_value = "y2"
 
     presenter = NodesPresenter.__new__(NodesPresenter)
     presenter._nodes = [node1, node2]
     presenter._user = "user1"
 
-    result = presenter._createNodeGroups()
+    result = presenter._create_node_groups()
 
     mock_nodegroup.assert_called_once_with(
         CFG.nodes_presenter.all_nodes_group_name, [node1, node2], "user1"
@@ -860,18 +879,18 @@ def test_nodes_presenter_create_node_groups_two_groups(mock_nodegroup):
     node5 = MagicMock()
     node6 = MagicMock()
 
-    node1.getName.return_value = "alpha1"
-    node2.getName.return_value = "alpha2"
-    node3.getName.return_value = "alpha3"
-    node4.getName.return_value = "beta1"
-    node5.getName.return_value = "beta2"
-    node6.getName.return_value = "beta3"
+    node1.get_name.return_value = "alpha1"
+    node2.get_name.return_value = "alpha2"
+    node3.get_name.return_value = "alpha3"
+    node4.get_name.return_value = "beta1"
+    node5.get_name.return_value = "beta2"
+    node6.get_name.return_value = "beta3"
 
     presenter = NodesPresenter.__new__(NodesPresenter)
     presenter._nodes = [node1, node2, node3, node4, node5, node6]
     presenter._user = "userA"
 
-    result = presenter._createNodeGroups()
+    result = presenter._create_node_groups()
 
     assert mock_nodegroup.call_count == 2
     called_prefixes = [call.args[0] for call in mock_nodegroup.call_args_list]
@@ -889,17 +908,17 @@ def test_nodes_presenter_create_node_groups_merges_small_groups_together(
     node3 = MagicMock()
     node4 = MagicMock()
     node5 = MagicMock()
-    node1.getName.return_value = "alpha1"
-    node2.getName.return_value = "alpha2"
-    node3.getName.return_value = "alpha3"
-    node4.getName.return_value = "beta1"
-    node5.getName.return_value = "gamma1"
+    node1.get_name.return_value = "alpha1"
+    node2.get_name.return_value = "alpha2"
+    node3.get_name.return_value = "alpha3"
+    node4.get_name.return_value = "beta1"
+    node5.get_name.return_value = "gamma1"
 
     presenter = NodesPresenter.__new__(NodesPresenter)
     presenter._nodes = [node1, node2, node3, node4, node5]
     presenter._user = "userB"
 
-    result = presenter._createNodeGroups()
+    result = presenter._create_node_groups()
 
     assert mock_nodegroup.call_count == 2
 
@@ -919,10 +938,10 @@ def test_nodes_presenter_create_node_groups_merges_small_groups_together(
 
 
 @patch(
-    "qq_lib.nodes.presenter.NodesPresenter._formatMetadataTable",
+    "qq_lib.nodes.presenter.NodesPresenter._format_metadata_table",
     return_value="formatted_metadata",
 )
-@patch("qq_lib.nodes.presenter.NodeGroupStats.sumStats")
+@patch("qq_lib.nodes.presenter.NodeGroupStats.sum_stats")
 def test_nodes_presenter_create_metadata_panel(mock_sum_stats, mock_format_table):
     mock_stats = MagicMock()
     mock_stats.properties = {"gpu", "fast"}
@@ -936,7 +955,7 @@ def test_nodes_presenter_create_metadata_panel(mock_sum_stats, mock_format_table
     presenter = NodesPresenter.__new__(NodesPresenter)
     presenter._node_groups = [group1, group2]
 
-    result = presenter._createMetadataPanel()
+    result = presenter._create_metadata_panel()
 
     mock_sum_stats.assert_called_once_with(group1.stats, group2.stats)
     args, _ = mock_format_table.call_args
@@ -957,7 +976,7 @@ def test_nodes_presenter_create_metadata_panel(mock_sum_stats, mock_format_table
 
 @patch("qq_lib.nodes.presenter.get_panel_width", return_value=120)
 @patch(
-    "qq_lib.nodes.presenter.NodesPresenter._createMetadataPanel",
+    "qq_lib.nodes.presenter.NodesPresenter._create_metadata_panel",
     return_value=Group("meta"),
 )
 def test_nodes_presenter_create_nodes_info_panel_multiple_groups(
@@ -967,16 +986,17 @@ def test_nodes_presenter_create_nodes_info_panel_multiple_groups(
     group2 = MagicMock()
     group1.name = "alpha"
     group2.name = "beta"
-    group1.createFullInfoPanel.return_value = Group("panel_alpha")
-    group2.createFullInfoPanel.return_value = Group("panel_beta")
+    group1.create_full_info_panel.return_value = Group("panel_alpha")
+    group2.create_full_info_panel.return_value = Group("panel_beta")
 
     presenter = NodesPresenter.__new__(NodesPresenter)
     presenter._node_groups = [group1, group2]
+    presenter._server = None
 
-    result = presenter.createNodesInfoPanel()
+    result = presenter.create_nodes_info_panel()
 
-    group1.createFullInfoPanel.assert_called_once()
-    group2.createFullInfoPanel.assert_called_once()
+    group1.create_full_info_panel.assert_called_once()
+    group2.create_full_info_panel.assert_called_once()
     mock_metadata.assert_called_once()
     mock_width.assert_called_once()
 
@@ -988,20 +1008,21 @@ def test_nodes_presenter_create_nodes_info_panel_multiple_groups(
 
 
 @patch("qq_lib.nodes.presenter.get_panel_width", return_value=100)
-@patch("qq_lib.nodes.presenter.NodesPresenter._createMetadataPanel")
+@patch("qq_lib.nodes.presenter.NodesPresenter._create_metadata_panel")
 def test_nodes_presenter_create_nodes_info_panel_single_group(
     mock_metadata, mock_width
 ):
     group = MagicMock()
     group.name = "solo"
-    group.createFullInfoPanel.return_value = Group("panel_solo")
+    group.create_full_info_panel.return_value = Group("panel_solo")
 
     presenter = NodesPresenter.__new__(NodesPresenter)
     presenter._node_groups = [group]
+    presenter._server = None
 
-    result = presenter.createNodesInfoPanel()
+    result = presenter.create_nodes_info_panel()
 
-    group.createFullInfoPanel.assert_called_once()
+    group.create_full_info_panel.assert_called_once()
     mock_metadata.assert_not_called()
     mock_width.assert_called_once()
 
@@ -1050,15 +1071,17 @@ def test_nodes_presenter_dump_yaml_roundtrip():
         "sharing": "default_shared",
     }
 
-    gpu_node = PBSNode.fromDict("zero21", info_gpu)
-    cpu_node = PBSNode.fromDict("three3", info_cpu)
+    gpu_node = PBSNode.from_dict("zero21", None, info_gpu)
+    cpu_node = PBSNode.from_dict("three3", None, info_cpu)
 
-    presenter = NodesPresenter([gpu_node, cpu_node], user="testuser", all=True)
+    presenter = NodesPresenter(
+        [gpu_node, cpu_node], user="testuser", all=True, server=None
+    )
 
     captured = StringIO()
     sys.stdout = captured
     try:
-        presenter.dumpYaml()
+        presenter.dump_yaml()
     finally:
         sys.stdout = sys.__stdout__
 
@@ -1070,12 +1093,12 @@ def test_nodes_presenter_dump_yaml_roundtrip():
             continue
         data = yaml.safe_load(doc)
         name = data["Node"]
-        reloaded_nodes.append(PBSNode.fromDict(name, data))
+        reloaded_nodes.append(PBSNode.from_dict(name, None, data))
 
     assert len(reloaded_nodes) == 2
 
     for orig, loaded in zip([gpu_node, cpu_node], reloaded_nodes):
-        assert orig.getName() == loaded.getName()
+        assert orig.get_name() == loaded.get_name()
         assert orig._info.keys() == loaded._info.keys()
         for key in orig._info:
             assert orig._info[key] == loaded._info[key]

@@ -91,7 +91,7 @@ def test_presenter_state_messages(
     start_time = datetime.now()
     end_time = start_time + timedelta(hours=1)
 
-    first_msg, second_msg = presenter._getStateMessages(state, start_time, end_time)
+    first_msg, second_msg = presenter._get_state_messages(state, start_time, end_time)
 
     assert expected_first_keyword.lower() in first_msg.lower()
     assert expected_second_keyword.lower() in second_msg.lower()
@@ -106,7 +106,7 @@ def test_presenter_state_messages_running_single_node(sample_info):
     start_time = datetime.now()
     end_time = start_time + timedelta(hours=1)
 
-    first_msg, second_msg = presenter._getStateMessages(
+    first_msg, second_msg = presenter._get_state_messages(
         RealState.RUNNING, start_time, end_time
     )
 
@@ -125,7 +125,7 @@ def test_presenter_state_messages_running_multiple_nodes(sample_info):
     start_time = datetime.now()
     end_time = start_time + timedelta(hours=1)
 
-    first_msg, second_msg = presenter._getStateMessages(
+    first_msg, second_msg = presenter._get_state_messages(
         RealState.RUNNING, start_time, end_time
     )
 
@@ -139,7 +139,7 @@ def test_presenter_state_messages_exiting(sample_info, exit_code):
     sample_info.job_exit_code = exit_code
 
     presenter = Presenter(Informer(sample_info))
-    first_msg, second_msg = presenter._getStateMessages(
+    first_msg, second_msg = presenter._get_state_messages(
         RealState.EXITING, datetime.now(), datetime.now()
     )
 
@@ -155,8 +155,8 @@ def test_presenter_state_messages_exiting(sample_info, exit_code):
 def test_create_job_status_panel(sample_info):
     presenter = Presenter(Informer(sample_info))
 
-    with patch.object(Informer, "getRealState", return_value=RealState.RUNNING):
-        panel_group: Group = presenter.createJobStatusPanel()
+    with patch.object(Informer, "get_real_state", return_value=RealState.RUNNING):
+        panel_group: Group = presenter.create_job_status_panel()
 
     # group
     assert isinstance(panel_group, Group)
@@ -183,7 +183,7 @@ def test_create_job_status_panel(sample_info):
 
 def test_create_basic_info_table(sample_info):
     presenter = Presenter(Informer(sample_info))
-    table = presenter._createBasicInfoTable()
+    table = presenter._create_basic_info_table()
 
     assert isinstance(table, Table)
     assert len(table.columns) == 2
@@ -211,7 +211,7 @@ def test_create_basic_info_table(sample_info):
 def test_create_basic_info_table_multiple_nodes(sample_info):
     sample_info.all_nodes = ["node01", "nod04", "node02", "node06"]
     presenter = Presenter(Informer(sample_info))
-    table = presenter._createBasicInfoTable()
+    table = presenter._create_basic_info_table()
 
     assert isinstance(table, Table)
     assert len(table.columns) == 2
@@ -241,7 +241,7 @@ def test_create_basic_info_table_no_working(sample_info):
     sample_info.work_dir = None
 
     presenter = Presenter(Informer(sample_info))
-    table = presenter._createBasicInfoTable()
+    table = presenter._create_basic_info_table()
 
     assert isinstance(table, Table)
     assert len(table.columns) == 2
@@ -266,7 +266,7 @@ def test_create_basic_info_table_no_working(sample_info):
 def test_create_resources_table(sample_info):
     console = Console(record=True)
     presenter = Presenter(Informer(sample_info))
-    table = presenter._createResourcesTable(term_width=console.size.width)
+    table = presenter._create_resources_table(term_width=console.size.width)
 
     assert isinstance(table, Table)
     assert len(table.columns) == 5
@@ -305,7 +305,7 @@ def test_create_job_history_table_with_times(sample_info, state, exit_code):
     sample_info.completion_time = sample_info.start_time + timedelta(minutes=30)
 
     presenter = Presenter(Informer(sample_info))
-    table = presenter._createJobHistoryTable(state, exit_code)
+    table = presenter._create_job_history_table(state, exit_code)
 
     assert isinstance(table, Table)
     assert len(table.columns) == 2
@@ -321,7 +321,7 @@ def test_create_job_history_table_with_times(sample_info, state, exit_code):
     assert str(sample_info.start_time) in output
     assert "was running" in output
     assert (
-        f"{Presenter._translateStateToCompletedMsg(state, exit_code).title()} at:"
+        f"{Presenter._translate_state_to_completed_msg(state, exit_code).title()} at:"
         in output
     )
     assert str(sample_info.completion_time) in output
@@ -333,7 +333,7 @@ def test_create_job_history_table_submitted_only(sample_info):
     sample_info.completion_time = None
 
     presenter = Presenter(Informer(sample_info))
-    table = presenter._createJobHistoryTable(RealState.QUEUED, None)
+    table = presenter._create_job_history_table(RealState.QUEUED, None)
 
     console = Console(record=True)
     console.print(table)
@@ -353,7 +353,7 @@ def test_create_job_history_table_submitted_and_completed(sample_info):
     )
 
     presenter = Presenter(Informer(sample_info))
-    table = presenter._createJobHistoryTable(RealState.KILLED, None)
+    table = presenter._create_job_history_table(RealState.KILLED, None)
 
     console = Console(record=True)
     console.print(table)
@@ -385,7 +385,7 @@ def test_create_job_status_table_states(sample_info, state):
     informer.info.job_state = state
     presenter = Presenter(informer)
 
-    table = presenter._createJobStatusTable(state)
+    table = presenter._create_job_status_table(state)
 
     assert isinstance(table, Table)
     assert len(table.columns) == 2
@@ -395,7 +395,7 @@ def test_create_job_status_table_states(sample_info, state):
     output = console.export_text()
 
     assert "Job state:" in output
-    first_msg, second_msg = presenter._getStateMessages(
+    first_msg, second_msg = presenter._get_state_messages(
         state,
         sample_info.start_time or sample_info.submission_time,
         sample_info.completion_time or datetime.now(),
@@ -412,7 +412,7 @@ def test_create_job_status_table_with_estimated(sample_info, state):
     informer.info.job_state = state
     presenter = Presenter(informer)
 
-    table = presenter._createJobStatusTable(
+    table = presenter._create_job_status_table(
         state, "Should not be printed", (datetime.now(), "fake_node")
     )
 
@@ -424,7 +424,7 @@ def test_create_job_status_table_with_estimated(sample_info, state):
     output = console.export_text()
 
     assert "Job state:" in output
-    first_msg, second_msg = presenter._getStateMessages(
+    first_msg, second_msg = presenter._get_state_messages(
         state,
         sample_info.start_time or sample_info.submission_time,
         sample_info.completion_time or datetime.now(),
@@ -444,7 +444,7 @@ def test_create_job_status_table_with_comment(sample_info, state):
     informer.info.job_state = state
     presenter = Presenter(informer)
 
-    table = presenter._createJobStatusTable(state, "This is a test comment")
+    table = presenter._create_job_status_table(state, "This is a test comment")
 
     assert isinstance(table, Table)
     assert len(table.columns) == 2
@@ -454,7 +454,7 @@ def test_create_job_status_table_with_comment(sample_info, state):
     output = console.export_text()
 
     assert "Job state:" in output
-    first_msg, second_msg = presenter._getStateMessages(
+    first_msg, second_msg = presenter._get_state_messages(
         state,
         sample_info.start_time or sample_info.submission_time,
         sample_info.completion_time or datetime.now(),
@@ -468,8 +468,8 @@ def test_create_job_status_table_with_comment(sample_info, state):
 def mock_informer():
     informer = Mock()
     # default return values
-    informer.getComment.return_value = "Job comment"
-    informer.getEstimated.return_value = (datetime(2124, 10, 4, 15, 30, 0), "node01")
+    informer.get_comment.return_value = "Job comment"
+    informer.get_estimated.return_value = (datetime(2124, 10, 4, 15, 30, 0), "node01")
     return informer
 
 
@@ -488,15 +488,15 @@ def presenter(mock_informer):
     ],
 )
 def test_get_comment_and_estimated_for_active_states(presenter, mock_informer, state):
-    comment, estimated = presenter._getCommentAndEstimated(state)
+    comment, estimated = presenter._get_comment_and_estimated(state)
 
     # check that the values returned are what the informer provides
     assert comment == "Job comment"
     assert estimated == (datetime(2124, 10, 4, 15, 30, 0), "node01")
 
     # check that the presenter actually called the informer methods
-    mock_informer.getComment.assert_called_once()
-    mock_informer.getEstimated.assert_called_once()
+    mock_informer.get_comment.assert_called_once()
+    mock_informer.get_estimated.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -512,7 +512,7 @@ def test_get_comment_and_estimated_for_active_states(presenter, mock_informer, s
     ],
 )
 def test_get_comment_and_estimated_for_inactive_states(presenter, state):
-    comment, estimated = presenter._getCommentAndEstimated(state)
+    comment, estimated = presenter._get_comment_and_estimated(state)
     assert comment is None
     assert estimated is None
 
@@ -521,11 +521,11 @@ def test_get_comment_and_estimated_for_inactive_states(presenter, state):
 def test_get_short_info_returns_correct_text_and_style(state):
     informer_mock = Mock()
     informer_mock.info.job_id = "12345"
-    informer_mock.getRealState.return_value = state
+    informer_mock.get_real_state.return_value = state
 
     presenter = Presenter(informer_mock)
 
-    result = presenter.getShortInfo()
+    result = presenter.get_short_info()
 
     assert isinstance(result, Text)
     text_str = str(result)
@@ -534,17 +534,17 @@ def test_get_short_info_returns_correct_text_and_style(state):
 
     assert any(span.style == state.color for span in result.spans)
 
-    informer_mock.getRealState.assert_called_once()
+    informer_mock.get_real_state.assert_called_once()
 
 
 def test_get_short_info_combines_job_id_and_state_correctly():
     informer_mock = Mock()
     informer_mock.info.job_id = "9999"
-    informer_mock.getRealState.return_value = RealState.RUNNING
+    informer_mock.get_real_state.return_value = RealState.RUNNING
 
     presenter = Presenter(informer_mock)
 
-    result = presenter.getShortInfo()
+    result = presenter.get_short_info()
 
     assert str(result) == "9999    running"
     assert any(span.style == RealState.RUNNING.color for span in result.spans)
@@ -564,18 +564,18 @@ def test_get_short_info_combines_job_id_and_state_correctly():
     ],
 )
 def test_translate_state_to_completed_msg(state, exit_code, expected):
-    assert Presenter._translateStateToCompletedMsg(state, exit_code) == expected
+    assert Presenter._translate_state_to_completed_msg(state, exit_code) == expected
 
 
 def test_presenter_create_job_steps_block_returns_empty_group_when_no_steps():
     informer = MagicMock()
     job = MagicMock()
-    job.getSteps.return_value = []
-    informer.getBatchInfo.return_value = job
+    job.get_steps.return_value = []
+    informer.get_batch_info.return_value = job
 
     presenter = Presenter(informer)
 
-    result = presenter._createJobStepsBlock()
+    result = presenter._create_job_steps_block()
 
     assert isinstance(result, Group)
     assert len(result.renderables) == 0
@@ -584,12 +584,12 @@ def test_presenter_create_job_steps_block_returns_empty_group_when_no_steps():
 def test_presenter_create_job_steps_block_returns_empty_group_when_one_step():
     informer = MagicMock()
     job = MagicMock()
-    job.getSteps.return_value = [MagicMock()]
-    informer.getBatchInfo.return_value = job
+    job.get_steps.return_value = [MagicMock()]
+    informer.get_batch_info.return_value = job
 
     presenter = Presenter(informer)
 
-    result = presenter._createJobStepsBlock()
+    result = presenter._create_job_steps_block()
 
     assert isinstance(result, Group)
     assert len(result.renderables) == 0
@@ -598,13 +598,13 @@ def test_presenter_create_job_steps_block_returns_empty_group_when_one_step():
 def test_presenter_create_job_steps_block_returns_full_block_for_multiple_steps():
     informer = MagicMock()
     job = MagicMock()
-    job.getSteps.return_value = [MagicMock(), MagicMock()]
-    informer.getBatchInfo.return_value = job
+    job.get_steps.return_value = [MagicMock(), MagicMock()]
+    informer.get_batch_info.return_value = job
 
     presenter = Presenter(informer)
 
-    with patch.object(presenter, "_createJobStepsTable", return_value="TABLE"):
-        result = presenter._createJobStepsBlock()
+    with patch.object(presenter, "_create_job_steps_table", return_value="TABLE"):
+        result = presenter._create_job_steps_block()
 
     assert isinstance(result, Group)
     assert len(result.renderables) == 4
@@ -631,12 +631,12 @@ def test_presenter_create_job_steps_table_adds_rows_for_valid_steps():
     end = datetime(2025, 1, 1, 12, 0, 0)
 
     step = MagicMock()
-    step.getState.return_value = BatchState.RUNNING
-    step.getStartTime.return_value = start
-    step.getCompletionTime.return_value = end
-    step.getStepId.return_value = "1"
+    step.get_state.return_value = BatchState.RUNNING
+    step.get_start_time.return_value = start
+    step.get_completion_time.return_value = end
+    step.get_step_id.return_value = "1"
 
-    table = presenter._createJobStepsTable([step])
+    table = presenter._create_job_steps_table([step])
 
     console = Console(record=True)
     console.print(table)
@@ -658,16 +658,16 @@ def test_presenter_create_job_steps_table_uses_now_when_end_missing():
     fake_now = datetime(2025, 1, 1, 12, 0, 0)
 
     step = MagicMock()
-    step.getState.return_value = BatchState.RUNNING
-    step.getStartTime.return_value = start
-    step.getCompletionTime.return_value = None
-    step.getStepId.return_value = "1"
+    step.get_state.return_value = BatchState.RUNNING
+    step.get_start_time.return_value = start
+    step.get_completion_time.return_value = None
+    step.get_step_id.return_value = "1"
 
     with patch("qq_lib.info.presenter.datetime") as mock_dt:
         mock_dt.now.return_value = fake_now
         mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
 
-        table = presenter._createJobStepsTable([step])
+        table = presenter._create_job_steps_table([step])
 
     console = Console(record=True)
     console.print(table)

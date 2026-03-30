@@ -38,17 +38,17 @@ class NodeGroup:
 
         self._user = user
 
-        self._sortNodes()
-        self._setSharedProperties()
+        self._sort_nodes()
+        self._set_shared_properties()
 
-        self._show_gpus = self._shouldShowGPUs()
-        self._show_gpu_mem = self._shouldShowGPUMem()
-        self._show_local = self._shouldShowLocalScratch()
-        self._show_ssd = self._shouldShowSSDScratch()
-        self._show_shared = self._shouldShowSharedScratch()
-        self._show_props = self._shouldShowProperties()
+        self._show_gpus = self._should_show_gpus()
+        self._show_gpu_mem = self._should_show_gpu_mem()
+        self._show_local = self._should_show_local_scratch()
+        self._show_ssd = self._should_show_ssd_scratch()
+        self._show_shared = self._should_show_shared_scratch()
+        self._show_props = self._should_show_properties()
 
-    def createFullInfoPanel(self) -> Group:
+    def create_full_info_panel(self) -> Group:
         """
         Create a complete Rich panel summarizing the nodes in this group
         and their shared resources and statistics.
@@ -56,8 +56,8 @@ class NodeGroup:
         Returns:
             Group: A Rich `Group` object containing the node table and metadata table.
         """
-        nodes = self.createNodesTable()
-        metadata = self.createMetadataTable()
+        nodes = self.create_nodes_table()
+        metadata = self.create_metadata_table()
 
         return Group(
             nodes,
@@ -65,7 +65,7 @@ class NodeGroup:
             metadata,
         )
 
-    def createNodesTable(self) -> Table:
+    def create_nodes_table(self) -> Table:
         """
         Create a Rich table displaying node-level information.
 
@@ -103,11 +103,11 @@ class NodeGroup:
                 )
 
         for node in self.nodes:
-            self._addNodeRow(node, table)
+            self._add_node_row(node, table)
 
         return table
 
-    def createMetadataTable(self) -> Table:
+    def create_metadata_table(self) -> Table:
         """
         Create a metadata summary table for the group.
 
@@ -116,11 +116,11 @@ class NodeGroup:
         Returns:
             Table: A Rich `Table` summarizing shared properties and resource totals.
         """
-        return NodesPresenter._formatMetadataTable(
+        return NodesPresenter._format_metadata_table(
             self._shared_properties, "Shared properties", self.stats
         )
 
-    def _sortNodes(self) -> None:
+    def _sort_nodes(self) -> None:
         """
         Sort nodes by alphanumeric name.
 
@@ -140,26 +140,26 @@ class NodeGroup:
 
         self.nodes.sort(
             key=lambda node: (
-                extract_prefix(node.getName()),
-                extract_number_sequence(node.getName()),
+                extract_prefix(node.get_name()),
+                extract_number_sequence(node.get_name()),
             )
         )
 
-    def _setSharedProperties(self) -> None:
+    def _set_shared_properties(self) -> None:
         """
         Determine and store properties shared by all nodes in the group.
         """
         if not self.nodes:
             return
 
-        shared = set(self.nodes[0].getProperties())
+        shared = set(self.nodes[0].get_properties())
 
         for node in self.nodes[1:]:
-            shared &= set(node.getProperties())
+            shared &= set(node.get_properties())
 
         self._shared_properties = sorted(shared)
 
-    def _addNodeRow(self, node: BatchNodeInterface, table: Table) -> None:
+    def _add_node_row(self, node: BatchNodeInterface, table: Table) -> None:
         """
         Insert a row into the group table representing a single node and update statistics.
 
@@ -167,51 +167,51 @@ class NodeGroup:
             node (BatchNodeInterface): Node whose data will be added.
             table (Table): Rich table to which the row will be appended.
         """
-        available = node.isAvailableToUser(self._user)
+        available = node.is_available_to_user(self._user)
         style = (
             CFG.nodes_presenter.main_text_style
             if available
             else CFG.nodes_presenter.unavailable_node_style
         )
 
-        free_cpus = node.getNFreeCPUs() or 0
-        total_cpus = node.getNCPUs() or 0
-        free_gpus = node.getNFreeGPUs() or 0
-        total_gpus = node.getNGPUs() or 0
+        free_cpus = node.get_n_free_cpus() or 0
+        total_cpus = node.get_n_cpus() or 0
+        free_gpus = node.get_n_free_gpus() or 0
+        total_gpus = node.get_n_gpus() or 0
 
         # add the properties of this node to statistics
-        self.stats.addNode(
-            total_cpus, free_cpus, total_gpus, free_gpus, node.getProperties()
+        self.stats.add_node(
+            total_cpus, free_cpus, total_gpus, free_gpus, node.get_properties()
         )
 
         content = [
-            NodesPresenter._formatStateMark(
+            NodesPresenter._format_state_mark(
                 free_cpus, total_cpus, free_gpus, total_gpus, available
             ),
-            Text(node.getName(), style=style),
-            NodesPresenter._formatProcessingUnits(free_cpus, total_cpus, available),
-            NodesPresenter._formatSizeProperty(
-                node.getFreeCPUMemory() or Size(0, "kb"),
-                node.getCPUMemory() or Size(0, "kb"),
+            Text(node.get_name(), style=style),
+            NodesPresenter._format_processing_units(free_cpus, total_cpus, available),
+            NodesPresenter._format_size_property(
+                node.get_free_cpu_memory() or Size(0, "kb"),
+                node.get_cpu_memory() or Size(0, "kb"),
                 style,
             ),
-            NodesPresenter._formatProcessingUnits(free_gpus, total_gpus, available)
+            NodesPresenter._format_processing_units(free_gpus, total_gpus, available)
             if self._show_gpus
             else None,
-            Text(str(node.getFreeGPUMemory() or Size(0, "kb")), style=style)
+            Text(str(node.get_free_gpu_memory() or Size(0, "kb")), style=style)
             if self._show_gpu_mem
             else None,
-            Text(str(node.getFreeLocalScratch() or Size(0, "kb")), style=style)
+            Text(str(node.get_free_local_scratch() or Size(0, "kb")), style=style)
             if self._show_local
             else None,
-            Text(str(node.getFreeSSDScratch() or Size(0, "kb")), style=style)
+            Text(str(node.get_free_ssd_scratch() or Size(0, "kb")), style=style)
             if self._show_ssd
             else None,
-            Text(str(node.getFreeSharedScratch() or Size(0, "kb")), style=style)
+            Text(str(node.get_free_shared_scratch() or Size(0, "kb")), style=style)
             if self._show_shared
             else None,
-            NodesPresenter._formatNodeProperties(
-                node.getProperties(), self._shared_properties, style
+            NodesPresenter._format_node_properties(
+                node.get_properties(), self._shared_properties, style
             )
             if self._show_props
             else None,
@@ -219,25 +219,25 @@ class NodeGroup:
 
         table.add_row(*(x for x in content if x is not None))
 
-    def _shouldShowGPUs(self) -> bool:
+    def _should_show_gpus(self) -> bool:
         """
         Determine whether the GPUs column should be displayed.
 
         Returns:
             bool: True if any node has GPUs, False otherwise.
         """
-        return any((ngpus := n.getNGPUs()) and ngpus != 0 for n in self.nodes)
+        return any((ngpus := n.get_n_gpus()) and ngpus != 0 for n in self.nodes)
 
-    def _shouldShowGPUMem(self) -> bool:
+    def _should_show_gpu_mem(self) -> bool:
         """
         Determine whether GPU memory column should be displayed.
 
         Returns:
             bool: True if any node has GPU memory, False otherwise.
         """
-        return any((mem := n.getGPUMemory()) and mem.value != 0 for n in self.nodes)
+        return any((mem := n.get_gpu_memory()) and mem.value != 0 for n in self.nodes)
 
-    def _shouldShowLocalScratch(self) -> bool:
+    def _should_show_local_scratch(self) -> bool:
         """
         Determine whether local scratch storage columns should be displayed.
 
@@ -245,10 +245,11 @@ class NodeGroup:
             bool: True if any node has local scratch space, False otherwise.
         """
         return any(
-            (scratch := n.getLocalScratch()) and scratch.value != 0 for n in self.nodes
+            (scratch := n.get_local_scratch()) and scratch.value != 0
+            for n in self.nodes
         )
 
-    def _shouldShowSSDScratch(self) -> bool:
+    def _should_show_ssd_scratch(self) -> bool:
         """
         Determine whether SSD scratch storage columns should be displayed.
 
@@ -256,10 +257,10 @@ class NodeGroup:
             bool: True if any node has SSD scratch space, False otherwise.
         """
         return any(
-            (scratch := n.getSSDScratch()) and scratch.value != 0 for n in self.nodes
+            (scratch := n.get_ssd_scratch()) and scratch.value != 0 for n in self.nodes
         )
 
-    def _shouldShowSharedScratch(self) -> bool:
+    def _should_show_shared_scratch(self) -> bool:
         """
         Determine whether shared scratch storage columns should be displayed.
 
@@ -267,10 +268,11 @@ class NodeGroup:
             bool: True if any node has shared scratch space, False otherwise.
         """
         return any(
-            (scratch := n.getSharedScratch()) and scratch.value != 0 for n in self.nodes
+            (scratch := n.get_shared_scratch()) and scratch.value != 0
+            for n in self.nodes
         )
 
-    def _shouldShowProperties(self) -> bool:
+    def _should_show_properties(self) -> bool:
         """
         Determine whether extra property column should be displayed.
 
@@ -278,7 +280,7 @@ class NodeGroup:
             bool: True if any node has properties not shared by all nodes in the group.
         """
         return any(
-            any(p not in self._shared_properties for p in n.getProperties())
+            any(p not in self._shared_properties for p in n.get_properties())
             for n in self.nodes
         )
 
@@ -307,7 +309,7 @@ class NodeGroupStats:
     # all properties in the group
     properties: set[str] = field(default_factory=set)
 
-    def addNode(
+    def add_node(
         self, cpus: int, free_cpus: int, gpus: int, free_gpus: int, props: list[str]
     ) -> None:
         """
@@ -327,7 +329,7 @@ class NodeGroupStats:
         self.n_free_gpus += free_gpus
         self.properties.update(props)
 
-    def createStatsTable(self) -> Table:
+    def create_stats_table(self) -> Table:
         """
         Create a Rich table summarizing aggregated node statistics.
 
@@ -369,7 +371,7 @@ class NodeGroupStats:
         return table
 
     @staticmethod
-    def sumStats(*stats: "NodeGroupStats") -> "NodeGroupStats":
+    def sum_stats(*stats: "NodeGroupStats") -> "NodeGroupStats":
         """
         Combine multiple `NodeGroupStats` objects into a single aggregate.
 
@@ -395,7 +397,9 @@ class NodesPresenter:
     Presenter class for displaying information about batch system nodes.
     """
 
-    def __init__(self, nodes: list[BatchNodeInterface], user: str, all: bool):
+    def __init__(
+        self, nodes: list[BatchNodeInterface], user: str, all: bool, server: str | None
+    ):
         """
         Initialize the presenter with a list of nodes.
 
@@ -404,21 +408,24 @@ class NodesPresenter:
                 to be presented.
             user (str): Name of the user for which the nodes are displayed.
             all (boolean): Display all nodes or only those that are available.
+            server (str | None): Batch server for which the nodes were collected.
+                `None` = default server.
         """
         self._nodes = nodes
         self._user = user
         self._display_all = all
+        self._server = server
 
-        self._node_groups = self._createNodeGroups()
+        self._node_groups = self._create_node_groups()
 
-    def dumpYaml(self) -> None:
+    def dump_yaml(self) -> None:
         """
         Print the YAML representation of all nodes to stdout.
         """
         for node in self._nodes:
-            print(node.toYaml())
+            print(node.to_yaml())
 
-    def createNodesInfoPanel(self, console: Console | None = None) -> Group:
+    def create_nodes_info_panel(self, console: Console | None = None) -> Group:
         """
         Build a complete Rich panel summarizing all node groups.
 
@@ -433,19 +440,24 @@ class NodesPresenter:
         console = console or Console()
 
         groups = self._node_groups
-        parts = [g.createFullInfoPanel() for g in self._node_groups]
-        seps = [NodesPresenter._createSeparator(g.name) for g in self._node_groups[1:]]
+        parts = [g.create_full_info_panel() for g in self._node_groups]
+        seps = [NodesPresenter._create_separator(g.name) for g in self._node_groups[1:]]
 
         content: list[Group] = NodesPresenter._interleave(parts, seps)
 
         if len(groups) > 1:
-            content.append(self._createMetadataPanel())
+            content.append(self._create_metadata_panel())
 
         panel = Panel(
             Group(*content),
             title=Text(
                 f"NODE GROUP: {groups[0].name}",
                 style=CFG.nodes_presenter.title_style,
+                justify="center",
+            ),
+            subtitle=Text(
+                f"{self._server}",
+                style=CFG.jobs_presenter.subtitle_style,
                 justify="center",
             ),
             border_style=CFG.nodes_presenter.border_style,
@@ -458,14 +470,14 @@ class NodesPresenter:
 
         return Group(Text(""), panel, Text(""))
 
-    def _createMetadataPanel(self) -> Group:
+    def _create_metadata_panel(self) -> Group:
         """
         Create a summary panel displaying overall statistics across all node groups.
 
         Returns:
             Group: A Rich `Group` containing the overall statistics summary.
         """
-        total_stats = NodeGroupStats.sumStats(*(g.stats for g in self._node_groups))
+        total_stats = NodeGroupStats.sum_stats(*(g.stats for g in self._node_groups))
 
         return Group(
             "",
@@ -477,12 +489,12 @@ class NodesPresenter:
                 style=CFG.nodes_presenter.rule_style,
             ),
             "",
-            NodesPresenter._formatMetadataTable(
+            NodesPresenter._format_metadata_table(
                 list(total_stats.properties), "All properties", total_stats
             ),
         )
 
-    def _createNodeGroups(self) -> list[NodeGroup]:
+    def _create_node_groups(self) -> list[NodeGroup]:
         """
         Organize nodes into logical groups based on common name prefixes.
 
@@ -498,7 +510,7 @@ class NodesPresenter:
 
         # get nodes with same names
         for node in self._nodes:
-            name = node.getName()
+            name = node.get_name()
             match = re.match(r"[A-Za-z]+", name)
             prefix = match.group(0) if match else ""
             raw_groups[prefix].append(node)
@@ -525,7 +537,7 @@ class NodesPresenter:
 
         return groups
 
-    def _createSeparator(title: str) -> Group:
+    def _create_separator(title: str) -> Group:
         """
         Create a visual separator between node group panels.
 
@@ -566,7 +578,7 @@ class NodesPresenter:
         return chunks
 
     @staticmethod
-    def _formatProcessingUnits(free: int, total: int, available: bool) -> Text:
+    def _format_processing_units(free: int, total: int, available: bool) -> Text:
         """
         Format numbers of free and total CPUs or GPUs as a styled Rich text element.
 
@@ -592,7 +604,7 @@ class NodesPresenter:
         return Text(f"{free} / {total}", style=style)
 
     @staticmethod
-    def _formatSizeProperty(free: Size, total: Size, style: str) -> Text:
+    def _format_size_property(free: Size, total: Size, style: str) -> Text:
         """
         Format a memory or storage property as a styled text string.
 
@@ -607,7 +619,7 @@ class NodesPresenter:
         return Text(f"{free} / {total}", style=style)
 
     @staticmethod
-    def _formatNodeProperties(
+    def _format_node_properties(
         props: list[str], shared_props: list[str], style: str
     ) -> Text:
         """
@@ -624,7 +636,7 @@ class NodesPresenter:
         return Text(", ".join(x for x in props if x not in shared_props), style=style)
 
     @staticmethod
-    def _formatStateMark(
+    def _format_state_mark(
         free_cpus: int,
         total_cpus: int,
         free_gpus: int,
@@ -656,7 +668,7 @@ class NodesPresenter:
         return Text(CFG.nodes_presenter.state_mark, style=style)
 
     @staticmethod
-    def _formatPropertiesSection(props: list[str], title: str) -> Text:
+    def _format_properties_section(props: list[str], title: str) -> Text:
         """
         Create a formatted text section showing a list of properties.
 
@@ -676,7 +688,7 @@ class NodesPresenter:
         )
 
     @staticmethod
-    def _formatMetadataTable(
+    def _format_metadata_table(
         props: list[str], title: str, stats: NodeGroupStats
     ) -> Table:
         """
@@ -696,8 +708,8 @@ class NodesPresenter:
         grid.add_column()
 
         grid.add_row(
-            NodesPresenter._formatPropertiesSection(props, title),
-            stats.createStatsTable(),
+            NodesPresenter._format_properties_section(props, title),
+            stats.create_stats_table(),
         )
 
         return grid

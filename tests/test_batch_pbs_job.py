@@ -75,25 +75,25 @@ def test_get_state(sample_dump_file):
     pbs_job_info = object.__new__(PBSJob)
     pbs_job_info._info = parse_pbs_dump_to_dictionary(sample_dump_file)
 
-    assert pbs_job_info.getState() == BatchState.RUNNING
+    assert pbs_job_info.get_state() == BatchState.RUNNING
 
     pbs_job_info._info["job_state"] = "Q"
-    assert pbs_job_info.getState() == BatchState.QUEUED
+    assert pbs_job_info.get_state() == BatchState.QUEUED
 
     pbs_job_info._info["job_state"] = "F"
     # no exit code
-    assert pbs_job_info.getState() == BatchState.FAILED
+    assert pbs_job_info.get_state() == BatchState.FAILED
 
     pbs_job_info._info["job_state"] = "F"
     pbs_job_info._info["Exit_status"] = " 0 "
-    assert pbs_job_info.getState() == BatchState.FINISHED
+    assert pbs_job_info.get_state() == BatchState.FINISHED
 
     pbs_job_info._info["job_state"] = "F"
     pbs_job_info._info["Exit_status"] = " 3"
-    assert pbs_job_info.getState() == BatchState.FAILED
+    assert pbs_job_info.get_state() == BatchState.FAILED
 
     pbs_job_info._info["job_state"] = "z"
-    assert pbs_job_info.getState() == BatchState.UNKNOWN
+    assert pbs_job_info.get_state() == BatchState.UNKNOWN
 
 
 def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJob:
@@ -105,12 +105,12 @@ def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJob:
 
 def test_get_comment_present():
     job = _make_jobinfo_with_info({"comment": "This is a test"})
-    assert job.getComment() == "This is a test"
+    assert job.get_comment() == "This is a test"
 
 
 def test_get_comment_missing():
     job = _make_jobinfo_with_info({})
-    assert job.getComment() is None
+    assert job.get_comment() is None
 
 
 def test_get_estimated_success():
@@ -120,7 +120,7 @@ def test_get_estimated_success():
         {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
     )
 
-    result = job.getEstimated()
+    result = job.get_estimated()
     assert isinstance(result, tuple)
 
     parsed_time, parsed_vnode = result
@@ -137,7 +137,7 @@ def test_get_estimated_in_past_success():
         {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
     )
 
-    result = job.getEstimated()
+    result = job.get_estimated()
     assert isinstance(result, tuple)
 
     parsed_time, parsed_vnode = result
@@ -154,7 +154,7 @@ def test_get_estimated_success_simple_node_name():
         {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
     )
 
-    result = job.getEstimated()
+    result = job.get_estimated()
     assert isinstance(result, tuple)
 
     parsed_time, parsed_vnode = result
@@ -168,13 +168,13 @@ def test_get_estimated_missing_time():
     job = _make_jobinfo_with_info(
         {"estimated.exec_vnode": "(node01:some_extra:additional_info)"}
     )
-    assert job.getEstimated() is None
+    assert job.get_estimated() is None
 
 
 def test_get_estimated_missing_vnode():
     raw_time = "Fri Oct  4 15:30:00 2024"
     job = _make_jobinfo_with_info({"estimated.start_time": raw_time})
-    assert job.getEstimated() is None
+    assert job.get_estimated() is None
 
 
 def test_get_estimated_parses_vnode_correctly():
@@ -183,7 +183,7 @@ def test_get_estimated_parses_vnode_correctly():
     job = _make_jobinfo_with_info(
         {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
     )
-    estimated = job.getEstimated()
+    estimated = job.get_estimated()
     assert estimated is not None
     _, parsed_vnode = estimated
     assert parsed_vnode == "node02"
@@ -196,7 +196,7 @@ def test_get_estimated_multiple_nodes():
         {"estimated.start_time": raw_time, "estimated.exec_vnode": vnode}
     )
 
-    result = job.getEstimated()
+    result = job.get_estimated()
     assert isinstance(result, tuple)
 
     parsed_time, parsed_vnode = result
@@ -209,7 +209,7 @@ def test_get_estimated_multiple_nodes():
 def test_get_main_node():
     job = _make_jobinfo_with_info({"exec_host2": "node04.fake.server.org:15002/3*8"})
 
-    assert job.getMainNode() == "node04.fake.server.org"
+    assert job.get_main_node() == "node04.fake.server.org"
 
 
 def test_get_main_node_multiple_nodes():
@@ -219,13 +219,13 @@ def test_get_main_node_multiple_nodes():
         }
     )
 
-    assert job.getMainNode() == "node04.fake.server.org"
+    assert job.get_main_node() == "node04.fake.server.org"
 
 
 def test_get_main_node_none():
     job = _make_jobinfo_with_info({})
 
-    assert job.getMainNode() is None
+    assert job.get_main_node() is None
 
 
 def test_get_nodes():
@@ -235,7 +235,7 @@ def test_get_nodes():
         }
     )
 
-    assert job.getNodes() == [
+    assert job.get_nodes() == [
         "node04.fake.server.org",
         "node05.fake.server.org",
         "node07.fake.server.org",
@@ -245,7 +245,7 @@ def test_get_nodes():
 def test_get_short_nodes_single():
     job = _make_jobinfo_with_info({"exec_host": "node04/3*8"})
 
-    assert job.getShortNodes() == [
+    assert job.get_short_nodes() == [
         "node04",
     ]
 
@@ -253,7 +253,7 @@ def test_get_short_nodes_single():
 def test_get_short_nodes():
     job = _make_jobinfo_with_info({"exec_host": "node04/3*8+node05/3*8 + node07/3*8"})
 
-    assert job.getShortNodes() == [
+    assert job.get_short_nodes() == [
         "node04",
         "node05",
         "node07",
@@ -261,16 +261,16 @@ def test_get_short_nodes():
 
 
 def test_clean_node_name():
-    assert PBSJob._cleanNodeName("node02") == "node02"
-    assert PBSJob._cleanNodeName("(node02:ncpus=4)") == "node02"
+    assert PBSJob._clean_node_name("node02") == "node02"
+    assert PBSJob._clean_node_name("(node02:ncpus=4)") == "node02"
     assert (
-        PBSJob._cleanNodeName(
+        PBSJob._clean_node_name(
             "(node05:ncpus=8:ngpus=1:mem=8388608kb:scratch_local=8388608kb)"
         )
         == "node05"
     )
     assert (
-        PBSJob._cleanNodeName(
+        PBSJob._clean_node_name(
             "node08:ncpus=8:ngpus=1:mem=8388608kb:scratch_local=8388608kb"
         )
         == "node08"
@@ -279,71 +279,71 @@ def test_clean_node_name():
 
 def test_pbs_job_info_get_name_present():
     job = _make_jobinfo_with_info({"Job_Name": "training_job"})
-    assert job.getName() == "training_job"
+    assert job.get_name() == "training_job"
 
 
 def test_pbs_job_info_get_name_missing():
     job = _make_jobinfo_with_info({})
-    result = job.getName()
+    result = job.get_name()
     assert result is None
 
 
 def test_pbs_job_info_get_ncpus_present():
     job = _make_jobinfo_with_info({"Resource_List.ncpus": "16"})
-    assert job.getNCPUs() == 16
+    assert job.get_n_cpus() == 16
 
 
 def test_pbs_job_info_get_ncpus_missing():
     job = _make_jobinfo_with_info({})
-    result = job.getNCPUs()
+    result = job.get_n_cpus()
     assert result is None
 
 
 def test_pbs_job_info_get_ngpus_present():
     job = _make_jobinfo_with_info({"Resource_List.ngpus": "2"})
-    assert job.getNGPUs() == 2
+    assert job.get_n_gpus() == 2
 
 
 def test_pbs_job_info_get_ngpus_missing():
     job = _make_jobinfo_with_info({})
-    result = job.getNGPUs()
+    result = job.get_n_gpus()
     assert result is None
 
 
 def test_pbs_job_info_get_nnodes_present():
     job = _make_jobinfo_with_info({"Resource_List.nodect": "3"})
-    assert job.getNNodes() == 3
+    assert job.get_n_nodes() == 3
 
 
 def test_pbs_job_info_get_nnodes_missing():
     job = _make_jobinfo_with_info({})
-    result = job.getNNodes()
+    result = job.get_n_nodes()
     assert result is None
 
 
 def test_pbs_job_info_get_mem_present():
     job = _make_jobinfo_with_info({"Resource_List.mem": "8gb"})
-    mem = job.getMem()
+    mem = job.get_mem()
     assert isinstance(mem, Size)
     assert mem.value == 8 * 1024 * 1024
 
 
 def test_pbs_job_info_get_mem_missing():
     job = _make_jobinfo_with_info({})
-    mem = job.getMem()
+    mem = job.get_mem()
     assert mem is None
 
 
 def test_pbs_job_info_get_mem_invalid_value():
     job = _make_jobinfo_with_info({"Resource_List.mem": "invalid123"})
-    mem = job.getMem()
+    mem = job.get_mem()
     assert mem is None
 
 
 def test_pbs_job_info_get_start_time_present():
     raw_time = "Sun Sep 21 03:15:27 2025"
     job = _make_jobinfo_with_info({"stime": raw_time})
-    result = job.getStartTime()
+    result = job.get_start_time()
     assert isinstance(result, datetime)
     assert result.year == 2025
     assert result.month == 9
@@ -355,14 +355,14 @@ def test_pbs_job_info_get_start_time_present():
 
 def test_pbs_job_info_get_start_time_missing():
     job = _make_jobinfo_with_info({})
-    result = job.getStartTime()
+    result = job.get_start_time()
     assert result is None
 
 
 def test_pbs_job_info_get_submission_time_present():
     raw_time = "Sun Sep 21 03:15:27 2025"
     job = _make_jobinfo_with_info({"ctime": raw_time})
-    result = job.getSubmissionTime()
+    result = job.get_submission_time()
     assert isinstance(result, datetime)
     assert result.year == 2025
     assert result.month == 9
@@ -374,14 +374,14 @@ def test_pbs_job_info_get_submission_time_present():
 
 def test_pbs_job_info_get_submission_time_missing():
     job = _make_jobinfo_with_info({})
-    result = job.getSubmissionTime()
+    result = job.get_submission_time()
     assert result is None
 
 
 def test_pbs_job_info_get_completion_time_present():
     raw_time = "Sun Sep 21 03:15:27 2025"
     job = _make_jobinfo_with_info({"obittime": raw_time})
-    result = job.getCompletionTime()
+    result = job.get_completion_time()
     assert isinstance(result, datetime)
     assert result.year == 2025
     assert result.month == 9
@@ -393,14 +393,14 @@ def test_pbs_job_info_get_completion_time_present():
 
 def test_pbs_job_info_get_completion_time_missing():
     job = _make_jobinfo_with_info({})
-    result = job.getCompletionTime()
+    result = job.get_completion_time()
     assert result is None
 
 
 def test_pbs_job_info_get_modification_time_present():
     raw_time = "Sun Sep 21 03:15:27 2025"
     job = _make_jobinfo_with_info({"mtime": raw_time})
-    result = job.getModificationTime()
+    result = job.get_modification_time()
     assert isinstance(result, datetime)
     assert result.year == 2025
     assert result.month == 9
@@ -413,7 +413,7 @@ def test_pbs_job_info_get_modification_time_present():
 def test_pbs_job_info_get_modification_time_missing_submission_time_present():
     raw_time = "Sun Sep 21 03:15:27 2025"
     job = _make_jobinfo_with_info({"ctime": raw_time})
-    result = job.getModificationTime()
+    result = job.get_modification_time()
     assert isinstance(result, datetime)
     assert result.year == 2025
     assert result.month == 9
@@ -425,119 +425,119 @@ def test_pbs_job_info_get_modification_time_missing_submission_time_present():
 
 def test_pbs_job_info_get_modification_time_missing():
     job = _make_jobinfo_with_info({})
-    result = job.getModificationTime()
+    result = job.get_modification_time()
     assert result is None
 
 
 def test_pbs_job_info_get_user_present():
     job = _make_jobinfo_with_info({"Job_Owner": "user@CLUSTER"})
-    assert job.getUser() == "user"
+    assert job.get_user() == "user"
 
 
 def test_pbs_job_info_get_user_missing():
     job = _make_jobinfo_with_info({})
-    assert job.getUser() is None
+    assert job.get_user() is None
 
 
 def test_pbs_job_info_get_walltime_valid():
     job = _make_jobinfo_with_info({"Resource_List.walltime": "12:35:13"})
-    result = job.getWalltime()
+    result = job.get_walltime()
     assert result == timedelta(hours=12, minutes=35, seconds=13)
 
 
 def test_pbs_job_info_get_walltime_missing():
     job = _make_jobinfo_with_info({})
-    assert job.getWalltime() is None
+    assert job.get_walltime() is None
 
 
 def test_pbs_job_info_get_walltime_invalid():
     job = _make_jobinfo_with_info({"Resource_List.walltime": "not-a-time"})
-    assert job.getWalltime() is None
+    assert job.get_walltime() is None
 
 
 def test_pbs_job_info_get_queue_present():
     job = _make_jobinfo_with_info({"queue": "gpu"})
-    assert job.getQueue() == "gpu"
+    assert job.get_queue() == "gpu"
 
 
 def test_pbs_job_info_get_queue_missing():
     job = _make_jobinfo_with_info({})
-    assert job.getQueue() is None
+    assert job.get_queue() is None
 
 
 def test_pbs_job_info_get_util_cpu_valid():
     job = _make_jobinfo_with_info(
         {"resources_used.cpupercent": "200", "Resource_List.ncpus": "4"}
     )
-    assert job.getUtilCPU() == 50
+    assert job.get_util_cpu() == 50
 
 
 def test_pbs_job_info_get_util_cpu_missing():
     job = _make_jobinfo_with_info({})
-    assert job.getUtilCPU() is None
+    assert job.get_util_cpu() is None
 
 
 def test_pbs_job_info_get_util_cpu_invalid():
     job = _make_jobinfo_with_info(
         {"resources_used.cpupercent": "abc", "Resource_List.ncpus": "4"}
     )
-    assert job.getUtilCPU() is None
+    assert job.get_util_cpu() is None
 
 
 def test_pbs_job_info_get_util_mem_valid():
     job = _make_jobinfo_with_info(
         {"resources_used.mem": "1048576kb", "Resource_List.mem": "8gb"}
     )
-    assert job.getUtilMem() == 12
+    assert job.get_util_mem() == 12
 
 
 def test_pbs_job_info_get_util_mem_zero():
     job = _make_jobinfo_with_info(
         {"resources_used.mem": "0b", "Resource_List.mem": "8gb"}
     )
-    assert job.getUtilMem() == 0
+    assert job.get_util_mem() == 0
 
 
 def test_pbs_job_info_get_util_only_mem_missing():
     job = _make_jobinfo_with_info({"resources_used.mem": "1048576kb"})
-    assert job.getUtilMem() is None
+    assert job.get_util_mem() is None
 
 
 def test_pbs_job_info_get_util_mem_missing():
     job = _make_jobinfo_with_info({})
-    assert job.getUtilMem() is None
+    assert job.get_util_mem() is None
 
 
 def test_pbs_job_info_get_util_mem_invalid():
     job = _make_jobinfo_with_info(
         {"resources_used.mem": "invalid", "Resource_List.mem": "8gb"}
     )
-    assert job.getUtilMem() is None
+    assert job.get_util_mem() is None
 
 
 def test_pbs_job_info_get_exit_code_valid():
     job = _make_jobinfo_with_info({"Exit_status": "0"})
-    assert job.getExitCode() == 0
+    assert job.get_exit_code() == 0
 
 
 def test_pbs_job_info_get_exit_code_valid_nonzero():
     job = _make_jobinfo_with_info({"Exit_status": " 2 "})
-    assert job.getExitCode() == 2
+    assert job.get_exit_code() == 2
 
 
 def test_pbs_job_info_get_exit_code_invalid():
     job = _make_jobinfo_with_info({"Exit_status": "oops"})
-    assert job.getExitCode() is None
+    assert job.get_exit_code() is None
 
 
 def test_pbs_job_info_get_exit_code_missing():
     job = _make_jobinfo_with_info({})
-    assert job.getExitCode() is None
+    assert job.get_exit_code() is None
 
 
 def test_from_dict_creates_instance():
     info = {"Job_Name": "abc"}
-    job = PBSJob.fromDict("job123", info)
+    job = PBSJob.from_dict("job123", info)
     assert isinstance(job, PBSJob)
     assert job._job_id == "job123"
     assert job._info is info
@@ -545,12 +545,12 @@ def test_from_dict_creates_instance():
 
 def test_pbs_job_info_get_input_machine():
     job = _make_jobinfo_with_info({"Submit_Host": "random.machine.org"})
-    assert job.getInputMachine() == "random.machine.org"
+    assert job.get_input_machine() == "random.machine.org"
 
 
 def test_pbs_job_info_get_input_machine_missing():
     job = _make_jobinfo_with_info({})
-    assert job.getInputMachine() is None
+    assert job.get_input_machine() is None
 
 
 def test_pbs_job_info_get_input_dir_pbs():
@@ -559,7 +559,7 @@ def test_pbs_job_info_get_input_dir_pbs():
             "Variable_List": "PBS_O_LOGNAME=user,PBS_O_WORKDIR=/path/to/input_dir,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
         }
     )
-    assert job.getInputDir() == Path("/path/to/input_dir")
+    assert job.get_input_dir() == Path("/path/to/input_dir")
 
 
 def test_pbs_job_info_get_input_dir_qq():
@@ -568,7 +568,7 @@ def test_pbs_job_info_get_input_dir_qq():
             "Variable_List": f"PBS_O_LOGNAME=user,{CFG.env_vars.input_dir}=/path/to/input_dir,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
         }
     )
-    assert job.getInputDir() == Path("/path/to/input_dir")
+    assert job.get_input_dir() == Path("/path/to/input_dir")
 
 
 def test_pbs_job_info_get_input_dir_infinity():
@@ -577,7 +577,7 @@ def test_pbs_job_info_get_input_dir_infinity():
             "Variable_List": "PBS_O_LOGNAME=user,INF_INPUT_DIR=/path/to/input_dir,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
         }
     )
-    assert job.getInputDir() == Path("/path/to/input_dir")
+    assert job.get_input_dir() == Path("/path/to/input_dir")
 
 
 def test_pbs_job_info_get_input_dir_nonexistent():
@@ -586,7 +586,7 @@ def test_pbs_job_info_get_input_dir_nonexistent():
             "Variable_List": "PBS_O_LOGNAME=user,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
         }
     )
-    assert job.getInputDir() is None
+    assert job.get_input_dir() is None
 
 
 def test_pbs_job_info_get_info_file():
@@ -595,7 +595,7 @@ def test_pbs_job_info_get_info_file():
             "Variable_List": f"{CFG.env_vars.info_file}=/path/to/info_file.qqinfo,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
         }
     )
-    assert job.getInfoFile() == Path("/path/to/info_file.qqinfo")
+    assert job.get_info_file() == Path("/path/to/info_file.qqinfo")
 
 
 def test_pbs_job_info_get_info_file_nonexistent():
@@ -604,7 +604,7 @@ def test_pbs_job_info_get_info_file_nonexistent():
             "Variable_List": "PBS_O_LOGNAME=user,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,SCRATCH=/scratch/user/job_123456"
         }
     )
-    assert job.getInfoFile() is None
+    assert job.get_info_file() is None
 
 
 def test_pbs_job_info_get_env_vars():
@@ -613,7 +613,7 @@ def test_pbs_job_info_get_env_vars():
             "Variable_List": "PBS_O_LOGNAME=user,PBS_O_QUEUE=gpu,SINGLE_PROPERTY,PBS_O_HOST=host.example.com,,,SCRATCH=/scratch/user/job_123456"
         }
     )
-    assert job._getEnvVars() == {
+    assert job._get_env_vars() == {
         "PBS_O_LOGNAME": "user",
         "PBS_O_QUEUE": "gpu",
         "PBS_O_HOST": "host.example.com",
@@ -623,12 +623,12 @@ def test_pbs_job_info_get_env_vars():
 
 def test_pbs_job_info_get_env_vars_nonexistent():
     job = _make_jobinfo_with_info({})
-    assert job._getEnvVars() is None
+    assert job._get_env_vars() is None
 
 
 def test_pbs_job_info_get_env_vars_empty():
     job = _make_jobinfo_with_info({"Variable_List": " "})
-    assert job._getEnvVars() == {}
+    assert job._get_env_vars() == {}
 
 
 def test_pbs_job_info_to_yaml(sample_dump_file):
@@ -636,7 +636,7 @@ def test_pbs_job_info_to_yaml(sample_dump_file):
     job = _make_jobinfo_with_info(info)
 
     assert (
-        job.toYaml()
+        job.to_yaml()
         == """Job Id: '1234'
 Job_Name: example_job
 Job_Owner: user@EXAMPLE
@@ -692,24 +692,24 @@ credential_validity: Mon Sep 22 06:38:19 2025
 
 def test_pbs_job_info_to_yaml_empty():
     job = _make_jobinfo_with_info({})
-    assert job.toYaml().strip() == "Job Id: '1234'"
+    assert job.to_yaml().strip() == "Job Id: '1234'"
 
 
 def test_pbs_job_info_is_empty():
     job = _make_jobinfo_with_info({"Submit_Host": "random.machine.org"})
-    assert not job.isEmpty()
+    assert not job.is_empty()
 
 
 def test_pbs_job_info_is_empty_false():
     job = _make_jobinfo_with_info({})
-    assert job.isEmpty()
+    assert job.is_empty()
 
 
 def test_pbs_job_get_account():
     job = _make_jobinfo_with_info(
         {"Submit_Host": "random.machine.org", "account": "fake-account"}
     )
-    assert job.getAccount() is None
+    assert job.get_account() is None
 
 
 @pytest.mark.parametrize(
@@ -726,18 +726,18 @@ def test_pbs_job_get_account():
 def test_pbs_job_get_id_int(job_id, expected):
     job = PBSJob.__new__(PBSJob)
     job._job_id = job_id
-    assert job.getIdInt() == expected
+    assert job.get_id_int() == expected
 
 
 @pytest.mark.parametrize("job_id", ["abc123", "", "!@#"])
 def test_pbs_job_get_id_int_returns_none_for_invalid(job_id):
     job = PBSJob.__new__(PBSJob)
     job._job_id = job_id
-    assert job.getIdInt() is None
+    assert job.get_id_int() is None
 
 
 def test_pbs_job_get_id_int_returns_none_on_conversion_failure():
     job = PBSJob.__new__(PBSJob)
     job._job_id = "123x"
     with patch("qq_lib.batch.pbs.job.re.match", return_value=None):
-        assert job.getIdInt() is None
+        assert job.get_id_int() is None

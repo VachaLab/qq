@@ -16,7 +16,7 @@ def test_info_for_job_short_prints_short_info():
     presenter_mock = MagicMock()
     short_info_mock = MagicMock()
 
-    presenter_mock.getShortInfo.return_value = short_info_mock
+    presenter_mock.get_short_info.return_value = short_info_mock
 
     with (
         patch(
@@ -28,7 +28,7 @@ def test_info_for_job_short_prints_short_info():
         _info_for_job(informer_mock, short=True)
 
         presenter_cls.assert_called_once_with(informer_mock)
-        presenter_mock.getShortInfo.assert_called_once()
+        presenter_mock.get_short_info.assert_called_once()
         console_instance.print.assert_called_once_with(short_info_mock)
 
 
@@ -37,7 +37,7 @@ def test_info_for_job_full_prints_full_info_panel():
     presenter_mock = MagicMock()
     panel_mock = MagicMock()
 
-    presenter_mock.createFullInfoPanel.return_value = panel_mock
+    presenter_mock.create_full_info_panel.return_value = panel_mock
 
     with (
         patch(
@@ -49,7 +49,7 @@ def test_info_for_job_full_prints_full_info_panel():
         _info_for_job(informer_mock, short=False)
 
         presenter_cls.assert_called_once_with(informer_mock)
-        presenter_mock.createFullInfoPanel.assert_called_once_with(console_instance)
+        presenter_mock.create_full_info_panel.assert_called_once_with(console_instance)
         console_instance.print.assert_called_once_with(panel_mock)
 
 
@@ -64,7 +64,7 @@ def test_info_invokes_repeater_and_exits_success(tmp_path):
 
     with (
         patch("qq_lib.info.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.info.cli.Informer.fromFile", return_value=informer_mock),
+        patch("qq_lib.info.cli.Informer.from_file", return_value=informer_mock),
         patch("qq_lib.info.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.info.cli.logger"),
     ):
@@ -86,7 +86,7 @@ def test_info_catches_qqerror_and_exits_91(tmp_path):
 
     with (
         patch("qq_lib.info.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.info.cli.Informer.fromFile", return_value=informer_mock),
+        patch("qq_lib.info.cli.Informer.from_file", return_value=informer_mock),
         patch("qq_lib.info.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.info.cli.logger") as mock_logger,
     ):
@@ -108,7 +108,7 @@ def test_info_catches_generic_exception_and_exits_99(tmp_path):
 
     with (
         patch("qq_lib.info.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.info.cli.Informer.fromFile", return_value=informer_mock),
+        patch("qq_lib.info.cli.Informer.from_file", return_value=informer_mock),
         patch("qq_lib.info.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.info.cli.logger") as mock_logger,
     ):
@@ -125,7 +125,7 @@ def test_info_invokes_repeater_with_job_id_and_exits_success():
     runner = CliRunner()
 
     with (
-        patch("qq_lib.info.cli.Informer.fromJobId", return_value=informer_mock),
+        patch("qq_lib.info.cli.Informer.from_job_id", return_value=informer_mock),
         patch("qq_lib.info.cli.Repeater", return_value=repeater_mock),
         patch("qq_lib.info.cli.logger"),
     ):

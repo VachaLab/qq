@@ -15,7 +15,7 @@ from qq_lib.properties.resources import Resources
 
 def test_acldata_get_groups_or_init_cached():
     ACLData._groups = {"user": ["staff", "users"]}
-    result = ACLData.getGroupsOrInit("user")
+    result = ACLData.get_groups_or_init("user")
     assert result == ["staff", "users"]
 
 
@@ -30,7 +30,7 @@ def test_acldata_get_groups_or_init_success():
         ) as run_mock,
         patch("qq_lib.batch.pbs.queue.logger"),
     ):
-        result = ACLData.getGroupsOrInit("user")
+        result = ACLData.get_groups_or_init("user")
     run_mock.assert_called_once_with(
         ["bash"],
         input="id -nG user",
@@ -48,25 +48,25 @@ def test_acldata_get_groups_or_init_failure():
     mock_result = MagicMock()
     mock_result.returncode = 1
     with patch("qq_lib.batch.pbs.queue.subprocess.run", return_value=mock_result):
-        result = ACLData.getGroupsOrInit("user")
+        result = ACLData.get_groups_or_init("user")
     assert result == []
     assert ACLData._groups["user"] == []
 
 
 def test_acldata_get_host_or_init_cached():
     ACLData._host = "cached.host"
-    assert ACLData.getHostOrInit() == "cached.host"
+    assert ACLData.get_host_or_init() == "cached.host"
 
 
 def test_acldata_get_host_or_init_initializes_and_caches():
     ACLData._host = None
     with (
         patch(
-            "qq_lib.batch.pbs.queue.socket.gethostname", return_value="new.host.org"
+            "qq_lib.batch.pbs.queue.socket.getfqdn", return_value="new.host.org"
         ) as mock_get,
         patch("qq_lib.batch.pbs.queue.logger"),
     ):
-        host = ACLData.getHostOrInit()
+        host = ACLData.get_host_or_init()
     mock_get.assert_called_once()
     assert host == "new.host.org"
     assert ACLData._host == "new.host.org"
@@ -76,6 +76,16 @@ def test_pbsqueue_init():
     with patch.object(PBSQueue, "update") as mock_update:
         queue = PBSQueue("main")
     assert queue._name == "main"
+    assert queue._server is None
+    assert isinstance(queue._info, dict)
+    mock_update.assert_called_once()
+
+
+def test_pbsqueue_init_with_server():
+    with patch.object(PBSQueue, "update") as mock_update:
+        queue = PBSQueue("main", "server")
+    assert queue._name == "main"
+    assert queue._server == "server"
     assert isinstance(queue._info, dict)
     mock_update.assert_called_once()
 
@@ -83,6 +93,7 @@ def test_pbsqueue_init():
 def test_pbsqueue_update_success():
     queue = PBSQueue.__new__(PBSQueue)
     queue._name = "main"
+    queue._server = None
     queue._info = {}
 
     mock_result = MagicMock()
@@ -97,7 +108,7 @@ def test_pbsqueue_update_success():
             "qq_lib.batch.pbs.queue.parse_pbs_dump_to_dictionary",
             return_value={"k": "v"},
         ) as parse_mock,
-        patch.object(queue, "_setAttributes") as set_attrs_mock,
+        patch.object(queue, "_set_attributes") as set_attrs_mock,
     ):
         queue.update()
 
@@ -114,9 +125,45 @@ def test_pbsqueue_update_success():
     assert queue._info == {"k": "v"}
 
 
+def test_pbsqueue_update_with_server_success():
+    queue = PBSQueue.__new__(PBSQueue)
+    queue._name = "main"
+    queue._server = "server"
+    queue._info = {}
+
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "queue_data"
+
+    with (
+        patch(
+            "qq_lib.batch.pbs.queue.subprocess.run", return_value=mock_result
+        ) as run_mock,
+        patch(
+            "qq_lib.batch.pbs.queue.parse_pbs_dump_to_dictionary",
+            return_value={"k": "v"},
+        ) as parse_mock,
+        patch.object(queue, "_set_attributes") as set_attrs_mock,
+    ):
+        queue.update()
+
+    run_mock.assert_called_once_with(
+        ["bash"],
+        input="qstat -Qfw main@server",
+        text=True,
+        check=False,
+        capture_output=True,
+        errors="replace",
+    )
+    parse_mock.assert_called_once_with("queue_data")
+    set_attrs_mock.assert_called_once()
+    assert queue._info == {"k": "v"}
+
+
 def test_pbsqueue_update_failure():
     queue = PBSQueue.__new__(PBSQueue)
     queue._name = "nonexistent"
+    queue._server = None
 
     mock_result = MagicMock()
     mock_result.returncode = 1
@@ -131,55 +178,55 @@ def test_pbsqueue_update_failure():
 def test_pbsqueue_get_name():
     queue = PBSQueue.__new__(PBSQueue)
     queue._name = "main"
-    assert queue.getName() == "main"
+    assert queue.get_name() == "main"
 
 
 def test_pbsqueue_get_priority_returns_value():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {"Priority": "5"}
-    assert queue.getPriority() == "5"
+    assert queue.get_priority() == "5"
 
 
 def test_pbsqueue_get_priority_returns_none():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {}
-    assert queue.getPriority() is None
+    assert queue.get_priority() is None
 
 
 def test_pbsqueue_get_total_jobs_with_value():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {"total_jobs": "10"}
-    assert queue.getTotalJobs() == 10
+    assert queue.get_total_jobs() == 10
 
 
 def test_pbsqueue_get_total_jobs_default_none():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {}
-    assert queue.getTotalJobs() is None
+    assert queue.get_total_jobs() is None
 
 
 def test_pbsqueue_get_running_jobs_with_value():
     queue = PBSQueue.__new__(PBSQueue)
     queue._job_numbers = {"Running": "4"}
-    assert queue.getRunningJobs() == 4
+    assert queue.get_running_jobs() == 4
 
 
 def test_pbsqueue_get_running_jobs_default_none():
     queue = PBSQueue.__new__(PBSQueue)
     queue._job_numbers = {}
-    assert queue.getRunningJobs() is None
+    assert queue.get_running_jobs() is None
 
 
 def test_pbsqueue_get_queued_jobs_with_value():
     queue = PBSQueue.__new__(PBSQueue)
     queue._job_numbers = {"Queued": "7"}
-    assert queue.getQueuedJobs() == 7
+    assert queue.get_queued_jobs() == 7
 
 
 def test_pbsqueue_get_queued_jobs_default_zero():
     queue = PBSQueue.__new__(PBSQueue)
     queue._job_numbers = {}
-    assert queue.getQueuedJobs() == 0
+    assert queue.get_queued_jobs() == 0
 
 
 def test_pbsqueue_get_other_jobs_sum_all_states():
@@ -191,82 +238,82 @@ def test_pbsqueue_get_other_jobs_sum_all_states():
         "Exiting": "4",
         "Begun": "5",
     }
-    assert queue.getOtherJobs() == 10
+    assert queue.get_other_jobs() == 10
 
 
 def test_pbsqueue_get_other_jobs_default_zero():
     queue = PBSQueue.__new__(PBSQueue)
     queue._job_numbers = {}
-    assert queue.getOtherJobs() == 0
+    assert queue.get_other_jobs() == 0
 
 
 def test_pbsqueue_get_max_walltime_returns_timedelta():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {"resources_max.walltime": "25:30:00"}
 
-    assert queue.getMaxWalltime() == timedelta(days=1, hours=1, minutes=30)
+    assert queue.get_max_walltime() == timedelta(days=1, hours=1, minutes=30)
 
 
 def test_pbsqueue_get_max_walltime_none():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {}
-    assert queue.getMaxWalltime() is None
+    assert queue.get_max_walltime() is None
 
 
 def test_pbsqueue_get_max_nnodes_returns_int():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {"resources_max.nodect": "8"}
 
-    assert queue.getMaxNNodes() == 8
+    assert queue.get_max_n_nodes() == 8
 
 
 def test_pbsqueue_get_max_nnodes_none():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {}
 
-    assert queue.getMaxNNodes() is None
+    assert queue.get_max_n_nodes() is None
 
 
 def test_pbsqueue_get_comment_with_value():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {"comment": "Default queue|details"}
-    assert queue.getComment() == "Default queue"
+    assert queue.get_comment() == "Default queue"
 
 
 def test_pbsqueue_get_comment_empty():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {}
-    assert queue.getComment() is None
+    assert queue.get_comment() is None
 
 
 def test_pbsqueue_get_destinations_with_values():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {"route_destinations": "node1,node2,node3"}
-    assert queue.getDestinations() == ["node1", "node2", "node3"]
+    assert queue.get_destinations() == ["node1", "node2", "node3"]
 
 
 def test_pbsqueue_get_destinations_empty():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {}
-    assert queue.getDestinations() == []
+    assert queue.get_destinations() == []
 
 
 def test_pbsqueue_from_route_only_true():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {"from_route_only": "True"}
-    assert queue.fromRouteOnly() is True
+    assert queue.from_route_only() is True
 
 
 def test_pbsqueue_from_route_only_false():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {"from_route_only": "False"}
-    assert queue.fromRouteOnly() is False
+    assert queue.from_route_only() is False
 
 
 def test_pbsqueue_from_route_only_missing_key():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {}
-    assert queue.fromRouteOnly() is False
+    assert queue.from_route_only() is False
 
 
 def test_pbsqueue_set_attributes_populates_acl_and_calls_set_job_numbers():
@@ -277,8 +324,8 @@ def test_pbsqueue_set_attributes_populates_acl_and_calls_set_job_numbers():
         "acl_hosts": "host1,host2",
     }
 
-    with patch.object(queue, "_setJobNumbers") as mock_set_job_numbers:
-        queue._setAttributes()
+    with patch.object(queue, "_set_job_numbers") as mock_set_job_numbers:
+        queue._set_attributes()
 
     mock_set_job_numbers.assert_called_once()
     assert queue._acl_users == ["user1", "user2"]
@@ -290,8 +337,8 @@ def test_pbsqueue_set_attributes_handles_missing_acls():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {}
 
-    with patch.object(queue, "_setJobNumbers") as mock_set_job_numbers:
-        queue._setAttributes()
+    with patch.object(queue, "_set_job_numbers") as mock_set_job_numbers:
+        queue._set_attributes()
 
     mock_set_job_numbers.assert_called_once()
     assert queue._acl_users == [""]
@@ -304,7 +351,7 @@ def test_pbsqueue_set_job_numbers_parses_valid_state_count():
     queue._info = {"state_count": "Running:5 Queued:3 Held:1"}
     queue._name = "main"
 
-    queue._setJobNumbers()
+    queue._set_job_numbers()
 
     assert queue._job_numbers == {"Running": "5", "Queued": "3", "Held": "1"}
 
@@ -314,7 +361,7 @@ def test_pbsqueue_set_job_numbers_handles_missing_state_count():
     queue._info = {}
     queue._name = "main"
 
-    queue._setJobNumbers()
+    queue._set_job_numbers()
 
     assert queue._job_numbers == {}
 
@@ -324,20 +371,20 @@ def test_pbsqueue_set_job_numbers_handles_invalid_format():
     queue._info = {"state_count": "InvalidFormat"}
     queue._name = "main"
 
-    queue._setJobNumbers()
+    queue._set_job_numbers()
     assert queue._job_numbers == {}
 
 
 def test_pbsqueue_is_available_to_user_disabled_queue():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {"enabled": "False", "started": "True"}
-    assert queue.isAvailableToUser("user") is False
+    assert queue.is_available_to_user("user") is False
 
 
 def test_pbsqueue_is_available_to_user_not_started_queue():
     queue = PBSQueue.__new__(PBSQueue)
     queue._info = {"enabled": "True", "started": "False"}
-    assert queue.isAvailableToUser("user") is False
+    assert queue.is_available_to_user("user") is False
 
 
 def test_pbsqueue_is_available_to_user_acl_user_not_in_list():
@@ -348,7 +395,7 @@ def test_pbsqueue_is_available_to_user_acl_user_not_in_list():
         "acl_user_enable": "True",
     }
     queue._acl_users = ["otheruser"]
-    assert queue.isAvailableToUser("user") is False
+    assert queue.is_available_to_user("user") is False
 
 
 def test_pbsqueue_is_available_to_user_acl_group_not_in_group():
@@ -360,8 +407,8 @@ def test_pbsqueue_is_available_to_user_acl_group_not_in_group():
     }
     queue._acl_groups = ["allowed_group"]
 
-    with patch.object(ACLData, "getGroupsOrInit", return_value=["other_group"]):
-        assert queue.isAvailableToUser("user") is False
+    with patch.object(ACLData, "get_groups_or_init", return_value=["other_group"]):
+        assert queue.is_available_to_user("user") is False
 
 
 def test_pbsqueue_is_available_to_user_acl_host_not_in_list():
@@ -373,8 +420,8 @@ def test_pbsqueue_is_available_to_user_acl_host_not_in_list():
     }
     queue._acl_hosts = ["host1"]
 
-    with patch.object(ACLData, "getHostOrInit", return_value="otherhost"):
-        assert queue.isAvailableToUser("user") is False
+    with patch.object(ACLData, "get_host_or_init", return_value="otherhost"):
+        assert queue.is_available_to_user("user") is False
 
 
 def test_pbsqueue_is_available_to_user_all_acls_pass():
@@ -391,10 +438,10 @@ def test_pbsqueue_is_available_to_user_all_acls_pass():
     queue._acl_hosts = ["host1"]
 
     with (
-        patch.object(ACLData, "getGroupsOrInit", return_value=["allowed_group"]),
-        patch.object(ACLData, "getHostOrInit", return_value="host1"),
+        patch.object(ACLData, "get_groups_or_init", return_value=["allowed_group"]),
+        patch.object(ACLData, "get_host_or_init", return_value="host1"),
     ):
-        assert queue.isAvailableToUser("user") is True
+        assert queue.is_available_to_user("user") is True
 
 
 def test_pbsqueue_is_available_to_user_acl_user_passes_but_group_fails():
@@ -408,8 +455,8 @@ def test_pbsqueue_is_available_to_user_acl_user_passes_but_group_fails():
     queue._acl_users = ["user"]
     queue._acl_groups = ["allowed_group"]
 
-    with patch.object(ACLData, "getGroupsOrInit", return_value=["other_group"]):
-        assert queue.isAvailableToUser("user") is False
+    with patch.object(ACLData, "get_groups_or_init", return_value=["other_group"]):
+        assert queue.is_available_to_user("user") is False
 
 
 def test_pbsqueue_is_available_to_user_user_and_group_pass_but_host_fails():
@@ -426,10 +473,10 @@ def test_pbsqueue_is_available_to_user_user_and_group_pass_but_host_fails():
     queue._acl_hosts = ["hostA"]
 
     with (
-        patch.object(ACLData, "getGroupsOrInit", return_value=["group1"]),
-        patch.object(ACLData, "getHostOrInit", return_value="hostB"),
+        patch.object(ACLData, "get_groups_or_init", return_value=["group1"]),
+        patch.object(ACLData, "get_host_or_init", return_value="hostB"),
     ):
-        assert queue.isAvailableToUser("user") is False
+        assert queue.is_available_to_user("user") is False
 
 
 def test_pbsqueue_from_dict():
@@ -441,10 +488,28 @@ def test_pbsqueue_from_dict():
         "total_jobs": "42",
     }
 
-    with patch.object(PBSQueue, "_setAttributes") as set_attributes_mock:
-        queue = PBSQueue.fromDict(name, info)
+    with patch.object(PBSQueue, "_set_attributes") as set_attributes_mock:
+        queue = PBSQueue.from_dict(name, None, info)
 
     assert queue._name == name
+    assert queue._info == info
+    set_attributes_mock.assert_called_once()
+
+
+def test_pbsqueue_with_server_from_dict():
+    name = "gpu_queue"
+    info = {
+        "enabled": "True",
+        "started": "True",
+        "Priority": "100",
+        "total_jobs": "42",
+    }
+
+    with patch.object(PBSQueue, "_set_attributes") as set_attributes_mock:
+        queue = PBSQueue.from_dict(name, "server", info)
+
+    assert queue._name == name
+    assert queue._server == "server"
     assert queue._info == info
     set_attributes_mock.assert_called_once()
 
@@ -468,7 +533,7 @@ def test_pbsqueue_to_yaml():
         "acl_hosts": "host1,host2",
     }
 
-    result = queue.toYaml()
+    result = queue.to_yaml()
 
     expected_dict = {"Queue": "gpu_long"} | queue._info
     parsed_result = yaml.load(result, Loader=yaml.SafeLoader)
@@ -493,7 +558,7 @@ def test_pbsqueue_get_default_resources_filters_correct_fields():
         ngpus=1,
     )
 
-    result = queue.getDefaultResources()
+    result = queue.get_default_resources()
 
     assert result == expected
 
@@ -506,4 +571,4 @@ def test_pbsqueue_get_default_resources_returns_empty_when_no_defaults():
         "comment": "No default resources here",
     }
 
-    assert queue.getDefaultResources() == Resources()
+    assert queue.get_default_resources() == Resources()

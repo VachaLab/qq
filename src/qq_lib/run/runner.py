@@ -25,6 +25,7 @@ from qq_lib.core.error import (
     QQRunFatalError,
 )
 from qq_lib.core.logger import get_logger
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.core.retryer import Retryer
 from qq_lib.info.informer import Informer
 from qq_lib.properties.job_type import JobType
@@ -70,16 +71,16 @@ class Runner:
         # load the info file or raise a fatal qq error if this fails
         try:
             # get the batch system from the environment variable (or guess it)
-            self._batch_system = BatchMeta.fromEnvVarOrGuess()
+            self._batch_system = BatchMeta.from_env_var_or_guess()
             logger.debug(f"Batch system: {str(self._batch_system)}.")
 
             # get the id of the job from the batch system
-            if not (job_id := self._batch_system.getJobId()):
+            if not (job_id := self._batch_system.get_job_id()):
                 raise QQError("Job has no associated job id")
 
             # load the info file
             self._informer: Informer = Retryer(
-                Informer.fromFile,
+                Informer.from_file,
                 self._info_file,
                 host=self._input_machine,
                 max_tries=CFG.runner.retry_tries,
@@ -87,7 +88,7 @@ class Runner:
             ).run()
 
             # check that the id of this job matches the job id in the info file
-            if not self._informer.matchesJob(job_id):
+            if not self._informer.matches_job(job_id):
                 raise QQJobMismatchError(
                     "Info file does not correspond to the current job"
                 )
@@ -105,7 +106,7 @@ class Runner:
 
         logger.info(
             f"[qq-{str(self._batch_system)} v{qq_lib.__version__}] Initializing "
-            f"job '{self._informer.info.job_id}' on host '{socket.gethostname()}'."
+            f"job '{self._informer.info.job_id}' on host '{socket.getfqdn()}'."
         )
 
         # get input directory
@@ -113,7 +114,7 @@ class Runner:
         logger.debug(f"Input directory: {self._input_dir}.")
 
         # should the scratch directory be used?
-        self._use_scratch = self._informer.usesScratch()
+        self._use_scratch = self._informer.uses_scratch()
         logger.debug(f"Use scratch: {self._use_scratch}.")
 
         # initialize archiver, if this is a loop job
@@ -144,7 +145,7 @@ class Runner:
         if self._archiver:
             assert self._informer.info.loop_info is not None
             # prepare the directory for archiving
-            self._archiver.makeArchiveDir()
+            self._archiver.make_archive_dir()
 
             # archive runtime files from the previous cycle
             # this has to be done before the working directory is prepared,
@@ -152,7 +153,7 @@ class Runner:
             logger.debug(
                 f"Archiving run time files from cycle {self._informer.info.loop_info.current - 1}."
             )
-            self._archiver.archiveRunTimeFiles(
+            self._archiver.archive_runtime_files(
                 # we need to escape the '+' character
                 construct_loop_job_name(
                     self._informer.info.script_name,
@@ -162,14 +163,14 @@ class Runner:
             )
 
         if self._use_scratch:
-            self._setUpScratchDir()
+            self._set_up_scratch_dir()
         else:
-            self._setUpSharedDir()
+            self._set_up_shared_dir()
 
         if self._archiver:
             assert self._informer.info.loop_info is not None
             # fetch files for the current cycle of the loop job from the archive
-            self._archiver.fromArchive(
+            self._archiver.from_archive(
                 self._work_dir, self._informer.info.loop_info.current
             )
 
@@ -184,10 +185,10 @@ class Runner:
             QQError: If execution fails or info file cannot be updated.
         """
         # update the qqinfo file
-        self._updateInfoRunning()
+        self._update_info_running()
 
         # get the actual name of the script to execute
-        script = Path(self._informer.info.script_name).resolve()
+        script = logical_resolve(Path(self._informer.info.script_name))
 
         # get paths to output files
         stdout_log = self._informer.info.stdout_file
@@ -198,7 +199,7 @@ class Runner:
         try:
             with Path(stdout_log).open("w") as out, Path(stderr_log).open("w") as err:
                 self._process = subprocess.Popen(
-                    ["bash", str(script)],
+                    [self._get_interpreter(), str(script)],
                     stdout=out,
                     stderr=err,
                     text=True,
@@ -255,55 +256,55 @@ class Runner:
         assert self._process is not None
 
         # archive files
-        if self._archiver and self._informer.shouldArchiveFiles(
+        if self._archiver and self._informer.should_archive_files(
             self._process.returncode
         ):
             logger.debug(
                 f"Script exit code is '{self._process.returncode}'. Archiving files."
             )
-            self._archiver.toArchive(self._work_dir)
+            self._archiver.to_archive(self._work_dir)
 
         # transfer files back to the input (submission) directory
         if self._use_scratch:
-            if self._informer.shouldTransferFiles(self._process.returncode):
+            if self._informer.should_transfer_files(self._process.returncode):
                 logger.debug(
                     f"Script exit code is '{self._process.returncode}'. Transferring files from working directory."
                 )
 
                 Retryer(
-                    self._batch_system.syncWithExclusions,
+                    self._batch_system.sync_with_exclusions,
                     self._work_dir,
                     self._input_dir,
-                    socket.gethostname(),
+                    socket.getfqdn(),
                     self._informer.info.input_machine,
                     # exclude files that were copied to workdir from the outside of input dir (--include option)
                     # these files should not be copied to the input directory, since they were never inside it
-                    self._getExplicitlyIncludedFilesInWorkDir(),
+                    self._get_explicitly_included_files_in_work_dir(),
                     max_tries=CFG.runner.retry_tries,
                     wait_seconds=CFG.runner.retry_wait,
                 ).run()
 
                 # remove the working directory from scratch
-                self._deleteWorkDir()
+                self._delete_work_dir()
             else:
                 # copy only the runtime files to input directory
                 # and keep the working directory
-                self._copyRunTimeFilesToInputDir(retry=True)
+                self._copy_runtime_files_to_input_dir(retry=True)
 
         if self._process.returncode == 0:
             # update the qqinfo file
-            self._updateInfoFinished()
+            self._update_info_finished()
 
             # if this is a loop/continuous job
             if self._informer.info.job_type in [JobType.LOOP, JobType.CONTINUOUS]:
                 self._resubmit()
         else:
             # update the qqinfo file
-            self._updateInfoFailed(self._process.returncode)
+            self._update_info_failed(self._process.returncode)
 
         logger.info(f"Job completed with an exit code of {self._process.returncode}.")
 
-    def logFailureAndExit(self, exception: BaseException) -> NoReturn:
+    def log_failure_and_exit(self, exception: BaseException) -> NoReturn:
         """
         Record a failure state into the qq info file and exit the program.
 
@@ -315,14 +316,14 @@ class Runner:
         """
         exit_code = getattr(exception, "exit_code", CFG.exit_codes.unexpected_error)
         try:
-            self._updateInfoFailed(exit_code)
+            self._update_info_failed(exit_code)
             logger.error(exception)
             sys.exit(exit_code)
         except Exception as e:
             # unable to log the current state into the info file
             log_fatal_error_and_exit(e)  # exits here
 
-    def _setUpSharedDir(self) -> None:
+    def _set_up_shared_dir(self) -> None:
         """
         Configure the input directory as the working directory.
         """
@@ -337,7 +338,7 @@ class Runner:
             wait_seconds=CFG.runner.retry_wait,
         ).run()
 
-    def _setUpScratchDir(self) -> None:
+    def _set_up_scratch_dir(self) -> None:
         """
         Configure a scratch directory as the working directory.
 
@@ -349,7 +350,7 @@ class Runner:
         """
         # get path to the working directory (created by the batch system)
         self._work_dir: Path = Retryer(
-            self._batch_system.createWorkDirOnScratch,
+            self._batch_system.create_work_dir_on_scratch,
             self._informer.info.job_id,
             max_tries=CFG.runner.retry_tries,
             wait_seconds=CFG.runner.retry_wait,
@@ -378,11 +379,11 @@ class Runner:
             f"Files excluded from being copied to the working directory: {excluded}."
         )
         Retryer(
-            self._batch_system.syncWithExclusions,
+            self._batch_system.sync_with_exclusions,
             self._input_dir,
             self._work_dir,
             self._informer.info.input_machine,
-            socket.gethostname(),
+            socket.getfqdn(),
             excluded,
             max_tries=CFG.runner.retry_tries,
             wait_seconds=CFG.runner.retry_wait,
@@ -394,13 +395,13 @@ class Runner:
             f"Files explicitly requested to be copied to the working directory: {self._informer.info.included_files}."
         )
         Retryer(
-            self._copyFiles,
+            self._copy_files,
             self._informer.info.included_files,
             max_tries=CFG.runner.retry_tries,
             wait_seconds=CFG.runner.retry_wait,
         ).run()
 
-    def _deleteWorkDir(self) -> None:
+    def _delete_work_dir(self) -> None:
         """
         Delete the entire working directory.
 
@@ -414,7 +415,30 @@ class Runner:
             wait_seconds=CFG.runner.retry_wait,
         ).run()
 
-    def _updateInfoRunning(self) -> None:
+    def _get_interpreter(self) -> str:
+        """
+        Resolve the fully qualified path to the job's interpreter.
+
+        Uses the interpreter specified in the job's info if set, otherwise falls
+        back to the configured default interpreter. The interpreter is resolved
+        via `shutil.which`, ensuring the returned path is absolute and
+        executable on the current node.
+
+        Returns:
+            str: The fully qualified path to the interpreter binary.
+
+        Raises:
+            QQError: If the interpreter cannot be found on the current node.
+        """
+        interpreter = self._informer.info.interpreter or CFG.runner.default_interpreter
+        if not (full := shutil.which(interpreter)):
+            raise QQError(
+                f"Interpreter '{interpreter}' is not available on node '{socket.getfqdn()}'."
+            )
+
+        return full
+
+    def _update_info_running(self) -> None:
         """
         Update the qq info file to mark the job as running.
 
@@ -423,24 +447,24 @@ class Runner:
             QQError: If the info file cannot be updated.
         """
         logger.debug(f"Updating '{self._info_file}' at job start.")
-        self._reloadInfoAndEnsureValid()
+        self._reload_info_and_ensure_valid()
 
         try:
             nodes = Retryer(
-                self._getNodes,
+                self._get_nodes,
                 max_tries=CFG.runner.retry_tries,
                 wait_seconds=CFG.runner.retry_wait,
             ).run()
 
-            self._informer.setRunning(
+            self._informer.set_running(
                 datetime.now(),
-                socket.gethostname(),
+                socket.getfqdn(),
                 nodes,
                 self._work_dir,
             )
 
             Retryer(
-                self._informer.toFile,
+                self._informer.to_file,
                 self._info_file,
                 host=self._input_machine,
                 max_tries=CFG.runner.retry_tries,
@@ -451,24 +475,40 @@ class Runner:
                 f"Could not update qqinfo file '{self._info_file}' at JOB START: {e}."
             ) from e
 
-    def _getNodes(self) -> list[str]:
+    def _get_nodes(self) -> list[str]:
         """
         Get a list of nodes used to execute this job. The nodes are obtained by
         querying the batch system.
+
+        If the batch server is not available and only one node was requested, uses
+        `socket.getfqdn()` instead and prints warning.
 
         Returns:
             list[str]: Names of nodes used to execute the job.
 
         Raises:
-            QQError: If the batch system is unable to provide information about the nodes after retries.
+            QQError: If the batch system is unable to provide information about the nodes after retries
+                and more than one node is used.
         """
-        nodes = self._informer.getNodes()
+        nodes = self._informer.get_nodes()
         if not nodes:
+            # if the batch server is not reachable but the requested number of nodes is one,
+            # we assume that only one node is actually being used and Runner thus runs on this node
+            # we can then get the node name from socket
+            # this avoids issues with occasional inaccessibility of the batch server in
+            # the unstable Metacentrum environment
+            if self._informer.info.resources.nnodes == 1:
+                node = socket.getfqdn()
+                logger.warning(
+                    f"Could not get the list of used nodes from the batch server. Assuming the only node is the current node '{node}'."
+                )
+                return [node]
+
             raise QQError("Could not get the list of used nodes from the batch server")
 
         return nodes
 
-    def _updateInfoFinished(self) -> None:
+    def _update_info_finished(self) -> None:
         """
         Update the qq info file to mark the job as successfully finished.
 
@@ -478,12 +518,12 @@ class Runner:
             QQRunCommunicationError: If the job was killed without informing Runner.
         """
         logger.debug(f"Updating '{self._info_file}' at job completion.")
-        self._reloadInfoAndEnsureValid()
+        self._reload_info_and_ensure_valid()
 
         try:
-            self._informer.setFinished(datetime.now())
+            self._informer.set_finished(datetime.now())
             Retryer(
-                self._informer.toFile,
+                self._informer.to_file,
                 self._info_file,
                 host=self._input_machine,
                 max_tries=CFG.runner.retry_tries,
@@ -494,7 +534,7 @@ class Runner:
                 f"Could not update qqinfo file '{self._info_file}' at JOB COMPLETION: {e}."
             )
 
-    def _updateInfoFailed(self, return_code: int) -> None:
+    def _update_info_failed(self, return_code: int) -> None:
         """
         Update the qq info file to mark the job as failed.
 
@@ -507,12 +547,12 @@ class Runner:
             QQRunCommunicationError: If the job was killed without informing Runner.
         """
         logger.debug(f"Updating '{self._info_file}' at job failure.")
-        self._reloadInfoAndEnsureValid()
+        self._reload_info_and_ensure_valid()
 
         try:
-            self._informer.setFailed(datetime.now(), return_code)
+            self._informer.set_failed(datetime.now(), return_code)
             Retryer(
-                self._informer.toFile,
+                self._informer.to_file,
                 self._info_file,
                 host=self._input_machine,
                 max_tries=CFG.runner.retry_tries,
@@ -523,7 +563,7 @@ class Runner:
                 f"Could not update qqinfo file '{self._info_file}' at JOB FAILURE: {e}."
             )
 
-    def _updateInfoKilled(self) -> None:
+    def _update_info_killed(self) -> None:
         """
         Update the qq info file to mark the job as killed.
 
@@ -534,18 +574,18 @@ class Runner:
         No retrying since there is no time for that.
         """
         logger.debug(f"Updating '{self._info_file}' at job kill.")
-        self._reloadInfoAndEnsureValid(retry=False)
+        self._reload_info_and_ensure_valid(retry=False)
 
         try:
-            self._informer.setKilled(datetime.now())
+            self._informer.set_killed(datetime.now())
             # no retrying here since we cannot afford multiple attempts here
-            self._informer.toFile(self._info_file, host=self._input_machine)
+            self._informer.to_file(self._info_file, host=self._input_machine)
         except Exception as e:
             logger.warning(
                 f"Could not update qqinfo file '{self._info_file}' at JOB KILL: {e}."
             )
 
-    def _copyRunTimeFilesToInputDir(self, retry: bool = True) -> None:
+    def _copy_runtime_files_to_input_dir(self, retry: bool = True) -> None:
         """
         Copy .out and .err runtime files from the working directory to the input directory.
 
@@ -556,33 +596,33 @@ class Runner:
             QQError: If the files could not be copied after retrying.
         """
         files_to_copy = [
-            Path(self._informer.info.stdout_file).resolve(),
-            Path(self._informer.info.stderr_file).resolve(),
+            logical_resolve(Path(self._informer.info.stdout_file)),
+            logical_resolve(Path(self._informer.info.stderr_file)),
         ]
 
         logger.debug(f"Copying runtime files '{files_to_copy}' to input directory.")
 
         if retry:
             Retryer(
-                self._batch_system.syncSelected,
+                self._batch_system.sync_selected,
                 self._work_dir,
                 self._input_dir,
-                socket.gethostname(),
+                socket.getfqdn(),
                 self._informer.info.input_machine,
                 include_files=files_to_copy,
                 max_tries=CFG.runner.retry_tries,
                 wait_seconds=CFG.runner.retry_wait,
             ).run()
         else:
-            self._batch_system.syncSelected(
+            self._batch_system.sync_selected(
                 self._work_dir,
                 self._input_dir,
-                socket.gethostname(),
+                socket.getfqdn(),
                 self._informer.info.input_machine,
                 files_to_copy,
             )
 
-    def _reloadInfo(self, retry: bool = True) -> None:
+    def _reload_info(self, retry: bool = True) -> None:
         """
         Reload the qq job info file for this job.
 
@@ -594,28 +634,28 @@ class Runner:
         """
         if retry:
             self._informer = Retryer(
-                Informer.fromFile,
+                Informer.from_file,
                 self._info_file,
                 host=self._input_machine,
                 max_tries=CFG.runner.retry_tries,
                 wait_seconds=CFG.runner.retry_wait,
             ).run()
         else:
-            self._informer = Informer.fromFile(self._info_file, self._input_machine)
+            self._informer = Informer.from_file(self._info_file, self._input_machine)
 
-    def _ensureMatchesJob(self, job_id: str) -> None:
+    def _ensure_matches_job(self, job_id: str) -> None:
         """
         Ensure that the provided job_id matches the job id in the wrapped informer.
 
         Raises:
             QQJobMismatchError: If the info file corresponds to a different job.
         """
-        if not self._informer.matchesJob(job_id):
+        if not self._informer.matches_job(job_id):
             raise QQJobMismatchError(
                 f"Info file '{self._info_file}' does not correspond to job '{job_id}'."
             )
 
-    def _ensureNotKilled(self) -> None:
+    def _ensure_not_killed(self) -> None:
         """
         Ensure that the job has not been killed.
 
@@ -627,7 +667,7 @@ class Runner:
                 "Job has been killed without informing qq run. Aborting the job!"
             )
 
-    def _reloadInfoAndEnsureValid(self, retry: bool = False) -> None:
+    def _reload_info_and_ensure_valid(self, retry: bool = False) -> None:
         """
         Reload the qq job info file and check that it corresponds to the current job
         by comparing job ids.
@@ -643,9 +683,9 @@ class Runner:
             QQError: If the qq info file cannot be reached or read.
         """
         job_id = self._informer.info.job_id
-        self._reloadInfo(retry)
-        self._ensureMatchesJob(job_id)
-        self._ensureNotKilled()
+        self._reload_info(retry)
+        self._ensure_matches_job(job_id)
+        self._ensure_not_killed()
 
     def _resubmit(self) -> None:
         """
@@ -684,20 +724,20 @@ class Runner:
             self._batch_system.resubmit,
             input_machine=self._informer.info.input_machine,
             input_dir=self._informer.info.input_dir,
-            command_line=self._informer.info.getCommandLineForResubmit(),
+            command_line=self._informer.info.get_command_line_for_resubmit(),
             max_tries=CFG.runner.retry_tries,
             wait_seconds=CFG.runner.retry_wait,
         ).run()
 
         logger.info("Job successfully resubmitted.")
 
-    def _getExplicitlyIncludedFilesInWorkDir(self) -> list[Path]:
+    def _get_explicitly_included_files_in_work_dir(self) -> list[Path]:
         """
         Return absolute paths to files and directories in the working directory
         that were explicitly copied via the `--include` submission option.
         """
         files = [
-            (self._work_dir / f.name).resolve()
+            logical_resolve(self._work_dir / f.name)
             for f in self._informer.info.included_files
         ]
 
@@ -707,18 +747,18 @@ class Runner:
 
         return files
 
-    def _copyFiles(self, files: list[Path]):
+    def _copy_files(self, files: list[Path]):
         """
         Copy files and directories using the provided absolute paths to the working directory.
         """
         for file in files:
             # we rsync each file or directory individually because each file can be provided in a different directory
             # this may be very slow if there is a large amount of files/directories to include
-            self._batch_system.syncSelected(
+            self._batch_system.sync_selected(
                 file.parent,
                 self._work_dir,
                 self._informer.info.input_machine,
-                socket.gethostname(),
+                socket.getfqdn(),
                 [file],
             )
 
@@ -731,7 +771,7 @@ class Runner:
         - Terminates the subprocess.
         """
         # update the qq info file
-        self._updateInfoKilled()
+        self._update_info_killed()
 
         # send SIGTERM to the running process, if there is any
         # this may potentially not even be called -- the subprocess might be already terminated
@@ -746,7 +786,7 @@ class Runner:
 
         # copy runtime files to input dir without retrying
         if self._use_scratch:
-            self._copyRunTimeFilesToInputDir(retry=False)
+            self._copy_runtime_files_to_input_dir(retry=False)
 
     def _handle_sigterm(self, _signum: int, _frame: FrameType | None) -> NoReturn:
         """

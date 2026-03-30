@@ -18,6 +18,7 @@ from qq_lib.core.common import hhmmss_to_duration, load_yaml_dumper
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
 
@@ -39,13 +40,13 @@ class PBSJob(BatchJobInterface):
 
         self.update()
 
-    def isEmpty(self) -> bool:
+    def is_empty(self) -> bool:
         return not self._info
 
-    def getId(self) -> str:
+    def get_id(self) -> str:
         return self._job_id
 
-    def getAccount(self) -> str | None:
+    def get_account(self) -> str | None:
         return None
 
     def update(self) -> None:
@@ -70,7 +71,7 @@ class PBSJob(BatchJobInterface):
         else:
             self._info = parse_pbs_dump_to_dictionary(result.stdout)
 
-    def getState(self) -> BatchState:
+    def get_state(self) -> BatchState:
         if not (state := self._info.get("job_state")):
             return BatchState.UNKNOWN
 
@@ -81,17 +82,17 @@ class PBSJob(BatchJobInterface):
 
         # if the job is finished and the return code is not zero, return FAILED
         if state == "F":
-            exit_code = self.getExitCode()
+            exit_code = self.get_exit_code()
             # if exit code does not exist, the job never ran and was likely killed
             if exit_code is None or exit_code != 0:
                 return BatchState.FAILED
 
-        return BatchState.fromCode(state)
+        return BatchState.from_code(state)
 
-    def getComment(self) -> str | None:
+    def get_comment(self) -> str | None:
         return self._info.get("comment")
 
-    def getEstimated(self) -> tuple[datetime, str] | None:
+    def get_estimated(self) -> tuple[datetime, str] | None:
         if not (raw_time := self._info.get("estimated.start_time")):
             logger.debug("No 'estimated.start_time' found.")
             return None
@@ -111,49 +112,49 @@ class PBSJob(BatchJobInterface):
 
         vnodes = []
         for split in raw_vnode.split("+"):
-            vnodes.append(PBSJob._cleanNodeName(split.strip()))
+            vnodes.append(PBSJob._clean_node_name(split.strip()))
 
         return (time, " + ".join(vnodes))
 
-    def getMainNode(self) -> str | None:
+    def get_main_node(self) -> str | None:
         if raw_node := self._info.get("exec_host2"):
-            return PBSJob._cleanNodeName(raw_node.split("+")[0].strip())
+            return PBSJob._clean_node_name(raw_node.split("+")[0].strip())
 
         return None
 
-    def getNodes(self) -> list[str] | None:
+    def get_nodes(self) -> list[str] | None:
         if not (raw_nodes := self._info.get("exec_host2")):
             return None
 
         nodes = []
         for node in raw_nodes.split("+"):
-            nodes.append(PBSJob._cleanNodeName(node.strip()))
+            nodes.append(PBSJob._clean_node_name(node.strip()))
 
         return nodes
 
-    def getShortNodes(self) -> list[str] | None:
+    def get_short_nodes(self) -> list[str] | None:
         if not (raw_nodes := self._info.get("exec_host")):
             return None
 
         nodes = []
         for node in raw_nodes.split("+"):
-            nodes.append(PBSJob._cleanNodeName(node.strip()))
+            nodes.append(PBSJob._clean_node_name(node.strip()))
 
         return nodes
 
-    def getName(self) -> str | None:
+    def get_name(self) -> str | None:
         return self._info.get("Job_Name")
 
-    def getNCPUs(self) -> int | None:
-        return self._getIntProperty("Resource_List.ncpus", "the number of CPUs")
+    def get_n_cpus(self) -> int | None:
+        return self._get_int_property("Resource_List.ncpus", "the number of CPUs")
 
-    def getNGPUs(self) -> int | None:
-        return self._getIntProperty("Resource_List.ngpus", "the number of GPUs")
+    def get_n_gpus(self) -> int | None:
+        return self._get_int_property("Resource_List.ngpus", "the number of GPUs")
 
-    def getNNodes(self) -> int | None:
-        return self._getIntProperty("Resource_List.nodect", "the number of nodes")
+    def get_n_nodes(self) -> int | None:
+        return self._get_int_property("Resource_List.nodect", "the number of nodes")
 
-    def getMem(self) -> Size | None:
+    def get_mem(self) -> Size | None:
         if not (mem := self._info.get("Resource_List.mem")):
             logger.debug(
                 f"Could not get information about the amount of memory from the batch system for '{self._job_id}'."
@@ -161,33 +162,33 @@ class PBSJob(BatchJobInterface):
             return None
 
         try:
-            return Size.fromString(mem)
+            return Size.from_string(mem)
         except Exception as e:
             logger.warning(f"Could not parse memory for '{self._job_id}': {e}.")
             return None
 
-    def getStartTime(self) -> datetime | None:
-        return self._getDatetimeProperty("stime", "the job start time")
+    def get_start_time(self) -> datetime | None:
+        return self._get_datetime_property("stime", "the job start time")
 
-    def getSubmissionTime(self) -> datetime | None:
-        return self._getDatetimeProperty("ctime", "the job submission time")
+    def get_submission_time(self) -> datetime | None:
+        return self._get_datetime_property("ctime", "the job submission time")
 
-    def getCompletionTime(self) -> datetime | None:
-        return self._getDatetimeProperty("obittime", "the job completion time")
+    def get_completion_time(self) -> datetime | None:
+        return self._get_datetime_property("obittime", "the job completion time")
 
-    def getModificationTime(self) -> datetime | None:
+    def get_modification_time(self) -> datetime | None:
         return (
-            self._getDatetimeProperty("mtime", "the job modification time")
-            or self.getSubmissionTime()
+            self._get_datetime_property("mtime", "the job modification time")
+            or self.get_submission_time()
         )
 
-    def getUser(self) -> str | None:
+    def get_user(self) -> str | None:
         if not (user := self._info.get("Job_Owner")):
             return None
 
         return user.split("@")[0]
 
-    def getWalltime(self) -> timedelta | None:
+    def get_walltime(self) -> timedelta | None:
         if not (walltime := self._info.get("Resource_List.walltime")):
             return None
 
@@ -197,17 +198,17 @@ class PBSJob(BatchJobInterface):
             logger.warning(f"Could not parse walltime for '{self._job_id}': {e}.")
             return None
 
-    def getQueue(self) -> str | None:
+    def get_queue(self) -> str | None:
         return self._info.get("queue")
 
-    def getUtilCPU(self) -> int | None:
+    def get_util_cpu(self) -> int | None:
         if not (util_cpu := self._info.get("resources_used.cpupercent")):
             logger.debug(
                 f"Information about CPU utilization is not available for '{self._job_id}'."
             )
             return None
 
-        if not (ncpus := self.getNCPUs()):
+        if not (ncpus := self.get_n_cpus()):
             logger.debug(
                 f"Information about the number of CPUs is not available for '{self._job_id}'."
             )
@@ -217,27 +218,27 @@ class PBSJob(BatchJobInterface):
             # PBS report CPU utilization in the same way as `top` - we have to divide by number of CPUs
             return int(util_cpu) // ncpus
         except Exception as e:
-            # this catches both invalid util_cpu and invalid getNCPUs
+            # this catches both invalid util_cpu and invalid get_n_cpus
             logger.warning(
                 f"Could not parse information about CPU utilization for '{self._job_id}': {e}."
             )
             return None
 
-    def getUtilMem(self) -> int | None:
+    def get_util_mem(self) -> int | None:
         if not (util_mem := self._info.get("resources_used.mem")):
             logger.debug(
                 f"Information about memory utilization is not available for '{self._job_id}'."
             )
             return None
 
-        if not (mem := self.getMem()):
+        if not (mem := self.get_mem()):
             logger.debug(
                 f"Information about the amount of memory is not available for '{self._job_id}'."
             )
             return None
 
         try:
-            util_mem_kb = Size.fromString(util_mem).value
+            util_mem_kb = Size.from_string(util_mem).value
             return int(util_mem_kb / mem.value * 100.0)
         except Exception as e:
             logger.warning(
@@ -245,7 +246,7 @@ class PBSJob(BatchJobInterface):
             )
             return None
 
-    def getExitCode(self) -> int | None:
+    def get_exit_code(self) -> int | None:
         if not (exit := self._info.get("Exit_status")):
             return None
 
@@ -255,11 +256,11 @@ class PBSJob(BatchJobInterface):
             logger.warning(f"Could not parse exit code for '{self._job_id}': {e}.")
             return None
 
-    def getInputMachine(self) -> str | None:
+    def get_input_machine(self) -> str | None:
         return self._info.get("Submit_Host")
 
-    def getInputDir(self) -> Path | None:
-        if not (env_vars := self._getEnvVars()):
+    def get_input_dir(self) -> Path | None:
+        if not (env_vars := self._get_env_vars()):
             logger.debug(
                 f"Could not get list of environment variables for '{self._job_id}'."
             )
@@ -273,10 +274,10 @@ class PBSJob(BatchJobInterface):
             logger.debug(f"Could not obtain input directory for '{self._job_id}'.")
             return None
 
-        return Path(input_dir).resolve()
+        return logical_resolve(Path(input_dir))
 
-    def getInfoFile(self) -> Path | None:
-        if not (env_vars := self._getEnvVars()):
+    def get_info_file(self) -> Path | None:
+        if not (env_vars := self._get_env_vars()):
             logger.debug(
                 f"Could not get list of environment variables for '{self._job_id}'."
             )
@@ -290,28 +291,28 @@ class PBSJob(BatchJobInterface):
 
         return Path(info_file)
 
-    def toYaml(self) -> str:
+    def to_yaml(self) -> str:
         # we need to add job id to the start of the dictionary
         to_dump = {"Job Id": self._job_id} | self._info
         return yaml.dump(
             to_dump, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
-    def getSteps(self) -> Sequence[Self]:
+    def get_steps(self) -> Sequence[Self]:
         # not available for PBS
         return []
 
-    def getStepId(self) -> str | None:
+    def get_step_id(self) -> str | None:
         # no job steps for PBS
         return None
 
-    def isArrayJob(self) -> bool:
+    def is_array_job(self) -> bool:
         return (
             array := self._info.get("array")
         ) is not None and array.lower() == "true"
 
     @classmethod
-    def fromDict(cls, job_id: str, info: dict[str, str]) -> Self:
+    def from_dict(cls, job_id: str, info: dict[str, str]) -> Self:
         """
         Construct a new instance of PBSJob from a job ID and a dictionary of job information.
 
@@ -334,7 +335,7 @@ class PBSJob(BatchJobInterface):
 
         return job_info
 
-    def getIdInt(self) -> int | None:
+    def get_id_int(self) -> int | None:
         """
         Extract the leading numeric portion of the job ID and return it as an integer.
 
@@ -342,10 +343,10 @@ class PBSJob(BatchJobInterface):
             int | None: The integer value of the leading digits in the job ID,
             or `None` if no valid digits are found or conversion fails.
         """
-        match = re.match(r"\d+", self.getId())
+        match = re.match(r"\d+", self.get_id())
         return int(match.group()) if match else None
 
-    def _getEnvVars(self) -> dict[str, str] | None:
+    def _get_env_vars(self) -> dict[str, str] | None:
         """
         Retrieve environment variables associated with the job.
 
@@ -360,7 +361,7 @@ class PBSJob(BatchJobInterface):
             item.split("=", 1) for item in variable_list.split(",") if "=" in item
         )
 
-    def _getIntProperty(self, property: str, property_name: str) -> int | None:
+    def _get_int_property(self, property: str, property_name: str) -> int | None:
         """
         Retrieve an integer property value from the job information.
 
@@ -381,7 +382,7 @@ class PBSJob(BatchJobInterface):
             )
             return None
 
-    def _getDatetimeProperty(
+    def _get_datetime_property(
         self, property: str, property_name: str
     ) -> datetime | None:
         """
@@ -406,7 +407,7 @@ class PBSJob(BatchJobInterface):
             return None
 
     @staticmethod
-    def _cleanNodeName(raw: str) -> str:
+    def _clean_node_name(raw: str) -> str:
         """
         Normalize a raw node string to extract the clean hostname.
 

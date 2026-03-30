@@ -104,6 +104,8 @@ class RunnerSettings:
     sigterm_to_sigkill: int = 5
     # Interval (in seconds) between successive checks of the running script's state.
     subprocess_checks_wait_time: int = 2
+    # Default intepreter used to run the submitted scripts in the qq environment.
+    default_interpreter: str = "bash"
 
 
 @dataclass
@@ -201,6 +203,8 @@ class JobsPresenterSettings:
     border_style: str = "white"
     # Style used for the title.
     title_style: str = "white bold"
+    # Style used for the subtitle (server name).
+    subtitle_style: str = "white bold"
     # Style used for table headers.
     headers_style: str = "default"
     # Style used for table values.
@@ -233,6 +237,8 @@ class QueuesPresenterSettings:
     border_style: str = "white"
     # Style used for the title.
     title_style: str = "white bold"
+    # Style used for the subtitle (server name).
+    subtitle_style: str = "white bold"
     # Style used for table headers.
     headers_style: str = "default"
 
@@ -273,6 +279,8 @@ class NodesPresenterSettings:
     border_style: str = "white"
     # Style used for the title.
     title_style: str = "white bold"
+    # Style used for the subtitle (server name).
+    subtitle_style: str = "white bold"
     # Style used for table headers.
     headers_style: str = "default"
     # Style of the separators between individual sections of the panel.
@@ -415,6 +423,30 @@ class TransferFilesOptions:
 
 
 @dataclass
+class BatchServersOptions:
+    """Options associated with selecting and specifying batch servers."""
+
+    # Dictionary mapping known server shortcuts to full server names.
+    known_servers: dict[str, str] = field(
+        default_factory=lambda: {
+            "robox": "robox-pro.ceitec.muni.cz",
+            "sokar": "sokar-pbs.ncbr.muni.cz",
+            "metacentrum": "pbs-m1.metacentrum.cz",
+            "meta": "pbs-m1.metacentrum.cz",
+        }
+    )
+
+    # Dictionary mapping known server names to frontends.
+    known_output_hosts: dict[str, str] = field(
+        default_factory=lambda: {
+            "robox-pro.ceitec.muni.cz": "st1.ceitec.muni.cz",
+            "sokar-pbs.ncbr.muni.cz": "sokar.ncbr.muni.cz",
+            "pbs-m1.metacentrum.cz": "perian.metacentrum.cz",
+        }
+    )
+
+
+@dataclass
 class Config:
     """Main configuration for qq."""
 
@@ -443,6 +475,9 @@ class Config:
     slurm_lumi_options: SlurmLumiOptions = field(default_factory=SlurmLumiOptions)
     transfer_files_options: TransferFilesOptions = field(
         default_factory=TransferFilesOptions
+    )
+    batch_servers_options: BatchServersOptions = field(
+        default_factory=BatchServersOptions
     )
 
     # Name of the qq binary.

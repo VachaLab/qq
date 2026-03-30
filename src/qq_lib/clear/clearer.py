@@ -40,14 +40,14 @@ class Clearer:
             force (bool): If True, remove all qq runtime files, even if unsafe.
         """
         # get all qq runtime files
-        files = self._collectRunTimeFiles()
+        files = self._collect_runtime_files()
         logger.debug(f"All qq runtime files: {files}.")
         if not files:
             logger.info("Nothing to clear.")
             return
 
         # get files that should not be deleted
-        excluded: set[Path] = self._collectExcludedFiles() if not force else set()
+        excluded: set[Path] = self._collect_excluded_files() if not force else set()
         logger.debug(f"Files excluded from clearing: {excluded}.")
 
         # get files that are safe to be deleted
@@ -60,7 +60,7 @@ class Clearer:
             return
 
         # remove the files that are safe to be deleted
-        Clearer._deleteFiles(to_delete)
+        Clearer._delete_files(to_delete)
         logger.info(
             f"Removed {len(to_delete)} qq file{'s' if len(to_delete) > 1 else ''}."
         )
@@ -69,7 +69,7 @@ class Clearer:
                 f"{len(excluded)} qq files could not be safely cleared. Rerun as '{CFG.binary_name} clear --force' to clear them forcibly."
             )
 
-    def _collectRunTimeFiles(self) -> set[Path]:
+    def _collect_runtime_files(self) -> set[Path]:
         """
         Collect all qq runtime files in the directory.
 
@@ -78,7 +78,7 @@ class Clearer:
         """
         return set(get_runtime_files(self._directory))
 
-    def _collectExcludedFiles(self) -> set[Path]:
+    def _collect_excluded_files(self) -> set[Path]:
         """
         Collect qq runtime files that should **not** be deleted.
 
@@ -92,8 +92,8 @@ class Clearer:
         # iterate through info files
         for file in get_info_files(self._directory):
             try:
-                informer = Informer.fromFile(file)
-                state = informer.getRealState()
+                informer = Informer.from_file(file)
+                state = informer.get_real_state()
                 logger.debug(f"Job state: {str(state)}.")
             except QQError:
                 # ignore the file if it cannot be read
@@ -120,7 +120,7 @@ class Clearer:
         return set(excluded)
 
     @staticmethod
-    def _deleteFiles(files: Iterable[Path]) -> None:
+    def _delete_files(files: Iterable[Path]) -> None:
         """
         Delete all specified files.
 

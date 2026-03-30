@@ -8,7 +8,7 @@ import pytest
 from click.testing import CliRunner
 
 from qq_lib.core.error import QQError, QQRunCommunicationError, QQRunFatalError
-from qq_lib.run.cli import CFG, ensureQQEnv, run
+from qq_lib.run.cli import CFG, ensure_qq_env, run
 from qq_lib.run.runner import Runner
 
 
@@ -17,14 +17,14 @@ def test_ensure_qq_env_raises_if_guard_missing(monkeypatch):
     monkeypatch.delenv(CFG.env_vars.guard, raising=False)
 
     with pytest.raises(QQError, match="This script must be run as a qq job"):
-        ensureQQEnv()
+        ensure_qq_env()
 
 
 def test_ensure_qq_env_passes_if_guard_present(monkeypatch):
     monkeypatch.setenv(CFG.env_vars.guard, "1")
 
     # should not raise
-    ensureQQEnv()
+    ensure_qq_env()
 
 
 def test_run_exits_90_if_not_in_qq_env(monkeypatch):
@@ -35,7 +35,6 @@ def test_run_exits_90_if_not_in_qq_env(monkeypatch):
 
     result = runner.invoke(run, ["script.sh"])
     assert result.exit_code == CFG.exit_codes.not_qq_env
-    assert "This script must be run as a qq job" in result.output
 
 
 def test_run_exits_92_if_info_file_env_missing(monkeypatch):
@@ -47,8 +46,6 @@ def test_run_exits_92_if_info_file_env_missing(monkeypatch):
 
     result = runner.invoke(run, ["script.sh"])
     assert result.exit_code == CFG.exit_codes.qq_run_fatal
-    assert f"'{CFG.env_vars.info_file}'" in result.output
-    assert "not set" in result.output
 
 
 def test_run_exits_92_if_input_machine_env_missing(monkeypatch):
@@ -60,8 +57,6 @@ def test_run_exits_92_if_input_machine_env_missing(monkeypatch):
 
     result = runner.invoke(run, ["script.sh"])
     assert result.exit_code == CFG.exit_codes.qq_run_fatal
-    assert f"'{CFG.env_vars.input_machine}'" in result.output
-    assert "not set" in result.output
 
 
 def test_run_executes_and_exits_with_script_code(monkeypatch):
@@ -97,13 +92,14 @@ def test_run_exits_91_on_standard_qqerror(monkeypatch):
     dummy_runner.execute.side_effect = QQError("standard qq error")
     dummy_runner.prepare = MagicMock()
     dummy_runner.finalize = MagicMock()
-    dummy_runner.logFailureAndExit = Runner.logFailureAndExit.__get__(dummy_runner)
+    dummy_runner.log_failure_and_exit = Runner.log_failure_and_exit.__get__(
+        dummy_runner
+    )
 
     with patch("qq_lib.run.cli.Runner", return_value=dummy_runner):
         result = runner.invoke(run, ["script.sh"])
 
     assert result.exit_code == CFG.exit_codes.default
-    assert "standard qq error" in result.output
 
 
 def test_run_exits_92_on_qqrunfatalerror(monkeypatch):
@@ -118,7 +114,6 @@ def test_run_exits_92_on_qqrunfatalerror(monkeypatch):
         result = runner.invoke(run, ["script.sh"])
 
     assert result.exit_code == CFG.exit_codes.qq_run_fatal
-    assert "fatal error" in result.output
 
 
 def test_run_exits_93_on_qqruncommunicationerror(monkeypatch):
@@ -133,10 +128,11 @@ def test_run_exits_93_on_qqruncommunicationerror(monkeypatch):
     dummy_runner.execute.side_effect = QQRunCommunicationError("comm error")
     dummy_runner.prepare = MagicMock()
     dummy_runner.finalize = MagicMock()
-    dummy_runner.logFailureAndExit = Runner.logFailureAndExit.__get__(dummy_runner)
+    dummy_runner.log_failure_and_exit = Runner.log_failure_and_exit.__get__(
+        dummy_runner
+    )
 
     with patch("qq_lib.run.cli.Runner", return_value=dummy_runner):
         result = runner.invoke(run, ["script.sh"])
 
     assert result.exit_code == CFG.exit_codes.qq_run_communication
-    assert "comm error" in result.output

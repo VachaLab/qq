@@ -20,11 +20,11 @@ class BatchJobInterface(ABC):
     Must support situations where the job information no longer exists.
 
     The implementation of the constructor is arbitrary and should only
-    be used inside the corresponding implementation of `BatchInterface.getBatchJob`.
+    be used inside the corresponding implementation of `BatchInterface.get_batch_job`.
     """
 
     @abstractmethod
-    def isEmpty(self) -> bool:
+    def is_empty(self) -> bool:
         """
         Check whether the job contains any information.
         This should return True if the job does not exist in the batch system.
@@ -34,7 +34,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getId(self) -> str:
+    def get_id(self) -> str:
         """
         Return the ID of the job.
 
@@ -43,7 +43,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getAccount(self) -> str | None:
+    def get_account(self) -> str | None:
         """
         Return the account under which the job is submitted.
 
@@ -62,7 +62,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getState(self) -> BatchState:
+    def get_state(self) -> BatchState:
         """
         Return the current state of the job as reported by the batch system.
 
@@ -73,7 +73,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getComment(self) -> str | None:
+    def get_comment(self) -> str | None:
         """
         Retrieve the batch system-provided comment for the job.
 
@@ -83,7 +83,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getEstimated(self) -> tuple[datetime, str] | None:
+    def get_estimated(self) -> tuple[datetime, str] | None:
         """
         Retrieve the batch system's estimated job start time and execution node.
 
@@ -95,7 +95,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getMainNode(self) -> str | None:
+    def get_main_node(self) -> str | None:
         """
         Retrieve the hostname of the main execution node for the job.
 
@@ -105,7 +105,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getNodes(self) -> list[str] | None:
+    def get_nodes(self) -> list[str] | None:
         """
         Retrieve the hostnames of all execution nodes allocated for the job.
 
@@ -116,7 +116,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getShortNodes(self) -> list[str] | None:
+    def get_short_nodes(self) -> list[str] | None:
         """
         Retrieve the short hostnames of all execution nodes allocated for the job.
 
@@ -127,7 +127,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getUser(self) -> str | None:
+    def get_user(self) -> str | None:
         """
         Return the username of the job owner.
 
@@ -136,7 +136,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getNCPUs(self) -> int | None:
+    def get_n_cpus(self) -> int | None:
         """
         Return the number of CPU cores allocated for the job.
 
@@ -145,7 +145,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getNGPUs(self) -> int | None:
+    def get_n_gpus(self) -> int | None:
         """
         Return the number of GPUs allocated for the job.
 
@@ -154,7 +154,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getNNodes(self) -> int | None:
+    def get_n_nodes(self) -> int | None:
         """
         Return the number of compute nodes assigned to the job.
 
@@ -163,7 +163,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getMem(self) -> Size | None:
+    def get_mem(self) -> Size | None:
         """
         Return the amount of memory allocated for the job.
 
@@ -172,7 +172,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getName(self) -> str | None:
+    def get_name(self) -> str | None:
         """
         Return the name of the job.
 
@@ -181,7 +181,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getSubmissionTime(self) -> datetime | None:
+    def get_submission_time(self) -> datetime | None:
         """
         Return the timestamp when the job was submitted.
 
@@ -191,7 +191,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getStartTime(self) -> datetime | None:
+    def get_start_time(self) -> datetime | None:
         """
         Return the timestamp when the job started execution.
 
@@ -201,7 +201,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getCompletionTime(self) -> datetime | None:
+    def get_completion_time(self) -> datetime | None:
         """
         Return the timestamp when the job was completed.
 
@@ -211,7 +211,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getModificationTime(self) -> datetime | None:
+    def get_modification_time(self) -> datetime | None:
         """
         Return the timestamp at which the job was last modified.
 
@@ -221,7 +221,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getWalltime(self) -> timedelta | None:
+    def get_walltime(self) -> timedelta | None:
         """
         Return the walltime limit of the job.
 
@@ -230,7 +230,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getQueue(self) -> str | None:
+    def get_queue(self) -> str | None:
         """
         Return the submission queue of the job.
 
@@ -239,7 +239,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getUtilCPU(self) -> int | None:
+    def get_util_cpu(self) -> int | None:
         """
         Return the utilization of requested CPUs in percents (0-100).
 
@@ -248,7 +248,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getUtilMem(self) -> int | None:
+    def get_util_mem(self) -> int | None:
         """
         Return the utilization of requested memory in percents (0-100).
 
@@ -257,7 +257,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getExitCode(self) -> int | None:
+    def get_exit_code(self) -> int | None:
         """
         Return the exit code of the job.
 
@@ -266,7 +266,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getInputDir(self) -> Path | None:
+    def get_input_dir(self) -> Path | None:
         """
         Return path to the directory from which the job was submitted.
 
@@ -275,7 +275,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getInputMachine(self) -> str | None:
+    def get_input_machine(self) -> str | None:
         """
         Return the hostname of the submission machine.
 
@@ -284,7 +284,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getInfoFile(self) -> Path | None:
+    def get_info_file(self) -> Path | None:
         """
         Return path to the info file associated with this job.
 
@@ -294,7 +294,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def toYaml(self) -> str:
+    def to_yaml(self) -> str:
         """
         Return all information about the job from the batch system in YAML format.
 
@@ -303,7 +303,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getSteps(self) -> Sequence[Self]:
+    def get_steps(self) -> Sequence[Self]:
         """
         Return a list of steps associated with this job.
 
@@ -315,7 +315,7 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def getStepId(self) -> str | None:
+    def get_step_id(self) -> str | None:
         """
         Return the step index if this job is a job step.
 
@@ -324,10 +324,21 @@ class BatchJobInterface(ABC):
         """
 
     @abstractmethod
-    def isArrayJob(self) -> bool:
+    def is_array_job(self) -> bool:
         """
         Return `True` if the job is a top-level array job (not a sub-job).
 
         Returns:
             bool: `True` if the job is a top-level array job, else `False`.
         """
+
+    def is_completed(self) -> bool:
+        """
+        Return `True` if the job is completed according to the batch system.
+
+        By default, a completed job is a job that is FINISHED or FAILED.
+
+        Returns:
+            bool: `True` if the job is completed, else `False`.
+        """
+        return self.get_state() in {BatchState.FINISHED, BatchState.FAILED}

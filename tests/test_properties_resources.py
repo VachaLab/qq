@@ -136,10 +136,10 @@ def test_init_leaves_already_converted_types_unchanged():
         nnodes=2,
         ncpus=16,
         ngpus=4,
-        mem=Size.fromString("8gb"),
-        mem_per_cpu=Size.fromString("2gb"),
-        work_size=Size.fromString("100gb"),
-        work_size_per_cpu=Size.fromString("10gb"),
+        mem=Size.from_string("8gb"),
+        mem_per_cpu=Size.from_string("2gb"),
+        work_size=Size.from_string("100gb"),
+        work_size_per_cpu=Size.from_string("10gb"),
         walltime="01:00:00",
         props={"gpu": "true"},
     )
@@ -157,7 +157,7 @@ def test_init_leaves_already_converted_types_unchanged():
 def test_merge_resources_basic_field_precedence():
     r1 = Resources(ncpus=4, work_dir="input_dir")
     r2 = Resources(ncpus=8, work_dir="scratch_local")
-    merged = Resources.mergeResources(r1, r2)
+    merged = Resources.merge_resources(r1, r2)
 
     assert merged.ncpus == 4
     assert merged.work_dir == "input_dir"
@@ -167,7 +167,7 @@ def test_merge_resources_props_1():
     r1 = Resources(props="cl_example,ssd")
     r2 = Resources(props="ssd:infiniband")
     r3 = Resources(props=None)
-    merged = Resources.mergeResources(r1, r2, r3)
+    merged = Resources.merge_resources(r1, r2, r3)
 
     assert merged.props == {"cl_example": "true", "ssd": "true"}
 
@@ -176,7 +176,7 @@ def test_merge_resources_props_2():
     r1 = Resources(props="vnode=example_node  ^ssd")
     r2 = Resources(props="ssd,infiniband:^property")
     r3 = Resources(props=None)
-    merged = Resources.mergeResources(r1, r2, r3)
+    merged = Resources.merge_resources(r1, r2, r3)
 
     assert merged.props == {
         "vnode": "example_node",
@@ -188,7 +188,7 @@ def test_merge_resources_props_3():
     r1 = Resources(props="vnode=^example_node  ssd")
     r2 = Resources(props=None)
     r3 = Resources(props="^ssd,infiniband:property")
-    merged = Resources.mergeResources(r1, r2, r3)
+    merged = Resources.merge_resources(r1, r2, r3)
 
     assert merged.props == {
         "vnode": "^example_node",
@@ -199,7 +199,7 @@ def test_merge_resources_props_3():
 def test_merge_resources_props_none_when_no_values():
     r1 = Resources()
     r2 = Resources()
-    merged = Resources.mergeResources(r1, r2)
+    merged = Resources.merge_resources(r1, r2)
     assert merged.props is None
 
 
@@ -207,7 +207,7 @@ def test_merge_resources_mem_with_mem_per_cpu_precedence():
     r1 = Resources(mem="16gb")
     r2 = Resources(mem="32gb", mem_per_cpu="4gb")
     r3 = Resources(mem="64gb")
-    merged = Resources.mergeResources(r1, r2, r3)
+    merged = Resources.merge_resources(r1, r2, r3)
     assert merged.mem is not None
     assert merged.mem.value == 16777216
 
@@ -218,7 +218,7 @@ def test_merge_resources_mem_with_mem_per_cpu_precedence2():
     r1 = Resources()
     r2 = Resources(mem="32gb", mem_per_cpu="4gb")
     r3 = Resources(mem="64gb")
-    merged = Resources.mergeResources(r1, r2, r3)
+    merged = Resources.merge_resources(r1, r2, r3)
     assert merged.mem is not None
     assert merged.mem.value == 33554432
     assert merged.mem_per_cpu is None
@@ -228,7 +228,7 @@ def test_merge_resources_mem_with_mem_per_cpu_precedence3():
     r1 = Resources()
     r2 = Resources(mem_per_cpu="4gb")
     r3 = Resources(mem="64gb")
-    merged = Resources.mergeResources(r1, r2, r3)
+    merged = Resources.merge_resources(r1, r2, r3)
     assert merged.mem is None
     assert merged.mem_per_cpu is not None
     assert merged.mem_per_cpu.value == 4194304
@@ -238,7 +238,7 @@ def test_merge_resources_mem_with_mem_per_node_precedence():
     r1 = Resources(mem_per_node="16gb")
     r2 = Resources(mem="32gb", mem_per_cpu="4gb")
     r3 = Resources(mem="64gb")
-    merged = Resources.mergeResources(r1, r2, r3)
+    merged = Resources.merge_resources(r1, r2, r3)
     assert merged.mem_per_cpu is None
     assert merged.mem is None
     assert merged.mem_per_node is not None
@@ -248,7 +248,7 @@ def test_merge_resources_mem_with_mem_per_node_precedence():
 def test_merge_resources_mem_skipped_if_mem_per_cpu_seen_first():
     r1 = Resources(mem_per_cpu="4gb")
     r2 = Resources(mem="32gb")
-    merged = Resources.mergeResources(r1, r2)
+    merged = Resources.merge_resources(r1, r2)
     assert merged.mem is None
     assert merged.mem_per_cpu is not None
     assert merged.mem_per_cpu.value == 4194304
@@ -258,7 +258,7 @@ def test_merge_resources_work_size_with_work_size_per_cpu_precedence():
     r1 = Resources(work_size="100gb")
     r2 = Resources(work_size="200gb", work_size_per_cpu="10gb")
     r3 = Resources(work_size="300gb")
-    merged = Resources.mergeResources(r1, r2, r3)
+    merged = Resources.merge_resources(r1, r2, r3)
     assert merged.work_size is not None
     assert merged.work_size.value == 104857600
 
@@ -269,7 +269,7 @@ def test_merge_resources_work_size_with_work_size_per_cpu_precedence2():
     r1 = Resources()
     r2 = Resources(work_size="200gb", work_size_per_cpu="10gb")
     r3 = Resources(work_size="300gb")
-    merged = Resources.mergeResources(r1, r2, r3)
+    merged = Resources.merge_resources(r1, r2, r3)
     assert merged.work_size is not None
     assert merged.work_size.value == 209715200
 
@@ -280,7 +280,7 @@ def test_merge_resources_work_size_with_work_size_per_cpu_precedence3():
     r1 = Resources()
     r2 = Resources(work_size_per_cpu="10gb")
     r3 = Resources(work_size="300gb")
-    merged = Resources.mergeResources(r1, r2, r3)
+    merged = Resources.merge_resources(r1, r2, r3)
     assert merged.work_size is None
     assert merged.work_size_per_cpu is not None
     assert merged.work_size_per_cpu.value == 10485760
@@ -290,7 +290,7 @@ def test_merge_resources_work_size_with_work_size_per_node_precedence():
     r1 = Resources(work_size_per_node="100gb")
     r2 = Resources(work_size="400gb", work_size_per_cpu="10gb")
     r3 = Resources(work_size="200gb")
-    merged = Resources.mergeResources(r1, r2, r3)
+    merged = Resources.merge_resources(r1, r2, r3)
     assert merged.work_size_per_cpu is None
     assert merged.work_size is None
     assert merged.work_size_per_node is not None
@@ -301,7 +301,7 @@ def test_merge_resources_ncpus_with_ncpus_per_node_precedence():
     r1 = Resources(ncpus_per_node=64)
     r2 = Resources(ncpus=128)
     r3 = Resources(ncpus=32)
-    merged = Resources.mergeResources(r1, r2, r3)
+    merged = Resources.merge_resources(r1, r2, r3)
     assert merged.ncpus is None
     assert merged.ncpus_per_node == 64
 
@@ -310,7 +310,7 @@ def test_merge_resources_ncpus_with_ncpus_per_node_precedence2():
     r1 = Resources()
     r2 = Resources(ncpus=128, ncpus_per_node=64)
     r3 = Resources(ncpus=32)
-    merged = Resources.mergeResources(r1, r2, r3)
+    merged = Resources.merge_resources(r1, r2, r3)
     assert merged.ncpus == 128
     assert merged.ncpus_per_node is None
 
@@ -319,7 +319,7 @@ def test_merge_resources_ngpus_with_ngpus_per_node_precedence():
     r1 = Resources(ngpus_per_node=8)
     r2 = Resources(ngpus=16)
     r3 = Resources(ngpus=1)
-    merged = Resources.mergeResources(r1, r2, r3)
+    merged = Resources.merge_resources(r1, r2, r3)
     assert merged.ngpus is None
     assert merged.ngpus_per_node == 8
 
@@ -328,7 +328,7 @@ def test_merge_resources_ngpus_with_ngpus_per_node_precedence2():
     r1 = Resources()
     r2 = Resources(ngpus=16, ngpus_per_node=8)
     r3 = Resources(ngpus=1)
-    merged = Resources.mergeResources(r1, r2, r3)
+    merged = Resources.merge_resources(r1, r2, r3)
     assert merged.ngpus == 16
     assert merged.ngpus_per_node is None
 
@@ -336,7 +336,7 @@ def test_merge_resources_ngpus_with_ngpus_per_node_precedence2():
 def test_merge_resources_work_size_skipped_if_work_size_per_cpu_seen_first():
     r1 = Resources(work_size_per_cpu="10gb")
     r2 = Resources(work_size="200gb")
-    merged = Resources.mergeResources(r1, r2)
+    merged = Resources.merge_resources(r1, r2)
     assert merged.work_size is None
     assert merged.work_size_per_cpu is not None
     assert merged.work_size_per_cpu.value == 10485760
@@ -359,7 +359,7 @@ def test_merge_resources_all_fields_combined():
         work_dir=None,
         props="^ssd",
     )
-    merged = Resources.mergeResources(r1, r2)
+    merged = Resources.merge_resources(r1, r2)
     assert merged.nnodes == 2
     assert merged.ncpus == 4
     assert merged.mem is None
@@ -375,37 +375,37 @@ def test_merge_resources_all_fields_combined():
 def test_merge_resources_with_none_resources():
     r1 = Resources()
     r2 = Resources()
-    merged = Resources.mergeResources(r1, r2)
+    merged = Resources.merge_resources(r1, r2)
     for f in r1.__dataclass_fields__:
         assert getattr(merged, f) is None
 
 
 def test_parse_size_from_string():
-    result = Resources._parseSize("4gb")
+    result = Resources._parse_size("4gb")
     assert isinstance(result, Size)
     assert result.value == 4194304
 
 
 def test_parse_size_from_size():
-    result = Resources._parseSize(Size(4, "gb"))
+    result = Resources._parse_size(Size(4, "gb"))
     assert isinstance(result, Size)
     assert result.value == 4194304
 
 
 def test_parse_size_from_dict():
     data = {"value": 8, "unit": "mb"}
-    result = Resources._parseSize(data)
+    result = Resources._parse_size(data)
     assert isinstance(result, Size)
     assert result.value == 8192
 
 
 def test_parse_size_invalid_type_int():
-    result = Resources._parseSize(123)
+    result = Resources._parse_size(123)
     assert result is None
 
 
 def test_parse_size_invalid_type_none():
-    result = Resources._parseSize(None)
+    result = Resources._parse_size(None)
     assert result is None
 
 
@@ -425,12 +425,12 @@ def test_parse_size_invalid_type_none():
     ],
 )
 def test_parse_props_various_cases(props, expected):
-    result = Resources._parseProps(props)
+    result = Resources._parse_props(props)
     assert result == expected
 
 
 def test_parse_props_strips_empty_parts():
-    result = Resources._parseProps("foo,, ,bar=1")
+    result = Resources._parse_props("foo,, ,bar=1")
     assert result == {"foo": "true", "bar": "1"}
 
 
@@ -446,25 +446,25 @@ def test_parse_props_strips_empty_parts():
 )
 def test_parse_props_raises_on_duplicate_keys(props):
     with pytest.raises(QQError, match="Property 'foo' is defined multiple times."):
-        Resources._parseProps(props)
+        Resources._parse_props(props)
 
 
 def test_props_to_value_true_value():
     res = Resources.__new__(Resources)
     res.props = {"debug": "true"}
-    assert res._propsToValue() == "debug"
+    assert res._props_to_value() == "debug"
 
 
 def test_props_to_value_false_value():
     res = Resources.__new__(Resources)
     res.props = {"debug": "false"}
-    assert res._propsToValue() == "^debug"
+    assert res._props_to_value() == "^debug"
 
 
 def test_props_to_value_regular_value():
     res = Resources.__new__(Resources)
     res.props = {"mode": "fast"}
-    assert res._propsToValue() == "mode=fast"
+    assert res._props_to_value() == "mode=fast"
 
 
 def test_props_to_value_multiple_mixed_values():
@@ -474,13 +474,13 @@ def test_props_to_value_multiple_mixed_values():
         "optimize": "false",
         "mode": "fast",
     }
-    assert res._propsToValue() == "debug,^optimize,mode=fast"
+    assert res._props_to_value() == "debug,^optimize,mode=fast"
 
 
 def test_props_to_value_empty_dict():
     res = Resources.__new__(Resources)
     res.props = {}
-    assert res._propsToValue() is None
+    assert res._props_to_value() is None
 
 
 def test_props_to_value_non_boolean_strings():
@@ -490,19 +490,19 @@ def test_props_to_value_non_boolean_strings():
         "b": "False",
         "c": "trueish",
     }
-    assert res._propsToValue() == "a=TRUE,b=False,c=trueish"
+    assert res._props_to_value() == "a=TRUE,b=False,c=trueish"
 
 
 def test_to_command_line_int_values():
     res = Resources(nnodes=3, ncpus=12)
 
-    assert res.toCommandLine() == ["--nnodes", "3", "--ncpus", "12"]
+    assert res.to_command_line() == ["--nnodes", "3", "--ncpus", "12"]
 
 
 def test_to_command_line_size_values():
     res = Resources(mem="4gb", work_size="10mb")
 
-    assert res.toCommandLine() == [
+    assert res.to_command_line() == [
         "--mem",
         "4194304kb",
         "--work-size",
@@ -513,7 +513,7 @@ def test_to_command_line_size_values():
 def test_to_command_line_string_values():
     res = Resources(walltime="02:00:00", work_dir="scratch_local")
 
-    assert res.toCommandLine() == [
+    assert res.to_command_line() == [
         "--walltime",
         "02:00:00",
         "--work-dir",
@@ -524,12 +524,12 @@ def test_to_command_line_string_values():
 def test_to_command_line_props_value():
     res = Resources(props="debug,^gpu,type=A")
 
-    assert res.toCommandLine() == ["--props", "debug,^gpu,type=A"]
+    assert res.to_command_line() == ["--props", "debug,^gpu,type=A"]
 
 
 def test_to_command_line_mixed_value_types():
     res = Resources(nnodes=2, mem="1gb", work_dir="scratch", props="debug")
-    assert res.toCommandLine() == [
+    assert res.to_command_line() == [
         "--nnodes",
         "2",
         "--mem",
@@ -543,7 +543,7 @@ def test_to_command_line_mixed_value_types():
 
 def test_to_command_line_mixed_value_types_no_props():
     res = Resources(nnodes=2, mem="1gb", work_dir="scratch")
-    assert res.toCommandLine() == [
+    assert res.to_command_line() == [
         "--nnodes",
         "2",
         "--mem",
@@ -555,4 +555,4 @@ def test_to_command_line_mixed_value_types_no_props():
 
 def test_to_command_line_empty():
     res = Resources()
-    assert res.toCommandLine() == []
+    assert res.to_command_line() == []

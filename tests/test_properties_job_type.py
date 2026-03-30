@@ -29,7 +29,7 @@ def test_str_method():
     ],
 )
 def test_from_str_valid(input_str, expected):
-    assert JobType.fromStr(input_str) == expected
+    assert JobType.from_str(input_str) == expected
 
 
 @pytest.mark.parametrize(
@@ -46,5 +46,5 @@ def test_from_str_valid(input_str, expected):
 )
 def test_from_str_invalid_raises(invalid_str):
     with pytest.raises(QQError) as excinfo:
-        JobType.fromStr(invalid_str)
+        JobType.from_str(invalid_str)
     assert invalid_str in str(excinfo.value)

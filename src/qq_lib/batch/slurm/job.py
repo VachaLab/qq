@@ -15,6 +15,7 @@ from qq_lib.core.common import dhhmmss_to_duration, load_yaml_dumper
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
 
@@ -54,13 +55,13 @@ class SlurmJob(BatchJobInterface):
 
         self.update()
 
-    def isEmpty(self) -> bool:
+    def is_empty(self) -> bool:
         return not self._info
 
-    def getId(self) -> str:
+    def get_id(self) -> str:
         return self._job_id
 
-    def getAccount(self) -> str | None:
+    def get_account(self) -> str | None:
         return self._info.get("Account")
 
     def update(self) -> None:
@@ -106,10 +107,10 @@ class SlurmJob(BatchJobInterface):
             )
             self._info: dict[str, str] = {}
         else:
-            job: SlurmJob = SlurmJob.fromSacctString(result.stdout.strip())
+            job: SlurmJob = SlurmJob.from_sacct_string(result.stdout.strip())
             self._info: dict[str, str] = job._info
 
-    def getState(self) -> BatchState:
+    def get_state(self) -> BatchState:
         if not (raw_state := self._info.get("JobState")):
             return BatchState.UNKNOWN
 
@@ -118,22 +119,22 @@ class SlurmJob(BatchJobInterface):
         # if the job is queued due to depending on another job, it should be considered "held"
         if (
             converted_state == BatchState.QUEUED
-            and (comment := self.getComment())
+            and (comment := self.get_comment())
             and "Dependency" in comment
         ):
             return BatchState.HELD
 
         return converted_state
 
-    def getComment(self) -> str | None:
+    def get_comment(self) -> str | None:
         if (reason := self._info.get("Reason")) and reason != "None":
             return f"Reason: {reason}"
 
         return None
 
-    def getEstimated(self) -> tuple[datetime, str] | None:
+    def get_estimated(self) -> tuple[datetime, str] | None:
         # use "StartTime" as an estimate
-        if not (time := self.getStartTime()) or time == "None":
+        if not (time := self.get_start_time()) or time == "None":
             return None
 
         if not (node_list := self._info.get("SchedNodeList")) or "None" in node_list:
@@ -141,50 +142,50 @@ class SlurmJob(BatchJobInterface):
 
         return (time, node_list)
 
-    def getMainNode(self) -> str | None:
+    def get_main_node(self) -> str | None:
         if (main_node := self._info.get("BatchHost")) and "None" not in main_node:
             return main_node
 
         # if BatchHost does not exist, use the first node from NodeList
-        if nodes := self.getNodes():
+        if nodes := self.get_nodes():
             return nodes[0]
 
         return None
 
-    def getNodes(self) -> list[str] | None:
+    def get_nodes(self) -> list[str] | None:
         if (node_list := self._info.get("NodeList")) and "None" not in node_list:
-            return SlurmJob._expandNodeList(node_list)
+            return SlurmJob._expand_node_list(node_list)
 
         return None
 
-    def getShortNodes(self) -> list[str] | None:
+    def get_short_nodes(self) -> list[str] | None:
         # treat all nodes a single node, without expanding
-        # this assumes that getShortNodes is only used in qq jobs and qq stat
+        # this assumes that get_short_nodes is only used in qq jobs and qq stat
         if (node_list := self._info.get("NodeList")) and "None" not in node_list:
             return [node_list]
 
         return None
 
-    def getName(self) -> str | None:
+    def get_name(self) -> str | None:
         if not (name := self._info.get("JobName")):
             logger.debug(f"Could not get job name for '{self._job_id}'.")
             return None
 
         return name
 
-    def getNCPUs(self) -> int | None:
+    def get_n_cpus(self) -> int | None:
         min_cpus = (
-            self._getIntProperty("MinCPUsNode", "the minimum number of CPUs per node")
+            self._get_int_property("MinCPUsNode", "the minimum number of CPUs per node")
             or 0
-        ) * (self.getNNodes() or 0)
+        ) * (self.get_n_nodes() or 0)
 
-        if not (cpus := self._getIntProperty("NumCPUs", "the number of CPUs")):
+        if not (cpus := self._get_int_property("NumCPUs", "the number of CPUs")):
             return None
 
         return max(min_cpus, cpus)
 
-    def getNGPUs(self) -> int | None:
-        tres = self._getTres()
+    def get_n_gpus(self) -> int | None:
+        tres = self._get_tres()
         for item in tres.split(","):
             if item.startswith("gpu") or item.startswith("gres/gpu"):
                 try:
@@ -197,15 +198,15 @@ class SlurmJob(BatchJobInterface):
 
         return None
 
-    def getNNodes(self) -> int | None:
-        return self._getIntProperty("NumNodes", "the number of nodes")
+    def get_n_nodes(self) -> int | None:
+        return self._get_int_property("NumNodes", "the number of nodes")
 
-    def getMem(self) -> Size | None:
-        tres = self._getTres()
+    def get_mem(self) -> Size | None:
+        tres = self._get_tres()
         for item in tres.split(","):
             if item.startswith("mem="):
                 try:
-                    return Size.fromString(item.split("=", 1)[1])
+                    return Size.from_string(item.split("=", 1)[1])
                 except Exception as e:
                     logger.warning(f"Could not parse memory for '{self._job_id}': {e}.")
                     return None
@@ -213,29 +214,29 @@ class SlurmJob(BatchJobInterface):
         logger.debug(f"Memory not available for '{self._job_id}'.")
         return None
 
-    def getStartTime(self) -> datetime | None:
-        return self._getDatetimeProperty("StartTime", "the job start time")
+    def get_start_time(self) -> datetime | None:
+        return self._get_datetime_property("StartTime", "the job start time")
 
-    def getSubmissionTime(self) -> datetime | None:
-        return self._getDatetimeProperty("SubmitTime", "the job submission time")
+    def get_submission_time(self) -> datetime | None:
+        return self._get_datetime_property("SubmitTime", "the job submission time")
 
-    def getCompletionTime(self) -> datetime | None:
+    def get_completion_time(self) -> datetime | None:
         # the property EndTime is available for running jobs as well (estimated completion time)
         # but that should not matter for our purposes
-        return self._getDatetimeProperty("EndTime", "the job completion time")
+        return self._get_datetime_property("EndTime", "the job completion time")
 
-    def getModificationTime(self) -> datetime | None:
+    def get_modification_time(self) -> datetime | None:
         # assuming this is only used for completed jobs
-        return self.getCompletionTime() or self.getSubmissionTime()
+        return self.get_completion_time() or self.get_submission_time()
 
-    def getUser(self) -> str | None:
+    def get_user(self) -> str | None:
         if not (user := self._info.get("UserId")):
             logger.debug(f"Could not get user for '{self._job_id}'.")
             return None
 
         return user.split("(")[0]
 
-    def getWalltime(self) -> timedelta | None:
+    def get_walltime(self) -> timedelta | None:
         if not (walltime := self._info.get("TimeLimit")):
             logger.debug(f"Could not get walltime for '{self._job_id}'.")
             return None
@@ -246,22 +247,22 @@ class SlurmJob(BatchJobInterface):
             logger.warning(f"Could not parse walltime for '{self._job_id}': {e}.")
             return None
 
-    def getQueue(self) -> str | None:
+    def get_queue(self) -> str | None:
         if not (queue := self._info.get("Partition")):
             logger.debug(f"Could not get queue for '{self._job_id}'.")
             return None
 
         return queue
 
-    def getUtilCPU(self) -> int | None:
+    def get_util_cpu(self) -> int | None:
         # not available in Slurm
         return None
 
-    def getUtilMem(self) -> int | None:
+    def get_util_mem(self) -> int | None:
         # not available in Slurm
         return None
 
-    def getExitCode(self) -> int | None:
+    def get_exit_code(self) -> int | None:
         if not (raw_exit := self._info.get("ExitCode")):
             return None
 
@@ -275,20 +276,20 @@ class SlurmJob(BatchJobInterface):
             logger.debug(f"Could not parse exit codes '{raw_exit}': {e}.")
             return None
 
-    def getInputMachine(self) -> str | None:
+    def get_input_machine(self) -> str | None:
         # not available for Slurm
         return None
 
-    def getInputDir(self) -> Path | None:
+    def get_input_dir(self) -> Path | None:
         # note that Slurm's WorkDir corresponds to the directory from which sbatch was run
         if not (raw_dir := self._info.get("WorkDir")):
             logger.debug(f"Could not obtain input directory for '{self._job_id}'.")
             return None
 
-        return Path(raw_dir).resolve()
+        return logical_resolve(Path(raw_dir))
 
-    def getInfoFile(self) -> Path | None:
-        if not (input_dir := self.getInputDir()) or not (name := self.getName()):
+    def get_info_file(self) -> Path | None:
+        if not (input_dir := self.get_input_dir()) or not (name := self.get_name()):
             return None
 
         info_file = (input_dir / name).with_suffix(CFG.suffixes.qq_info)
@@ -303,12 +304,12 @@ class SlurmJob(BatchJobInterface):
 
         return info_file
 
-    def toYaml(self) -> str:
+    def to_yaml(self) -> str:
         return yaml.dump(
             self._info, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
-    def getSteps(self) -> Sequence[Self]:
+    def get_steps(self) -> Sequence[Self]:
         command = f"sacct -j {self._job_id} --parsable2 --format={SACCT_STEP_FIELDS}"
         logger.debug(command)
 
@@ -330,25 +331,25 @@ class SlurmJob(BatchJobInterface):
             if sacct_string.strip() == "":
                 continue
 
-            job = SlurmJob._stepFromSacctString(sacct_string)
+            job = SlurmJob._step_from_sacct_string(sacct_string)
             # only consider job steps with numeric indices
-            if (step_id := job.getStepId()) and step_id.isnumeric():
+            if (step_id := job.get_step_id()) and step_id.isnumeric():
                 jobs.append(job)
 
         return jobs
 
-    def getStepId(self) -> str | None:
+    def get_step_id(self) -> str | None:
         try:
             (_, step) = self._job_id.split(".", maxsplit=1)
             return step
         except ValueError:
             return None
 
-    def isArrayJob(self) -> bool:
+    def is_array_job(self) -> bool:
         return False
 
     @classmethod
-    def fromDict(cls, job_id: str, info: dict[str, str]) -> Self:
+    def from_dict(cls, job_id: str, info: dict[str, str]) -> Self:
         """
         Construct a new instance of SlurmJob from a job ID and a dictionary of job information.
 
@@ -372,7 +373,7 @@ class SlurmJob(BatchJobInterface):
         return job_info
 
     @classmethod
-    def fromSacctString(cls, string: str) -> Self:
+    def from_sacct_string(cls, string: str) -> Self:
         """
         Construct a new instance of SlurmJob using a string from sacct.
 
@@ -417,13 +418,13 @@ class SlurmJob(BatchJobInterface):
         # other words may contain useless additional information
         info["JobState"] = info["JobState"].split()[0]
 
-        SlurmJob._assignIfAllocated(info, "AllocCPUs", "ReqCPUs", "NumCPUs")
-        SlurmJob._assignIfAllocated(info, "AllocNodes", "ReqNodes", "NumNodes")
+        SlurmJob._assign_if_allocated(info, "AllocCPUs", "ReqCPUs", "NumCPUs")
+        SlurmJob._assign_if_allocated(info, "AllocNodes", "ReqNodes", "NumNodes")
 
-        return cls.fromDict(info["JobId"], info)
+        return cls.from_dict(info["JobId"], info)
 
     @classmethod
-    def _stepFromSacctString(cls, string: str) -> Self:
+    def _step_from_sacct_string(cls, string: str) -> Self:
         """
         Construct a new instance of SlurmJob step using a string from sacct.
 
@@ -452,9 +453,9 @@ class SlurmJob(BatchJobInterface):
         # other words may contain useless additional information
         info["JobState"] = info["JobState"].split()[0]
 
-        return cls.fromDict(info["JobId"], info)
+        return cls.from_dict(info["JobId"], info)
 
-    def getIdsForSorting(self) -> list[int]:
+    def get_ids_for_sorting(self) -> list[int]:
         """
         Extract numeric components of the job ID for sorting.
 
@@ -467,7 +468,7 @@ class SlurmJob(BatchJobInterface):
                 or [0] if no valid numeric portion is found.
         """
         # get the numerical portion of the job ID (may contain underscores)
-        match = re.match(r"(\d+(?:_\d+)*)", self.getId())
+        match = re.match(r"(\d+(?:_\d+)*)", self.get_id())
         if not match:
             return [0]
 
@@ -476,7 +477,7 @@ class SlurmJob(BatchJobInterface):
         return [int(g) for g in groups]
 
     @staticmethod
-    def _expandNodeList(compact: str) -> list[str]:
+    def _expand_node_list(compact: str) -> list[str]:
         """
         Expand a compact Slurm node list expression into individual hostnames.
 
@@ -512,7 +513,7 @@ class SlurmJob(BatchJobInterface):
 
         return result.stdout.strip().split("\n")
 
-    def _getIntProperty(self, property: str, property_name: str) -> int | None:
+    def _get_int_property(self, property: str, property_name: str) -> int | None:
         """
         Retrieve an integer property value from the job information.
 
@@ -537,7 +538,7 @@ class SlurmJob(BatchJobInterface):
             )
             return None
 
-    def _getDatetimeProperty(
+    def _get_datetime_property(
         self, property: str, property_name: str
     ) -> datetime | None:
         """
@@ -569,7 +570,7 @@ class SlurmJob(BatchJobInterface):
             )
             return None
 
-    def _getTres(self) -> str:
+    def _get_tres(self) -> str:
         """
         Return the AllocTRES property or ReqTRES property, depending on which of them is available.
         Note that the resources specified in ReqTRES can potentially be different than the resources in AllocTRES.
@@ -581,7 +582,7 @@ class SlurmJob(BatchJobInterface):
         return tres
 
     @staticmethod
-    def _assignIfAllocated(
+    def _assign_if_allocated(
         info: dict[str, str], alloc_key: str, req_key: str, target_key: str
     ) -> None:
         """

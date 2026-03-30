@@ -19,6 +19,7 @@ from qq_lib.archive.archiver import Archiver
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.properties.transfer_mode import TransferMode
 
 logger = get_logger(__name__)
@@ -70,18 +71,18 @@ class LoopInfo:
         if not end:
             raise QQError("Attribute 'loop-end' is undefined.")
 
-        self.archive = archive.resolve()
-        if input_dir and self.archive == input_dir.resolve():
+        self.archive = logical_resolve(archive)
+        if input_dir and self.archive == logical_resolve(input_dir):
             raise QQError("Input directory cannot be used as the loop job's archive.")
 
         self.archive_format = archive_format
-        self.archive_mode = archive_mode or TransferMode.multiFromStr(
+        self.archive_mode = archive_mode or TransferMode.multi_from_str(
             CFG.transfer_files_options.default_archive_mode
         )
 
         self.start = start
         self.end = end
-        self.current = current or self._getCycle()
+        self.current = current or self._get_cycle()
 
         if self.start < 0:
             raise QQError(f"Attribute 'loop-start' ({self.start}) cannot be negative.")
@@ -97,12 +98,12 @@ class LoopInfo:
             )
 
     @classmethod
-    def fromDict(cls, data: dict[str, object]) -> Self:
+    def from_dict(cls, data: dict[str, object]) -> Self:
         """
-        Reconstruct a LoopInfo instance from a dictionary produced by toDict.
+        Reconstruct a LoopInfo instance from a dictionary produced by to_dict.
 
         Args:
-            data (dict[str, object]): A dictionary as returned by `toDict()`.
+            data (dict[str, object]): A dictionary as returned by `to_dict()`.
 
         Returns:
             LoopInfo: A new instance with fields populated from the dictionary.
@@ -141,10 +142,10 @@ class LoopInfo:
             archive=Path(archive),
             archive_format=archive_format,
             current=current,
-            archive_mode=[TransferMode.fromStr(mode) for mode in archive_mode],  # ty: ignore[invalid-argument-type]
+            archive_mode=[TransferMode.from_str(mode) for mode in archive_mode],  # ty: ignore[invalid-argument-type]
         )
 
-    def toDict(self) -> dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         """Return all fields as a dict."""
         return {
             "start": self.start,
@@ -152,10 +153,10 @@ class LoopInfo:
             "archive": str(self.archive),
             "archive_format": self.archive_format,
             "current": self.current,
-            "archive_mode": [mode.toStr() for mode in self.archive_mode],
+            "archive_mode": [mode.to_str() for mode in self.archive_mode],
         }
 
-    def toCommandLine(self) -> list[str]:
+    def to_command_line(self) -> list[str]:
         """
         Convert loop job settings into a command-line argument list for `qq submit`.
 
@@ -172,10 +173,10 @@ class LoopInfo:
             "--archive-format",
             self.archive_format,
             "--archive-mode",
-            ":".join(mode.toStr() for mode in self.archive_mode),
+            ":".join(mode.to_str() for mode in self.archive_mode),
         ]
 
-    def _getCycle(self) -> int:
+    def _get_cycle(self) -> int:
         """
         Determine the current cycle number based on files in the archive directory.
 

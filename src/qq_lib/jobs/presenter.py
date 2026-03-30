@@ -77,6 +77,7 @@ class JobsPresenter:
         jobs: list[BatchJobInterface],
         extra: bool,
         all: bool,
+        server: str | None,
     ):
         """
         Initialize the presenter with a list of jobs.
@@ -86,14 +87,17 @@ class JobsPresenter:
                 to be presented.
             extra (bool): Should show additional info about jobs.
             all (bool): Show all jobs, not just queued and running.
+            server (str | None): Batch server for which the jobs were collected.
+                `None` = default server.
         """
         self._batch_system = batch_system
         self._jobs = jobs
         self._stats = JobsStatistics()
         self._extra = extra
         self._all = all
+        self._server = server
 
-    def createJobsInfoPanel(self, console: Console | None = None) -> Group:
+    def create_jobs_info_panel(self, console: Console | None = None) -> Group:
         """
         Create a Rich panel displaying job information and statistics.
 
@@ -106,13 +110,13 @@ class JobsPresenter:
         """
         console = console or Console()
 
-        jobs_table = self._createBasicJobsTable()
+        jobs_table = self._create_basic_jobs_table()
         if self._extra:
-            jobs_table = self._insertExtraInfo(jobs_table)
+            jobs_table = self._insert_extra_info(jobs_table)
 
         # convert ANSI codes to Rich Text
         jobs_panel = Text.from_ansi(jobs_table)
-        stats_panel = self._stats.createStatsPanel()
+        stats_panel = self._stats.create_stats_panel()
 
         content = Group(
             jobs_panel,
@@ -123,8 +127,17 @@ class JobsPresenter:
         panel = Panel(
             content,
             title=Text(
-                "COLLECTED JOBS", style=CFG.jobs_presenter.title_style, justify="center"
+                "COLLECTED JOBS",
+                style=CFG.jobs_presenter.title_style,
+                justify="center",
             ),
+            subtitle=Text(
+                f"{self._server}",
+                style=CFG.jobs_presenter.subtitle_style,
+                justify="center",
+            )
+            if self._server
+            else None,
             border_style=CFG.jobs_presenter.border_style,
             padding=(1, 1),
             width=get_panel_width(
@@ -135,14 +148,14 @@ class JobsPresenter:
 
         return Group(Text(""), panel, Text(""))
 
-    def dumpYaml(self) -> None:
+    def dump_yaml(self) -> None:
         """
         Print the YAML representation of all jobs to stdout.
         """
         for job in self._jobs:
-            print(job.toYaml())
+            print(job.to_yaml())
 
-    def _createBasicJobsTable(self) -> str:
+    def _create_basic_jobs_table(self) -> str:
         """
         Build a compact tabulated string representation of the job list.
 
@@ -154,18 +167,18 @@ class JobsPresenter:
               Rich's Table is prohibitively slow for large number of items.
             - Updates internal job statistics via `self._stats`.
         """
-        headers = self._getVisibleHeaders()
-        rows = [self._createJobRow(job, headers) for job in self._jobs]
+        headers = self._get_visible_headers()
+        rows = [self._create_job_row(job, headers) for job in self._jobs]
 
         return tabulate(
             rows,
-            headers=self._formatHeaders(headers),
+            headers=self._format_headers(headers),
             tablefmt=JobsPresenter._COMPACT_TABLE,
             stralign="center",
             numalign="center",
         )
 
-    def _getVisibleHeaders(self) -> list[str]:
+    def _get_visible_headers(self) -> list[str]:
         """
         Get list of headers to display based on the batch system configuration.
 
@@ -189,11 +202,11 @@ class JobsPresenter:
         ]
         headers_to_show = (
             CFG.jobs_presenter.columns_to_show
-            or self._batch_system.jobsPresenterColumnsToShow()
+            or self._batch_system.jobs_presenter_columns_to_show()
         )
         return [h for h in all_headers if h and h in headers_to_show]
 
-    def _createJobRow(self, job: BatchJobInterface, headers: list[str]) -> list[str]:
+    def _create_job_row(self, job: BatchJobInterface, headers: list[str]) -> list[str]:
         """
         Create a single row of job data.
 
@@ -204,42 +217,47 @@ class JobsPresenter:
         Returns:
             list[str]: List of formatted cell values.
         """
-        state = job.getState()
-        start_time, end_time = self._getJobTimes(job, state)
+        state = job.get_state()
+        start_time, end_time = self._get_job_times(job, state)
 
         # update statistics
-        cpus = job.getNCPUs() or 0
-        gpus = job.getNGPUs() or 0
-        nodes = job.getNNodes() or 0
-        self._stats.addJob(state, cpus, gpus, nodes)
+        cpus = job.get_n_cpus() or 0
+        gpus = job.get_n_gpus() or 0
+        nodes = job.get_n_nodes() or 0
+        self._stats.add_job(state, cpus, gpus, nodes)
+
+        if self._server:
+            # show full job ID if we are working with a non-standard server
+            job_id = job.get_id()
+        else:
+            # otherwise, show only the numerical portion of the ID
+            job_id = JobsPresenter._shorten_job_id(job.get_id())
 
         # build the row
         row_data: dict[str, str] = {
-            "S": JobsPresenter._color(state.toCode(), state.color),
-            "Job ID": JobsPresenter._mainColor(
-                JobsPresenter._shortenJobId(job.getId())
+            "S": JobsPresenter._color(state.to_code(), state.color),
+            "Job ID": JobsPresenter._main_color(job_id),
+            "User": JobsPresenter._main_color(job.get_user() or ""),
+            "Job Name": JobsPresenter._main_color(
+                JobsPresenter._shorten_job_name(job.get_name() or "")
             ),
-            "User": JobsPresenter._mainColor(job.getUser() or ""),
-            "Job Name": JobsPresenter._mainColor(
-                JobsPresenter._shortenJobName(job.getName() or "")
+            "Queue": JobsPresenter._main_color(job.get_queue() or ""),
+            "NCPUs": JobsPresenter._main_color(str(cpus)),
+            "NGPUs": JobsPresenter._main_color(str(gpus)),
+            "NNodes": JobsPresenter._main_color(str(nodes)),
+            "Times": JobsPresenter._format_time(
+                state, start_time, end_time, job.get_walltime()
             ),
-            "Queue": JobsPresenter._mainColor(job.getQueue() or ""),
-            "NCPUs": JobsPresenter._mainColor(str(cpus)),
-            "NGPUs": JobsPresenter._mainColor(str(gpus)),
-            "NNodes": JobsPresenter._mainColor(str(nodes)),
-            "Times": JobsPresenter._formatTime(
-                state, start_time, end_time, job.getWalltime()
-            ),
-            "Node": JobsPresenter._formatNodesOrComment(state, job),
-            "%CPU": JobsPresenter._formatUtilCPU(job.getUtilCPU()),
-            "%Mem": JobsPresenter._formatUtilMem(job.getUtilMem()),
-            "Exit": JobsPresenter._formatExitCode(job, state) if self._all else "",
+            "Node": JobsPresenter._format_nodes_or_comment(state, job),
+            "%CPU": JobsPresenter._format_util_cpu(job.get_util_cpu()),
+            "%Mem": JobsPresenter._format_util_mem(job.get_util_mem()),
+            "Exit": JobsPresenter._format_exit_code(job, state) if self._all else "",
         }
 
         return [row_data[header] for header in headers if header in row_data]
 
     @staticmethod
-    def _getJobTimes(
+    def _get_job_times(
         job: BatchJobInterface, state: BatchState
     ) -> tuple[datetime | None, datetime | None]:
         """
@@ -253,18 +271,18 @@ class JobsPresenter:
             tuple[datetime | None, datetime | None]: Tuple of (start_time, end_time).
         """
         if state in {BatchState.QUEUED, BatchState.HELD, BatchState.WAITING}:
-            start_time = job.getSubmissionTime()
+            start_time = job.get_submission_time()
         else:
-            start_time = job.getStartTime() or job.getSubmissionTime()
+            start_time = job.get_start_time() or job.get_submission_time()
 
         if state in {BatchState.FINISHED, BatchState.FAILED}:
-            end_time = job.getCompletionTime() or job.getModificationTime()
+            end_time = job.get_completion_time() or job.get_modification_time()
         else:
             end_time = datetime.now()
 
         return start_time, end_time
 
-    def _formatHeaders(self, headers: list[str]) -> list[str]:
+    def _format_headers(self, headers: list[str]) -> list[str]:
         """
         Apply formatting to table headers.
 
@@ -281,7 +299,7 @@ class JobsPresenter:
             for header in headers
         ]
 
-    def _insertExtraInfo(self, table: str) -> str:
+    def _insert_extra_info(self, table: str) -> str:
         """
         Augment a formatted job table with additional information about each job.
 
@@ -299,19 +317,19 @@ class JobsPresenter:
         for line, job in zip(split_table[1:], self._jobs):
             table_with_extra_info += line + "\n"
 
-            if input_machine := job.getInputMachine():
+            if input_machine := job.get_input_machine():
                 table_with_extra_info += JobsPresenter._color(
                     f" >   Input machine:   {input_machine}\n",
                     CFG.jobs_presenter.extra_info_style,
                 )
 
-            if input_dir := job.getInputDir():
+            if input_dir := job.get_input_dir():
                 table_with_extra_info += JobsPresenter._color(
                     f" >   Input directory: {str(input_dir)}\n",
                     CFG.jobs_presenter.extra_info_style,
                 )
 
-            if comment := job.getComment():
+            if comment := job.get_comment():
                 table_with_extra_info += JobsPresenter._color(
                     f" >   Comment:         {comment}\n",
                     CFG.jobs_presenter.extra_info_style,
@@ -321,7 +339,7 @@ class JobsPresenter:
         return table_with_extra_info
 
     @staticmethod
-    def _formatTime(
+    def _format_time(
         state: BatchState,
         start_time: datetime | None,
         end_time: datetime | None,
@@ -367,12 +385,14 @@ class JobsPresenter:
                     color=CFG.jobs_presenter.strong_warning_style
                     if run_time > walltime
                     else state.color,
-                ) + JobsPresenter._mainColor(f" / {format_duration_wdhhmmss(walltime)}")
+                ) + JobsPresenter._main_color(
+                    f" / {format_duration_wdhhmmss(walltime)}"
+                )
 
         return Text("")
 
     @staticmethod
-    def _formatUtilCPU(util: int | None) -> str:
+    def _format_util_cpu(util: int | None) -> str:
         """
         Format CPU utilization with color coding.
 
@@ -398,7 +418,7 @@ class JobsPresenter:
         return JobsPresenter._color(str(util), color=color)
 
     @staticmethod
-    def _formatUtilMem(util: int | None) -> str:
+    def _format_util_mem(util: int | None) -> str:
         """
         Format memory utilization with color coding.
 
@@ -422,7 +442,7 @@ class JobsPresenter:
         return JobsPresenter._color(str(util), color=color)
 
     @staticmethod
-    def _formatExitCode(job: BatchJobInterface, state: BatchState) -> str:
+    def _format_exit_code(job: BatchJobInterface, state: BatchState) -> str:
         """
         Get formatted exit code if the job is completed and color it appropriately.
 
@@ -439,12 +459,12 @@ class JobsPresenter:
             str: ANSI-colored exit code. Empty string if the job is not completed
             or the exit code is undefined.
         """
-        if (exit_code := job.getExitCode()) is None:
+        if (exit_code := job.get_exit_code()) is None:
             return ""
 
         match state:
             case BatchState.FINISHED:
-                return JobsPresenter._mainColor(str(exit_code))
+                return JobsPresenter._main_color(str(exit_code))
             case BatchState.FAILED:
                 return JobsPresenter._color(
                     str(exit_code), color=CFG.jobs_presenter.strong_warning_style
@@ -453,7 +473,7 @@ class JobsPresenter:
                 return ""
 
     @staticmethod
-    def _formatNodesOrComment(state: BatchState, job: BatchJobInterface) -> str:
+    def _format_nodes_or_comment(state: BatchState, job: BatchJobInterface) -> str:
         """
         Format node information or an estimated runtime comment.
 
@@ -465,16 +485,16 @@ class JobsPresenter:
             str: ANSI-colored string for working node(s) or estimated start,
                  or an empty string if neither information is available.
         """
-        if nodes := job.getShortNodes():
-            return JobsPresenter._mainColor(
-                JobsPresenter._shortenNodes(" + ".join(nodes)),
+        if nodes := job.get_short_nodes():
+            return JobsPresenter._main_color(
+                JobsPresenter._shorten_nodes(" + ".join(nodes)),
             )
 
         if state in {BatchState.FINISHED, BatchState.FAILED}:
             return ""
 
-        if estimated := job.getEstimated():
-            truncated_nodes = JobsPresenter._shortenNodes(estimated[1])
+        if estimated := job.get_estimated():
+            truncated_nodes = JobsPresenter._shorten_nodes(estimated[1])
             return JobsPresenter._color(
                 f"{truncated_nodes} in {format_duration_wdhhmmss(estimated[0] - datetime.now()).rsplit(':', 1)[0]}",
                 color=state.color,
@@ -483,7 +503,7 @@ class JobsPresenter:
         return ""
 
     @staticmethod
-    def _shortenJobId(job_id: str) -> str:
+    def _shorten_job_id(job_id: str) -> str:
         """
         Shorten the job ID to its primary component (before the first dot).
 
@@ -496,7 +516,7 @@ class JobsPresenter:
         return job_id.split(".", 1)[0]
 
     @staticmethod
-    def _shortenJobName(job_name: str) -> str:
+    def _shorten_job_name(job_name: str) -> str:
         """
         Truncate a job name if it exceeds the maximum allowed display length.
 
@@ -513,7 +533,7 @@ class JobsPresenter:
         return job_name
 
     @staticmethod
-    def _shortenNodes(nodes: str) -> str:
+    def _shorten_nodes(nodes: str) -> str:
         """
         Truncate a list of nodes if it exceeds the maximum allowed display length.
 
@@ -545,7 +565,7 @@ class JobsPresenter:
         return f"{JobsPresenter._ANSI_COLORS['bold'] if bold else ''}{JobsPresenter._ANSI_COLORS[color] if color else ''}{string}{JobsPresenter._ANSI_COLORS['reset'] if color or bold else ''}"
 
     @staticmethod
-    def _mainColor(string: str, bold: bool = False) -> str:
+    def _main_color(string: str, bold: bool = False) -> str:
         """
         Apply the main presenter color with optional bold styling.
 
@@ -559,7 +579,7 @@ class JobsPresenter:
         return JobsPresenter._color(string, CFG.jobs_presenter.main_style, bold)
 
     @staticmethod
-    def _secondaryColor(string: str, bold: bool = False) -> str:
+    def _secondary_color(string: str, bold: bool = False) -> str:
         """
         Apply the secondary presenter color with optional bold styling.
 
@@ -609,7 +629,7 @@ class JobsStatistics:
     # Number of nodes for unknown jobs.
     n_unknown_nodes: int = 0
 
-    def addJob(self, state: BatchState, cpus: int, gpus: int, nodes: int) -> None:
+    def add_job(self, state: BatchState, cpus: int, gpus: int, nodes: int) -> None:
         """
         Update the collected resources based on the state of the job.
 
@@ -643,15 +663,15 @@ class JobsStatistics:
             self.n_unknown_gpus += gpus
             self.n_unknown_nodes += nodes
 
-    def createStatsPanel(self) -> Group:
+    def create_stats_panel(self) -> Group:
         """
         Build a Rich Group containing job statistics sections.
 
         Returns:
             Group: Rich Group with job state counts and resource usage.
         """
-        jobs_text = self._createJobStatesStats()
-        resources_table = self._createResourcesStatsTable()
+        jobs_text = self._create_job_states_stats()
+        resources_table = self._create_resources_stats_table()
 
         table = Table.grid(expand=False)
         table.add_column(justify="left")
@@ -663,7 +683,7 @@ class JobsStatistics:
 
         return Group(table)
 
-    def _createJobStatesStats(self) -> Text:
+    def _create_job_states_stats(self) -> Text:
         """
         Generate Rich Text summarizing the number of jobs in each state.
 
@@ -674,7 +694,7 @@ class JobsStatistics:
         line = Text(spacing)
 
         line.append(
-            JobsStatistics._secondaryColorText(f"\n\n Jobs{spacing}", bold=True)
+            JobsStatistics._secondary_color_text(f"\n\n Jobs{spacing}", bold=True)
         )
 
         total = 0
@@ -683,27 +703,27 @@ class JobsStatistics:
                 count = self.n_jobs[state]
                 total += count
                 line.append(
-                    JobsStatistics._colorText(
-                        f"{state.toCode()} ", color=state.color, bold=True
+                    JobsStatistics._color_text(
+                        f"{state.to_code()} ", color=state.color, bold=True
                     )
                 )
-                line.append(JobsStatistics._secondaryColorText(str(count)))
+                line.append(JobsStatistics._secondary_color_text(str(count)))
                 line.append(spacing)
 
         # sum of all jobs
         line.append(
-            JobsStatistics._colorText(
+            JobsStatistics._color_text(
                 f"{CFG.jobs_presenter.sum_jobs_code} ",
                 color=CFG.state_colors.sum,
                 bold=True,
             )
         )
-        line.append(JobsStatistics._secondaryColorText(str(total)))
+        line.append(JobsStatistics._secondary_color_text(str(total)))
         line.append(spacing)
 
         return line
 
-    def _createResourcesStatsTable(self) -> Table:
+    def _create_resources_stats_table(self) -> Table:
         """
         Create a Rich Table summarizing requested and allocated resources.
 
@@ -717,21 +737,23 @@ class JobsStatistics:
         )
 
         table.add_column("", justify="left")
-        table.add_column(JobsStatistics._secondaryColorText("CPUs"), justify="center")
-        table.add_column(JobsStatistics._secondaryColorText("GPUs"), justify="center")
-        table.add_column(JobsStatistics._secondaryColorText("Nodes"), justify="center")
+        table.add_column(JobsStatistics._secondary_color_text("CPUs"), justify="center")
+        table.add_column(JobsStatistics._secondary_color_text("GPUs"), justify="center")
+        table.add_column(
+            JobsStatistics._secondary_color_text("Nodes"), justify="center"
+        )
 
         table.add_row(
-            JobsStatistics._secondaryColorText("Requested", bold=True),
-            JobsStatistics._secondaryColorText(str(self.n_requested_cpus)),
-            JobsStatistics._secondaryColorText(str(self.n_requested_gpus)),
-            JobsStatistics._secondaryColorText(str(self.n_requested_nodes)),
+            JobsStatistics._secondary_color_text("Requested", bold=True),
+            JobsStatistics._secondary_color_text(str(self.n_requested_cpus)),
+            JobsStatistics._secondary_color_text(str(self.n_requested_gpus)),
+            JobsStatistics._secondary_color_text(str(self.n_requested_nodes)),
         )
         table.add_row(
-            JobsStatistics._secondaryColorText("Allocated", bold=True),
-            JobsStatistics._secondaryColorText(str(self.n_allocated_cpus)),
-            JobsStatistics._secondaryColorText(str(self.n_allocated_gpus)),
-            JobsStatistics._secondaryColorText(str(self.n_allocated_nodes)),
+            JobsStatistics._secondary_color_text("Allocated", bold=True),
+            JobsStatistics._secondary_color_text(str(self.n_allocated_cpus)),
+            JobsStatistics._secondary_color_text(str(self.n_allocated_gpus)),
+            JobsStatistics._secondary_color_text(str(self.n_allocated_nodes)),
         )
         # unknown resources are displayed only if non-zero
         if (
@@ -740,16 +762,16 @@ class JobsStatistics:
             or self.n_unknown_nodes > 0
         ):
             table.add_row(
-                JobsStatistics._secondaryColorText("Unknown", bold=True),
-                JobsStatistics._secondaryColorText(str(self.n_unknown_cpus)),
-                JobsStatistics._secondaryColorText(str(self.n_unknown_gpus)),
-                JobsStatistics._secondaryColorText(str(self.n_unknown_nodes)),
+                JobsStatistics._secondary_color_text("Unknown", bold=True),
+                JobsStatistics._secondary_color_text(str(self.n_unknown_cpus)),
+                JobsStatistics._secondary_color_text(str(self.n_unknown_gpus)),
+                JobsStatistics._secondary_color_text(str(self.n_unknown_nodes)),
             )
 
         return table
 
     @staticmethod
-    def _colorText(string: str, color: str | None = None, bold: bool = False) -> Text:
+    def _color_text(string: str, color: str | None = None, bold: bool = False) -> Text:
         """
         Create Rich Text with optional color and bold formatting.
 
@@ -764,7 +786,7 @@ class JobsStatistics:
         return Text(string, style=f"{color if color else ''} {'bold' if bold else ''}")
 
     @staticmethod
-    def _secondaryColorText(string: str, bold: bool = False) -> Text:
+    def _secondary_color_text(string: str, bold: bool = False) -> Text:
         """
         Apply the secondary presenter color with optional bold style.
 
@@ -775,6 +797,6 @@ class JobsStatistics:
         Returns:
             str: Rich Text in main color.
         """
-        return JobsStatistics._colorText(
+        return JobsStatistics._color_text(
             string, color=CFG.jobs_presenter.secondary_style, bold=bold
         )

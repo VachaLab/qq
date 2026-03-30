@@ -30,15 +30,15 @@ class FieldCoupling:
         """Return True if the field participates in this coupling."""
         return field_name in self.fields
 
-    def getFields(self) -> tuple[str, ...]:
+    def get_fields(self) -> tuple[str, ...]:
         """Return all coupled fields as a tuple."""
         return tuple(self.fields)
 
-    def hasValue(self, instance: Any) -> bool:
+    def has_value(self, instance: Any) -> bool:
         """Return True if any of the coupled fields has a non-None value."""
         return any(getattr(instance, field) is not None for field in self.fields)
 
-    def getMostDominantSetField(self, instance: Any) -> str | None:
+    def get_most_dominant_set_field(self, instance: Any) -> str | None:
         """
         Return the name of the most dominant field that has a non-None value,
         or None if none of them do.
@@ -54,7 +54,7 @@ class FieldCoupling:
         Enforce dominance rules: only the most dominant field that is set
         keeps its value; others are reset to None.
         """
-        dominant_set_field = self.getMostDominantSetField(instance)
+        dominant_set_field = self.get_most_dominant_set_field(instance)
         if dominant_set_field is None:
             return
 
@@ -80,7 +80,7 @@ def coupled_fields(*couplings: FieldCoupling):
                 original_post_init(self)
 
         @staticmethod
-        def getCouplingForField(field_name: str) -> FieldCoupling | None:
+        def get_coupling_for_field(field_name: str) -> FieldCoupling | None:
             for coupling in cls._field_couplings:
                 if coupling.contains(field_name):
                     return coupling
@@ -88,7 +88,7 @@ def coupled_fields(*couplings: FieldCoupling):
             return None
 
         cls.__post_init__ = __post_init__
-        cls.getCouplingForField = getCouplingForField
+        cls.get_coupling_for_field = get_coupling_for_field
         return cls
 
     return decorator
@@ -100,6 +100,6 @@ class HasCouplingMethods(Protocol):
     _field_couplings: tuple[FieldCoupling, ...]
 
     @staticmethod
-    def getCouplingForField(field_name: str) -> FieldCoupling | None:
+    def get_coupling_for_field(field_name: str) -> FieldCoupling | None:
         """Return the FieldCoupling that contains the given field name, or None."""
         ...

@@ -11,6 +11,7 @@ from rich.console import Console
 
 from qq_lib.batch.interface import BatchMeta
 from qq_lib.core.click_format import GNUHelpColorsCommand
+from qq_lib.core.common import translate_server
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -21,7 +22,7 @@ logger = get_logger(__name__)
 
 @click.command(
     short_help="Display a summary of a user's jobs.",
-    help="Display a summary of your jobs or those of a specified user. By default, only unfinished jobs are shown.",
+    help="Display a summary of your jobs or those of a specified user. By default, only uncompleted jobs are shown.",
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
 )
@@ -42,32 +43,41 @@ logger = get_logger(__name__)
     "-a",
     "--all",
     is_flag=True,
-    help="Include both unfinished and finished jobs in the summary.",
+    help="Include both completed and uncompleted jobs in the summary.",
+)
+@click.option(
+    "-s",
+    "--server",
+    default=None,
+    help="Collect jobs from the specified batch server. If not specified, the current server is used.",
 )
 @click.option("--yaml", is_flag=True, help="Output job metadata in YAML format.")
-def jobs(user: str, extra: bool, all: bool, yaml: bool) -> NoReturn:
+def jobs(user: str, extra: bool, all: bool, server: str | None, yaml: bool) -> NoReturn:
     try:
-        batch_system = BatchMeta.fromEnvVarOrGuess()
+        batch_system = BatchMeta.from_env_var_or_guess()
         if not user:
             # use the current user, if `--user` is not specified
             user = getpass.getuser()
 
+        if server:
+            server = translate_server(server)
+
         if all:
-            jobs = batch_system.getBatchJobs(user)
+            jobs = batch_system.get_batch_jobs(user, server)
         else:
-            jobs = batch_system.getUnfinishedBatchJobs(user)
+            jobs = batch_system.get_unfinished_batch_jobs(user, server)
 
         if not jobs:
             logger.info("No jobs found.")
             sys.exit(0)
 
-        batch_system.sortJobs(jobs)
-        presenter = JobsPresenter(batch_system, jobs, extra, all)
+        batch_system.sort_jobs(jobs)
+        presenter = JobsPresenter(batch_system, jobs, extra, all, server)
         if yaml:
-            presenter.dumpYaml()
+            presenter.dump_yaml()
         else:
             console = Console(record=False, markup=False)
-            panel = presenter.createJobsInfoPanel(console)
+            panel = presenter.create_jobs_info_panel(console)
             console.print(panel)
 
         sys.exit(0)

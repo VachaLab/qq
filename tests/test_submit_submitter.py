@@ -27,8 +27,8 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
     script.write_text("#!/usr/bin/env -S qq run\n")
 
     with (
-        patch.object(Submitter, "_constructJobName", return_value="job1"),
-        patch.object(Submitter, "_hasValidShebang", return_value=True),
+        patch.object(Submitter, "_construct_job_name", return_value="job1"),
+        patch.object(Submitter, "_has_valid_shebang", return_value=True),
     ):
         submitter = Submitter(
             batch_system=PBS,
@@ -39,6 +39,7 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
             resources=Resources(),
             exclude=[Path("exclude")],
             include=[Path("include"), Path("/tmp/include")],
+            transfer_mode=[Always()],
         )
 
         assert submitter._batch_system == PBS
@@ -54,6 +55,8 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
         assert submitter._exclude == [tmp_path / "exclude"]
         assert submitter._include == [tmp_path / "include", Path("/tmp/include")]
         assert submitter._depend == []
+        assert isinstance(submitter._transfer_mode[0], Always)
+        assert submitter._server is None
 
 
 def test_submitter_init_raises_error_if_script_does_not_exist(tmp_path):
@@ -75,8 +78,8 @@ def test_submitter_init_raises_error_if_invalid_shebang(tmp_path):
     script.write_text("invalid shebang\n")
 
     with (
-        patch.object(Submitter, "_constructJobName", return_value="job1"),
-        patch.object(Submitter, "_hasValidShebang", return_value=False),
+        patch.object(Submitter, "_construct_job_name", return_value="job1"),
+        patch.object(Submitter, "_has_valid_shebang", return_value=False),
         pytest.raises(QQError, match="invalid shebang"),
     ):
         Submitter(
@@ -101,8 +104,8 @@ def test_submitter_init_sets_all_optional_arguments_correctly(tmp_path):
     ]
 
     with (
-        patch.object(Submitter, "_constructJobName", return_value="job"),
-        patch.object(Submitter, "_hasValidShebang", return_value=True),
+        patch.object(Submitter, "_construct_job_name", return_value="job"),
+        patch.object(Submitter, "_has_valid_shebang", return_value=True),
     ):
         submitter = Submitter(
             batch_system=PBS,
@@ -114,6 +117,7 @@ def test_submitter_init_sets_all_optional_arguments_correctly(tmp_path):
             loop_info=loop_info,
             exclude=exclude_files,
             depend=depend_jobs,
+            server="fake.server.com",
         )
 
         assert submitter._batch_system == PBS
@@ -129,6 +133,7 @@ def test_submitter_init_sets_all_optional_arguments_correctly(tmp_path):
         assert submitter._resources == Resources()
         assert submitter._exclude == exclude_files
         assert submitter._depend == depend_jobs
+        assert submitter._server == "fake.server.com"
 
 
 def test_submitter_construct_job_name_returns_script_name_for_standard_job(
@@ -140,7 +145,7 @@ def test_submitter_construct_job_name_returns_script_name_for_standard_job(
     submitter._script_name = "job.sh"
     submitter._loop_info = None
 
-    result = submitter._constructJobName()
+    result = submitter._construct_job_name()
 
     assert result == "job.sh"
 
@@ -158,7 +163,7 @@ def test_submitter_construct_job_name_returns_name_with_cycle_number_for_loop_jo
 
     submitter._loop_info = DummyLoopInfo()
 
-    result = submitter._constructJobName()
+    result = submitter._construct_job_name()
 
     assert result == f"job{CFG.loop_jobs.pattern % 3}.sh"
 
@@ -176,7 +181,7 @@ def test_submitter_construct_job_name_loop_job_no_extension(
 
     submitter._loop_info = DummyLoopInfo()
 
-    result = submitter._constructJobName()
+    result = submitter._construct_job_name()
 
     assert result == f"job{CFG.loop_jobs.pattern % 3}"
 
@@ -186,7 +191,7 @@ def test_submitter_has_valid_shebang_returns_true_for_valid_shebang(tmp_path):
     script.write_text("#!/usr/bin/env -S qq run\n")
 
     submitter = Submitter.__new__(Submitter)
-    result = submitter._hasValidShebang(script)
+    result = submitter._has_valid_shebang(script)
 
     assert result is True
 
@@ -198,7 +203,7 @@ def test_submitter_has_valid_shebang_returns_false_if_not_ending_with_qq_run(
     script.write_text("#!/usr/bin/env python\n")
 
     submitter = Submitter.__new__(Submitter)
-    result = submitter._hasValidShebang(script)
+    result = submitter._has_valid_shebang(script)
 
     assert result is False
 
@@ -208,7 +213,7 @@ def test_submitter__has_valid_shebang_returns_false_when_no_shebang_line(tmp_pat
     script.write_text("echo 'hello world'\n")
 
     submitter = Submitter.__new__(Submitter)
-    result = submitter._hasValidShebang(script)
+    result = submitter._has_valid_shebang(script)
 
     assert result is False
 
@@ -230,13 +235,13 @@ def test_submitter_create_env_vars_dict_sets_all_required_variables(
 
     if debug_mode:
         with patch.dict(os.environ, {CFG.env_vars.debug_mode: "true"}):
-            env = submitter._createEnvVarsDict()
+            env = submitter._create_env_vars_dict()
     else:
-        env = submitter._createEnvVarsDict()
+        env = submitter._create_env_vars_dict()
 
     assert env[CFG.env_vars.guard] == "true"
     assert env[CFG.env_vars.info_file] == str(submitter._info_file)
-    assert env[CFG.env_vars.input_machine] == socket.gethostname()
+    assert env[CFG.env_vars.input_machine] == socket.getfqdn()
     assert env[CFG.env_vars.batch_system] == str(submitter._batch_system)
     assert env[CFG.env_vars.input_dir] == str(submitter._input_dir)
     assert env[CFG.env_vars.nnodes] == str(submitter._resources.nnodes)
@@ -268,13 +273,13 @@ def test_submitter_create_env_vars_dict_sets_all_required_variables_with_per_nod
 
     if debug_mode:
         with patch.dict(os.environ, {CFG.env_vars.debug_mode: "true"}):
-            env = submitter._createEnvVarsDict()
+            env = submitter._create_env_vars_dict()
     else:
-        env = submitter._createEnvVarsDict()
+        env = submitter._create_env_vars_dict()
 
     assert env[CFG.env_vars.guard] == "true"
     assert env[CFG.env_vars.info_file] == str(submitter._info_file)
-    assert env[CFG.env_vars.input_machine] == socket.gethostname()
+    assert env[CFG.env_vars.input_machine] == socket.getfqdn()
     assert env[CFG.env_vars.batch_system] == str(submitter._batch_system)
     assert env[CFG.env_vars.input_dir] == str(submitter._input_dir)
     assert env[CFG.env_vars.nnodes] == str(submitter._resources.nnodes)
@@ -315,13 +320,13 @@ def test_submitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mode
 
     if debug_mode:
         with patch.dict(os.environ, {CFG.env_vars.debug_mode: "true"}):
-            env = submitter._createEnvVarsDict()
+            env = submitter._create_env_vars_dict()
     else:
-        env = submitter._createEnvVarsDict()
+        env = submitter._create_env_vars_dict()
 
     assert env[CFG.env_vars.guard] == "true"
     assert env[CFG.env_vars.info_file] == str(submitter._info_file)
-    assert env[CFG.env_vars.input_machine] == socket.gethostname()
+    assert env[CFG.env_vars.input_machine] == socket.getfqdn()
     assert env[CFG.env_vars.batch_system] == str(submitter._batch_system)
     assert env[CFG.env_vars.input_dir] == str(submitter._input_dir)
 
@@ -351,13 +356,13 @@ def test_submitter_create_env_vars_dict_continuous_job(tmp_path, debug_mode):
 
     if debug_mode:
         with patch.dict(os.environ, {CFG.env_vars.debug_mode: "true"}):
-            env = submitter._createEnvVarsDict()
+            env = submitter._create_env_vars_dict()
     else:
-        env = submitter._createEnvVarsDict()
+        env = submitter._create_env_vars_dict()
 
     assert env[CFG.env_vars.guard] == "true"
     assert env[CFG.env_vars.info_file] == str(submitter._info_file)
-    assert env[CFG.env_vars.input_machine] == socket.gethostname()
+    assert env[CFG.env_vars.input_machine] == socket.getfqdn()
     assert env[CFG.env_vars.batch_system] == str(submitter._batch_system)
     assert env[CFG.env_vars.input_dir] == str(submitter._input_dir)
     assert env[CFG.env_vars.no_resubmit] == str(CFG.exit_codes.qq_run_no_resubmit)
@@ -371,7 +376,7 @@ def test_submitter_get_input_dir_returns_correct_path(tmp_path):
     submitter = Submitter.__new__(Submitter)
     submitter._input_dir = tmp_path
 
-    result = submitter.getInputDir()
+    result = submitter.get_input_dir()
 
     assert result == tmp_path
 
@@ -387,7 +392,7 @@ def test_submitter_loop_job_continues_loop_true_for_valid_continuation():
     dummy_informer = MagicMock()
     dummy_informer.info = dummy_info
 
-    assert submitter._loopJobContinuesLoop(dummy_informer) is True
+    assert submitter._loop_job_continues_loop(dummy_informer) is True
 
 
 def test_submitter_loop_job_continues_loop_false_if_previous_not_finished():
@@ -401,7 +406,7 @@ def test_submitter_loop_job_continues_loop_false_if_previous_not_finished():
     dummy_informer = MagicMock()
     dummy_informer.info = dummy_info
 
-    assert submitter._loopJobContinuesLoop(dummy_informer) is False
+    assert submitter._loop_job_continues_loop(dummy_informer) is False
 
 
 def test_submitter_loop_job_continues_loop_false_if_previous_cycle_mismatch():
@@ -415,7 +420,7 @@ def test_submitter_loop_job_continues_loop_false_if_previous_cycle_mismatch():
     dummy_informer = MagicMock()
     dummy_informer.info = dummy_info
 
-    assert submitter._loopJobContinuesLoop(dummy_informer) is False
+    assert submitter._loop_job_continues_loop(dummy_informer) is False
 
 
 def test_submitter_loop_job_continues_loop_false_if_no_loop_info_in_past():
@@ -429,7 +434,7 @@ def test_submitter_loop_job_continues_loop_false_if_no_loop_info_in_past():
     dummy_informer = MagicMock()
     dummy_informer.info = dummy_info
 
-    assert submitter._loopJobContinuesLoop(dummy_informer) is False
+    assert submitter._loop_job_continues_loop(dummy_informer) is False
 
 
 def test_submitter_loop_job_continues_loop_false_if_no_loop_info_current():
@@ -443,7 +448,7 @@ def test_submitter_loop_job_continues_loop_false_if_no_loop_info_current():
     dummy_informer = MagicMock()
     dummy_informer.info = dummy_info
 
-    assert submitter._loopJobContinuesLoop(dummy_informer) is False
+    assert submitter._loop_job_continues_loop(dummy_informer) is False
 
 
 def test_submitter_continuous_job_continues_loop_true_for_valid_continuation():
@@ -457,7 +462,7 @@ def test_submitter_continuous_job_continues_loop_true_for_valid_continuation():
     dummy_informer = MagicMock()
     dummy_informer.info = dummy_info
 
-    assert submitter._continuousJobContinuesLoop(dummy_informer) is True
+    assert submitter._continuous_job_continues_loop(dummy_informer) is True
 
 
 def test_submitter_continuous_job_continues_loop_false_if_not_finished():
@@ -471,7 +476,7 @@ def test_submitter_continuous_job_continues_loop_false_if_not_finished():
     dummy_informer = MagicMock()
     dummy_informer.info = dummy_info
 
-    assert submitter._continuousJobContinuesLoop(dummy_informer) is False
+    assert submitter._continuous_job_continues_loop(dummy_informer) is False
 
 
 def test_submitter_continuous_job_continues_loop_false_if_previous_not_continuous():
@@ -485,7 +490,7 @@ def test_submitter_continuous_job_continues_loop_false_if_previous_not_continuou
     dummy_informer = MagicMock()
     dummy_informer.info = dummy_info
 
-    assert submitter._continuousJobContinuesLoop(dummy_informer) is False
+    assert submitter._continuous_job_continues_loop(dummy_informer) is False
 
 
 def test_submitter_continuous_job_continues_loop_false_if_current_not_continuous():
@@ -499,7 +504,7 @@ def test_submitter_continuous_job_continues_loop_false_if_current_not_continuous
     dummy_informer = MagicMock()
     dummy_informer.info = dummy_info
 
-    assert submitter._continuousJobContinuesLoop(dummy_informer) is False
+    assert submitter._continuous_job_continues_loop(dummy_informer) is False
 
 
 def test_submitter_continues_loop_returns_true_if_valid_loop(tmp_path):
@@ -513,11 +518,11 @@ def test_submitter_continues_loop_returns_true_if_valid_loop(tmp_path):
             "qq_lib.submit.submitter.get_info_file",
             return_value=tmp_path / "job.qqinfo",
         ),
-        patch.object(Informer, "fromFile", return_value=dummy_informer),
-        patch.object(Submitter, "_loopJobContinuesLoop", return_value=True),
-        patch.object(Submitter, "_continuousJobContinuesLoop", return_value=False),
+        patch.object(Informer, "from_file", return_value=dummy_informer),
+        patch.object(Submitter, "_loop_job_continues_loop", return_value=True),
+        patch.object(Submitter, "_continuous_job_continues_loop", return_value=False),
     ):
-        assert submitter.continuesLoop() is True
+        assert submitter.continues_loop() is True
 
 
 def test_submitter_continues_loop_returns_true_if_valid_continuous(tmp_path):
@@ -531,11 +536,11 @@ def test_submitter_continues_loop_returns_true_if_valid_continuous(tmp_path):
             "qq_lib.submit.submitter.get_info_file",
             return_value=tmp_path / "job.qqinfo",
         ),
-        patch.object(Informer, "fromFile", return_value=dummy_informer),
-        patch.object(Submitter, "_loopJobContinuesLoop", return_value=False),
-        patch.object(Submitter, "_continuousJobContinuesLoop", return_value=True),
+        patch.object(Informer, "from_file", return_value=dummy_informer),
+        patch.object(Submitter, "_loop_job_continues_loop", return_value=False),
+        patch.object(Submitter, "_continuous_job_continues_loop", return_value=True),
     ):
-        assert submitter.continuesLoop() is True
+        assert submitter.continues_loop() is True
 
 
 def test_submitter_continues_loop_returns_false_if_not_valid_loop_and_not_valid_continuous(
@@ -551,11 +556,11 @@ def test_submitter_continues_loop_returns_false_if_not_valid_loop_and_not_valid_
             "qq_lib.submit.submitter.get_info_file",
             return_value=tmp_path / "job.qqinfo",
         ),
-        patch.object(Informer, "fromFile", return_value=dummy_informer),
-        patch.object(Submitter, "_loopJobContinuesLoop", return_value=False),
-        patch.object(Submitter, "_continuousJobContinuesLoop", return_value=False),
+        patch.object(Informer, "from_file", return_value=dummy_informer),
+        patch.object(Submitter, "_loop_job_continues_loop", return_value=False),
+        patch.object(Submitter, "_continuous_job_continues_loop", return_value=False),
     ):
-        assert submitter.continuesLoop() is False
+        assert submitter.continues_loop() is False
 
 
 def test_submitter_continues_loop_returns_false_on_qqerror(tmp_path):
@@ -565,7 +570,7 @@ def test_submitter_continues_loop_returns_false_on_qqerror(tmp_path):
     submitter._input_dir = tmp_path
 
     with patch("qq_lib.submit.submitter.get_info_file", side_effect=QQError("error")):
-        result = submitter.continuesLoop()
+        result = submitter.continues_loop()
 
     assert result is False
 
@@ -587,14 +592,16 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
     submitter._depend = []
     submitter._transfer_mode = [Success()]
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
+    submitter._server = None
+    submitter._interpreter = "python3"
     env_vars = {CFG.env_vars.guard: "true"}
 
     with (
         patch.object(
-            submitter, "_createEnvVarsDict", return_value=env_vars
+            submitter, "_create_env_vars_dict", return_value=env_vars
         ) as mock_set_env,
         patch.object(
-            submitter._batch_system, "jobSubmit", return_value="jobid123"
+            submitter._batch_system, "job_submit", return_value="jobid123"
         ) as mock_job_submit,
         patch("qq_lib.submit.submitter.Informer") as mock_informer_class,
         patch("qq_lib.__version__", "1.0"),
@@ -613,9 +620,10 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
         submitter._depend,
         env_vars,
         submitter._account,
+        submitter._server,
     )
     mock_informer_class.assert_called_once()
-    mock_informer_instance.toFile.assert_called_once_with(submitter._info_file)
+    mock_informer_instance.to_file.assert_called_once_with(submitter._info_file)
     assert result == "jobid123"
 
 
@@ -635,20 +643,22 @@ def test_submitter_submit(tmp_path):
     submitter._include = ["include1"]
     submitter._depend = []
     submitter._transfer_mode = [Always()]
+    submitter._server = "fake.server.com"
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
+    submitter._interpreter = None
     env_vars = {CFG.env_vars.guard: "true"}
 
     with (
         patch.object(
-            submitter, "_createEnvVarsDict", return_value=env_vars
+            submitter, "_create_env_vars_dict", return_value=env_vars
         ) as mock_set_env,
         patch.object(
-            submitter._batch_system, "jobSubmit", return_value="jobid123"
+            submitter._batch_system, "job_submit", return_value="jobid123"
         ) as mock_job_submit,
         patch("qq_lib.submit.submitter.Informer") as mock_informer_class,
         patch("qq_lib.__version__", "1.0"),
         patch("getpass.getuser", return_value="testuser"),
-        patch("socket.gethostname", return_value="host123"),
+        patch("socket.getfqdn", return_value="host123"),
         patch("qq_lib.submit.submitter.datetime") as mock_datetime,
     ):
         mock_datetime.now.return_value = datetime(2025, 10, 14, 12, 0, 0)
@@ -666,9 +676,10 @@ def test_submitter_submit(tmp_path):
         submitter._depend,
         env_vars,
         submitter._account,
+        submitter._server,
     )
     mock_informer_class.assert_called_once()
-    mock_informer_instance.toFile.assert_called_once_with(submitter._info_file)
+    mock_informer_instance.to_file.assert_called_once_with(submitter._info_file)
     assert result == "jobid123"
 
     # capture the Info passed to Informer
@@ -699,3 +710,5 @@ def test_submitter_submit(tmp_path):
     assert info_arg.included_files == submitter._include
     assert info_arg.depend == submitter._depend
     assert info_arg.transfer_mode == [Always()]
+    assert info_arg.server == submitter._server
+    assert info_arg.interpreter is None

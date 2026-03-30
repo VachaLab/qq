@@ -17,23 +17,23 @@ from qq_lib.properties.size import Size
 
 
 def test_slurmit4i_env_name_returns_expected_value():
-    assert SlurmIT4I.envName() == "SlurmIT4I"
+    assert SlurmIT4I.env_name() == "SlurmIT4I"
 
 
 @patch("qq_lib.batch.slurmit4i.slurm.shutil.which", return_value="/usr/bin/it4ifree")
 def test_slurmit4i_is_available_returns_true(mock_which):
-    assert SlurmIT4I.isAvailable() is True
+    assert SlurmIT4I.is_available() is True
     mock_which.assert_called_once_with("it4ifree")
 
 
 @patch("qq_lib.batch.slurmit4i.slurm.shutil.which", return_value=None)
 def test_slurmit4i_is_available_returns_false(mock_which):
-    assert SlurmIT4I.isAvailable() is False
+    assert SlurmIT4I.is_available() is False
     mock_which.assert_called_once_with("it4ifree")
 
 
-@patch("qq_lib.batch.slurm.slurm.Resources.mergeResources")
-@patch("qq_lib.batch.slurmit4i.slurm.SlurmIT4I._getDefaultResources")
+@patch("qq_lib.batch.slurm.slurm.Resources.merge_resources")
+@patch("qq_lib.batch.slurmit4i.slurm.SlurmIT4I._get_default_resources")
 @patch("qq_lib.batch.slurm.slurm.default_resources_from_dict")
 @patch("qq_lib.batch.slurm.slurm.parse_slurm_dump_to_dictionary")
 @patch("qq_lib.batch.slurm.slurm.subprocess.run")
@@ -51,7 +51,7 @@ def test_slurmit4i_get_default_server_resources_merges_parsed_and_defaults(
     mock_get_defaults.return_value = default_res
     mock_merge.return_value = merged_res
 
-    result = SlurmIT4I._getDefaultServerResources()
+    result = SlurmIT4I._get_default_server_resources()
 
     mock_run.assert_called_once()
     mock_parse.assert_called_once_with("DefaultTime=2-00:00:00\nDefMemPerCPU=4G", "\n")
@@ -63,8 +63,8 @@ def test_slurmit4i_get_default_server_resources_merges_parsed_and_defaults(
     assert result is merged_res
 
 
-@patch("qq_lib.batch.slurm.slurm.Resources.mergeResources")
-@patch("qq_lib.batch.slurmit4i.slurm.SlurmIT4I._getDefaultResources")
+@patch("qq_lib.batch.slurm.slurm.Resources.merge_resources")
+@patch("qq_lib.batch.slurmit4i.slurm.SlurmIT4I._get_default_resources")
 @patch("qq_lib.batch.slurm.slurm.default_resources_from_dict")
 @patch("qq_lib.batch.slurm.slurm.parse_slurm_dump_to_dictionary")
 @patch("qq_lib.batch.slurm.slurm.subprocess.run")
@@ -73,7 +73,7 @@ def test_slurmit4i_get_default_server_resources_returns_empty_on_failure(
 ):
     mock_run.return_value = MagicMock(returncode=1, stderr="err")
 
-    result = SlurmIT4I._getDefaultServerResources()
+    result = SlurmIT4I._get_default_server_resources()
 
     mock_run.assert_called_once()
     mock_parse.assert_not_called()
@@ -122,12 +122,12 @@ def test_slurmit4i_resubmit_raises_when_command_fails(mock_chdir, mock_run):
 
 
 def test_slurmit4i_is_shared_returns_true():
-    assert SlurmIT4I.isShared(Path.cwd())
+    assert SlurmIT4I.is_shared(Path.cwd())
 
 
 @patch("qq_lib.batch.slurmit4i.slurm.SlurmQueue")
 @patch(
-    "qq_lib.batch.slurmit4i.slurm.SlurmIT4I._getDefaultServerResources",
+    "qq_lib.batch.slurmit4i.slurm.SlurmIT4I._get_default_server_resources",
     return_value=Resources(),
 )
 def test_slurmit4i_transform_resources_valid_work_dir_scratch(
@@ -135,20 +135,20 @@ def test_slurmit4i_transform_resources_valid_work_dir_scratch(
 ):
     mock_instance = MagicMock()
     mock_queue.return_value = mock_instance
-    mock_instance.getDefaultResources.return_value = Resources()
+    mock_instance.get_default_resources.return_value = Resources()
 
     provided = Resources(work_dir="scratch")
-    result = SlurmIT4I.transformResources("default", provided)
+    result = SlurmIT4I.transform_resources("default", None, provided)
 
     mock_get_defaults.assert_called_once()
     mock_queue.assert_called_once_with("default")
-    mock_instance.getDefaultResources.assert_called_once()
+    mock_instance.get_default_resources.assert_called_once()
     assert result.work_dir == "scratch"
 
 
 @patch("qq_lib.batch.slurmit4i.slurm.SlurmQueue")
 @patch(
-    "qq_lib.batch.slurmit4i.slurm.SlurmIT4I._getDefaultServerResources",
+    "qq_lib.batch.slurmit4i.slurm.SlurmIT4I._get_default_server_resources",
     return_value=Resources(),
 )
 def test_slurmit4i_transform_resources_raises_when_no_work_dir(
@@ -156,23 +156,23 @@ def test_slurmit4i_transform_resources_raises_when_no_work_dir(
 ):
     mock_instance = MagicMock()
     mock_queue.return_value = mock_instance
-    mock_instance.getDefaultResources.return_value = Resources()
+    mock_instance.get_default_resources.return_value = Resources()
 
     provided = Resources()
     with pytest.raises(
         QQError, match="Work-dir is not set after filling in default attributes"
     ):
-        SlurmIT4I.transformResources("default", provided)
+        SlurmIT4I.transform_resources("default", None, provided)
 
     mock_get_defaults.assert_called_once()
     mock_queue.assert_called_once_with("default")
-    mock_instance.getDefaultResources.assert_called_once()
+    mock_instance.get_default_resources.assert_called_once()
 
 
 @patch("qq_lib.batch.slurmit4i.slurm.logger.warning")
 @patch("qq_lib.batch.slurmit4i.slurm.SlurmQueue")
 @patch(
-    "qq_lib.batch.slurmit4i.slurm.SlurmIT4I._getDefaultServerResources",
+    "qq_lib.batch.slurmit4i.slurm.SlurmIT4I._get_default_server_resources",
     return_value=Resources(),
 )
 def test_slurmit4i_transform_resources_warns_when_work_size_set(
@@ -180,20 +180,20 @@ def test_slurmit4i_transform_resources_warns_when_work_size_set(
 ):
     mock_instance = MagicMock()
     mock_queue.return_value = mock_instance
-    mock_instance.getDefaultResources.return_value = Resources()
+    mock_instance.get_default_resources.return_value = Resources()
 
     provided = Resources(work_dir="scratch", work_size=Size(10, "gb"))
-    SlurmIT4I.transformResources("default", provided)
+    SlurmIT4I.transform_resources("default", None, provided)
 
     mock_warn.assert_called_once()
     mock_get_defaults.assert_called_once()
     mock_queue.assert_called_once_with("default")
-    mock_instance.getDefaultResources.assert_called_once()
+    mock_instance.get_default_resources.assert_called_once()
 
 
 @patch("qq_lib.batch.slurmit4i.slurm.SlurmQueue")
 @patch(
-    "qq_lib.batch.slurmit4i.slurm.SlurmIT4I._getDefaultServerResources",
+    "qq_lib.batch.slurmit4i.slurm.SlurmIT4I._get_default_server_resources",
     return_value=Resources(),
 )
 def test_slurmit4i_transform_resources_raises_for_unknown_work_dir(
@@ -201,22 +201,22 @@ def test_slurmit4i_transform_resources_raises_for_unknown_work_dir(
 ):
     mock_instance = MagicMock()
     mock_queue.return_value = mock_instance
-    mock_instance.getDefaultResources.return_value = Resources()
+    mock_instance.get_default_resources.return_value = Resources()
 
     provided = Resources(work_dir="nonsense")
     with pytest.raises(
         QQError, match="Unknown working directory type specified: work-dir"
     ):
-        SlurmIT4I.transformResources("default", provided)
+        SlurmIT4I.transform_resources("default", None, provided)
 
     mock_get_defaults.assert_called_once()
     mock_queue.assert_called_once_with("default")
-    mock_instance.getDefaultResources.assert_called_once()
+    mock_instance.get_default_resources.assert_called_once()
 
 
-@patch("qq_lib.batch.slurmit4i.slurm.BatchInterface.syncWithExclusions")
+@patch("qq_lib.batch.slurmit4i.slurm.BatchInterface.sync_with_exclusions")
 def test_slurmit4i_sync_with_exclusions_delegates_correctly(mock_sync):
-    SlurmIT4I.syncWithExclusions(
+    SlurmIT4I.sync_with_exclusions(
         Path("/data/src"),
         Path("/data/dest"),
         "src_host",
@@ -228,9 +228,9 @@ def test_slurmit4i_sync_with_exclusions_delegates_correctly(mock_sync):
     )
 
 
-@patch("qq_lib.batch.slurmit4i.slurm.BatchInterface.syncSelected")
+@patch("qq_lib.batch.slurmit4i.slurm.BatchInterface.sync_selected")
 def test_slurmit4i_sync_selected_delegates_correctly(mock_sync):
-    SlurmIT4I.syncSelected(
+    SlurmIT4I.sync_selected(
         Path("/data/src"),
         Path("/data/dest"),
         "src_host",
@@ -247,7 +247,7 @@ def test_slurmit4i_move_remote_files_moves_each_pair(mock_move):
     files = [Path("/data/a.txt"), Path("/data/b.txt")]
     moved_files = [Path("/data/a_moved.txt"), Path("/data/b_moved.txt")]
 
-    SlurmIT4I.moveRemoteFiles("host", files, moved_files)
+    SlurmIT4I.move_remote_files("host", files, moved_files)
 
     assert mock_move.call_count == 2
     mock_move.assert_any_call(str(files[0]), str(moved_files[0]))
@@ -261,25 +261,25 @@ def test_slurmit4i_move_remote_files_raises_on_length_mismatch():
         QQError,
         match="The provided 'files' and 'moved_files' must have the same length.",
     ):
-        SlurmIT4I.moveRemoteFiles("host", files, moved_files)
+        SlurmIT4I.move_remote_files("host", files, moved_files)
 
 
 def test_slurmit4i_read_remote_file_reads_successfully(tmp_path):
     file = tmp_path / "file.txt"
     file.write_text("hello world")
-    result = SlurmIT4I.readRemoteFile("host", file)
+    result = SlurmIT4I.read_remote_file("host", file)
     assert result == "hello world"
 
 
 def test_slurmit4i_read_remote_file_raises_on_missing_file(tmp_path):
     file = tmp_path / "missing.txt"
     with pytest.raises(QQError, match=f"Could not read file '{file}'"):
-        SlurmIT4I.readRemoteFile("host", file)
+        SlurmIT4I.read_remote_file("host", file)
 
 
 def test_slurmit4i_write_remote_file_writes_successfully(tmp_path):
     file = tmp_path / "output.txt"
-    SlurmIT4I.writeRemoteFile("host", file, "data content")
+    SlurmIT4I.write_remote_file("host", file, "data content")
     assert file.read_text() == "data content"
 
 
@@ -290,12 +290,12 @@ def test_slurmit4i_write_remote_file_raises_on_readonly_dir(tmp_path):
     file = readonly_dir / "file.txt"
     file.chmod(0o400)  # make read-only
     with pytest.raises(QQError, match=f"Could not write file '{file}'"):
-        SlurmIT4I.writeRemoteFile("host", file, "cannot write")
+        SlurmIT4I.write_remote_file("host", file, "cannot write")
 
 
 def test_slurmit4i_make_remote_dir_creates_successfully(tmp_path):
     directory = tmp_path / "newdir"
-    SlurmIT4I.makeRemoteDir("host", directory)
+    SlurmIT4I.make_remote_dir("host", directory)
     assert directory.exists() and directory.is_dir()
 
 
@@ -306,26 +306,26 @@ def test_slurmit4i_make_remote_dir_raises_on_invalid_path(tmp_path):
     bad_dir = bad_parent / "nested"
 
     with pytest.raises(QQError, match=f"Could not create a directory '{bad_dir}'"):
-        SlurmIT4I.makeRemoteDir("host", bad_dir)
+        SlurmIT4I.make_remote_dir("host", bad_dir)
 
 
 def test_slurmit4i_list_remote_dir_lists_successfully(tmp_path):
     (tmp_path / "a.txt").write_text("A")
     (tmp_path / "b.txt").write_text("B")
-    result = SlurmIT4I.listRemoteDir("host", tmp_path)
+    result = SlurmIT4I.list_remote_dir("host", tmp_path)
     assert set(result) == {tmp_path / "a.txt", tmp_path / "b.txt"}
 
 
 def test_slurmit4i_list_remote_dir_raises_on_invalid_path(tmp_path):
     bad_dir = tmp_path / "nonexistent"
     with pytest.raises(QQError, match=f"Could not list a directory '{bad_dir}'"):
-        SlurmIT4I.listRemoteDir("host", bad_dir)
+        SlurmIT4I.list_remote_dir("host", bad_dir)
 
 
 @patch("qq_lib.batch.slurmit4i.slurm.logger.info")
-@patch("qq_lib.batch.slurmit4i.slurm.BatchInterface._navigateSameHost")
+@patch("qq_lib.batch.slurmit4i.slurm.BatchInterface._navigate_same_host")
 def test_slurmit4i_navigate_to_destination_calls_interface(mock_nav, mock_info):
-    SlurmIT4I.navigateToDestination("host", Path("/data"))
+    SlurmIT4I.navigate_to_destination("host", Path("/data"))
     mock_info.assert_called_once()
     mock_nav.assert_called_once_with(Path("/data"))
 
@@ -336,7 +336,7 @@ def test_slurmit4i_navigate_to_destination_calls_interface(mock_nav, mock_info):
 def test_slurmit4i_create_work_dir_on_scratch_creates_and_returns_path(
     mock_mkdir, mock_user
 ):
-    result = SlurmIT4I.createWorkDirOnScratch("123")
+    result = SlurmIT4I.create_work_dir_on_scratch("123")
     assert str(result).endswith("/scratch/project/acct/user1/qq-jobs/job_123")
     mock_user.assert_called_once()
     mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
@@ -345,7 +345,7 @@ def test_slurmit4i_create_work_dir_on_scratch_creates_and_returns_path(
 @patch.dict(os.environ, {}, clear=True)
 def test_slurmit4i_create_work_dir_on_scratch_raises_when_no_account():
     with pytest.raises(QQError, match="No account is defined for job '123'"):
-        SlurmIT4I.createWorkDirOnScratch("123")
+        SlurmIT4I.create_work_dir_on_scratch("123")
 
 
 @patch("qq_lib.batch.slurmit4i.slurm.getpass.getuser", return_value="user2")
@@ -357,7 +357,7 @@ def test_slurmit4i_create_work_dir_on_scratch_raises_on_mkdir_failure(
     with pytest.raises(
         QQError, match="Could not create a working directory on scratch for job '456'"
     ):
-        SlurmIT4I.createWorkDirOnScratch("456")
+        SlurmIT4I.create_work_dir_on_scratch("456")
     mock_user.assert_called_once()
     assert mock_mkdir.call_count == CFG.slurm_it4i_options.scratch_dir_attempts
 
@@ -373,7 +373,7 @@ def test_slurmit4i_create_work_dir_on_scratch_third_attempt_succeeds(mock_user):
     ]
 
     with patch("qq_lib.batch.slurmit4i.slurm.Path.mkdir", mkdir_mock):
-        result = SlurmIT4I.createWorkDirOnScratch("999")
+        result = SlurmIT4I.create_work_dir_on_scratch("999")
 
     expected_path = "/scratch/project/acct/userX3/qq-jobs/job_999"
     assert str(result).endswith(expected_path)
@@ -389,7 +389,7 @@ def test_slurmit4i_delete_remote_dir_deletes_local(tmp_path):
 
     assert test_dir.exists()
 
-    SlurmIT4I.deleteRemoteDir("some_host", test_dir)
+    SlurmIT4I.delete_remote_dir("some_host", test_dir)
 
     # Ensure directory was removed
     assert not test_dir.exists()
@@ -409,9 +409,9 @@ def test_slurmit4i_delete_remote_dir_raises_error_on_local_failure(
     with pytest.raises(
         QQError, match=f"Could not delete directory '{test_dir}': access denied."
     ):
-        SlurmIT4I.deleteRemoteDir("some_host", test_dir)
+        SlurmIT4I.delete_remote_dir("some_host", test_dir)
 
 
 def test_slurmit4i_get_supported_work_dir_types_returns_combined_list():
     expected = ["scratch", "input_dir", "job_dir"]
-    assert SlurmIT4I.getSupportedWorkDirTypes() == expected
+    assert SlurmIT4I.get_supported_work_dir_types() == expected

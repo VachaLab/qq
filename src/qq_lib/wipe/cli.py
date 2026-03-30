@@ -74,18 +74,18 @@ def wipe(job: str | None, yes: bool = False, force: bool = False) -> NoReturn:
     """
     try:
         if job:
-            informers = [Informer.fromJobId(job)]
+            informers = [Informer.from_job_id(job)]
         else:
             if not (
                 informers := [
-                    Informer.fromFile(info) for info in get_info_files(Path.cwd())
+                    Informer.from_file(info) for info in get_info_files(Path.cwd())
                 ]
             ):
                 raise QQError("No qq job info file found.")
 
         repeater = Repeater(informers, _wipe_work_dir, force, yes)
-        repeater.onException(QQNotSuitableError, handle_not_suitable_error)
-        repeater.onException(QQError, handle_general_qq_error)
+        repeater.on_exception(QQNotSuitableError, handle_not_suitable_error)
+        repeater.on_exception(QQError, handle_general_qq_error)
         repeater.run()
         print()
         sys.exit(0)
@@ -112,12 +112,12 @@ def _wipe_work_dir(informer: Informer, force: bool, yes: bool) -> None:
         QQNotSuitableError: If the job does (or should) not have a working directory.
         QQError: If the working directory cannot be deleted.
     """
-    wiper = Wiper.fromInformer(informer)
-    wiper.printInfo(console)
+    wiper = Wiper.from_informer(informer)
+    wiper.print_info(console)
 
     # make sure that the job is suitable for wiping
     if not force:
-        wiper.ensureSuitable()
+        wiper.ensure_suitable()
 
     if (
         force

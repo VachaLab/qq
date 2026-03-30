@@ -43,7 +43,7 @@ class NaiveState(Enum):
         return self.name.lower()
 
     @classmethod
-    def fromStr(cls, s: str) -> "NaiveState":
+    def from_str(cls, s: str) -> "NaiveState":
         """
         Convert a string to the corresponding NaiveState enum variant.
 
@@ -85,7 +85,7 @@ class BatchState(Enum):
         return self.name.lower()
 
     @classmethod
-    def _codeToState(cls) -> dict[str, str]:
+    def _code_to_state(cls) -> dict[str, str]:
         """
         Internal mapping from one-letter codes to batch state names.
 
@@ -105,7 +105,7 @@ class BatchState(Enum):
         }
 
     @classmethod
-    def fromCode(cls, code: str) -> "BatchState":
+    def from_code(cls, code: str) -> "BatchState":
         """
         Convert a one-letter batch system code to a BatchState enum variant.
 
@@ -116,20 +116,20 @@ class BatchState(Enum):
             BatchState: Corresponding enum variant, or UNKNOWN if the code is invalid.
         """
         code = code.upper()
-        if code not in cls._codeToState():
+        if code not in cls._code_to_state():
             return cls.UNKNOWN
 
-        name = cls._codeToState()[code].upper()
+        name = cls._code_to_state()[code].upper()
         return cls[name]
 
-    def toCode(self) -> str:
+    def to_code(self) -> str:
         """
         Return the one-letter code corresponding to this BatchState.
 
         Returns:
             str: One-letter code representing the batch state. Returns '?' if unknown.
         """
-        for k, v in self._codeToState().items():
+        for k, v in self._code_to_state().items():
             if v.upper() == self.name:
                 return k
 
@@ -185,7 +185,7 @@ class RealState(Enum):
         return self.name.lower().replace("_", " ")
 
     @classmethod
-    def fromStates(
+    def from_states(
         cls, naive_state: NaiveState, batch_state: BatchState
     ) -> "RealState":
         """

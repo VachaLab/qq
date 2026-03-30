@@ -49,7 +49,7 @@ def test_repeater_runs_all_items(sample_items, success_func):
 def test_repeater_on_exception_registers_handler(sample_items):
     repeater = Repeater(sample_items, lambda _: None)
     handler = Mock()
-    repeater.onException(ValueError, handler)
+    repeater.on_exception(ValueError, handler)
 
     assert ValueError in repeater._handlers
     assert repeater._handlers[ValueError] is handler
@@ -59,7 +59,7 @@ def test_repeater_handles_registered_exception(sample_items, error_func):
     handler = Mock()
 
     repeater = Repeater(sample_items, error_func)
-    repeater.onException(ValueError, handler)
+    repeater.on_exception(ValueError, handler)
     repeater.run()
 
     handler.assert_called_once()
@@ -83,8 +83,8 @@ def test_repeater_multiple_handlers(sample_items):
     h_type = Mock()
 
     repeater = Repeater(sample_items, func)
-    repeater.onException(ValueError, h_val)
-    repeater.onException(TypeError, h_type)
+    repeater.on_exception(ValueError, h_val)
+    repeater.on_exception(TypeError, h_type)
     repeater.run()
 
     h_val.assert_called_once()
@@ -119,7 +119,7 @@ def test_repeater_handler_raises(sample_items, error_func):
         raise RuntimeError("handler failed")
 
     repeater = Repeater(sample_items, error_func)
-    repeater.onException(ValueError, bad_handler)
+    repeater.on_exception(ValueError, bad_handler)
 
     with pytest.raises(RuntimeError, match="handler failed"):
         repeater.run()
@@ -145,7 +145,7 @@ def test_repeater_multiple_handled_exceptions():
 
     handler = Mock()
     repeater = Repeater(items, func)
-    repeater.onException(ValueError, handler)
+    repeater.on_exception(ValueError, handler)
     repeater.run()
 
     assert len(repeater.encountered_errors) == 2  # 2 and 4 failed

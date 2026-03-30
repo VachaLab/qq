@@ -32,7 +32,7 @@ class ACLData:
     _host: str | None = None
 
     @staticmethod
-    def getGroupsOrInit(user: str) -> list[str]:
+    def get_groups_or_init(user: str) -> list[str]:
         """
         Retrieve the cached group memberships for a user, initializing them if needed.
         Args:
@@ -64,7 +64,7 @@ class ACLData:
         return groups
 
     @staticmethod
-    def getHostOrInit() -> str:
+    def get_host_or_init() -> str:
         """
         Retrieve the cached hostname, initializing it if not already set.
 
@@ -74,7 +74,7 @@ class ACLData:
         if host := ACLData._host:
             return host
 
-        host = socket.gethostname()
+        host = socket.getfqdn()
         ACLData._host = host
         logger.debug(f"Initialized ACL host: {host}.")
         return host
@@ -86,8 +86,9 @@ class PBSQueue(BatchQueueInterface):
     Stores metadata for a single PBS queue.
     """
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, server: str | None = None):
         self._name = name
+        self._server = server
         self._info: dict[str, str] = {}
 
         self.update()
@@ -95,6 +96,8 @@ class PBSQueue(BatchQueueInterface):
     def update(self) -> None:
         # get queue info from PBS
         command = f"qstat -Qfw {self._name}"
+        if self._server:
+            command += f"@{self._server}"
 
         result = subprocess.run(
             ["bash"],
@@ -109,51 +112,51 @@ class PBSQueue(BatchQueueInterface):
             raise QQError(f"Queue '{self._name}' does not exist.")
 
         self._info = parse_pbs_dump_to_dictionary(result.stdout)
-        self._setAttributes()
+        self._set_attributes()
 
-    def getName(self) -> str:
+    def get_name(self) -> str:
         return self._name
 
-    def getPriority(self) -> str | None:
+    def get_priority(self) -> str | None:
         return self._info.get("Priority")
 
-    def getTotalJobs(self) -> int | None:
-        return PBSQueue._getIntValue(self._info, "total_jobs")
+    def get_total_jobs(self) -> int | None:
+        return PBSQueue._get_int_value(self._info, "total_jobs")
 
-    def getRunningJobs(self) -> int | None:
-        return PBSQueue._getIntValue(self._job_numbers, "Running")
+    def get_running_jobs(self) -> int | None:
+        return PBSQueue._get_int_value(self._job_numbers, "Running")
 
-    def getQueuedJobs(self) -> int | None:
+    def get_queued_jobs(self) -> int | None:
         # we count held and waiting jobs as queued for consistency with Slurm
         return (
-            (PBSQueue._getIntValue(self._job_numbers, "Queued") or 0)
-            + (PBSQueue._getIntValue(self._job_numbers, "Held") or 0)
-            + (PBSQueue._getIntValue(self._job_numbers, "Waiting") or 0)
+            (PBSQueue._get_int_value(self._job_numbers, "Queued") or 0)
+            + (PBSQueue._get_int_value(self._job_numbers, "Held") or 0)
+            + (PBSQueue._get_int_value(self._job_numbers, "Waiting") or 0)
         )
 
-    def getOtherJobs(self) -> int | None:
+    def get_other_jobs(self) -> int | None:
         return (
-            (PBSQueue._getIntValue(self._job_numbers, "Transit") or 0)
-            + (PBSQueue._getIntValue(self._job_numbers, "Exiting") or 0)
-            + (PBSQueue._getIntValue(self._job_numbers, "Begun") or 0)
+            (PBSQueue._get_int_value(self._job_numbers, "Transit") or 0)
+            + (PBSQueue._get_int_value(self._job_numbers, "Exiting") or 0)
+            + (PBSQueue._get_int_value(self._job_numbers, "Begun") or 0)
         )
 
-    def getMaxWalltime(self) -> timedelta | None:
+    def get_max_walltime(self) -> timedelta | None:
         if raw_time := self._info.get("resources_max.walltime"):
             return hhmmss_to_duration(raw_time)
 
         return None
 
-    def getMaxNNodes(self) -> int | None:
-        return PBSQueue._getIntValue(self._info, "resources_max.nodect")
+    def get_max_n_nodes(self) -> int | None:
+        return PBSQueue._get_int_value(self._info, "resources_max.nodect")
 
-    def getComment(self) -> str | None:
+    def get_comment(self) -> str | None:
         if not (raw_comment := self._info.get("comment")):
             return None
 
         return raw_comment.split("|", 1)[0]
 
-    def isAvailableToUser(self, user: str) -> bool:
+    def is_available_to_user(self, user: str) -> bool:
         # queues that are not enabled or not started are unavailable to all users
         if self._info.get("enabled") != "True" or self._info.get("started") != "True":
             return False
@@ -167,36 +170,36 @@ class PBSQueue(BatchQueueInterface):
         # check acl groups
         if self._info.get("acl_group_enable") == "True":
             expected_acl_groups = self._acl_groups
-            users_acl_groups = ACLData.getGroupsOrInit(user)
+            users_acl_groups = ACLData.get_groups_or_init(user)
             if not any(item in expected_acl_groups for item in users_acl_groups):
                 return False
 
         # check acl hosts
         if (host := self._info.get("acl_host_enable")) == "True":
             acl_hosts = self._acl_hosts
-            host = ACLData.getHostOrInit()
+            host = ACLData.get_host_or_init()
             if host not in acl_hosts:
                 return False
 
         return True
 
-    def getDestinations(self) -> list[str]:
+    def get_destinations(self) -> list[str]:
         if raw_destinations := self._info.get("route_destinations"):
             return raw_destinations.split(",")
 
         return []
 
-    def fromRouteOnly(self) -> bool:
+    def from_route_only(self) -> bool:
         return self._info.get("from_route_only") == "True"
 
-    def toYaml(self) -> str:
+    def to_yaml(self) -> str:
         # we need to add queue name to the start of the dictionary
         to_dump = {"Queue": self._name} | self._info
         return yaml.dump(
             to_dump, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
-    def getDefaultResources(self) -> Resources:
+    def get_default_resources(self) -> Resources:
         default_resources = {}
 
         for key, value in self._info.items():
@@ -211,7 +214,7 @@ class PBSQueue(BatchQueueInterface):
         )
 
     @staticmethod
-    def _getIntValue(dict: dict[str, str], key: str) -> int | None:
+    def _get_int_value(dict: dict[str, str], key: str) -> int | None:
         """
         Retrieve an integer value from the provided dictionary.
 
@@ -232,23 +235,24 @@ class PBSQueue(BatchQueueInterface):
             )
             return None
 
-    def _setAttributes(self) -> None:
+    def _set_attributes(self) -> None:
         """
         Initialize derived queue attributes to avoid redundant parsing.
         """
-        self._setJobNumbers()
+        self._set_job_numbers()
         self._acl_users = self._info.get("acl_users", "").split(",")
         self._acl_groups = self._info.get("acl_groups", "").split(",")
         self._acl_hosts = self._info.get("acl_hosts", "").split(",")
 
     @classmethod
-    def fromDict(cls, name: str, info: dict[str, str]) -> Self:
+    def from_dict(cls, name: str, server: str | None, info: dict[str, str]) -> Self:
         """
         Construct a new instance of PBSQueue from a queue name and a dictionary of queue information.
 
 
         Args:
             name (str): The unique name of the queue.
+            server (str | None): Server on which the queue is located. If `None`, assumes the current server.
             info (dict[str, str]): A dictionary containing PBS queue metadata as key-value pairs.
 
         Returns:
@@ -259,12 +263,13 @@ class PBSQueue(BatchQueueInterface):
         """
         queue = cls.__new__(cls)
         queue._name = name
+        queue._server = server
         queue._info = info
-        queue._setAttributes()
+        queue._set_attributes()
 
         return queue
 
-    def _setJobNumbers(self) -> None:
+    def _set_job_numbers(self) -> None:
         """
         Parse and store job counts by state from the 'state_count' field.
 

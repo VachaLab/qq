@@ -17,7 +17,13 @@ class QueuesPresenter:
     Presents information about queues of the batch system.
     """
 
-    def __init__(self, queues: list[BatchQueueInterface], user: str, all: bool):
+    def __init__(
+        self,
+        queues: list[BatchQueueInterface],
+        user: str,
+        all: bool,
+        server: str | None,
+    ):
         """
         Initialize the presenter with a list of queues.
 
@@ -25,23 +31,26 @@ class QueuesPresenter:
             queues (list[BatchQueueInterface]): List of queue information objects
                 to be presented.
             user (str): Name of the user for which the queues are displayed.
-            all (boolean): Display all queues or only those available to the user.
+            all (bool): Display all queues or only those available to the user.
+            server (str | None): Batch server for which the queues were collected.
+                `None` = default server.
         """
         self._queues = queues
         self._user = user
         self._display_all = all
+        self._server = server
 
-        self._show_comment = self._shouldShowComment()
-        self._show_max_nnodes = self._shouldShowMaxNNodes()
+        self._show_comment = self._should_show_comment()
+        self._show_max_nnodes = self._should_show_max_n_nodes()
 
-    def dumpYaml(self) -> None:
+    def dump_yaml(self) -> None:
         """
         Print the YAML representation of all queues to stdout.
         """
         for queue in self._queues:
-            print(queue.toYaml())
+            print(queue.to_yaml())
 
-    def createQueuesInfoPanel(self, console: Console | None = None) -> Group:
+    def create_queues_info_panel(self, console: Console | None = None) -> Group:
         """
         Create a Rich panel displaying queue information.
 
@@ -53,7 +62,7 @@ class QueuesPresenter:
             Group: Rich Group containing the queues table.
         """
         console = console or Console()
-        queues_table = self._createQueuesTable()
+        queues_table = self._create_queues_table()
 
         panel = Panel(
             queues_table,
@@ -62,6 +71,13 @@ class QueuesPresenter:
                 style=CFG.queues_presenter.title_style,
                 justify="center",
             ),
+            subtitle=Text(
+                f"{self._server}",
+                style=CFG.jobs_presenter.subtitle_style,
+                justify="center",
+            )
+            if self._server
+            else None,
             border_style=CFG.queues_presenter.border_style,
             padding=(1, 1),
             width=get_panel_width(
@@ -75,7 +91,7 @@ class QueuesPresenter:
 
         return Group(Text(""), panel, Text(""))
 
-    def _createQueuesTable(self) -> Table:
+    def _create_queues_table(self) -> Table:
         """
         Construct and return a formatted Rich Table containing queue information.
 
@@ -103,7 +119,7 @@ class QueuesPresenter:
         )
         table.add_column(
             header=Text(
-                BatchState.RUNNING.toCode(),
+                BatchState.RUNNING.to_code(),
                 justify="right",
                 style=CFG.state_colors.running,
             ),
@@ -111,7 +127,7 @@ class QueuesPresenter:
         )
         table.add_column(
             header=Text(
-                f"{BatchState.QUEUED.toCode()}{BatchState.HELD.toCode()}",
+                f"{BatchState.QUEUED.to_code()}{BatchState.HELD.to_code()}",
                 justify="right",
                 style=CFG.state_colors.queued,
             ),
@@ -163,25 +179,25 @@ class QueuesPresenter:
 
         visited_queues = set()
         for queue in self._queues:
-            if queue.fromRouteOnly():
+            if queue.from_route_only():
                 continue
 
-            self._addQueueRow(queue, table, self._user)
+            self._add_queue_row(queue, table, self._user)
             visited_queues.add(queue)
 
             # print all reroutings
-            if dest_names := queue.getDestinations():
-                destinations = [q for q in self._queues if q.getName() in dest_names]
+            if dest_names := queue.get_destinations():
+                destinations = [q for q in self._queues if q.get_name() in dest_names]
 
                 for rerouted in destinations:
-                    self._addQueueRow(
+                    self._add_queue_row(
                         rerouted,
                         table,
                         self._user,
                         from_route=True,
                         # we set the availability to False if the parent queue is not available
                         available=None
-                        if queue.isAvailableToUser(self._user)
+                        if queue.is_available_to_user(self._user)
                         else False,
                     )
                     visited_queues.add(rerouted)
@@ -194,13 +210,13 @@ class QueuesPresenter:
                 Text("?", style=f"{CFG.queues_presenter.dangling_mark_style} bold")
             )
             for queue in unvisited_queues:
-                self._addQueueRow(
+                self._add_queue_row(
                     queue, table, self._user, from_route=True, dangling=True
                 )
 
         return table
 
-    def _addQueueRow(
+    def _add_queue_row(
         self,
         queue: BatchQueueInterface,
         table: Table,
@@ -228,7 +244,7 @@ class QueuesPresenter:
             else CFG.queues_presenter.rerouted_mark
         )
 
-        available = available or queue.isAvailableToUser(user)
+        available = available or queue.is_available_to_user(user)
 
         if available and dangling:
             mark_style = CFG.queues_presenter.dangling_mark_style
@@ -245,17 +261,17 @@ class QueuesPresenter:
 
         content = [
             Text(mark, style=mark_style),
-            Text(queue.getName(), style=text_style),
-            Text(queue.getPriority() or "", style=text_style),
-            Text(str(queue.getRunningJobs() or 0), style=CFG.state_colors.running),
-            Text(str(queue.getQueuedJobs() or 0), style=CFG.state_colors.queued),
-            Text(str(queue.getOtherJobs() or 0), style=CFG.state_colors.other),
-            Text(str(queue.getTotalJobs() or 0), style=CFG.state_colors.sum),
-            QueuesPresenter._formatWalltime(queue, text_style),
-            Text(str(queue.getMaxNNodes() or "∞"), style=text_style)
+            Text(queue.get_name(), style=text_style),
+            Text(queue.get_priority() or "", style=text_style),
+            Text(str(queue.get_running_jobs() or 0), style=CFG.state_colors.running),
+            Text(str(queue.get_queued_jobs() or 0), style=CFG.state_colors.queued),
+            Text(str(queue.get_other_jobs() or 0), style=CFG.state_colors.other),
+            Text(str(queue.get_total_jobs() or 0), style=CFG.state_colors.sum),
+            QueuesPresenter._format_walltime(queue, text_style),
+            Text(str(queue.get_max_n_nodes() or "∞"), style=text_style)
             if self._show_max_nnodes
             else None,
-            Text(queue.getComment() or "", style=text_style)
+            Text(queue.get_comment() or "", style=text_style)
             if self._show_comment
             else None,
         ]
@@ -263,7 +279,7 @@ class QueuesPresenter:
         table.add_row(*[x for x in content if x is not None])
 
     @staticmethod
-    def _formatWalltime(queue: BatchQueueInterface, style: str) -> Text:
+    def _format_walltime(queue: BatchQueueInterface, style: str) -> Text:
         """
         Format the queue's maximum walltime for display.
 
@@ -275,21 +291,21 @@ class QueuesPresenter:
             Text: A styled Rich Text object containing the formatted walltime,
             or an empty string if no walltime is defined.
         """
-        if not (walltime := queue.getMaxWalltime()):
+        if not (walltime := queue.get_max_walltime()):
             return Text("")
 
         return Text(format_duration_wdhhmmss(walltime), style=style)
 
-    def _shouldShowComment(self) -> bool:
+    def _should_show_comment(self) -> bool:
         """
         Determine whether the Comment column should be displayed.
 
         Returns:
             bool: True if any node has a comment, False otherwise.
         """
-        return any(queue.getComment() is not None for queue in self._queues)
+        return any(queue.get_comment() is not None for queue in self._queues)
 
-    def _shouldShowMaxNNodes(self) -> bool:
+    def _should_show_max_n_nodes(self) -> bool:
         """
         Determine whether the Max Nodes column should be displayed.
 
@@ -297,4 +313,4 @@ class QueuesPresenter:
             bool: True if any node has a defined maximal number of nodes that
             can be requested, False otherwise.
         """
-        return any(queue.getMaxNNodes() is not None for queue in self._queues)
+        return any(queue.get_max_n_nodes() is not None for queue in self._queues)

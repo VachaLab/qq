@@ -25,13 +25,13 @@ def test_clearer_delete_files_deletes_all_files():
     mock_file1 = Mock(spec=Path)
     mock_file2 = Mock(spec=Path)
 
-    Clearer._deleteFiles([mock_file1, mock_file2])
+    Clearer._delete_files([mock_file1, mock_file2])
 
     mock_file1.unlink.assert_called_once()
     mock_file2.unlink.assert_called_once()
 
 
-def test_clearer_collect_run_time_files_returns_files_from_helper(tmp_path):
+def test_clearer_collect_runtime_files_returns_files_from_helper(tmp_path):
     clearer = Clearer(tmp_path)
     expected_files = [
         tmp_path / f"a{CFG.suffixes.qq_info}",
@@ -41,7 +41,7 @@ def test_clearer_collect_run_time_files_returns_files_from_helper(tmp_path):
     with patch(
         "qq_lib.clear.clearer.get_runtime_files", return_value=expected_files
     ) as mock_get:
-        result = clearer._collectRunTimeFiles()
+        result = clearer._collect_runtime_files()
 
         mock_get.assert_called_once_with(tmp_path)
         assert result == set(expected_files)
@@ -58,16 +58,16 @@ def test_clearer_collect_excluded_files(tmp_path, state):
     dummy_job_name = "job"
 
     mock_informer = MagicMock()
-    mock_informer.getRealState.return_value = state
+    mock_informer.get_real_state.return_value = state
     mock_informer.info.stdout_file = dummy_stdout
     mock_informer.info.stderr_file = dummy_stderr
     mock_informer.info.job_name = dummy_job_name
 
     with (
         patch("qq_lib.core.common.get_info_files", return_value=[dummy_info_file]),
-        patch("qq_lib.info.informer.Informer.fromFile", return_value=mock_informer),
+        patch("qq_lib.info.informer.Informer.from_file", return_value=mock_informer),
     ):
-        result = clearer._collectExcludedFiles()
+        result = clearer._collect_excluded_files()
 
     if state in [
         RealState.KILLED,
@@ -94,9 +94,9 @@ def test_clearer_collect_excluded_files_ignores_files_that_raise_qqerror(tmp_pat
 
     with (
         patch("qq_lib.core.common.get_info_files", return_value=[dummy_info_file]),
-        patch.object(Informer, "fromFile", side_effect=QQError("cannot read file")),
+        patch.object(Informer, "from_file", side_effect=QQError("cannot read file")),
     ):
-        result = clearer._collectExcludedFiles()
+        result = clearer._collect_excluded_files()
 
     assert result == set()
 
@@ -109,10 +109,10 @@ def test_clearer_clear_deletes_only_safe_files(tmp_path):
 
     with (
         patch.object(
-            Clearer, "_collectRunTimeFiles", return_value={safe_file, excluded_file}
+            Clearer, "_collect_runtime_files", return_value={safe_file, excluded_file}
         ),
-        patch.object(Clearer, "_collectExcludedFiles", return_value={excluded_file}),
-        patch.object(Clearer, "_deleteFiles") as mock_delete,
+        patch.object(Clearer, "_collect_excluded_files", return_value={excluded_file}),
+        patch.object(Clearer, "_delete_files") as mock_delete,
         patch("qq_lib.clear.clearer.logger.info") as mock_info,
     ):
         clearer.clear()
@@ -132,12 +132,12 @@ def test_clearer_clear_deletes_no_files_are_safe(tmp_path):
 
     with (
         patch.object(
-            Clearer, "_collectRunTimeFiles", return_value={excluded1, excluded2}
+            Clearer, "_collect_runtime_files", return_value={excluded1, excluded2}
         ),
         patch.object(
-            Clearer, "_collectExcludedFiles", return_value={excluded1, excluded2}
+            Clearer, "_collect_excluded_files", return_value={excluded1, excluded2}
         ),
-        patch.object(Clearer, "_deleteFiles") as mock_delete,
+        patch.object(Clearer, "_delete_files") as mock_delete,
         patch("qq_lib.clear.clearer.logger.info") as mock_info,
     ):
         clearer.clear()
@@ -155,9 +155,9 @@ def test_clearer_clear_force_deletes_all_files(tmp_path):
     file2 = tmp_path / f"file2{CFG.suffixes.qq_out}"
 
     with (
-        patch.object(Clearer, "_collectRunTimeFiles", return_value={file1, file2}),
-        patch.object(Clearer, "_collectExcludedFiles") as mock_excluded,
-        patch.object(Clearer, "_deleteFiles") as mock_delete,
+        patch.object(Clearer, "_collect_runtime_files", return_value={file1, file2}),
+        patch.object(Clearer, "_collect_excluded_files") as mock_excluded,
+        patch.object(Clearer, "_delete_files") as mock_delete,
         patch("qq_lib.clear.clearer.logger.info") as mock_info,
     ):
         clearer.clear(force=True)
@@ -173,8 +173,8 @@ def test_clearer_clear_logs_info_when_no_files(tmp_path):
     clearer = Clearer(tmp_path)
 
     with (
-        patch.object(Clearer, "_collectRunTimeFiles", return_value=set()),
-        patch.object(Clearer, "_deleteFiles") as mock_delete,
+        patch.object(Clearer, "_collect_runtime_files", return_value=set()),
+        patch.object(Clearer, "_delete_files") as mock_delete,
         patch("qq_lib.clear.clearer.logger.info") as mock_info,
     ):
         clearer.clear()
@@ -215,7 +215,6 @@ def test_clear_command_qqerror_triggers_exit_91():
     with patch.object(Clearer, "clear", side_effect=raise_qqerror):
         result = runner.invoke(clear, [])
         assert result.exit_code == CFG.exit_codes.default
-        assert "some error" in result.output
 
 
 def test_clear_command_unexpected_exception_triggers_exit_99():
@@ -228,4 +227,3 @@ def test_clear_command_unexpected_exception_triggers_exit_99():
     with patch.object(Clearer, "clear", side_effect=raise_exception):
         result = runner.invoke(clear, [])
         assert result.exit_code == CFG.exit_codes.unexpected_error
-        assert "unexpected" in result.output

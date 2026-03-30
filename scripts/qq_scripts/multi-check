@@ -5,7 +5,7 @@
 
 """
 Check the state of qq jobs in multiple directories.
-Version 0.4.
+Version qq 0.10.0.
 Requires `uv`: https://docs.astral.sh/uv
 """
 
@@ -16,7 +16,7 @@ Requires `uv`: https://docs.astral.sh/uv
 # ]
 #
 # [tool.uv.sources]
-# qq = { git = "https://github.com/Ladme/qq.git", tag = "v0.9.0" }
+# qq = { git = "https://github.com/Ladme/qq.git", tag = "v0.10.0" }
 # ///
 
 import argparse
@@ -64,7 +64,7 @@ def get_informer(directory: str) -> Informer | None:
         return None
 
     # get the last info file (the newest one) and load it into an informer
-    return Informer.fromFile(info_files[-1], None)
+    return Informer.from_file(info_files[-1], None)
 
 
 def process_directory(directory: str) -> tuple[Job, RealState] | None:
@@ -77,7 +77,7 @@ def process_directory(directory: str) -> tuple[Job, RealState] | None:
         return None
 
     # get the state of the job
-    state = informer.getRealState()
+    state = informer.get_real_state()
 
     return Job(informer, Path(directory)), state
 
@@ -94,7 +94,7 @@ def fix_job(job: Job) -> tuple[Job, bool]:
     with suppress(QQError):
         # delete the working directory
         # no checks since we assume the provided job is killed or failed
-        wiper = Wiper.fromInformer(informer)
+        wiper = Wiper.from_informer(informer)
         wiper.wipe()
 
         # remove runtime files in the directory
@@ -114,6 +114,9 @@ def fix_job(job: Job) -> tuple[Job, bool]:
             informer.info.excluded_files,
             informer.info.included_files,
             # remove dependencies
+            informer.info.transfer_mode,
+            informer.info.server,
+            informer.info.interpreter,
         )
         submitter.submit()
         return (job, True)

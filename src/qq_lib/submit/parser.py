@@ -83,7 +83,7 @@ class Parser:
                     break  # stop parsing at other lines
 
                 # remove the leading '# qq' and split by whitespace or '='
-                parts = Parser._stripAndSplit(line)
+                parts = Parser._strip_and_split(line)
                 if len(parts) < 2:
                     raise QQError(
                         f"Invalid qq submit option line in '{str(self._script)}': {line}."
@@ -110,7 +110,7 @@ class Parser:
 
         logger.debug(f"Parsed options from '{self._script}': {self._options}.")
 
-    def getBatchSystem(self) -> type[BatchInterface] | None:
+    def get_batch_system(self) -> type[BatchInterface] | None:
         """
         Return the batch system class specified in the script.
 
@@ -118,11 +118,11 @@ class Parser:
             type[BatchInterface] | None: The batch system class if specified, otherwise None.
         """
         if (batch_system := self._options.get("batch_system")) is not None:
-            return BatchMeta.fromStr(str(batch_system))
+            return BatchMeta.from_str(str(batch_system))
 
         return None
 
-    def getQueue(self) -> str | None:
+    def get_queue(self) -> str | None:
         """
         Return the queue specified for the job.
 
@@ -133,7 +133,7 @@ class Parser:
             return str(queue)
         return None
 
-    def getJobType(self) -> JobType | None:
+    def get_job_type(self) -> JobType | None:
         """
         Return the job type specified in the script.
 
@@ -141,11 +141,11 @@ class Parser:
             JobType | None: Enum value representing the job type, or None if not set.
         """
         if (job_type := self._options.get("job_type")) is not None:
-            return JobType.fromStr(str(job_type))
+            return JobType.from_str(str(job_type))
 
         return None
 
-    def getResources(self) -> Resources:
+    def get_resources(self) -> Resources:
         """
         Return the job resource specifications parsed from the script.
 
@@ -156,7 +156,7 @@ class Parser:
         # only select fields that are part of Resources
         return Resources(**{k: v for k, v in self._options.items() if k in field_names})  # ty: ignore[invalid-argument-type]
 
-    def getExclude(self) -> list[Path]:
+    def get_exclude(self) -> list[Path]:
         """
         Determine the files to exclude from being copied to the job's working directory.
 
@@ -168,7 +168,7 @@ class Parser:
 
         return []
 
-    def getInclude(self) -> list[Path]:
+    def get_include(self) -> list[Path]:
         """
         Determine the files to explicitly copy to the job's working directory.
 
@@ -180,7 +180,7 @@ class Parser:
 
         return []
 
-    def getLoopStart(self) -> int | None:
+    def get_loop_start(self) -> int | None:
         """
         Return the starting cycle number for loop jobs.
 
@@ -191,7 +191,7 @@ class Parser:
             return loop_start
         return None
 
-    def getLoopEnd(self) -> int | None:
+    def get_loop_end(self) -> int | None:
         """
         Return the ending cycle number for loop jobs.
 
@@ -202,7 +202,7 @@ class Parser:
             return loop_end
         return None
 
-    def getArchive(self) -> Path | None:
+    def get_archive(self) -> Path | None:
         """
         Return the archive directory path specified in the script.
 
@@ -214,7 +214,7 @@ class Parser:
 
         return None
 
-    def getArchiveFormat(self) -> str | None:
+    def get_archive_format(self) -> str | None:
         """
         Return the file naming format used for archived files.
 
@@ -225,7 +225,7 @@ class Parser:
             return str(archive_format)
         return None
 
-    def getArchiveMode(self) -> list[TransferMode]:
+    def get_archive_mode(self) -> list[TransferMode]:
         """
         Get the mode specifying when the files should be archived.
 
@@ -233,11 +233,11 @@ class Parser:
             list[TransferMode]: List of transfer modes.
         """
         if (raw := self._options.get("archive_mode")) is not None:
-            return TransferMode.multiFromStr(str(raw))
+            return TransferMode.multi_from_str(str(raw))
 
         return []
 
-    def getDepend(self) -> list[Depend]:
+    def get_depend(self) -> list[Depend]:
         """
         Return the list of job dependencies.
 
@@ -245,11 +245,11 @@ class Parser:
             list[Depend]: List of job dependencies.
         """
         if (raw := self._options.get("depend")) is not None:
-            return Depend.multiFromStr(str(raw))
+            return Depend.multi_from_str(str(raw))
 
         return []
 
-    def getAccount(self) -> str | None:
+    def get_account(self) -> str | None:
         """
         Get the account name to use for the job.
 
@@ -261,7 +261,7 @@ class Parser:
 
         return None
 
-    def getTransferMode(self) -> list[TransferMode]:
+    def get_transfer_mode(self) -> list[TransferMode]:
         """
         Get the mode specifying when the files should be transferred
         from the working directory to the input directory.
@@ -270,12 +270,40 @@ class Parser:
             list[TransferMode]: List of transfer modes.
         """
         if (raw := self._options.get("transfer_mode")) is not None:
-            return TransferMode.multiFromStr(str(raw))
+            return TransferMode.multi_from_str(str(raw))
 
         return []
 
+    def get_server(self) -> str | None:
+        """
+        Get the batch server to which the job should be submitted.
+
+        Note that this function returns the raw name of the server
+        as provided by the user. It should be then translated using
+        the `translate_server` function.
+
+        Returns:
+            str | None: The name or shortcut of the batch server or `None` if not specified.
+        """
+        if (server := self._options.get("server")) is not None:
+            return str(server)
+
+        return None
+
+    def get_interpreter(self) -> str | None:
+        """
+        Get the interpreter that should be used to run the script.
+
+        Returns:
+            str | None: The interpreter or `None` if not specified.
+        """
+        if (interpreter := self._options.get("interpreter")) is not None:
+            return str(interpreter)
+
+        return None
+
     @staticmethod
-    def _stripAndSplit(string: str) -> list[str]:
+    def _strip_and_split(string: str) -> list[str]:
         """
         Remove the leading `# qq` directive from a line, extract content before the next `#`
         (if any), and split the remaining content.

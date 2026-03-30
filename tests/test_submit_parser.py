@@ -84,14 +84,14 @@ def test_parser_init(tmp_path):
     ],
 )
 def test_parser_strip_and_split(input_line, expected):
-    assert Parser._stripAndSplit(input_line) == expected
+    assert Parser._strip_and_split(input_line) == expected
 
 
 def test_parser_get_depend_empty_list():
     parser = Parser.__new__(Parser)
     parser._options = {}
 
-    result = parser.getDepend()
+    result = parser.get_depend()
     assert result == []
 
 
@@ -102,9 +102,9 @@ def test_parser_get_depend_calls_multi_from_str():
     mock_depend_list = [MagicMock(), MagicMock()]
 
     with patch.object(
-        Depend, "multiFromStr", return_value=mock_depend_list
+        Depend, "multi_from_str", return_value=mock_depend_list
     ) as mock_multi:
-        result = parser.getDepend()
+        result = parser.get_depend()
 
     mock_multi.assert_called_once_with("afterok=1234,after=2345")
     assert result == mock_depend_list
@@ -114,7 +114,7 @@ def test_parser_get_archive_format_none():
     parser = Parser.__new__(Parser)
     parser._options = {}
 
-    result = parser.getArchiveFormat()
+    result = parser.get_archive_format()
     assert result is None
 
 
@@ -122,7 +122,7 @@ def test_parser_get_archive_format_value():
     parser = Parser.__new__(Parser)
     parser._options = {"archive_format": "job%04d"}
 
-    result = parser.getArchiveFormat()
+    result = parser.get_archive_format()
     assert result == "job%04d"
 
 
@@ -130,7 +130,7 @@ def test_parser_get_archive_none():
     parser = Parser.__new__(Parser)
     parser._options = {}
 
-    result = parser.getArchive()
+    result = parser.get_archive()
     assert result is None
 
 
@@ -138,7 +138,7 @@ def test_parser_get_archive_value():
     parser = Parser.__new__(Parser)
     parser._options = {"archive": "storage"}
 
-    result = parser.getArchive()
+    result = parser.get_archive()
     assert result == Path("storage")
 
 
@@ -146,7 +146,7 @@ def test_parser_get_loop_end_none():
     parser = Parser.__new__(Parser)
     parser._options = {}
 
-    result = parser.getLoopEnd()
+    result = parser.get_loop_end()
     assert result is None
 
 
@@ -154,7 +154,7 @@ def test_parser_get_loop_end_value():
     parser = Parser.__new__(Parser)
     parser._options = {"loop_end": 10}
 
-    result = parser.getLoopEnd()
+    result = parser.get_loop_end()
     assert result == 10
 
 
@@ -162,7 +162,7 @@ def test_parser_get_loop_start_none():
     parser = Parser.__new__(Parser)
     parser._options = {}
 
-    result = parser.getLoopStart()
+    result = parser.get_loop_start()
     assert result is None
 
 
@@ -170,7 +170,7 @@ def test_parser_get_loop_start_value():
     parser = Parser.__new__(Parser)
     parser._options = {"loop_start": 2}
 
-    result = parser.getLoopStart()
+    result = parser.get_loop_start()
     assert result == 2
 
 
@@ -178,7 +178,7 @@ def test_parser_get_account_value():
     parser = Parser.__new__(Parser)
     parser._options = {"account": "parser_account"}
 
-    result = parser.getAccount()
+    result = parser.get_account()
     assert result == "parser_account"
 
 
@@ -186,7 +186,7 @@ def test_parser_get_account_none():
     parser = Parser.__new__(Parser)
     parser._options = {}
 
-    result = parser.getAccount()
+    result = parser.get_account()
     assert result is None
 
 
@@ -194,7 +194,7 @@ def test_parser_get_exclude_empty_list():
     parser = Parser.__new__(Parser)
     parser._options = {}
 
-    result = parser.getExclude()
+    result = parser.get_exclude()
     assert result == []
 
 
@@ -207,7 +207,7 @@ def test_parser_get_exclude_calls_split_files_list():
     with patch(
         "qq_lib.submit.parser.split_files_list", return_value=mock_split_result
     ) as mock_split:
-        result = parser.getExclude()
+        result = parser.get_exclude()
 
     mock_split.assert_called_once_with("file1,file2")
     assert result == mock_split_result
@@ -217,7 +217,7 @@ def test_parser_get_include_empty_list():
     parser = Parser.__new__(Parser)
     parser._options = {}
 
-    result = parser.getInclude()
+    result = parser.get_include()
     assert result == []
 
 
@@ -230,7 +230,7 @@ def test_parser_get_include_calls_split_files_list_single_numeric_value():
     with patch(
         "qq_lib.submit.parser.split_files_list", return_value=mock_split_result
     ) as mock_split:
-        result = parser.getInclude()
+        result = parser.get_include()
 
     mock_split.assert_called_once_with("16")
     assert result == mock_split_result
@@ -245,7 +245,7 @@ def test_parser_get_include_calls_split_files_list():
     with patch(
         "qq_lib.submit.parser.split_files_list", return_value=mock_split_result
     ) as mock_split:
-        result = parser.getInclude()
+        result = parser.get_include()
 
     mock_split.assert_called_once_with("file1,file2")
     assert result == mock_split_result
@@ -255,7 +255,7 @@ def test_parser_get_resources_returns_empty_resources_if_no_matching_options():
     parser = Parser.__new__(Parser)
     parser._options = {"foo": "bar"}  # not a Resources field
 
-    result = parser.getResources()
+    result = parser.get_resources()
 
     assert isinstance(result, Resources)
     for f in fields(Resources):
@@ -266,7 +266,7 @@ def test_parser_get_resources_returns_resources_with_matching_fields():
     parser = Parser.__new__(Parser)
     parser._options = {"ncpus": 4, "mem": "4gb", "foo": "bar"}
 
-    result = parser.getResources()
+    result = parser.get_resources()
 
     assert isinstance(result, Resources)
     assert getattr(result, "ncpus") == 4
@@ -277,7 +277,7 @@ def test_parser_get_job_type_none():
     parser = Parser.__new__(Parser)
     parser._options = {}
 
-    result = parser.getJobType()
+    result = parser.get_job_type()
     assert result is None
 
 
@@ -287,8 +287,8 @@ def test_parser_get_job_type_calls_from_str():
 
     mock_enum = JobType.STANDARD
 
-    with patch.object(JobType, "fromStr", return_value=mock_enum) as mock_from_str:
-        result = parser.getJobType()
+    with patch.object(JobType, "from_str", return_value=mock_enum) as mock_from_str:
+        result = parser.get_job_type()
 
     mock_from_str.assert_called_once_with("standard")
     assert result == mock_enum
@@ -298,7 +298,7 @@ def test_parser_get_queue_none():
     parser = Parser.__new__(Parser)
     parser._options = {}
 
-    result = parser.getQueue()
+    result = parser.get_queue()
     assert result is None
 
 
@@ -306,7 +306,7 @@ def test_parser_get_queue_value():
     parser = Parser.__new__(Parser)
     parser._options = {"queue": "default"}
 
-    result = parser.getQueue()
+    result = parser.get_queue()
     assert result == "default"
 
 
@@ -314,7 +314,7 @@ def test_parser_get_batch_system_none():
     parser = Parser.__new__(Parser)
     parser._options = {}
 
-    result = parser.getBatchSystem()
+    result = parser.get_batch_system()
     assert result is None
 
 
@@ -324,8 +324,8 @@ def test_parser_get_batch_system_value():
 
     mock_class = MagicMock(spec=BatchInterface)
 
-    with patch.object(BatchMeta, "fromStr", return_value=mock_class) as mock_from_str:
-        result = parser.getBatchSystem()
+    with patch.object(BatchMeta, "from_str", return_value=mock_class) as mock_from_str:
+        result = parser.get_batch_system()
 
     mock_from_str.assert_called_once_with("PBS")
     assert result == mock_class
@@ -335,7 +335,7 @@ def test_parser_get_transfer_mode_empty_list():
     parser = Parser.__new__(Parser)
     parser._options = {}
 
-    result = parser.getTransferMode()
+    result = parser.get_transfer_mode()
     assert result == []
 
 
@@ -346,9 +346,9 @@ def test_parser_get_transfer_mode_single_int():
     mock_transfer_list = [MagicMock()]
 
     with patch.object(
-        TransferMode, "multiFromStr", return_value=mock_transfer_list
+        TransferMode, "multi_from_str", return_value=mock_transfer_list
     ) as mock_multi:
-        result = parser.getTransferMode()
+        result = parser.get_transfer_mode()
 
     mock_multi.assert_called_once_with("1")
     assert result == mock_transfer_list
@@ -361,9 +361,9 @@ def test_parser_get_transfer_mode_calls_multi_from_str():
     mock_transfer_list = [MagicMock(), MagicMock(), MagicMock()]
 
     with patch.object(
-        TransferMode, "multiFromStr", return_value=mock_transfer_list
+        TransferMode, "multi_from_str", return_value=mock_transfer_list
     ) as mock_multi:
-        result = parser.getTransferMode()
+        result = parser.get_transfer_mode()
 
     mock_multi.assert_called_once_with("success,1,never")
     assert result == mock_transfer_list
@@ -373,7 +373,7 @@ def test_parser_get_archive_mode_empty_list():
     parser = Parser.__new__(Parser)
     parser._options = {}
 
-    result = parser.getArchiveMode()
+    result = parser.get_archive_mode()
     assert result == []
 
 
@@ -384,12 +384,42 @@ def test_parser_get_archive_mode_calls_multi_from_str():
     mock_transfer_list = [MagicMock(), MagicMock(), MagicMock()]
 
     with patch.object(
-        TransferMode, "multiFromStr", return_value=mock_transfer_list
+        TransferMode, "multi_from_str", return_value=mock_transfer_list
     ) as mock_multi:
-        result = parser.getArchiveMode()
+        result = parser.get_archive_mode()
 
     mock_multi.assert_called_once_with("success,1,never")
     assert result == mock_transfer_list
+
+
+def test_parser_get_server_empty_list():
+    parser = Parser.__new__(Parser)
+    parser._options = {}
+
+    result = parser.get_server()
+    assert result is None
+
+
+def test_parser_get_server_value():
+    parser = Parser.__new__(Parser)
+    parser._options = {"server": "fake.server.com"}
+    assert parser.get_server() == "fake.server.com"
+
+
+def test_parser_get_interpreter_none():
+    parser = Parser.__new__(Parser)
+    parser._options = {}
+
+    result = parser.get_interpreter()
+    assert result is None
+
+
+def test_parser_get_interpreter_value():
+    parser = Parser.__new__(Parser)
+    parser._options = {"interpreter": "/usr/bin/python"}
+
+    result = parser.get_interpreter()
+    assert result == "/usr/bin/python"
 
 
 @pytest.fixture
@@ -649,7 +679,7 @@ def test_parser_integration():
 
 
 #   qq archive    archive
-# qq archiveFormat=cycle_%03d
+# qq archive_format=cycle_%03d
 
 # add a module
 module add random_module
@@ -669,15 +699,15 @@ exit 0
     parser = Parser(tmp_file_path, submit.params)
     parser.parse()
 
-    batch_system = parser.getBatchSystem()
+    batch_system = parser.get_batch_system()
     assert batch_system == PBS
 
-    assert parser.getQueue() == "default"
+    assert parser.get_queue() == "default"
 
-    job_type = parser.getJobType()
+    job_type = parser.get_job_type()
     assert job_type == JobType.STANDARD
 
-    resources = parser.getResources()
+    resources = parser.get_resources()
     assert resources.ncpus == 8
     assert resources.work_dir == "scratch_local"
     assert resources.work_size is not None
@@ -686,15 +716,15 @@ exit 0
     assert resources.mem is None
     assert resources.props == {"vnode": "node"}
 
-    exclude = parser.getExclude()
+    exclude = parser.get_exclude()
     assert exclude == [Path("file1.txt"), Path("file2.txt")]
 
-    assert parser.getLoopStart() == 2
-    assert parser.getLoopEnd() == 10
+    assert parser.get_loop_start() == 2
+    assert parser.get_loop_end() == 10
 
-    assert parser.getArchive() == Path("archive")
-    assert parser.getArchiveFormat() == "cycle_%03d"
-    assert parser.getAccount() == "fake-account"
+    assert parser.get_archive() == Path("archive")
+    assert parser.get_archive_format() == "cycle_%03d"
+    assert parser.get_account() == "fake-account"
 
     # we have to delete the temporary file manually
     tmp_file_path.unlink()

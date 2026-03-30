@@ -28,7 +28,7 @@ def test_killer_lock_file_removes_write_permissions():
         )
 
         killer = Killer.__new__(Killer)
-        killer._lockFile(file_path)
+        killer._lock_file(file_path)
 
         new_mode = file_path.stat().st_mode
 
@@ -52,7 +52,7 @@ def test_killer_lock_file_removes_write_permissions():
 def test_killer_is_suspended_returns_correctly(state, expected):
     killer = Killer.__new__(Killer)
     killer._state = state
-    assert killer._isSuspended() is expected
+    assert killer._is_suspended() is expected
 
 
 @pytest.mark.parametrize(
@@ -68,7 +68,7 @@ def test_killer_is_suspended_returns_correctly(state, expected):
 def test_killer_is_queued_returns_correctly(state, expected):
     killer = Killer.__new__(Killer)
     killer._state = state
-    assert killer._isQueued() is expected
+    assert killer._is_queued() is expected
 
 
 @pytest.mark.parametrize(
@@ -86,7 +86,7 @@ def test_killer_is_killed_returns_correctly(state, exit, expected):
     killer._state = state
     killer._informer = MagicMock()
     killer._informer.info.job_exit_code = exit
-    assert killer._isKilled() is expected
+    assert killer._is_killed() is expected
 
 
 @pytest.mark.parametrize(
@@ -100,7 +100,7 @@ def test_killer_is_killed_returns_correctly(state, exit, expected):
 def test_killer_is_completed_returns_correctly(state, expected):
     killer = Killer.__new__(Killer)
     killer._state = state
-    assert killer._isCompleted() is expected
+    assert killer._is_completed() is expected
 
 
 @pytest.mark.parametrize(
@@ -113,7 +113,7 @@ def test_killer_is_completed_returns_correctly(state, expected):
 def test_killer_is_exiting_returns_correctly(state, expected):
     killer = Killer.__new__(Killer)
     killer._state = state
-    assert killer._isExiting() is expected
+    assert killer._is_exiting() is expected
 
 
 @pytest.mark.parametrize(
@@ -127,7 +127,7 @@ def test_killer_is_exiting_returns_correctly(state, expected):
 def test_killer_is_unknown_inconsistent_returns_correctly(state, expected):
     killer = Killer.__new__(Killer)
     killer._state = state
-    assert killer._isUnknownInconsistent() is expected
+    assert killer._is_unknown_inconsistent() is expected
 
 
 def test_killer_update_info_file_calls_informer_and_locks_file():
@@ -139,15 +139,15 @@ def test_killer_update_info_file_calls_informer_and_locks_file():
     killer._informer = mock_informer
 
     with (
-        patch.object(killer, "_lockFile") as mock_lock,
+        patch.object(killer, "_lock_file") as mock_lock,
         patch("qq_lib.kill.killer.datetime") as mock_datetime,
     ):
         mock_datetime.now.return_value = datetime(2025, 1, 1)
 
-        killer._updateInfoFile()
+        killer._update_info_file()
 
-        mock_informer.setKilled.assert_called_once_with(datetime(2025, 1, 1))
-        mock_informer.toFile.assert_called_once_with(mock_file)
+        mock_informer.set_killed.assert_called_once_with(datetime(2025, 1, 1))
+        mock_informer.to_file.assert_called_once_with(mock_file)
         mock_lock.assert_called_once_with(mock_file)
 
 
@@ -191,13 +191,13 @@ def test_killer_should_update_info_file_all_combinations_manual(
     killer._state = state
     killer._informer = MagicMock()
     killer._informer.info.job_exit_code = exit
-    assert killer._shouldUpdateInfoFile(force) is expected
+    assert killer._should_update_info_file(force) is expected
 
 
 def test_killer_kill_normal_updates_info_file():
     killer = Killer.__new__(Killer)
-    killer._shouldUpdateInfoFile = MagicMock(return_value=True)
-    killer._updateInfoFile = MagicMock()
+    killer._should_update_info_file = MagicMock(return_value=True)
+    killer._update_info_file = MagicMock()
     killer._batch_system = MagicMock()
     killer._informer = MagicMock()
     killer._informer.info.job_id = "1234"
@@ -205,16 +205,16 @@ def test_killer_kill_normal_updates_info_file():
     job_id = killer.kill(force=False)
 
     assert job_id == "1234"
-    killer._shouldUpdateInfoFile.assert_called_once_with(False)
-    killer._batch_system.jobKill.assert_called_once_with("1234")
-    killer._batch_system.jobKillForce.assert_not_called()
-    killer._updateInfoFile.assert_called_once()
+    killer._should_update_info_file.assert_called_once_with(False)
+    killer._batch_system.job_kill.assert_called_once_with("1234")
+    killer._batch_system.job_kill_force.assert_not_called()
+    killer._update_info_file.assert_called_once()
 
 
 def test_killer_kill_force_updates_info_file():
     killer = Killer.__new__(Killer)
-    killer._shouldUpdateInfoFile = MagicMock(return_value=True)
-    killer._updateInfoFile = MagicMock()
+    killer._should_update_info_file = MagicMock(return_value=True)
+    killer._update_info_file = MagicMock()
     killer._batch_system = MagicMock()
     killer._informer = MagicMock()
     killer._informer.info.job_id = "5678"
@@ -222,16 +222,16 @@ def test_killer_kill_force_updates_info_file():
     job_id = killer.kill(force=True)
 
     assert job_id == "5678"
-    killer._shouldUpdateInfoFile.assert_called_once_with(True)
-    killer._batch_system.jobKillForce.assert_called_once_with("5678")
-    killer._batch_system.jobKill.assert_not_called()
-    killer._updateInfoFile.assert_called_once()
+    killer._should_update_info_file.assert_called_once_with(True)
+    killer._batch_system.job_kill_force.assert_called_once_with("5678")
+    killer._batch_system.job_kill.assert_not_called()
+    killer._update_info_file.assert_called_once()
 
 
 def test_killer_kill_does_not_update_info_file():
     killer = Killer.__new__(Killer)
-    killer._shouldUpdateInfoFile = MagicMock(return_value=False)
-    killer._updateInfoFile = MagicMock()
+    killer._should_update_info_file = MagicMock(return_value=False)
+    killer._update_info_file = MagicMock()
     killer._batch_system = MagicMock()
     killer._informer = MagicMock()
     killer._informer.info.job_id = "91011"
@@ -239,9 +239,9 @@ def test_killer_kill_does_not_update_info_file():
     job_id = killer.kill(force=False)
 
     assert job_id == "91011"
-    killer._shouldUpdateInfoFile.assert_called_once_with(False)
-    killer._batch_system.jobKill.assert_called_once_with("91011")
-    killer._updateInfoFile.assert_not_called()
+    killer._should_update_info_file.assert_called_once_with(False)
+    killer._batch_system.job_kill.assert_called_once_with("91011")
+    killer._update_info_file.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -269,7 +269,7 @@ def test_killer_ensure_suitable_raises(state, exit, expected_message):
     killer._informer = MagicMock()
     killer._informer.info.job_exit_code = exit
     with pytest.raises(QQNotSuitableError, match=expected_message):
-        killer.ensureSuitable()
+        killer.ensure_suitable()
 
 
 @pytest.mark.parametrize(
@@ -288,4 +288,4 @@ def test_killer_ensure_suitable_raises(state, exit, expected_message):
 def test_killer_ensure_suitable_passes(state):
     killer = Killer.__new__(Killer)
     killer._state = state
-    killer.ensureSuitable()
+    killer.ensure_suitable()

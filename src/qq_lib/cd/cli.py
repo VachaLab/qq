@@ -40,7 +40,7 @@ def cd(job: str) -> NoReturn:
     which then cds to this directory in the parent shell.
     """
     try:
-        cder = Cder(BatchMeta.fromEnvVarOrGuess(), job)
+        cder = Cder(BatchMeta.from_env_var_or_guess(), job)
         print(cder.cd())
         sys.exit(0)
     except QQError as e:

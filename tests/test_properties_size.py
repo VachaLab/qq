@@ -32,12 +32,12 @@ def test_invalid_unit_raises():
     ],
 )
 def test_from_string_valid(text, expected):
-    assert Size.fromString(text) == expected
+    assert Size.from_string(text) == expected
 
 
 def test_from_string_invalid():
     with pytest.raises(QQError):
-        Size.fromString("nonsense")
+        Size.from_string("nonsense")
 
 
 def test_init_without_unit():
@@ -115,7 +115,7 @@ def test_str_conversions(value, expected_string):
 )
 def test_to_str_exact(value, expected_string):
     s = Size(value, "kb")
-    assert s.toStrExact() == expected_string
+    assert s.to_str_exact() == expected_string
 
 
 @pytest.mark.parametrize(
@@ -137,7 +137,7 @@ def test_to_str_exact(value, expected_string):
 )
 def test_to_str_exact_slurm(value, expected_string):
     s = Size(value, "kb")
-    assert s.toStrExactSlurm() == expected_string
+    assert s.to_str_exact_slurm() == expected_string
 
 
 def test_multiplication():

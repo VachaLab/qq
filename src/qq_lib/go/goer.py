@@ -16,19 +16,19 @@ class Goer(Navigator):
     Handles opening a new shell in the job's working directory on the job's main execution node.
     """
 
-    def ensureSuitable(self) -> None:
+    def ensure_suitable(self) -> None:
         """
         Verify that the job is in a state where its working directory can be visited.
 
         Raises:
             QQNotSuitableError: If the working directory is not expected to exist.
         """
-        if self._isSynchronized() and not self._workDirIsInputDir():
+        if self._is_synchronized() and not self._work_dir_is_input_dir():
             raise QQNotSuitableError(
                 "Job has been completed and was synchronized: working directory no longer exists."
             )
 
-        if self._isKilled() and not self.hasDestination():
+        if self._is_killed() and not self.has_destination():
             raise QQNotSuitableError(
                 "Job has been killed and no working directory has been created."
             )
@@ -44,35 +44,37 @@ class Goer(Navigator):
         Notes:
             - This method may block while waiting for a queued job to start.
         """
-        if self._isInWorkDir():
+        if self._is_in_work_dir():
             logger.info("You are already in the working directory.")
             return
 
-        if self._isKilled() and not self._workDirIsInputDir():
+        if self._is_killed() and not self._work_dir_is_input_dir():
             logger.warning(
                 "Job has been killed: working directory may no longer exist."
             )
 
-        elif (self._isFailed() or self._isFinished()) and not self._workDirIsInputDir():
+        elif (
+            self._is_failed() or self._is_finished()
+        ) and not self._work_dir_is_input_dir():
             logger.warning(
                 "Job has been completed: working directory may no longer exist."
             )
 
-        elif self._isUnknownInconsistent():
+        elif self._is_unknown_inconsistent():
             logger.warning("Job is in an unknown, unrecognized, or inconsistent state.")
 
-        elif self._isQueued():
+        elif self._is_queued():
             logger.warning(
                 f"Job is {str(self._state)}: cannot visit the working directory. Will retry every {CFG.goer.wait_time} seconds."
             )
 
             # keep retrying until the job stops being queued
-            self._waitQueued()
-            if self._isInWorkDir():
+            self._wait_queued()
+            if self._is_in_work_dir():
                 logger.info("You are already in the working directory.")
                 return
 
-        if not self.hasDestination():
+        if not self.has_destination():
             raise QQError(
                 "Host ('main_node') or working directory ('work_dir') are not defined."
             )
@@ -81,9 +83,9 @@ class Goer(Navigator):
         # work_dir and main_node must be set - we check that in self.hasDestination
         assert self._work_dir and self._main_node
         logger.info(f"Navigating to '{str(self._work_dir)}' on '{self._main_node}'.")
-        self._batch_system.navigateToDestination(self._main_node, self._work_dir)
+        self._batch_system.navigate_to_destination(self._main_node, self._work_dir)
 
-    def _waitQueued(self):
+    def _wait_queued(self):
         """
         Wait until the job is no longer in queued/booting/waiting state.
 
@@ -95,7 +97,7 @@ class Goer(Navigator):
             This is a blocking method and will continue looping until the job
             leaves the queued/booting/waiting state or an exception is raised.
         """
-        while self._isQueued():
+        while self._is_queued():
             sleep(CFG.goer.wait_time)
             self.update()
-            self.ensureSuitable()
+            self.ensure_suitable()

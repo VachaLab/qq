@@ -37,7 +37,7 @@ from qq_lib.properties.transfer_mode import (
     ],
 )
 def test_from_str_valid_strings(input_str: str, expected_type):
-    result = TransferMode.fromStr(input_str)
+    result = TransferMode.from_str(input_str)
     assert isinstance(result, expected_type)
 
 
@@ -46,7 +46,7 @@ def test_from_str_valid_strings(input_str: str, expected_type):
     ["0", "1", "42", "255", "999", "-1", "-24"],
 )
 def test_from_str_numeric_strings(exit_code_str: str):
-    result = TransferMode.fromStr(exit_code_str)
+    result = TransferMode.from_str(exit_code_str)
     assert isinstance(result, ExitCode)
     assert result.code == int(exit_code_str)
 
@@ -57,7 +57,7 @@ def test_from_str_numeric_strings(exit_code_str: str):
 )
 def test_from_str_numeric_strings_with_whitespace(exit_code_str: str):
     padded = f"  {exit_code_str}  "
-    result = TransferMode.fromStr(padded)
+    result = TransferMode.from_str(padded)
     assert isinstance(result, ExitCode)
     assert result.code == int(exit_code_str)
 
@@ -79,42 +79,42 @@ def test_from_str_numeric_strings_with_whitespace(exit_code_str: str):
 )
 def test_from_str_invalid_strings_raise_error(invalid_str: str):
     with pytest.raises(QQError) as exc_info:
-        TransferMode.fromStr(invalid_str)
+        TransferMode.from_str(invalid_str)
     assert "Could not recognize a transfer mode variant" in str(exc_info.value)
 
 
 @pytest.mark.parametrize("exit_code", [0, 1, 42, 127, 255, -24])
 def test_always_transfers_on_all_exit_codes(exit_code: int):
     mode = Always()
-    assert mode.shouldTransfer(exit_code) is True
+    assert mode.should_transfer(exit_code) is True
 
 
 @pytest.mark.parametrize("exit_code", [0, 1, 42, 127, 255, -24])
 def test_never_transfers_on_no_exit_codes(exit_code: int):
     mode = Never()
-    assert mode.shouldTransfer(exit_code) is False
+    assert mode.should_transfer(exit_code) is False
 
 
 def test_success_transfers_on_zero():
     mode = Success()
-    assert mode.shouldTransfer(0) is True
+    assert mode.should_transfer(0) is True
 
 
 @pytest.mark.parametrize("exit_code", [1, 42, 127, 255, -24])
 def test_success_does_not_transfer_on_nonzero(exit_code: int):
     mode = Success()
-    assert mode.shouldTransfer(exit_code) is False
+    assert mode.should_transfer(exit_code) is False
 
 
 def test_failure_does_not_transfer_on_zero():
     mode = Failure()
-    assert mode.shouldTransfer(0) is False
+    assert mode.should_transfer(0) is False
 
 
 @pytest.mark.parametrize("exit_code", [1, 42, 127, 255, -24])
 def test_failure_transfers_on_nonzero(exit_code: int):
     mode = Failure()
-    assert mode.shouldTransfer(exit_code) is True
+    assert mode.should_transfer(exit_code) is True
 
 
 @pytest.mark.parametrize(
@@ -137,7 +137,7 @@ def test_exit_code_transfers_only_on_matching_code(
     specified_code: int, test_code: int, expected: bool
 ):
     mode = ExitCode(specified_code)
-    assert mode.shouldTransfer(test_code) is expected
+    assert mode.should_transfer(test_code) is expected
 
 
 def test_exit_code_stores_code_value():
@@ -163,7 +163,7 @@ def test_exit_code_stores_code_value():
     ],
 )
 def test_transfer_decision_logic(mode: TransferMode, exit_code: int, expected: bool):
-    assert mode.shouldTransfer(exit_code) is expected
+    assert mode.should_transfer(exit_code) is expected
 
 
 @pytest.mark.parametrize(
@@ -178,34 +178,34 @@ def test_transfer_decision_logic(mode: TransferMode, exit_code: int, expected: b
     ],
 )
 def test_transfer_modes_list_multi_from_str_valid_strings(input_str: str):
-    result = TransferMode.multiFromStr(input_str)
+    result = TransferMode.multi_from_str(input_str)
     assert isinstance(result, list)
     assert len(result) >= 1
 
 
 def test_transfer_modes_list_multi_from_str_colon_separator():
-    result = TransferMode.multiFromStr("success:failure")
+    result = TransferMode.multi_from_str("success:failure")
     assert len(result) == 2
     assert isinstance(result[0], Success)
     assert isinstance(result[1], Failure)
 
 
 def test_transfer_modes_list_multi_from_str_comma_separator():
-    result = TransferMode.multiFromStr("success,failure")
+    result = TransferMode.multi_from_str("success,failure")
     assert len(result) == 2
     assert isinstance(result[0], Success)
     assert isinstance(result[1], Failure)
 
 
 def test_transfer_modes_list_multi_from_str_space_separator():
-    result = TransferMode.multiFromStr("success failure")
+    result = TransferMode.multi_from_str("success failure")
     assert len(result) == 2
     assert isinstance(result[0], Success)
     assert isinstance(result[1], Failure)
 
 
 def test_transfer_modes_list_multi_from_str_mixed_separators():
-    result = TransferMode.multiFromStr("success:failure,always failure")
+    result = TransferMode.multi_from_str("success:failure,always failure")
     assert len(result) == 4
     assert isinstance(result[0], Success)
     assert isinstance(result[1], Failure)
@@ -214,7 +214,7 @@ def test_transfer_modes_list_multi_from_str_mixed_separators():
 
 
 def test_transfer_modes_list_multi_from_str_with_exit_codes():
-    result = TransferMode.multiFromStr("success:42,100")
+    result = TransferMode.multi_from_str("success:42,100")
     assert len(result) == 3
     assert isinstance(result[0], Success)
     assert isinstance(result[1], ExitCode)
@@ -224,31 +224,31 @@ def test_transfer_modes_list_multi_from_str_with_exit_codes():
 
 
 def test_transfer_modes_list_multi_from_str_with_whitespace():
-    result = TransferMode.multiFromStr("  success  :  failure  ")
+    result = TransferMode.multi_from_str("  success  :  failure  ")
     assert len(result) == 2
     assert isinstance(result[0], Success)
     assert isinstance(result[1], Failure)
 
 
 def test_transfer_modes_list_multi_from_str_single_mode():
-    result = TransferMode.multiFromStr("always")
+    result = TransferMode.multi_from_str("always")
     assert len(result) == 1
     assert isinstance(result[0], Always)
 
 
 def test_transfer_modes_list_multi_from_str_empty_string():
-    result = TransferMode.multiFromStr("")
+    result = TransferMode.multi_from_str("")
     assert len(result) == 0
 
 
 def test_transfer_modes_list_multi_from_str_whitespace_only():
-    result = TransferMode.multiFromStr("     ")
+    result = TransferMode.multi_from_str("     ")
     assert len(result) == 0
 
 
 def test_transfer_modes_list_multi_from_str_invalid_mode_raises_error():
     with pytest.raises(QQError):
-        TransferMode.multiFromStr("success:invalid_mode")
+        TransferMode.multi_from_str("success:invalid_mode")
 
 
 @pytest.mark.parametrize(
@@ -266,4 +266,4 @@ def test_transfer_modes_list_multi_from_str_invalid_mode_raises_error():
     ],
 )
 def test_transfer_mode_to_str(transfer_mode, expected):
-    assert transfer_mode.toStr() == expected
+    assert transfer_mode.to_str() == expected

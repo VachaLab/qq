@@ -10,6 +10,7 @@ from qq_lib.batch.interface import BatchInterface
 from qq_lib.core.common import is_printf_pattern, printf_to_regex
 from qq_lib.core.config import CFG
 from qq_lib.core.logger import get_logger
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.core.retryer import Retryer
 
 logger = get_logger(__name__, show_time=True)
@@ -44,16 +45,16 @@ class Archiver:
         self._input_machine = input_machine
         self._input_dir = input_dir
 
-    def makeArchiveDir(self) -> None:
+    def make_archive_dir(self) -> None:
         """
         Create the archive directory in the job's input directory if it does not already exist.
         """
         logger.debug(
             f"Attempting to create an archive '{self._archive}' on '{self._input_machine}'."
         )
-        self._batch_system.makeRemoteDir(self._input_machine, self._archive)
+        self._batch_system.make_remote_dir(self._input_machine, self._archive)
 
-    def fromArchive(self, dir: Path, cycle: int | None = None) -> None:
+    def from_archive(self, dir: Path, cycle: int | None = None) -> None:
         """
         Fetch files from the archive to job's working directory.
 
@@ -73,7 +74,7 @@ class Archiver:
             QQError: If file transfer fails.
         """
         if not (
-            files := self._getFiles(
+            files := self._get_files(
                 self._archive, self._input_machine, self._archive_format, cycle, False
             )
         ):
@@ -83,17 +84,17 @@ class Archiver:
         logger.debug(f"Files to fetch from archive: {files}.")
 
         Retryer(
-            self._batch_system.syncSelected,
+            self._batch_system.sync_selected,
             self._archive,
             dir,
             self._input_machine,
-            socket.gethostname(),
+            socket.getfqdn(),
             files,
             max_tries=CFG.archiver.retry_tries,
             wait_seconds=CFG.archiver.retry_wait,
         ).run()
 
-    def toArchive(self, dir: Path) -> None:
+    def to_archive(self, dir: Path) -> None:
         """
         Archive all files matching the archive format in the specified directory.
 
@@ -107,17 +108,17 @@ class Archiver:
         Raises:
             QQError: If file transfer or removal fails.
         """
-        if not (files := self._getFiles(dir, None, self._archive_format, None, False)):
+        if not (files := self._get_files(dir, None, self._archive_format, None, False)):
             logger.debug("Nothing to archive.")
             return
 
         logger.debug(f"Files to archive: {files}.")
 
         Retryer(
-            self._batch_system.syncSelected,
+            self._batch_system.sync_selected,
             dir,
             self._archive,
-            socket.gethostname(),
+            socket.getfqdn(),
             self._input_machine,
             files,
             max_tries=CFG.archiver.retry_tries,
@@ -126,13 +127,13 @@ class Archiver:
 
         # remove the archived files
         Retryer(
-            self._removeFiles,
+            self._remove_files,
             files,
             max_tries=CFG.archiver.retry_tries,
             wait_seconds=CFG.archiver.retry_wait,
         ).run()
 
-    def archiveRunTimeFiles(self, job_name: str, cycle: int) -> None:
+    def archive_runtime_files(self, job_name: str, cycle: int) -> None:
         """
         Archive qq runtime files from a specific job located in the input directory.
 
@@ -152,7 +153,7 @@ class Archiver:
             QQError: If moving the runtime files fails.
         """
         if not (
-            files := self._getFiles(
+            files := self._get_files(
                 self._input_dir,
                 self._input_machine,
                 # only use the stem of the job name, the extension will not be matched
@@ -174,7 +175,7 @@ class Archiver:
         logger.debug(f"qq runtime files after moving: {moved_files}.")
 
         Retryer(
-            self._batch_system.moveRemoteFiles,
+            self._batch_system.move_remote_files,
             self._input_machine,
             files,
             moved_files,
@@ -182,7 +183,7 @@ class Archiver:
             wait_seconds=CFG.archiver.retry_wait,
         ).run()
 
-    def _getFiles(
+    def _get_files(
         self,
         directory: Path,
         host: str | None,
@@ -224,10 +225,10 @@ class Archiver:
         logger.debug(f"Regex for matching: {regex}.")
 
         # the directory must exist
-        if host and host != socket.gethostname():
+        if host and host != socket.getfqdn():
             # remote directory
             available_files: list[Path] = Retryer(
-                self._batch_system.listRemoteDir,
+                self._batch_system.list_remote_dir,
                 host,
                 directory,
                 max_tries=CFG.archiver.retry_tries,
@@ -240,9 +241,9 @@ class Archiver:
         logger.debug(f"All available files: {available_files}.")
         if include_qq_files:
             # the stem of the file must contain the regex pattern
-            return [f.resolve() for f in available_files if regex.search(f.stem)]
+            return [logical_resolve(f) for f in available_files if regex.search(f.stem)]
         return [
-            f.resolve()
+            logical_resolve(f)
             for f in available_files
             if regex.search(f.stem) and f.suffix not in CFG.suffixes.all_suffixes
         ]
@@ -264,7 +265,7 @@ class Archiver:
         return re.compile(pattern)
 
     @staticmethod
-    def _removeFiles(files: Iterable[Path]) -> None:
+    def _remove_files(files: Iterable[Path]) -> None:
         """
         Remove a list of files from the filesystem.
 

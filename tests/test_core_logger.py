@@ -3,6 +3,7 @@
 
 import io
 import logging
+import sys
 from datetime import datetime
 
 from rich.console import Console
@@ -27,15 +28,15 @@ def test_logger_non_debug_mode(monkeypatch):
 
 
 def _make_stringio_logger(monkeypatch, *, show_time=False):
-    """Return a logger writing into a StringIO buffer."""
     buf = io.StringIO()
-
+    monkeypatch.setattr(
+        sys.stderr, "isatty", lambda: True
+    )  # force Rich branch in logger
     monkeypatch.setitem(
         get_logger.__globals__,
         "Console",
         lambda **kwargs: Console(file=buf, force_terminal=False, **kwargs),
     )
-
     name = f"test_logger_{show_time}"
     logging.getLogger(name).handlers.clear()
     logger = get_logger(name, show_time=show_time)

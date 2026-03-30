@@ -19,6 +19,7 @@ from qq_lib.core.common import (
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.info.informer import Informer
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.info import Info
@@ -58,6 +59,8 @@ class Submitter:
         include: list[Path] | None = None,
         depend: list[Depend] | None = None,
         transfer_mode: list[TransferMode] | None = None,
+        server: str | None = None,
+        interpreter: str | None = None,
     ):
         """
         Initialize a Submitter instance.
@@ -79,6 +82,10 @@ class Submitter:
             depend (list[Depend] | None): Optional list of job dependencies.
             transfer_mode (list[TransferMode] | None): Mode specifying when files whould be transferred from the
                 working directory to the input directory. Defaults to [`Success()`].
+            server (str | None): Optional name of the server to which the job should be submitted.
+                If `None`, the default batch server, as configured by the batch system is used.
+            intepreter (str | None): Optional executable name or absolute path of the interpreter to use to execute the script.
+                If not specified, the config default is used.
 
         Raises:
             QQError: If the script does not exist or has an invalid shebang line.
@@ -87,12 +94,13 @@ class Submitter:
         self._batch_system = batch_system
         self._job_type = job_type
         self._queue = queue
+        self._server = server
         self._account = account
         self._loop_info = loop_info
         self._script = script
-        self._input_dir = script.resolve().parent
+        self._input_dir = logical_resolve(script).parent
         self._script_name = script.name
-        self._job_name = self._constructJobName()
+        self._job_name = self._construct_job_name()
         self._info_file = construct_info_file_path(self._input_dir, self._job_name)
         self._resources = resources
         # convert relative paths to absolute paths by prepending the input dir path
@@ -101,16 +109,17 @@ class Submitter:
             i if i.is_absolute() else self._input_dir / i for i in (include or [])
         ]
         self._depend = depend or []
-        self._transfer_mode = transfer_mode or TransferMode.multiFromStr(
+        self._transfer_mode = transfer_mode or TransferMode.multi_from_str(
             CFG.transfer_files_options.default_transfer_mode
         )
+        self._interpreter = interpreter
 
         # script must exist
         if not self._script.is_file():
             raise QQError(f"Script '{script}' does not exist or is not a file.")
 
         # script must have a valid qq shebang
-        if not self._hasValidShebang(self._script):
+        if not self._has_valid_shebang(self._script):
             raise QQError(
                 f"Script '{self._script}' has an invalid shebang. The first line of the script should be '#!/usr/bin/env -S {CFG.binary_name} run'."
             )
@@ -138,14 +147,15 @@ class Submitter:
         # execute the command and then return back
         with chdir(self._input_dir):
             # submit the job
-            job_id = self._batch_system.jobSubmit(
+            job_id = self._batch_system.job_submit(
                 self._resources,
                 self._queue,
                 self._script,
                 self._job_name,
                 self._depend,
-                self._createEnvVarsDict(),
+                self._create_env_vars_dict(),
                 self._account,
+                self._server,
             )
 
             # create job qq info file
@@ -159,7 +169,7 @@ class Submitter:
                     script_name=self._script_name,
                     queue=self._queue,
                     job_type=self._job_type,
-                    input_machine=socket.gethostname(),
+                    input_machine=socket.getfqdn(),
                     input_dir=self._input_dir,
                     job_state=NaiveState.QUEUED,
                     submission_time=datetime.now(),
@@ -176,12 +186,14 @@ class Submitter:
                     depend=self._depend,
                     account=self._account,
                     transfer_mode=self._transfer_mode,
+                    server=self._server,
+                    interpreter=self._interpreter,
                 )
             )
-            informer.toFile(self._info_file)
+            informer.to_file(self._info_file)
             return job_id
 
-    def continuesLoop(self) -> bool:
+    def continues_loop(self) -> bool:
         """
         Determine whether the submitted job is a continuation of a loop/continuous job.
 
@@ -193,11 +205,11 @@ class Submitter:
             # there should only be one info file for both loop jobs (runtime files are archived)
             # and continuous jobs (runtime files overwrite each other)
             info_file = get_info_file(self._input_dir)
-            informer = Informer.fromFile(info_file)
+            informer = Informer.from_file(info_file)
 
-            if self._loopJobContinuesLoop(informer) or self._continuousJobContinuesLoop(
+            if self._loop_job_continues_loop(
                 informer
-            ):
+            ) or self._continuous_job_continues_loop(informer):
                 logger.debug("Valid loop job with a correct cycle or a continuous job.")
                 return True
             logger.debug(
@@ -208,7 +220,7 @@ class Submitter:
             logger.debug(f"Could not read an info file: {e}.")
             return False
 
-    def _loopJobContinuesLoop(self, previous: Informer) -> bool:
+    def _loop_job_continues_loop(self, previous: Informer) -> bool:
         """
         Determine whether the submitted job is a continuation of a loop job.
 
@@ -228,7 +240,7 @@ class Submitter:
             and previous.info.loop_info.current == self._loop_info.current - 1
         )
 
-    def _continuousJobContinuesLoop(self, previous: Informer) -> bool:
+    def _continuous_job_continues_loop(self, previous: Informer) -> bool:
         """
         Determine whether the submitted job is a continuation of a continuous job.
 
@@ -246,7 +258,7 @@ class Submitter:
             and previous.info.job_state == NaiveState.FINISHED
         )
 
-    def getInputDir(self) -> Path:
+    def get_input_dir(self) -> Path:
         """
         Get path to the job's input directory.
 
@@ -255,51 +267,59 @@ class Submitter:
         """
         return self._input_dir
 
-    def getBatchSystem(self) -> type[BatchInterface]:
+    def get_batch_system(self) -> type[BatchInterface]:
         """Get the batch system used for submiting."""
         return self._batch_system
 
-    def getQueue(self) -> str:
+    def get_queue(self) -> str:
         """Get the submission queue."""
         return self._queue
 
-    def getAccount(self) -> str | None:
+    def get_account(self) -> str | None:
         """Get the user's account."""
         return self._account
 
-    def getScript(self) -> Path:
+    def get_script(self) -> Path:
         """Get path to the submitted script."""
         return self._script
 
-    def getJobType(self) -> JobType:
+    def get_job_type(self) -> JobType:
         """Get type of the job."""
         return self._job_type
 
-    def getResources(self) -> Resources:
+    def get_resources(self) -> Resources:
         """Get resources requested for the job."""
         return self._resources
 
-    def getLoopInfo(self) -> LoopInfo | None:
+    def get_loop_info(self) -> LoopInfo | None:
         """Get loop job information."""
         return self._loop_info
 
-    def getExclude(self) -> list[Path] | None:
+    def get_exclude(self) -> list[Path] | None:
         """Get a list of excluded files."""
         return self._exclude
 
-    def getInclude(self) -> list[Path] | None:
+    def get_include(self) -> list[Path] | None:
         """Get a list of included files."""
         return self._include
 
-    def getDepend(self) -> list[Depend] | None:
+    def get_depend(self) -> list[Depend] | None:
         """Get the list of dependencies."""
         return self._depend
 
-    def getTransferMode(self) -> list[TransferMode]:
+    def get_transfer_mode(self) -> list[TransferMode]:
         """Get the list of transfer modes."""
         return self._transfer_mode
 
-    def _createEnvVarsDict(self) -> dict[str, str]:
+    def get_server(self) -> str | None:
+        """Get the submission server."""
+        return self._server
+
+    def get_interpreter(self) -> str | None:
+        """Get the interpreter to use for running the script."""
+        return self._interpreter
+
+    def _create_env_vars_dict(self) -> dict[str, str]:
         """
         Create a dictionary of environment variables provided to qq runtime.
 
@@ -319,7 +339,7 @@ class Submitter:
         env_vars[CFG.env_vars.info_file] = str(self._info_file)
 
         # contains the name of the input host
-        env_vars[CFG.env_vars.input_machine] = socket.gethostname()
+        env_vars[CFG.env_vars.input_machine] = socket.getfqdn()
 
         # contains the name of the used batch system
         env_vars[CFG.env_vars.batch_system] = str(self._batch_system)
@@ -362,7 +382,7 @@ class Submitter:
 
         return env_vars
 
-    def _hasValidShebang(self, script: Path) -> bool:
+    def _has_valid_shebang(self, script: Path) -> bool:
         """
         Verify that the script has a valid shebang for qq run.
 
@@ -378,7 +398,7 @@ class Submitter:
                 f"{CFG.binary_name} run"
             )
 
-    def _constructJobName(self) -> str:
+    def _construct_job_name(self) -> str:
         """
         Construct the job name for submission.
 

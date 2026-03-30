@@ -2,7 +2,7 @@
 ########################################
 #     Script for running Gromacs       #
 #         loop jobs using qq           #
-#         script version: 0.9          #
+#         script version: 0.11         #
 #      support: ladmeb@gmail.com       #
 ########################################
 
@@ -216,7 +216,7 @@ if [[ "${QQ_BATCH_SYSTEM}" == *"Slurm"* ]]; then
     --cpus-per-task=${NTOMP} \
     gmx_mpi mdrun -v -deffnm ${CURR} ${CPI} \
     -cpo ${NEXT} -cpt 1 -pf ${CURR}_pf.xvg -px ${CURR}_px.xvg \
-    ${PLUMED} -ntomp ${NTOMP} ${APPEND} -nb ${NB}
+    ${PLUMED} -ntomp ${NTOMP} ${APPEND} -nb ${NB} -pin on
 else
     mpirun \
     -display-allocation \

@@ -19,6 +19,8 @@ from rich.console import Console
 from rich.live import Live
 from rich.text import Text
 
+from qq_lib.core.logical_paths import logical_resolve
+
 from .config import CFG
 from .error import QQError
 from .logger import get_logger
@@ -159,13 +161,13 @@ def get_info_file_from_job_id(job_id: str) -> Path:
         BatchMeta,
     )
 
-    BatchSystem = BatchMeta.fromEnvVarOrGuess()
-    job_info: BatchJobInterface = BatchSystem.getBatchJob(job_id)
+    BatchSystem = BatchMeta.from_env_var_or_guess()
+    job_info: BatchJobInterface = BatchSystem.get_batch_job(job_id)
 
-    if job_info.isEmpty():
+    if job_info.is_empty():
         raise QQError(f"Job '{job_id}' does not exist.")
 
-    if not (path := job_info.getInfoFile()):
+    if not (path := job_info.get_info_file()):
         raise QQError(f"Job '{job_id}' is not a valid qq job.")
 
     return path
@@ -702,7 +704,7 @@ def construct_info_file_path(input_dir: Path, job_name: str) -> Path:
     Returns:
         Path: The absolute path to the job's qq info file.
     """
-    return (input_dir / job_name).with_suffix(CFG.suffixes.qq_info).resolve()
+    return logical_resolve((input_dir / job_name).with_suffix(CFG.suffixes.qq_info))
 
 
 def available_work_dirs() -> str:
@@ -720,8 +722,8 @@ def available_work_dirs() -> str:
     from qq_lib.batch.interface.meta import BatchMeta
 
     try:
-        batch_system = BatchMeta.fromEnvVarOrGuess()
-        work_dirs = batch_system.getSupportedWorkDirTypes()
+        batch_system = BatchMeta.from_env_var_or_guess()
+        work_dirs = batch_system.get_supported_work_dir_types()
         return ", ".join([f"'{work_dir_type}'" for work_dir_type in work_dirs])
     except QQError:
         return "??? (no batch system detected)"
@@ -737,3 +739,14 @@ def available_job_types() -> str:
     from qq_lib.properties.job_type import JobType
 
     return ", ".join([f"'{str(job_type)}'" for job_type in JobType])
+
+
+def translate_server(raw: str) -> str:
+    """
+    Translate a batch server shortcut to its full name.
+    If the shortcut is not recognized, the original value is returned unchanged.
+
+    Returns:
+        str: Full name the the batch server.
+    """
+    return CFG.batch_servers_options.known_servers.get(raw, raw)

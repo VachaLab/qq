@@ -28,7 +28,7 @@ from qq_lib.properties.states import BatchState, NaiveState, RealState
     ],
 )
 def test_naive_state_from_str(input_str, expected_state):
-    assert NaiveState.fromStr(input_str) == expected_state
+    assert NaiveState.from_str(input_str) == expected_state
 
 
 @pytest.mark.parametrize(
@@ -49,7 +49,7 @@ def test_naive_state_from_str(input_str, expected_state):
     ],
 )
 def test_batch_state_from_code(code, expected_state):
-    assert BatchState.fromCode(code) == expected_state
+    assert BatchState.from_code(code) == expected_state
 
 
 @pytest.mark.parametrize(
@@ -68,7 +68,7 @@ def test_batch_state_from_code(code, expected_state):
     ],
 )
 def test_batch_state_to_code(state, expected_code):
-    assert state.toCode() == expected_code
+    assert state.to_code() == expected_code
 
 
 @pytest.mark.parametrize(
@@ -123,5 +123,5 @@ def test_batch_state_to_code(state, expected_code):
     ],
 )
 def test_real_state_from_states(naive_state, batch_state, expected_state):
-    result = RealState.fromStates(naive_state, batch_state)
+    result = RealState.from_states(naive_state, batch_state)
     assert result == expected_state

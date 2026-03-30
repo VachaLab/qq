@@ -90,18 +90,18 @@ def kill(job: str | None, yes: bool = False, force: bool = False) -> NoReturn:
     """
     try:
         if job:
-            informers = [Informer.fromJobId(job)]
+            informers = [Informer.from_job_id(job)]
         else:
             if not (
                 informers := [
-                    Informer.fromFile(info) for info in get_info_files(Path.cwd())
+                    Informer.from_file(info) for info in get_info_files(Path.cwd())
                 ]
             ):
                 raise QQError("No qq job info file found.")
 
         repeater = Repeater(informers, kill_job, force, yes)
-        repeater.onException(QQNotSuitableError, handle_not_suitable_error)
-        repeater.onException(QQError, handle_general_qq_error)
+        repeater.on_exception(QQNotSuitableError, handle_not_suitable_error)
+        repeater.on_exception(QQError, handle_general_qq_error)
         repeater.run()
         print()
         sys.exit(0)
@@ -127,12 +127,12 @@ def kill_job(informer: Informer, force: bool, yes: bool) -> None:
         QQNotSuitableError: If the job is not suitable for termination.
         QQError: If the job cannot be killed or the qq info file cannot be updated.
     """
-    killer = Killer.fromInformer(informer)
-    killer.printInfo(console)
+    killer = Killer.from_informer(informer)
+    killer.print_info(console)
 
     # make sure that the job can actually be killed
     if not force:
-        killer.ensureSuitable()
+        killer.ensure_suitable()
 
     if force or yes or yes_or_no_prompt("Do you want to kill the job?"):
         job_id = killer.kill(force)

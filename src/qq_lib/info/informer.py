@@ -42,7 +42,7 @@ class Informer:
         return self.info.batch_system
 
     @classmethod
-    def fromFile(cls, file: Path, host: str | None = None) -> Self:
+    def from_file(cls, file: Path, host: str | None = None) -> Self:
         """
         Create an Informer by loading job information from a file.
 
@@ -58,10 +58,10 @@ class Informer:
         Raises:
             QQError: If the file cannot be read, reached, or parsed correctly.
         """
-        return cls(Info.fromFile(file, host))
+        return cls(Info.from_file(file, host))
 
     @classmethod
-    def fromJobId(cls, job_id: str) -> Self:
+    def from_job_id(cls, job_id: str) -> Self:
         """
         Load an `Informer` from a job ID.
 
@@ -79,16 +79,16 @@ class Informer:
             QQError: If the job does not exist or is not a valid qq job.
             QQJobMismatchError: If the info file does not correspond to the job's ID.
         """
-        batch_system = BatchMeta.fromEnvVarOrGuess()
-        batch_job: BatchJobInterface = batch_system.getBatchJob(job_id)
+        batch_system = BatchMeta.from_env_var_or_guess()
+        batch_job: BatchJobInterface = batch_system.get_batch_job(job_id)
 
-        if batch_job.isEmpty():
+        if batch_job.is_empty():
             raise QQError(f"Job '{job_id}' does not exist.")
 
-        return cls.fromBatchJob(batch_job)
+        return cls.from_batch_job(batch_job)
 
     @classmethod
-    def fromBatchJob(cls, batch_job: BatchJobInterface) -> Self:
+    def from_batch_job(cls, batch_job: BatchJobInterface) -> Self:
         """
         Load an `Informer` from batch job information.
 
@@ -106,21 +106,21 @@ class Informer:
             QQError: If the job is not a valid qq job (missing info file).
             QQJobMismatchError: If the info file does not correspond to the job's ID.
         """
-        if not (path := batch_job.getInfoFile()):
-            raise QQError(f"Job '{batch_job.getId()}' is not a valid qq job.")
+        if not (path := batch_job.get_info_file()):
+            raise QQError(f"Job '{batch_job.get_id()}' is not a valid qq job.")
 
-        informer = cls.fromFile(path)
+        informer = cls.from_file(path)
 
         # check that the loaded info file actually corresponds to the batch job's ID
-        if not informer.matchesJob(batch_job.getId()):
+        if not informer.matches_job(batch_job.get_id()):
             raise QQJobMismatchError(
-                f"Info file for job '{batch_job.getId()}' does not exist or is not reachable."
+                f"Info file for job '{batch_job.get_id()}' does not exist or is not reachable."
             )
 
         informer._batch_info = batch_job
         return informer
 
-    def toFile(self, file: Path, host: str | None = None) -> None:
+    def to_file(self, file: Path, host: str | None = None) -> None:
         """
         Export the job information to a file.
 
@@ -133,9 +133,9 @@ class Informer:
         Raises:
             QQError: If the file cannot be created, reached, or written to.
         """
-        self.info.toFile(file, host)
+        self.info.to_file(file, host)
 
-    def matchesJob(self, job_id: str) -> bool:
+    def matches_job(self, job_id: str) -> bool:
         """
         Determine whether this informer corresponds to the specified job ID.
 
@@ -148,7 +148,7 @@ class Informer:
         """
         return self.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]
 
-    def setRunning(
+    def set_running(
         self, time: datetime, main_node: str, all_nodes: list[str], work_dir: Path
     ) -> None:
         """
@@ -165,7 +165,7 @@ class Informer:
         self.info.all_nodes = all_nodes
         self.info.work_dir = work_dir
 
-    def setFinished(self, time: datetime) -> None:
+    def set_finished(self, time: datetime) -> None:
         """
         Mark the job as finished successfully.
 
@@ -176,7 +176,7 @@ class Informer:
         self.info.completion_time = time
         self.info.job_exit_code = 0
 
-    def setFailed(self, time: datetime, exit_code: int) -> None:
+    def set_failed(self, time: datetime, exit_code: int) -> None:
         """
         Mark the job as failed.
 
@@ -188,7 +188,7 @@ class Informer:
         self.info.completion_time = time
         self.info.job_exit_code = exit_code
 
-    def setKilled(self, time: datetime) -> None:
+    def set_killed(self, time: datetime) -> None:
         """
         Mark the job as killed.
 
@@ -199,16 +199,16 @@ class Informer:
         self.info.completion_time = time
         # no exit code is intentionally set
 
-    def usesScratch(self) -> bool:
+    def uses_scratch(self) -> bool:
         """
         Determine if the job uses a scratch directory.
 
         Returns:
             bool: True if a scratch is used, False if it is not.
         """
-        return self.info.resources.usesScratch()
+        return self.info.resources.uses_scratch()
 
-    def getDestination(self) -> tuple[str, Path] | None:
+    def get_destination(self) -> tuple[str, Path] | None:
         """
         Retrieve the job's main node and working directory.
 
@@ -220,28 +220,28 @@ class Informer:
             return main_node, work_dir
         return None
 
-    def getBatchState(self) -> BatchState:
+    def get_batch_state(self) -> BatchState:
         """
         Return the job's state as reported by the batch system.
 
         Uses cached information if available; otherwise queries the batch system
-        via `batch_system.getBatchJob`. This avoids unnecessary remote calls.
+        via `batch_system.get_batch_job`. This avoids unnecessary remote calls.
 
         Returns:
             BatchState: The job's state according to the batch system.
         """
         if not self._batch_info:
-            self._batch_info = self.batch_system.getBatchJob(self.info.job_id)
+            self._batch_info = self.batch_system.get_batch_job(self.info.job_id)
 
-        return self._batch_info.getState()
+        return self._batch_info.get_state()
 
-    def getRealState(self) -> RealState:
+    def get_real_state(self) -> RealState:
         """
         Get the job's real state by combining the internal state (`NaiveState`)
         with the state reported by the batch system (`BatchState`).
 
         Uses cached information if available; otherwise queries the batch system
-        via `batch_system.getBatchJob`. This avoids unnecessary remote calls.
+        via `batch_system.get_batch_job`. This avoids unnecessary remote calls.
 
         Returns:
             RealState: The job's real state obtained by combining information
@@ -252,33 +252,33 @@ class Informer:
             NaiveState.UNKNOWN,
         }:
             logger.debug(
-                "Short-circuiting getRealState: the batch state will not affect the result."
+                "Short-circuiting get_real_state: the batch state will not affect the result."
             )
-            return RealState.fromStates(self.info.job_state, BatchState.UNKNOWN)
+            return RealState.from_states(self.info.job_state, BatchState.UNKNOWN)
 
-        return RealState.fromStates(self.info.job_state, self.getBatchState())
+        return RealState.from_states(self.info.job_state, self.get_batch_state())
 
-    def getComment(self) -> str | None:
+    def get_comment(self) -> str | None:
         """
         Return the job's comment as reported by the batch system.
 
         Uses cached information if available; otherwise queries the batch system
-        via `batch_system.getBatchJob`. This avoids unnecessary remote calls.
+        via `batch_system.get_batch_job`. This avoids unnecessary remote calls.
 
         Returns:
             str | None: The job comment if available, otherwise None.
         """
         if not self._batch_info:
-            self._batch_info = self.batch_system.getBatchJob(self.info.job_id)
+            self._batch_info = self.batch_system.get_batch_job(self.info.job_id)
 
-        return self._batch_info.getComment()
+        return self._batch_info.get_comment()
 
-    def getEstimated(self) -> tuple[datetime, str] | None:
+    def get_estimated(self) -> tuple[datetime, str] | None:
         """
         Return the estimated start time and execution node for the job.
 
         Uses cached information if available; otherwise queries the batch system
-        via `batch_system.getBatchJob`. This avoids unnecessary remote calls.
+        via `batch_system.get_batch_job`. This avoids unnecessary remote calls.
 
         Returns:
             tuple[datetime, str] | None: A tuple containing the estimated start time
@@ -286,36 +286,36 @@ class Informer:
             information is not available.
         """
         if not self._batch_info:
-            self._batch_info = self.batch_system.getBatchJob(self.info.job_id)
+            self._batch_info = self.batch_system.get_batch_job(self.info.job_id)
 
-        return self._batch_info.getEstimated()
+        return self._batch_info.get_estimated()
 
-    def getMainNode(self) -> str | None:
+    def get_main_node(self) -> str | None:
         """
         Return the main execution node for the job.
 
         Note that this obtains the node information from the batch system itself!
 
         Uses cached information if available; otherwise queries the batch system
-        via `batch_system.getBatchJob`. This avoids unnecessary remote calls.
+        via `batch_system.get_batch_job`. This avoids unnecessary remote calls.
 
         Returns:
             str | None: The hostname of the main execution node, or None if the
             information is not available.
         """
         if not self._batch_info:
-            self._batch_info = self.batch_system.getBatchJob(self.info.job_id)
+            self._batch_info = self.batch_system.get_batch_job(self.info.job_id)
 
-        return self._batch_info.getMainNode()
+        return self._batch_info.get_main_node()
 
-    def getNodes(self) -> list[str] | None:
+    def get_nodes(self) -> list[str] | None:
         """
         Retrieve the list of execution nodes on which the job is running.
 
         Note that this obtains the node information from the batch system itself!
 
         Uses cached information if available; otherwise queries the batch system
-        via `batch_system.getBatchJob`. This avoids unnecessary remote calls.
+        via `batch_system.get_batch_job`. This avoids unnecessary remote calls.
 
         Returns:
             list[str] | None:
@@ -323,11 +323,11 @@ class Informer:
                 or `None` if the job has not started or node information is unavailable.
         """
         if not self._batch_info:
-            self._batch_info = self.batch_system.getBatchJob(self.info.job_id)
+            self._batch_info = self.batch_system.get_batch_job(self.info.job_id)
 
-        return self._batch_info.getNodes()
+        return self._batch_info.get_nodes()
 
-    def getBatchInfo(self) -> BatchJobInterface:
+    def get_batch_info(self) -> BatchJobInterface:
         """
         Return cached batch job information if available; otherwise fetch it from
         the batch system, cache it, and return the result.
@@ -336,10 +336,10 @@ class Informer:
             BatchJobInterface: The information about the job from the batch system.
         """
         if self._batch_info is None:
-            self._batch_info = self.batch_system.getBatchJob(self.info.job_id)
+            self._batch_info = self.batch_system.get_batch_job(self.info.job_id)
         return self._batch_info
 
-    def getInfoFile(self) -> Path:
+    def get_info_file(self) -> Path:
         """
         Get absolute path to the info file associated with this job.
 
@@ -350,7 +350,7 @@ class Informer:
         """
         return construct_info_file_path(self.info.input_dir, self.info.job_name)
 
-    def shouldTransferFiles(self, exit_code: int) -> bool:
+    def should_transfer_files(self, exit_code: int) -> bool:
         """
         Determine whether files should be transferred from the working directory.
 
@@ -364,9 +364,9 @@ class Informer:
         Returns:
             True if files should be transferred, False otherwise.
         """
-        return any(mode.shouldTransfer(exit_code) for mode in self.info.transfer_mode)
+        return any(mode.should_transfer(exit_code) for mode in self.info.transfer_mode)
 
-    def shouldArchiveFiles(self, exit_code: int) -> bool:
+    def should_archive_files(self, exit_code: int) -> bool:
         """
         Determine whether files should be archived from the working directory to the archive directory.
 
@@ -383,4 +383,4 @@ class Informer:
         if (loop_info := self.info.loop_info) is None:
             return False
 
-        return any(mode.shouldTransfer(exit_code) for mode in loop_info.archive_mode)
+        return any(mode.should_transfer(exit_code) for mode in loop_info.archive_mode)

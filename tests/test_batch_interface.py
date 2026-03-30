@@ -17,11 +17,12 @@ from qq_lib.core.error import QQError
 def test_translate_ssh_command():
     host = "node1"
     directory = Path("/tmp/work")
-    cmd = BatchInterface._translateSSHCommand(host, directory)
+    cmd = BatchInterface._translate_ssh_command(host, directory)
     assert cmd == [
         "ssh",
         "-o PasswordAuthentication=no",
         "-o GSSAPIAuthentication=yes",
+        "-o StrictHostKeyChecking=no",
         f"-o ConnectTimeout={CFG.timeouts.ssh}",
         host,
         "-t",
@@ -33,7 +34,7 @@ def test_navigate_same_host_success(tmp_path):
     directory = tmp_path
 
     with patch("subprocess.run") as mock_run:
-        BatchInterface._navigateSameHost(directory)
+        BatchInterface._navigate_same_host(directory)
         # check that subprocess was called properly
         mock_run.assert_called_once_with(["bash"], cwd=directory)
 
@@ -48,7 +49,7 @@ def test_navigate_same_host_error():
         patch("subprocess.run") as mock_run,
         pytest.raises(QQError, match="Could not reach"),
     ):
-        BatchInterface._navigateSameHost(directory)
+        BatchInterface._navigate_same_host(directory)
 
         # check that subprocess was not called
         mock_run.assert_not_called()
@@ -56,13 +57,13 @@ def test_navigate_same_host_error():
 
 def test_guess_pbs():
     BatchMeta._registry.clear()
-    BatchMeta.registerBatchSystem(PBS)
+    BatchMeta.register_batch_system(PBS)
 
-    with patch.object(PBS, "isAvailable", return_value=True):
+    with patch.object(PBS, "is_available", return_value=True):
         assert BatchMeta.guess() is PBS
 
     with (
-        patch.object(PBS, "isAvailable", return_value=False),
+        patch.object(PBS, "is_available", return_value=False),
         pytest.raises(QQError, match="Could not guess a batch system"),
     ):
         BatchMeta.guess()
@@ -76,43 +77,43 @@ def test_guess_empty_registry():
 
 def test_from_str_success():
     BatchMeta._registry.clear()
-    BatchMeta.registerBatchSystem(PBS)
+    BatchMeta.register_batch_system(PBS)
 
-    assert BatchMeta.fromStr("PBS") is PBS
+    assert BatchMeta.from_str("PBS") is PBS
 
 
 def test_from_str_pbs_not_registered():
     BatchMeta._registry.clear()
 
     with pytest.raises(QQError, match="No batch system registered"):
-        BatchMeta.fromStr("PBS")
+        BatchMeta.from_str("PBS")
 
 
 def test_from_str_none_registered():
     BatchMeta._registry.clear()
 
     with pytest.raises(QQError, match="No batch system registered"):
-        BatchMeta.fromStr("PBS")
+        BatchMeta.from_str("PBS")
 
 
 def test_env_var_or_guess_from_env_var_returns_value(monkeypatch):
     BatchMeta._registry.clear()
-    BatchMeta.registerBatchSystem(PBS)
+    BatchMeta.register_batch_system(PBS)
     monkeypatch.setenv(CFG.env_vars.batch_system, "PBS")
 
-    assert BatchMeta.fromEnvVarOrGuess() is PBS
+    assert BatchMeta.from_env_var_or_guess() is PBS
 
 
 def test_env_var_or_guess_from_env_var_not_set_calls_guess():
     BatchMeta._registry.clear()
-    BatchMeta.registerBatchSystem(PBS)
+    BatchMeta.register_batch_system(PBS)
     if CFG.env_vars.batch_system in os.environ:
         del os.environ[CFG.env_vars.batch_system]
 
     with (
-        patch.object(PBS, "isAvailable", return_value=True),
+        patch.object(PBS, "is_available", return_value=True),
     ):
-        assert BatchMeta.fromEnvVarOrGuess() is PBS
+        assert BatchMeta.from_env_var_or_guess() is PBS
 
 
 def test_from_env_var_not_set_calls_guess():
@@ -121,12 +122,12 @@ def test_from_env_var_not_set_calls_guess():
         del os.environ[CFG.env_vars.batch_system]
 
     with pytest.raises(QQError, match="Could not guess a batch system"):
-        BatchMeta.fromEnvVarOrGuess()
+        BatchMeta.from_env_var_or_guess()
 
 
 def test_obtain_with_name_registered():
     BatchMeta._registry.clear()
-    BatchMeta.registerBatchSystem(PBS)
+    BatchMeta.register_batch_system(PBS)
 
     assert BatchMeta.obtain("PBS") is PBS
 
@@ -140,7 +141,7 @@ def test_obtain_with_name_not_registered():
 
 def test_obtain_without_name_env_var(monkeypatch):
     BatchMeta._registry.clear()
-    BatchMeta.registerBatchSystem(PBS)
+    BatchMeta.register_batch_system(PBS)
     monkeypatch.setenv(CFG.env_vars.batch_system, "PBS")
 
     assert BatchMeta.obtain(None) is PBS
@@ -152,7 +153,7 @@ def test_obtain_without_name_and_guess_fails():
         del os.environ[CFG.env_vars.batch_system]
 
     with (
-        patch.object(PBS, "isAvailable", return_value=False),
+        patch.object(PBS, "is_available", return_value=False),
         pytest.raises(QQError, match="Could not guess a batch system"),
     ):
         BatchMeta.obtain(None)
@@ -168,7 +169,7 @@ def test_sync_with_exclusions_copies_new_files(tmp_path):
     (src / "file1.txt").write_text("data1")
     (src / "file2.txt").write_text("data2")
 
-    BatchInterface.syncWithExclusions(src, dest, None, None)
+    BatchInterface.sync_with_exclusions(src, dest, None, None)
 
     # all files from src should exist in dest with same content
     for f in src.iterdir():
@@ -188,7 +189,7 @@ def test_sync_with_exclusions_preserves_dest_files(tmp_path):
     # file in src
     (src / "new.txt").write_text("new_data")
 
-    BatchInterface.syncWithExclusions(src, dest, None, None)
+    BatchInterface.sync_with_exclusions(src, dest, None, None)
 
     # new file copied
     assert (dest / "new.txt").exists()
@@ -209,7 +210,7 @@ def test_sync_with_exclusions_skips_excluded_files(tmp_path):
     (src / "include.txt").write_text("include")
     (src / "exclude.txt").write_text("exclude")
 
-    BatchInterface.syncWithExclusions(
+    BatchInterface.sync_with_exclusions(
         src, dest, None, None, exclude_files=[src / "exclude.txt"]
     )
 
@@ -229,7 +230,7 @@ def test_sync_with_exclusions_updates_changed_files(tmp_path):
     (src / "file.txt").write_text("new")
     (dest / "file.txt").write_text("older")
 
-    BatchInterface.syncWithExclusions(src, dest, None, None)
+    BatchInterface.sync_with_exclusions(src, dest, None, None)
 
     assert (dest / "file.txt").exists()
     assert (dest / "file.txt").read_text() == "new"
@@ -259,7 +260,7 @@ def test_sync_with_exclusions_rsync_failure(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
 
     with pytest.raises(QQError, match="Could not rsync files between"):
-        BatchInterface.syncWithExclusions(src, dest, None, None)
+        BatchInterface.sync_with_exclusions(src, dest, None, None)
 
 
 def test_sync_with_exclusions_rsync_timeout(tmp_path):
@@ -276,17 +277,17 @@ def test_sync_with_exclusions_rsync_timeout(tmp_path):
         pytest.raises(QQError, match="Could not rsync files"),
         patch("qq_lib.batch.interface.interface.CFG.timeouts.rsync", 0),
     ):
-        BatchInterface.syncWithExclusions(src, dest, None, None)
+        BatchInterface.sync_with_exclusions(src, dest, None, None)
 
 
 def test_translate_rsync_excluded_command_local_to_local():
     src = Path("/source")
     dest = Path("/dest")
-    cmd = BatchInterface._translateRsyncExcludedCommand(src, dest, None, None, [])
+    cmd = BatchInterface._translate_rsync_excluded_command(src, dest, None, None, [])
     assert cmd == [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "/source/",
         "/dest",
@@ -296,13 +297,13 @@ def test_translate_rsync_excluded_command_local_to_local():
 def test_translate_rsync_excluded_command_local_to_remote():
     src = Path("/source")
     dest = Path("/dest")
-    cmd = BatchInterface._translateRsyncExcludedCommand(
+    cmd = BatchInterface._translate_rsync_excluded_command(
         src, dest, None, "remotehost", []
     )
     assert cmd == [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "/source/",
         "remotehost:/dest",
@@ -312,13 +313,13 @@ def test_translate_rsync_excluded_command_local_to_remote():
 def test_translate_rsync_excluded_command_remote_to_local():
     src = Path("/source")
     dest = Path("/dest")
-    cmd = BatchInterface._translateRsyncExcludedCommand(
+    cmd = BatchInterface._translate_rsync_excluded_command(
         src, dest, "remotehost", None, []
     )
     assert cmd == [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "remotehost:/source/",
         "/dest",
@@ -329,11 +330,13 @@ def test_translate_rsync_excluded_command_with_excludes():
     src = Path("/source")
     dest = Path("/dest")
     excludes = [Path("temp"), Path("logs/debug.log")]
-    cmd = BatchInterface._translateRsyncExcludedCommand(src, dest, None, None, excludes)
+    cmd = BatchInterface._translate_rsync_excluded_command(
+        src, dest, None, None, excludes
+    )
     expected = [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "--exclude",
         "temp",
@@ -348,11 +351,11 @@ def test_translate_rsync_excluded_command_with_excludes():
 def test_translate_rsync_excluded_command_empty_excludes_list():
     src = Path("/source")
     dest = Path("/dest")
-    cmd = BatchInterface._translateRsyncExcludedCommand(src, dest, None, None, [])
+    cmd = BatchInterface._translate_rsync_excluded_command(src, dest, None, None, [])
     expected = [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "/source/",
         "/dest",
@@ -369,7 +372,7 @@ def test_sync_selected_copies_only_included_files(tmp_path):
     (src / "include.txt").write_text("include")
     (src / "skip.txt").write_text("skip")
 
-    BatchInterface.syncSelected(
+    BatchInterface.sync_selected(
         src, dest, None, None, include_files=[src / "include.txt"]
     )
 
@@ -387,7 +390,7 @@ def test_sync_selected_preserves_other_dest_files(tmp_path):
     (src / "new.txt").write_text("new_data")
     (dest / "keep.txt").write_text("keep_me")
 
-    BatchInterface.syncSelected(src, dest, None, None, include_files=[src / "new.txt"])
+    BatchInterface.sync_selected(src, dest, None, None, include_files=[src / "new.txt"])
 
     # new file copied
     assert (dest / "new.txt").exists()
@@ -406,7 +409,7 @@ def test_sync_selected_empty_include_list(tmp_path):
     (src / "file.txt").write_text("data")
 
     # no include_files provided -> nothing should be synced
-    BatchInterface.syncSelected(src, dest, None, None)
+    BatchInterface.sync_selected(src, dest, None, None)
 
     assert not (dest / "file.txt").exists()
 
@@ -432,7 +435,7 @@ def test_sync_selected_rsync_failure(tmp_path, monkeypatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
 
     with pytest.raises(QQError, match="Could not rsync files between"):
-        BatchInterface.syncSelected(
+        BatchInterface.sync_selected(
             src, dest, None, None, include_files=[src / "file.txt"]
         )
 
@@ -448,7 +451,7 @@ def test_sync_selected_rsync_timeout(tmp_path):
         pytest.raises(QQError, match="Could not rsync files"),
         patch("qq_lib.batch.interface.interface.CFG.timeouts.rsync", 0),
     ):
-        BatchInterface.syncSelected(
+        BatchInterface.sync_selected(
             src, dest, None, None, include_files=[src / "file.txt"]
         )
 
@@ -458,12 +461,14 @@ def test_translate_rsync_included_command_local_to_local():
     dest = Path("/dest")
     included = [Path("file1.txt"), Path("dir/file2.txt")]
 
-    cmd = BatchInterface._translateRsyncIncludedCommand(src, dest, None, None, included)
+    cmd = BatchInterface._translate_rsync_included_command(
+        src, dest, None, None, included
+    )
 
     expected = [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "--include",
         "file1.txt",
@@ -486,14 +491,14 @@ def test_translate_rsync_included_command_local_to_remote():
     dest = Path("/dest")
     included = [Path("file1.txt")]
 
-    cmd = BatchInterface._translateRsyncIncludedCommand(
+    cmd = BatchInterface._translate_rsync_included_command(
         src, dest, None, "remotehost", included
     )
 
     expected = [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "--include",
         "file1.txt",
@@ -512,14 +517,14 @@ def test_translate_rsync_included_command_remote_to_local():
     dest = Path("/dest")
     included = [Path("file1.txt")]
 
-    cmd = BatchInterface._translateRsyncIncludedCommand(
+    cmd = BatchInterface._translate_rsync_included_command(
         src, dest, "remotehost", None, included
     )
 
     expected = [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "--include",
         "file1.txt",
@@ -538,12 +543,14 @@ def test_translate_rsync_included_command_no_files():
     dest = Path("/dest")
     included = []
 
-    cmd = BatchInterface._translateRsyncIncludedCommand(src, dest, None, None, included)
+    cmd = BatchInterface._translate_rsync_included_command(
+        src, dest, None, None, included
+    )
 
     expected = [
         "rsync",
         "-e",
-        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no",
+        "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "--exclude",
         "*",
@@ -557,7 +564,7 @@ def test_translate_move_command_single_file():
     files = [Path("source.txt")]
     moved_files = [Path("dest") / "dest.txt"]
 
-    cmd = BatchInterface._translateMoveCommand(files, moved_files)
+    cmd = BatchInterface._translate_move_command(files, moved_files)
     assert cmd == "mv 'source.txt' 'dest/dest.txt'"
 
 
@@ -565,7 +572,7 @@ def test_translate_move_command_multiple_files():
     files = [Path("a.txt"), Path("b.txt")]
     moved_files = [Path("x.txt"), Path("y.txt")]
 
-    cmd = BatchInterface._translateMoveCommand(files, moved_files)
+    cmd = BatchInterface._translate_move_command(files, moved_files)
     assert cmd == "mv 'a.txt' 'x.txt' && mv 'b.txt' 'y.txt'"
 
 
@@ -574,11 +581,11 @@ def test_translate_move_command_mismatched_lengths():
     moved_files = [Path("b.txt"), Path("c.txt")]
 
     with pytest.raises(QQError, match="must have the same length"):
-        BatchInterface._translateMoveCommand(files, moved_files)
+        BatchInterface._translate_move_command(files, moved_files)
 
 
 def test_translate_move_command_empty_lists():
-    cmd = BatchInterface._translateMoveCommand([], [])
+    cmd = BatchInterface._translate_move_command([], [])
     assert cmd == ""
 
 
@@ -593,7 +600,7 @@ def test_is_shared_returns_false_for_local(monkeypatch, tmp_path):
         return Result()
 
     monkeypatch.setattr(subprocess, "run", fake_run)
-    assert BatchInterface.isShared(tmp_path) is False
+    assert BatchInterface.is_shared(tmp_path) is False
 
 
 def test_is_shared_returns_true_for_shared(monkeypatch, tmp_path):
@@ -608,7 +615,7 @@ def test_is_shared_returns_true_for_shared(monkeypatch, tmp_path):
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    assert BatchInterface.isShared(tmp_path) is True
+    assert BatchInterface.is_shared(tmp_path) is True
 
 
 def test_is_shared_passes_correct_command(monkeypatch, tmp_path):
@@ -625,7 +632,7 @@ def test_is_shared_passes_correct_command(monkeypatch, tmp_path):
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    BatchInterface.isShared(tmp_path)
+    BatchInterface.is_shared(tmp_path)
 
     assert captured["cmd"][0:2] == ["df", "-l"]
     assert Path(captured["cmd"][2]) == tmp_path
@@ -635,27 +642,27 @@ class DummyJob:
     def __init__(self, job_id):
         self._id = job_id
 
-    def getId(self):
+    def get_id(self):
         return self._id
 
 
 def test_batch_interface_sort_jobs_sorts_by_id():
     jobs = [DummyJob("c"), DummyJob("a"), DummyJob("b")]
-    BatchInterface.sortJobs(jobs)
-    ids = [job.getId() for job in jobs]
+    BatchInterface.sort_jobs(jobs)
+    ids = [job.get_id() for job in jobs]
     assert ids == ["a", "b", "c"]
 
 
 def test_batch_interface_sort_jobs_with_numeric_ids():
     jobs = [DummyJob("10"), DummyJob("2"), DummyJob("1")]
-    BatchInterface.sortJobs(jobs)
-    ids = [job.getId() for job in jobs]
+    BatchInterface.sort_jobs(jobs)
+    ids = [job.get_id() for job in jobs]
     assert ids == ["1", "10", "2"]
 
 
 def test_batch_interface_sort_jobs_empty_list():
     jobs = []
-    BatchInterface.sortJobs(jobs)
+    BatchInterface.sort_jobs(jobs)
     assert jobs == []
 
 
@@ -663,13 +670,14 @@ def test_batch_interface_sort_jobs_empty_list():
 def test_batchinterface_delete_remote_dir_success(mock_run):
     mock_run.return_value = MagicMock(returncode=0)
 
-    BatchInterface.deleteRemoteDir("remote_host", Path("/remote/dir"))
+    BatchInterface.delete_remote_dir("remote_host", Path("/remote/dir"))
 
     mock_run.assert_called_once_with(
         [
             "ssh",
             "-o PasswordAuthentication=no",
             "-o GSSAPIAuthentication=yes",
+            "-o StrictHostKeyChecking=no",
             f"-o ConnectTimeout={CFG.timeouts.ssh}",
             "remote_host",
             "yes | rm -r /remote/dir",
@@ -687,6 +695,6 @@ def test_batchinterface_delete_remote_dir_raises_error(mock_run):
         QQError,
         match="Could not delete remote directory '/remote/dir' on 'remote_host': permission denied.",
     ):
-        BatchInterface.deleteRemoteDir("remote_host", Path("/remote/dir"))
+        BatchInterface.delete_remote_dir("remote_host", Path("/remote/dir"))
 
     mock_run.assert_called_once()

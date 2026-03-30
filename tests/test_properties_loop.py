@@ -66,7 +66,7 @@ def test_constructor_with_archive_mode(tmp_path):
         archive=input_dir / "archive",
         input_dir=input_dir,
         archive_format="md%04d",
-        archive_mode=TransferMode.multiFromStr("0,failure"),
+        archive_mode=TransferMode.multi_from_str("0,failure"),
     )
 
     assert loop_info.start == 1
@@ -162,13 +162,13 @@ def temp_dir():
 
 def test_get_cycle_returns_start_if_archive_does_not_exist(tmp_path):
     loop_info = _create_loop_info_stub(5, tmp_path / "nonexistent", "md%04d")
-    assert loop_info._getCycle() == 5
+    assert loop_info._get_cycle() == 5
 
 
 def test_get_cycle_returns_start_if_no_matching_files(temp_dir):
     (temp_dir / "foo.txt").write_text("dummy")
     loop_info = _create_loop_info_stub(2, temp_dir, "md%04d")
-    assert loop_info._getCycle() == 2
+    assert loop_info._get_cycle() == 2
 
 
 def test_get_cycle_selects_highest_number(temp_dir):
@@ -176,7 +176,7 @@ def test_get_cycle_selects_highest_number(temp_dir):
     (temp_dir / "md0002.csv").write_text("x")
     (temp_dir / "md0007.txt").write_text("x")
     loop_info = _create_loop_info_stub(0, temp_dir, "md%04d")
-    assert loop_info._getCycle() == 7
+    assert loop_info._get_cycle() == 7
 
 
 def test_get_cycle_selects_highest_number_partial_match(temp_dir):
@@ -184,7 +184,7 @@ def test_get_cycle_selects_highest_number_partial_match(temp_dir):
     (temp_dir / "md0002.csv").write_text("x")
     (temp_dir / "md0007_px.txt").write_text("x")
     loop_info = _create_loop_info_stub(0, temp_dir, "md%04d")
-    assert loop_info._getCycle() == 7
+    assert loop_info._get_cycle() == 7
 
 
 def test_get_cycle_selects_highest_number_partial_match2(temp_dir):
@@ -192,7 +192,7 @@ def test_get_cycle_selects_highest_number_partial_match2(temp_dir):
     (temp_dir / "md0002.csv").write_text("x")
     (temp_dir / "file_md0007.txt").write_text("x")
     loop_info = _create_loop_info_stub(0, temp_dir, "md%04d")
-    assert loop_info._getCycle() == 7
+    assert loop_info._get_cycle() == 7
 
 
 def test_get_cycle_files_without_digits_are_ignored(temp_dir):
@@ -200,7 +200,7 @@ def test_get_cycle_files_without_digits_are_ignored(temp_dir):
     (temp_dir / "mdxxxx.txt").write_text("x")
     loop_info = _create_loop_info_stub(3, temp_dir, "md.*")
     # no numerical values in filenames; use start cycle
-    assert loop_info._getCycle() == 3
+    assert loop_info._get_cycle() == 3
 
 
 def test_get_cycle_mixed_files_some_match_some_not(temp_dir):
@@ -208,26 +208,26 @@ def test_get_cycle_mixed_files_some_match_some_not(temp_dir):
     (temp_dir / "md25.xtc").write_text("x")  # wrong stem
     (temp_dir / "md0005.mdp").write_text("x")
     loop_info = _create_loop_info_stub(0, temp_dir, "md%04d")
-    assert loop_info._getCycle() == 5
+    assert loop_info._get_cycle() == 5
 
 
 def test_get_cycle_multiple_digit_sequences_in_stem(temp_dir):
     (temp_dir / "md0003extra123.tpr").write_text("x")
     loop_info = _create_loop_info_stub(0, temp_dir, "md.*")
-    assert loop_info._getCycle() == 3
+    assert loop_info._get_cycle() == 3
 
 
 def test_get_cycle_start_value_is_used_as_lower_bound(temp_dir):
     (temp_dir / "md0001.xtc").write_text("x")
     loop_info = _create_loop_info_stub(5, temp_dir, "md%04d")
-    assert loop_info._getCycle() == 5
+    assert loop_info._get_cycle() == 5
 
 
 def test_get_cycle_non_numeric_files_are_ignored_but_numeric_stems_count(temp_dir):
     (temp_dir / "md0010.xtc").write_text("x")
     (temp_dir / "mdxxxx.txt").write_text("x")
     loop_info = _create_loop_info_stub(0, temp_dir, "md.*")
-    assert loop_info._getCycle() == 10
+    assert loop_info._get_cycle() == 10
 
 
 def test_to_command_line_basic():
@@ -238,7 +238,7 @@ def test_to_command_line_basic():
         archive_format="job%04d",
     )
 
-    assert info.toCommandLine() == [
+    assert info.to_command_line() == [
         "--loop-start",
         "1",
         "--loop-end",
@@ -260,7 +260,7 @@ def test_to_command_line_archive_name_only():
         archive_format="md%03d",
     )
 
-    assert info.toCommandLine() == [
+    assert info.to_command_line() == [
         "--loop-start",
         "0",
         "--loop-end",
@@ -291,7 +291,7 @@ def test_to_dict_scalar_fields(tmp_path, start, end, current, archive_format):
         archive_format=archive_format,
         current=current,
     )
-    result = info.toDict()
+    result = info.to_dict()
 
     assert result["start"] == start
     assert result["end"] == end
@@ -316,7 +316,7 @@ def test_to_dict_archive_is_string(tmp_path, archive_subdir):
         current=3,
     )
 
-    result = info.toDict()
+    result = info.to_dict()
 
     assert isinstance(result["archive"], str)
     assert result["archive"] == str(info.archive)
@@ -346,13 +346,13 @@ def test_to_dict_archive_mode_serialization(tmp_path, archive_mode, expected_str
         archive_mode=archive_mode,
     )
 
-    result = info.toDict()
+    result = info.to_dict()
 
     assert result["archive_mode"] == expected_strings
 
 
 def test_from_dict_returns_correct_instance_with_all_fields():
-    result = LoopInfo.fromDict(
+    result = LoopInfo.from_dict(
         {
             "start": 2,
             "end": 10,
@@ -371,7 +371,7 @@ def test_from_dict_returns_correct_instance_with_all_fields():
 
 
 def test_from_dict_returns_correct_instance_with_archive_mode_missing():
-    result = LoopInfo.fromDict(
+    result = LoopInfo.from_dict(
         {
             "start": 2,
             "end": 10,
@@ -397,7 +397,7 @@ def test_from_dict_roundtrip_produces_equivalent_fields():
         current=3,
         archive_mode=[Success(), Failure(), ExitCode(42)],
     )
-    result = LoopInfo.fromDict(original.toDict())
+    result = LoopInfo.from_dict(original.to_dict())
     assert result.start == original.start
     assert result.end == original.end
     assert result.archive == original.archive
@@ -432,7 +432,7 @@ def test_from_dict_raises_on_wrong_field_type(field, value, match):
         field: value,
     }
     with pytest.raises(QQError, match=match):
-        LoopInfo.fromDict(data)
+        LoopInfo.from_dict(data)
 
 
 @pytest.mark.parametrize(
@@ -447,7 +447,7 @@ def test_from_dict_raises_on_wrong_field_type(field, value, match):
 )
 def test_from_dict_raises_on_invalid_archive_mode(archive_mode):
     with pytest.raises(QQError, match="archive_mode"):
-        LoopInfo.fromDict(
+        LoopInfo.from_dict(
             {
                 "start": 0,
                 "end": 10,

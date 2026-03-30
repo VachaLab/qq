@@ -16,7 +16,7 @@ class TransferMode(ABC):
     """
 
     @classmethod
-    def fromStr(cls, s: str) -> "TransferMode":
+    def from_str(cls, s: str) -> "TransferMode":
         """
         Convert a string to the corresponding TransferMode.
 
@@ -46,7 +46,7 @@ class TransferMode(ABC):
                 raise QQError(f"Could not recognize a transfer mode variant '{s}'.")
 
     @classmethod
-    def multiFromStr(cls, raw: str) -> list["TransferMode"]:
+    def multi_from_str(cls, raw: str) -> list["TransferMode"]:
         """
         Parse a string containing multiple transfer modes.
 
@@ -63,10 +63,10 @@ class TransferMode(ABC):
         mode_strings = re.split(r"[:,\s]+", raw.strip())
         mode_strings = [ms for ms in mode_strings if ms]
 
-        return [TransferMode.fromStr(mode_str) for mode_str in mode_strings]
+        return [TransferMode.from_str(mode_str) for mode_str in mode_strings]
 
     @abstractmethod
-    def shouldTransfer(self, exit_code: int) -> bool:
+    def should_transfer(self, exit_code: int) -> bool:
         """
         Determine whether data should be transferred/archived based on the exit code.
 
@@ -78,7 +78,7 @@ class TransferMode(ABC):
         """
 
     @abstractmethod
-    def toStr(self) -> str:
+    def to_str(self) -> str:
         """
         Convert the TransferMode variant to its string representation.
 
@@ -93,11 +93,11 @@ class Always(TransferMode):
     Data are always transferred/archived regardless the job's exit code.
     """
 
-    def shouldTransfer(self, exit_code: int) -> bool:
+    def should_transfer(self, exit_code: int) -> bool:
         _ = exit_code
         return True
 
-    def toStr(self) -> str:
+    def to_str(self) -> str:
         return "always"
 
 
@@ -107,11 +107,11 @@ class Never(TransferMode):
     Data are never transferred/archived.
     """
 
-    def shouldTransfer(self, exit_code: int) -> bool:
+    def should_transfer(self, exit_code: int) -> bool:
         _ = exit_code
         return False
 
-    def toStr(self) -> str:
+    def to_str(self) -> str:
         return "never"
 
 
@@ -121,10 +121,10 @@ class Success(TransferMode):
     Data are transferred/archived only if the job completes successfully.
     """
 
-    def shouldTransfer(self, exit_code: int) -> bool:
+    def should_transfer(self, exit_code: int) -> bool:
         return exit_code == 0
 
-    def toStr(self) -> str:
+    def to_str(self) -> str:
         return "success"
 
 
@@ -134,10 +134,10 @@ class Failure(TransferMode):
     Data are transferred/archived only if the job fails.
     """
 
-    def shouldTransfer(self, exit_code: int) -> bool:
+    def should_transfer(self, exit_code: int) -> bool:
         return exit_code != 0
 
-    def toStr(self) -> str:
+    def to_str(self) -> str:
         return "failure"
 
 
@@ -152,8 +152,8 @@ class ExitCode(TransferMode):
 
     code: int
 
-    def shouldTransfer(self, exit_code: int) -> bool:
+    def should_transfer(self, exit_code: int) -> bool:
         return exit_code == self.code
 
-    def toStr(self) -> str:
+    def to_str(self) -> str:
         return f"{self.code}"

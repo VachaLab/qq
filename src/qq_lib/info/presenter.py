@@ -35,7 +35,7 @@ class Presenter:
         """
         self._informer = informer
 
-    def createJobStatusPanel(self, console: Console | None = None) -> Group:
+    def create_job_status_panel(self, console: Console | None = None) -> Group:
         """
         Create a standalone status panel for the job.
 
@@ -49,7 +49,7 @@ class Presenter:
         console = console or Console()
 
         panel = Panel(
-            self._createJobStatusTable(self._informer.getRealState()),
+            self._create_job_status_table(self._informer.get_real_state()),
             title=Text(
                 f"JOB: {self._informer.info.job_id}",
                 style=CFG.presenter.job_status_panel.title_style,
@@ -67,7 +67,7 @@ class Presenter:
 
         return Group(Text(""), panel, Text(""))
 
-    def createFullInfoPanel(self, console: Console | None = None) -> Group:
+    def create_full_info_panel(self, console: Console | None = None) -> Group:
         """
         Create a full job information panel.
 
@@ -81,11 +81,11 @@ class Presenter:
 
         console = console or Console()
 
-        state = self._informer.getRealState()
-        comment, estimated = self._getCommentAndEstimated(state)
+        state = self._informer.get_real_state()
+        comment, estimated = self._get_comment_and_estimated(state)
 
         content = Group(
-            Padding(self._createBasicInfoTable(), (0, 2)),
+            Padding(self._create_basic_info_table(), (0, 2)),
             Text(""),
             Rule(
                 title=Text(
@@ -95,7 +95,7 @@ class Presenter:
             ),
             Text(""),
             Padding(
-                Align.center(self._createResourcesTable(console.size.width)),
+                Align.center(self._create_resources_table(console.size.width)),
                 (0, 2),
             ),
             Text(""),
@@ -105,17 +105,19 @@ class Presenter:
             ),
             Text(""),
             Padding(
-                self._createJobHistoryTable(state, self._informer.info.job_exit_code),
+                self._create_job_history_table(
+                    state, self._informer.info.job_exit_code
+                ),
                 (0, 2),
             ),
-            self._createJobStepsBlock(),
+            self._create_job_steps_block(),
             Text(""),
             Rule(
                 title=Text("STATE", style=CFG.presenter.full_info_panel.title_style),
                 style=CFG.presenter.full_info_panel.rule_style,
             ),
             Text(""),
-            Padding(self._createJobStatusTable(state, comment, estimated), (0, 2)),
+            Padding(self._create_job_status_table(state, comment, estimated), (0, 2)),
         )
 
         # combine all sections
@@ -139,7 +141,7 @@ class Presenter:
 
         return Group(Text(""), full_panel, Text(""))
 
-    def getShortInfo(self) -> Text:
+    def get_short_info(self) -> Text:
         """
         Return a concise, colorized summary of the job's current state.
 
@@ -147,14 +149,14 @@ class Presenter:
             Text: A Rich `Text` object containing the job ID followed by the
             current state, colorized according to the `RealState`.
         """
-        state = self._informer.getRealState()
+        state = self._informer.get_real_state()
         return (
             Text(self._informer.info.job_id)
             + "    "
             + Text(str(state), style=state.color)
         )
 
-    def _createBasicInfoTable(self) -> Table:
+    def _create_basic_info_table(self) -> Table:
         """
         Create a table with basic job information.
 
@@ -197,7 +199,7 @@ class Presenter:
 
         return table
 
-    def _createResourcesTable(self, term_width: int) -> Table:
+    def _create_resources_table(self, term_width: int) -> Table:
         """
         Create a table displaying job resource requirements.
 
@@ -258,7 +260,9 @@ class Presenter:
 
         return table
 
-    def _createJobHistoryTable(self, state: RealState, exit_code: int | None) -> Table:
+    def _create_job_history_table(
+        self, state: RealState, exit_code: int | None
+    ) -> Table:
         """
         Create a table summarizing the job timeline.
 
@@ -300,7 +304,7 @@ class Presenter:
                 ),
             )
             table.add_row(
-                f"{Presenter._translateStateToCompletedMsg(state, exit_code).title()} at:",
+                f"{Presenter._translate_state_to_completed_msg(state, exit_code).title()} at:",
                 Text(f"{completed}"),
             )
         # job is "completed" (likely killed) but never started running
@@ -313,13 +317,13 @@ class Presenter:
                 ),
             )
             table.add_row(
-                f"{Presenter._translateStateToCompletedMsg(state, exit_code).title()} at:",
+                f"{Presenter._translate_state_to_completed_msg(state, exit_code).title()} at:",
                 Text(f"{completed}"),
             )
 
         return table
 
-    def _createJobStatusTable(
+    def _create_job_status_table(
         self,
         state: RealState,
         comment: str | None = None,
@@ -334,7 +338,7 @@ class Presenter:
         Returns:
             Table: A Rich table with job state and details.
         """
-        (message, details) = self._getStateMessages(
+        (message, details) = self._get_state_messages(
             state,
             self._informer.info.start_time or self._informer.info.submission_time,
             self._informer.info.completion_time or datetime.now(),
@@ -363,7 +367,7 @@ class Presenter:
 
         return table
 
-    def _createJobStepsTable(self, steps: Sequence[BatchJobInterface]) -> Table:
+    def _create_job_steps_table(self, steps: Sequence[BatchJobInterface]) -> Table:
         """
         Create a formatted Rich table displaying job step information.
 
@@ -395,16 +399,16 @@ class Presenter:
             overflow="fold",
         )
         for step in steps:
-            state = step.getState()
-            start = step.getStartTime()
-            end = step.getCompletionTime()
+            state = step.get_state()
+            start = step.get_start_time()
+            end = step.get_completion_time()
 
             if not start:
                 continue
 
             table.add_row(
-                f"{step.getStepId()}",
-                Text(state.toCode(), style=state.color),
+                f"{step.get_step_id()}",
+                Text(state.to_code(), style=state.color),
                 start.strftime(CFG.date_formats.standard),
                 end.strftime(CFG.date_formats.standard) if end else "",
                 format_duration_wdhhmmss((end or datetime.now()) - start),
@@ -412,12 +416,12 @@ class Presenter:
 
         return table
 
-    def _createJobStepsBlock(self) -> Group:
+    def _create_job_steps_block(self) -> Group:
         """
         Create a Rich block containing the job-steps section of the full info panel.
 
         This block includes a section heading ("STEPS") and the table of job steps
-        created by `_createJobStepsTable()`. The block is only shown when the job
+        created by `_create_job_steps_table()`. The block is only shown when the job
         contains more than one step; for single-step jobs, an empty block is returned.
 
         Returns:
@@ -425,8 +429,8 @@ class Presenter:
             if no multi-step information should be displayed.
         """
 
-        job: BatchJobInterface = self._informer.getBatchInfo()
-        steps = job.getSteps()
+        job: BatchJobInterface = self._informer.get_batch_info()
+        steps = job.get_steps()
 
         # only show the job steps if there is more than 1 of them
         if len(steps) > 1:
@@ -439,12 +443,12 @@ class Presenter:
                     style=CFG.presenter.full_info_panel.rule_style,
                 ),
                 Text(""),
-                Padding(self._createJobStepsTable(steps), (0, 2)),
+                Padding(self._create_job_steps_table(steps), (0, 2)),
             )
 
         return Group()
 
-    def _getStateMessages(
+    def _get_state_messages(
         self, state: RealState, start_time: datetime, end_time: datetime
     ) -> tuple[str, str]:
         """
@@ -494,7 +498,7 @@ class Presenter:
             case RealState.BOOTING:
                 return (
                     "Job is booting",
-                    f"Preparing working directory on '{self._informer.getMainNode()}'",
+                    f"Preparing working directory on '{self._informer.get_main_node()}'",
                 )
             case RealState.KILLED:
                 return (
@@ -541,7 +545,7 @@ class Presenter:
             "Job is in a state that qq does not recognize",
         )
 
-    def _getCommentAndEstimated(
+    def _get_comment_and_estimated(
         self, state: RealState
     ) -> tuple[str | None, tuple[datetime, str] | None]:
         """
@@ -566,14 +570,16 @@ class Presenter:
             RealState.WAITING,
             RealState.SUSPENDED,
         }:
-            comment = self._informer.getComment()
-            estimated = self._informer.getEstimated()
+            comment = self._informer.get_comment()
+            estimated = self._informer.get_estimated()
             return comment, estimated
 
         return None, None
 
     @staticmethod
-    def _translateStateToCompletedMsg(state: RealState, exit_code: None | int) -> str:
+    def _translate_state_to_completed_msg(
+        state: RealState, exit_code: None | int
+    ) -> str:
         """
         Translates a RealState and optional exit code into a human-readable completion message.
 

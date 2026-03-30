@@ -116,18 +116,18 @@ def test_syncer_ensure_suitable_raises_for_unsuitable_states(
     syncer._state = state
     syncer._informer = MagicMock()
     syncer._informer.info.job_exit_code = job_exit_code
-    syncer._informer.getRealState.return_value = state
+    syncer._informer.get_real_state.return_value = state
     syncer._informer.info.transfer_mode = transfer_mode
 
     syncer._work_dir = Path("/workdir")
     syncer._main_node = "node"
     syncer._input_machine = "input"
     syncer._informer.info.input_dir = Path("/different_input")
-    syncer._informer.usesScratch.return_value = True
+    syncer._informer.uses_scratch.return_value = True
     syncer._batch_system = MagicMock()
 
     with pytest.raises(QQNotSuitableError, match=expected_message):
-        syncer.ensureSuitable()
+        syncer.ensure_suitable()
 
 
 def test_syncer_ensure_suitable_raises_when_workdir_is_inputdir():
@@ -135,7 +135,7 @@ def test_syncer_ensure_suitable_raises_when_workdir_is_inputdir():
     syncer._state = RealState.FAILED
     syncer._informer = MagicMock()
     syncer._informer.info.job_exit_code = 1
-    syncer._informer.getRealState.return_value = RealState.FAILED
+    syncer._informer.get_real_state.return_value = RealState.FAILED
     syncer._informer.info.transfer_mode = [Success()]
     same_path = Path("/shared/path")
 
@@ -143,14 +143,14 @@ def test_syncer_ensure_suitable_raises_when_workdir_is_inputdir():
     syncer._main_node = "main"
     syncer._input_machine = "main"
     syncer._informer.info.input_dir = same_path
-    syncer._informer.usesScratch.return_value = False
+    syncer._informer.uses_scratch.return_value = False
     syncer._batch_system = MagicMock()
 
     with pytest.raises(
         QQNotSuitableError,
         match="Working directory of the job is the input directory of the job: implicitly synchronized",
     ):
-        syncer.ensureSuitable()
+        syncer.ensure_suitable()
 
 
 @pytest.mark.parametrize("destination", [(None, "host"), (Path("some/path"), None)])
@@ -165,7 +165,7 @@ def test_syncer_ensure_suitable_raises_killed_without_destination(destination):
         QQNotSuitableError,
         match="Job has been killed and no working directory is available.",
     ):
-        syncer.ensureSuitable()
+        syncer.ensure_suitable()
 
 
 @pytest.mark.parametrize(
@@ -260,18 +260,18 @@ def test_syncer_ensure_suitable_passes_when_suitable(
     syncer._state = state
     syncer._informer = MagicMock()
     syncer._informer.info.job_exit_code = job_exit_code
-    syncer._informer.getRealState.return_value = state
+    syncer._informer.get_real_state.return_value = state
     syncer._informer.info.transfer_mode = transfer_mode
 
     syncer._work_dir = Path("/workdir")
     syncer._main_node = "node"
     syncer._input_machine = "input"
     syncer._informer.info.input_dir = Path("/different_input")
-    syncer._informer.usesScratch.return_value = True
+    syncer._informer.uses_scratch.return_value = True
     syncer._batch_system = MagicMock()
 
     # should not raise
-    syncer.ensureSuitable()
+    syncer.ensure_suitable()
 
 
 @pytest.mark.parametrize(
@@ -295,7 +295,7 @@ def test_syncer_sync_calls_sync_selected_with_files():
     syncer._batch_system = MagicMock()
     syncer._informer = MagicMock()
     syncer._informer.info.input_dir = Path("/input")
-    syncer.hasDestination = MagicMock(return_value=True)
+    syncer.has_destination = MagicMock(return_value=True)
 
     files = ["a.txt", "b.txt"]
 
@@ -304,7 +304,7 @@ def test_syncer_sync_calls_sync_selected_with_files():
         mock_logger.info.assert_called_once_with(
             "Fetching files 'a.txt b.txt' from job's working directory to input directory."
         )
-        syncer._batch_system.syncSelected.assert_called_once_with(
+        syncer._batch_system.sync_selected.assert_called_once_with(
             syncer._work_dir,
             syncer._informer.info.input_dir,
             syncer._main_node,
@@ -320,13 +320,13 @@ def test_syncer_sync_calls_sync_with_exclusions_without_files():
     syncer._batch_system = MagicMock()
     syncer._informer = MagicMock()
     syncer._informer.info.input_dir = Path("/input")
-    syncer.hasDestination = MagicMock(return_value=True)
+    syncer.has_destination = MagicMock(return_value=True)
 
     with patch("qq_lib.sync.syncer.logger") as mock_logger:
         syncer.sync()
         mock_logger.info.assert_called_once_with(
             "Fetching all files from job's working directory to input directory."
         )
-        syncer._batch_system.syncWithExclusions.assert_called_once_with(
+        syncer._batch_system.sync_with_exclusions.assert_called_once_with(
             syncer._work_dir, syncer._informer.info.input_dir, syncer._main_node, None
         )

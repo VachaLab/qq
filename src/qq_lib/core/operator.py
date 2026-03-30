@@ -39,14 +39,14 @@ class Operator:
             host (str | None, optional): Optional hostname of a machine from
                 which to load job information. Defaults to None meaning 'current machine'.
         """
-        self._informer = Informer.fromFile(info_file, host)
+        self._informer = Informer.from_file(info_file, host)
         self._info_file = info_file
         self._input_machine = host
         self._batch_system = self._informer.batch_system
-        self._state = self._informer.getRealState()
+        self._state = self._informer.get_real_state()
 
     @classmethod
-    def fromInformer(cls, informer: Informer) -> Self:
+    def from_informer(cls, informer: Informer) -> Self:
         """
         Initialize an Operator instance from an Informer.
 
@@ -60,10 +60,10 @@ class Operator:
         """
         operator = cls.__new__(cls)
         operator._informer = informer
-        operator._info_file = informer.getInfoFile()
+        operator._info_file = informer.get_info_file()
         operator._input_machine = informer.info.input_machine
         operator._batch_system = informer.batch_system
-        operator._state = informer.getRealState()
+        operator._state = informer.get_real_state()
 
         return operator
 
@@ -71,10 +71,10 @@ class Operator:
         """
         Refresh the internal informer and job state from the qq info file.
         """
-        self._informer = Informer.fromFile(self._info_file, self._input_machine)
-        self._state = self._informer.getRealState()
+        self._informer = Informer.from_file(self._info_file, self._input_machine)
+        self._state = self._informer.get_real_state()
 
-    def getInformer(self) -> Informer:
+    def get_informer(self) -> Informer:
         """
         Retrieve the underlying Informer instance.
 
@@ -83,7 +83,7 @@ class Operator:
         """
         return self._informer
 
-    def printInfo(self, console: Console) -> None:
+    def print_info(self, console: Console) -> None:
         """
         Display the current job information in a formatted Rich panel.
 
@@ -91,10 +91,10 @@ class Operator:
             console (Console): Rich Console instance used to render output.
         """
         presenter = Presenter(self._informer)
-        panel = presenter.createJobStatusPanel(console)
+        panel = presenter.create_job_status_panel(console)
         console.print(panel)
 
-    def matchesJob(self, job_id: str) -> bool:
+    def matches_job(self, job_id: str) -> bool:
         """
         Determine whether this operator corresponds to the specified job ID.
 
@@ -105,4 +105,4 @@ class Operator:
             bool: True if both job IDs refer to the same job (same numeric/job part),
                 False otherwise.
         """
-        return self._informer.matchesJob(job_id)
+        return self._informer.matches_job(job_id)

@@ -30,15 +30,15 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
     SUPPORTED_SCRATCHES = ["scratch"]
 
     @classmethod
-    def envName(cls) -> str:
+    def env_name(cls) -> str:
         return "SlurmIT4I"
 
     @classmethod
-    def isAvailable(cls) -> bool:
+    def is_available(cls) -> bool:
         return shutil.which("it4ifree") is not None
 
     @classmethod
-    def createWorkDirOnScratch(cls, job_id: str) -> Path:
+    def create_work_dir_on_scratch(cls, job_id: str) -> Path:
         if not (account := os.environ.get(CFG.env_vars.slurm_job_account)):
             raise QQError(f"No account is defined for job '{job_id}'.")
 
@@ -69,21 +69,21 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
         ) from last_exception
 
     @classmethod
-    def getSupportedWorkDirTypes(cls) -> list[str]:
+    def get_supported_work_dir_types(cls) -> list[str]:
         return cls.SUPPORTED_SCRATCHES + [
             "input_dir",
             "job_dir",  # same as input_dir
         ]
 
     @classmethod
-    def navigateToDestination(cls, host: str, directory: Path) -> None:
+    def navigate_to_destination(cls, host: str, directory: Path) -> None:
         logger.info(
             f"Host '{host}' is not reachable in this environment. Navigating to '{directory}' on the current machine."
         )
-        BatchInterface._navigateSameHost(directory)
+        BatchInterface._navigate_same_host(directory)
 
     @classmethod
-    def readRemoteFile(cls, host: str, file: Path) -> str:
+    def read_remote_file(cls, host: str, file: Path) -> str:
         # file is always on shared storage
         _ = host
         try:
@@ -92,7 +92,7 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
             raise QQError(f"Could not read file '{file}': {e}.") from e
 
     @classmethod
-    def writeRemoteFile(cls, host: str, file: Path, content: str) -> None:
+    def write_remote_file(cls, host: str, file: Path, content: str) -> None:
         # file is always on shared storage
         _ = host
         try:
@@ -101,7 +101,7 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
             raise QQError(f"Could not write file '{file}': {e}.") from e
 
     @classmethod
-    def makeRemoteDir(cls, host: str, directory: Path) -> None:
+    def make_remote_dir(cls, host: str, directory: Path) -> None:
         # directory is always on shared storage
         _ = host
         try:
@@ -110,7 +110,7 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
             raise QQError(f"Could not create a directory '{directory}': {e}.") from e
 
     @classmethod
-    def listRemoteDir(cls, host: str, directory: Path) -> list[Path]:
+    def list_remote_dir(cls, host: str, directory: Path) -> list[Path]:
         # directory is always on shared storage
         _ = host
         try:
@@ -119,7 +119,7 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
             raise QQError(f"Could not list a directory '{directory}': {e}.") from e
 
     @classmethod
-    def deleteRemoteDir(cls, host: str, directory: Path) -> None:
+    def delete_remote_dir(cls, host: str, directory: Path) -> None:
         # directory is always on shared storage
         _ = host
         try:
@@ -128,7 +128,7 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
             raise QQError(f"Could not delete directory '{directory}': {e}.") from e
 
     @classmethod
-    def moveRemoteFiles(
+    def move_remote_files(
         cls, host: str, files: list[Path], moved_files: list[Path]
     ) -> None:
         if len(files) != len(moved_files):
@@ -142,7 +142,7 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
             shutil.move(str(src), str(dst))
 
     @classmethod
-    def syncWithExclusions(
+    def sync_with_exclusions(
         cls,
         src_dir: Path,
         dest_dir: Path,
@@ -153,10 +153,12 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
         # always on shared storage
         _ = src_host
         _ = dest_host
-        BatchInterface.syncWithExclusions(src_dir, dest_dir, None, None, exclude_files)
+        BatchInterface.sync_with_exclusions(
+            src_dir, dest_dir, None, None, exclude_files
+        )
 
     @classmethod
-    def syncSelected(
+    def sync_selected(
         cls,
         src_dir: Path,
         dest_dir: Path,
@@ -167,17 +169,22 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
         # always on shared storage
         _ = src_host
         _ = dest_host
-        BatchInterface.syncSelected(src_dir, dest_dir, None, None, include_files)
+        BatchInterface.sync_selected(src_dir, dest_dir, None, None, include_files)
 
     @classmethod
-    def transformResources(cls, queue: str, provided_resources: Resources) -> Resources:
+    def transform_resources(
+        cls, queue: str, server: str | None, provided_resources: Resources
+    ) -> Resources:
+        # server is unused
+        _ = server
+
         # default resources of the queue
-        default_queue_resources = SlurmQueue(queue).getDefaultResources()
+        default_queue_resources = SlurmQueue(queue).get_default_resources()
         # default server or hard-coded resources
-        default_batch_resources = cls._getDefaultServerResources()
+        default_batch_resources = cls._get_default_server_resources()
 
         # fill in default parameters
-        resources = Resources.mergeResources(
+        resources = Resources.merge_resources(
             provided_resources, default_queue_resources, default_batch_resources
         )
         if not resources.work_dir:
@@ -192,16 +199,16 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
 
         if not any(
             equals_normalized(resources.work_dir, dir)
-            for dir in cls.getSupportedWorkDirTypes()
+            for dir in cls.get_supported_work_dir_types()
         ):
             raise QQError(
-                f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.envName()} are: {' '.join(cls.getSupportedWorkDirTypes())}."
+                f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.env_name()} are: {' '.join(cls.get_supported_work_dir_types())}."
             )
 
         return resources
 
     @classmethod
-    def isShared(cls, directory: Path) -> bool:
+    def is_shared(cls, directory: Path) -> bool:
         _ = directory
         # always on shared storage
         return True
@@ -237,7 +244,7 @@ class SlurmIT4I(Slurm, metaclass=BatchMeta):
             raise QQError(f"Could not resubmit the job: {result.stderr.strip()}.")
 
     @classmethod
-    def _getDefaultResources(cls) -> Resources:
+    def _get_default_resources(cls) -> Resources:
         return Resources(
             nnodes=1,
             ncpus_per_node=128,

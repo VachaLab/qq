@@ -14,7 +14,7 @@ class Syncer(Navigator):
     (on a compute node) and the local input directory.
     """
 
-    def ensureSuitable(self):
+    def ensure_suitable(self):
         """
         Verify that the job is in a state where files can be fetched from its working directory.
 
@@ -22,24 +22,24 @@ class Syncer(Navigator):
             QQNotSuitableError: If the working directory is not expected to exist
                 or if the working directory is the input directory.
         """
-        if self._workDirIsInputDir():
+        if self._work_dir_is_input_dir():
             raise QQNotSuitableError(
                 "Working directory of the job is the input directory of the job: implicitly synchronized."
             )
 
-        if self._isSynchronized():
+        if self._is_synchronized():
             raise QQNotSuitableError(
                 "Job has been completed and was synchronized: working directory no longer exists."
             )
 
         # killed jobs may not have working directory
-        if self._isKilled() and not self.hasDestination():
+        if self._is_killed() and not self.has_destination():
             raise QQNotSuitableError(
                 "Job has been killed and no working directory is available."
             )
 
         # queued jobs do not have working directory
-        if self._isQueued():
+        if self._is_queued():
             raise QQNotSuitableError("Job is queued or booting: nothing to sync.")
 
     def sync(self, files: list[str] | None = None) -> None:
@@ -57,7 +57,7 @@ class Syncer(Navigator):
         Raises:
             QQError: If the job's destination (host or working directory) cannot be determined.
         """
-        if not self.hasDestination():
+        if not self.has_destination():
             raise QQError(
                 "Host ('main_node') or working directory ('work_dir') are not defined."
             )
@@ -70,7 +70,7 @@ class Syncer(Navigator):
             logger.info(
                 f"Fetching file{'s' if len(files) > 1 else ''} '{' '.join(files)}' from job's working directory to input directory."
             )
-            self._batch_system.syncSelected(
+            self._batch_system.sync_selected(
                 self._work_dir,
                 self._informer.info.input_dir,
                 self._main_node,
@@ -81,6 +81,6 @@ class Syncer(Navigator):
             logger.info(
                 "Fetching all files from job's working directory to input directory."
             )
-            self._batch_system.syncWithExclusions(
+            self._batch_system.sync_with_exclusions(
                 self._work_dir, self._informer.info.input_dir, self._main_node, None
             )

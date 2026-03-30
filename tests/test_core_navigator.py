@@ -19,7 +19,7 @@ def test_navigator_init(tmp_path):
 
     with (
         patch("qq_lib.core.operator.Operator.__init__") as super_init,
-        patch.object(Navigator, "_setDestination") as set_destination,
+        patch.object(Navigator, "_set_destination") as set_destination,
     ):
         Navigator(info_file, host)
 
@@ -32,7 +32,7 @@ def test_navigator_update_calls_super_and_set_destination():
 
     with (
         patch("qq_lib.core.operator.Operator.update") as super_update,
-        patch.object(navigator, "_setDestination") as set_destination,
+        patch.object(navigator, "_set_destination") as set_destination,
     ):
         navigator.update()
 
@@ -52,22 +52,22 @@ def test_navigator_has_destination_false(work_dir, main_node):
     navigator = Navigator.__new__(Navigator)
     navigator._work_dir = work_dir
     navigator._main_node = main_node
-    assert navigator.hasDestination() is False
+    assert navigator.has_destination() is False
 
 
 def test_navigator_has_destination_true():
     navigator = Navigator.__new__(Navigator)
     navigator._work_dir = "/work/dir"
     navigator._main_node = "main-node"
-    assert navigator.hasDestination() is True
+    assert navigator.has_destination() is True
 
 
 def test_navigator_set_destination_with_value():
     navigator = Navigator.__new__(Navigator)
     navigator._informer = MagicMock()
-    navigator._informer.getDestination.return_value = ("main-node", "/work/dir")
+    navigator._informer.get_destination.return_value = ("main-node", "/work/dir")
 
-    navigator._setDestination()
+    navigator._set_destination()
 
     assert navigator._main_node == "main-node"
     assert navigator._work_dir == "/work/dir"
@@ -76,9 +76,9 @@ def test_navigator_set_destination_with_value():
 def test_navigator_set_destination_none():
     navigator = Navigator.__new__(Navigator)
     navigator._informer = MagicMock()
-    navigator._informer.getDestination.return_value = None
+    navigator._informer.get_destination.return_value = None
 
-    navigator._setDestination()
+    navigator._set_destination()
 
     assert navigator._main_node is None
     assert navigator._work_dir is None
@@ -88,50 +88,50 @@ def test_navigator_is_in_work_dir_in_input_dir():
     navigator = Navigator.__new__(Navigator)
     navigator._work_dir = Path.cwd()
     navigator._informer = MagicMock()
-    navigator._informer.usesScratch.return_value = False
+    navigator._informer.uses_scratch.return_value = False
     navigator._main_node = "irrelevant"
 
-    assert navigator._isInWorkDir() is True
+    assert navigator._is_in_work_dir() is True
 
 
 def test_navigator_is_in_work_dir_shared_not_in_input_dir(tmp_path):
     navigator = Navigator.__new__(Navigator)
     navigator._work_dir = tmp_path
     navigator._informer = MagicMock()
-    navigator._informer.usesScratch.return_value = False
+    navigator._informer.uses_scratch.return_value = False
     navigator._main_node = "irrelevant"
 
-    assert navigator._isInWorkDir() is False
+    assert navigator._is_in_work_dir() is False
 
 
 def test_navigator_is_in_work_dir_work_dir_none():
     navigator = Navigator.__new__(Navigator)
     navigator._work_dir = None
     navigator._informer = MagicMock()
-    navigator._main_node = socket.gethostname()
+    navigator._main_node = socket.getfqdn()
 
-    assert navigator._isInWorkDir() is False
+    assert navigator._is_in_work_dir() is False
 
 
 def test_navigator_is_in_work_dir_scratch_main_node_mismatch():
     navigator = Navigator.__new__(Navigator)
     navigator._work_dir = Path.cwd()
     navigator._informer = MagicMock()
-    navigator._informer.usesScratch.return_value = True
+    navigator._informer.uses_scratch.return_value = True
     navigator._main_node = "otherhost"
 
-    with patch("socket.gethostname", return_value="currenthost"):
-        assert navigator._isInWorkDir() is False
+    with patch("socket.getfqdn", return_value="currenthost"):
+        assert navigator._is_in_work_dir() is False
 
 
 def test_navigator_is_in_work_dir_scratch_main_node_match():
     navigator = Navigator.__new__(Navigator)
     navigator._work_dir = Path.cwd()
     navigator._informer = MagicMock()
-    navigator._informer.usesScratch.return_value = True
-    navigator._main_node = socket.gethostname()
+    navigator._informer.uses_scratch.return_value = True
+    navigator._main_node = socket.getfqdn()
 
-    assert navigator._isInWorkDir() is True
+    assert navigator._is_in_work_dir() is True
 
 
 @pytest.mark.parametrize(
@@ -147,7 +147,7 @@ def test_navigator_is_in_work_dir_scratch_main_node_match():
 def test_navigator_is_queued(state, expected):
     goer = Navigator.__new__(Navigator)
     goer._state = state
-    assert goer._isQueued() is expected
+    assert goer._is_queued() is expected
 
 
 @pytest.mark.parametrize(
@@ -165,7 +165,7 @@ def test_navigator_is_killed(state, job_exit_code, expected):
     goer._state = state
     goer._informer = MagicMock()
     goer._informer.info.job_exit_code = job_exit_code
-    assert goer._isKilled() is expected
+    assert goer._is_killed() is expected
 
 
 @pytest.mark.parametrize(
@@ -178,7 +178,7 @@ def test_navigator_is_killed(state, job_exit_code, expected):
 def test_navigator_is_finished(state, expected):
     goer = Navigator.__new__(Navigator)
     goer._state = state
-    assert goer._isFinished() is expected
+    assert goer._is_finished() is expected
 
 
 @pytest.mark.parametrize(
@@ -191,7 +191,7 @@ def test_navigator_is_finished(state, expected):
 def test_navigator_is_suspended(state, expected):
     goer = Navigator.__new__(Navigator)
     goer._state = state
-    assert goer._isSuspended() is expected
+    assert goer._is_suspended() is expected
 
 
 @pytest.mark.parametrize(
@@ -204,7 +204,7 @@ def test_navigator_is_suspended(state, expected):
 def test_navigator_is_running(state, expected):
     goer = Navigator.__new__(Navigator)
     goer._state = state
-    assert goer._isRunning() is expected
+    assert goer._is_running() is expected
 
 
 @pytest.mark.parametrize(
@@ -217,7 +217,7 @@ def test_navigator_is_running(state, expected):
 def test_navigator_is_failed(state, expected):
     goer = Navigator.__new__(Navigator)
     goer._state = state
-    assert goer._isFailed() is expected
+    assert goer._is_failed() is expected
 
 
 @pytest.mark.parametrize(
@@ -231,7 +231,7 @@ def test_navigator_is_failed(state, expected):
 def test_navigator_is_unknown_inconsistent(state, expected):
     goer = Navigator.__new__(Navigator)
     goer._state = state
-    assert goer._isUnknownInconsistent() is expected
+    assert goer._is_unknown_inconsistent() is expected
 
 
 @pytest.mark.parametrize(
@@ -249,18 +249,18 @@ def test_navigator_is_exiting_successfully(state, job_exit_code, expected):
     goer._state = state
     goer._informer = MagicMock()
     goer._informer.info.job_exit_code = job_exit_code
-    assert goer._isExitingSuccessfully() is expected
+    assert goer._is_exiting_successfully() is expected
 
 
 def test_navigator_from_informer_initializes_destination():
     informer = MagicMock()
-    informer.getInfoFile.return_value = "info_path"
+    informer.get_info_file.return_value = "info_path"
     informer.info.input_machine = "machineA"
     informer.batch_system = PBS
-    informer.getRealState.return_value = RealState.RUNNING
-    informer.getDestination.return_value = ("nodeA", "/work/dir")
+    informer.get_real_state.return_value = RealState.RUNNING
+    informer.get_destination.return_value = ("nodeA", "/work/dir")
 
-    nav = Navigator.fromInformer(informer)
+    nav = Navigator.from_informer(informer)
 
     assert isinstance(nav, Navigator)
     assert nav._informer is informer
@@ -274,13 +274,13 @@ def test_navigator_from_informer_initializes_destination():
 
 def test_navigator_from_informer_handles_missing_destination():
     informer = MagicMock()
-    informer.getInfoFile.return_value = "info_path"
+    informer.get_info_file.return_value = "info_path"
     informer.info.input_machine = "machineA"
     informer.batch_system = PBS
-    informer.getRealState.return_value = RealState.QUEUED
-    informer.getDestination.return_value = None
+    informer.get_real_state.return_value = RealState.QUEUED
+    informer.get_destination.return_value = None
 
-    nav = Navigator.fromInformer(informer)
+    nav = Navigator.from_informer(informer)
 
     assert nav._main_node is None
     assert nav._work_dir is None
@@ -313,7 +313,7 @@ def test_wiper_workdir_is_inputdir_various_conditions(
 
     wiper._informer = MagicMock()
     wiper._informer.info.input_dir = input_dir
-    wiper._informer.usesScratch.return_value = uses_scratch
+    wiper._informer.uses_scratch.return_value = uses_scratch
 
-    result = wiper._workDirIsInputDir()
+    result = wiper._work_dir_is_input_dir()
     assert result is expected

@@ -59,7 +59,7 @@ def run(script_path: str) -> NoReturn:
 
     try:
         # make sure that qq run is being run as a batch job
-        ensureQQEnv()
+        ensure_qq_env()
     except Exception as e:
         logger.error(e)
         sys.exit(CFG.exit_codes.not_qq_env)
@@ -99,10 +99,10 @@ def run(script_path: str) -> NoReturn:
         log_fatal_error_and_exit(e)  # exits here
     except Exception as e:
         # other exceptions should be logged into both stderr and the info file
-        runner.logFailureAndExit(e)  # exits here
+        runner.log_failure_and_exit(e)  # exits here
 
 
-def ensureQQEnv() -> None:
+def ensure_qq_env() -> None:
     """
     Raises an exception if the script is not running inside qq environment.
     """

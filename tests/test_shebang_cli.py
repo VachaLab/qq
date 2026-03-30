@@ -10,13 +10,13 @@ from click.testing import CliRunner
 
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
-from qq_lib.shebang.cli import SHEBANG, _replaceOrAddShebang, shebang
+from qq_lib.shebang.cli import SHEBANG, _replace_or_add_shebang, shebang
 
 
 def test_replace_or_add_shebang_raises_error_if_not_file(tmp_path):
     non_existent_file = tmp_path / "non_existent.sh"
     with pytest.raises(QQError):
-        _replaceOrAddShebang(non_existent_file)
+        _replace_or_add_shebang(non_existent_file)
 
 
 @pytest.mark.parametrize(
@@ -29,7 +29,7 @@ def test_replace_or_add_shebang_raises_error_if_not_file(tmp_path):
 def test_replace_or_add_shebang_replaces_existing_shebang(tmp_path, original_content):
     file_path = tmp_path / "script.sh"
     file_path.write_text(original_content)
-    _replaceOrAddShebang(file_path)
+    _replace_or_add_shebang(file_path)
 
     result = file_path.read_text().splitlines()
     assert result[0] == SHEBANG
@@ -47,7 +47,7 @@ def test_replace_or_add_shebang_replaces_existing_shebang(tmp_path, original_con
 def test_replace_or_add_shebang_adds_shebang_if_missing(tmp_path, original_content):
     file_path = tmp_path / "no_shebang"
     file_path.write_text(original_content)
-    _replaceOrAddShebang(file_path)
+    _replace_or_add_shebang(file_path)
 
     result = file_path.read_text()
     assert result.startswith(SHEBANG + "\n\n")
@@ -64,7 +64,7 @@ def test_shebang_invokes_replace_or_add_shebang_and_exits_success(tmp_path):
     dummy_file = tmp_path / "script.sh"
     dummy_file.write_text("echo Hi")
     runner = CliRunner()
-    with patch("qq_lib.shebang.cli._replaceOrAddShebang") as mock_replace:
+    with patch("qq_lib.shebang.cli._replace_or_add_shebang") as mock_replace:
         result = runner.invoke(shebang, [str(dummy_file)])
         assert result.exit_code == 0
         mock_replace.assert_called_once_with(Path(dummy_file))
@@ -76,7 +76,7 @@ def test_shebang_catches_qqerror_and_exits_91(tmp_path):
     runner = CliRunner()
     with (
         patch(
-            "qq_lib.shebang.cli._replaceOrAddShebang", side_effect=QQError("failure")
+            "qq_lib.shebang.cli._replace_or_add_shebang", side_effect=QQError("failure")
         ),
         patch("qq_lib.shebang.cli.logger") as mock_logger,
     ):
@@ -92,7 +92,7 @@ def test_shebang_catches_generic_exception_and_exits_99(tmp_path):
     runner = CliRunner()
     with (
         patch(
-            "qq_lib.shebang.cli._replaceOrAddShebang",
+            "qq_lib.shebang.cli._replace_or_add_shebang",
             side_effect=Exception("unexpected error"),
         ),
         patch("qq_lib.shebang.cli.logger") as mock_logger,

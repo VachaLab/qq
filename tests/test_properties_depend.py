@@ -18,7 +18,7 @@ from qq_lib.properties.depend import Depend, DependType
     ],
 )
 def test_depend_type_from_str_valid_mappings(input_str, expected_type):
-    result = DependType.fromStr(input_str)
+    result = DependType.from_str(input_str)
     assert result == expected_type
     assert isinstance(result, DependType)
 
@@ -41,7 +41,7 @@ def test_depend_type_from_str_valid_mappings(input_str, expected_type):
 )
 def test_depend_type_from_str_invalid_inputs(invalid_str):
     with pytest.raises(QQError, match="Unknown dependency type"):
-        DependType.fromStr(invalid_str)
+        DependType.from_str(invalid_str)
 
 
 @pytest.mark.parametrize(
@@ -58,7 +58,7 @@ def test_depend_type_from_str_invalid_inputs(invalid_str):
     ],
 )
 def test_depend_init_valid_inputs(raw_depend, expected_type, expected_jobs):
-    dep = Depend.fromStr(raw_depend)
+    dep = Depend.from_str(raw_depend)
 
     assert dep.type == expected_type
     assert dep.jobs == expected_jobs
@@ -79,7 +79,7 @@ def test_depend_init_valid_inputs(raw_depend, expected_type, expected_jobs):
 )
 def test_depend_init_empty_or_blank_jobs_raises(raw_depend):
     with pytest.raises(QQError, match="Missing job id"):
-        Depend.fromStr(raw_depend)
+        Depend.from_str(raw_depend)
 
 
 @pytest.mark.parametrize(
@@ -96,7 +96,7 @@ def test_depend_init_empty_or_blank_jobs_raises(raw_depend):
 )
 def test_depend_init_invalid_inputs_raise(raw_depend):
     with pytest.raises(QQError, match="Could not parse dependency specification"):
-        Depend.fromStr(raw_depend)
+        Depend.from_str(raw_depend)
 
 
 @pytest.mark.parametrize(
@@ -140,7 +140,7 @@ def test_depend_init_invalid_inputs_raise(raw_depend):
     ],
 )
 def test_from_depend_str_valid_inputs(raw, expected_types, expected_jobs):
-    depends = Depend.multiFromStr(raw)
+    depends = Depend.multi_from_str(raw)
 
     assert len(depends) == len(expected_types)
     for dep, expected_type, expected_joblist in zip(
@@ -161,7 +161,7 @@ def test_from_depend_str_valid_inputs(raw, expected_types, expected_jobs):
     ],
 )
 def test_from_depend_str_robust_splitting(raw, expected_count):
-    depends = Depend.multiFromStr(raw)
+    depends = Depend.multi_from_str(raw)
     assert len(depends) == expected_count
     assert all(isinstance(dep, Depend) for dep in depends)
 
@@ -176,7 +176,7 @@ def test_from_depend_str_robust_splitting(raw, expected_count):
     ],
 )
 def test_from_depend_str_empty_or_whitespace_input(raw):
-    assert Depend.multiFromStr(raw) == []
+    assert Depend.multi_from_str(raw) == []
 
 
 @pytest.mark.parametrize(
@@ -192,7 +192,7 @@ def test_from_depend_str_empty_or_whitespace_input(raw):
 )
 def test_from_depend_str_invalid_entries_raise(raw):
     with pytest.raises(QQError, match="Could not parse dependency specification"):
-        Depend.multiFromStr(raw)
+        Depend.multi_from_str(raw)
 
 
 @pytest.mark.parametrize(
@@ -205,17 +205,17 @@ def test_from_depend_str_invalid_entries_raise(raw):
     ],
 )
 def test_dependtype_to_str_valid(dep_type, expected):
-    assert dep_type.toStr() == expected
+    assert dep_type.to_str() == expected
 
 
 def test_depend_to_str_single_job():
-    dep = Depend.fromStr("after=12345")
-    assert dep.toStr() == "after=12345"
+    dep = Depend.from_str("after=12345")
+    assert dep.to_str() == "after=12345"
 
 
 def test_depend_to_str_multiple_jobs():
-    dep = Depend.fromStr("afterok=123:456:789")
-    assert dep.toStr() == "afterok=123:456:789"
+    dep = Depend.from_str("afterok=123:456:789")
+    assert dep.to_str() == "afterok=123:456:789"
 
 
 def test_depend_to_str_all_depend_types():
@@ -226,5 +226,5 @@ def test_depend_to_str_all_depend_types():
         ("afterany=4:5", "afterany=4:5"),
     ]
     for raw, expected in data:
-        dep = Depend.fromStr(raw)
-        assert dep.toStr() == expected
+        dep = Depend.from_str(raw)
+        assert dep.to_str() == expected

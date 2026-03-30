@@ -12,7 +12,7 @@ import click
 from qq_lib.batch.interface.job import BatchJobInterface
 from qq_lib.batch.interface.meta import BatchMeta
 from qq_lib.core.click_format import GNUHelpColorsCommand
-from qq_lib.core.common import yes_or_no_prompt
+from qq_lib.core.common import translate_server, yes_or_no_prompt
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQJobMismatchError, QQNotSuitableError
 from qq_lib.core.logger import get_logger
@@ -39,10 +39,22 @@ This command is only able to terminate qq jobs, all other jobs are not affected 
     is_flag=True,
     help="Terminate the jobs forcibly, ignoring their current state and without confirmation.",
 )
-def killall(yes: bool = False, force: bool = False) -> NoReturn:
+@click.option(
+    "-s",
+    "--server",
+    default=None,
+    help="Termine all your jobs on the specified batch server. If not specified, the current server is used.",
+)
+def killall(
+    yes: bool = False, force: bool = False, server: str | None = None
+) -> NoReturn:
     try:
-        BatchSystem = BatchMeta.fromEnvVarOrGuess()
-        jobs = BatchSystem.getUnfinishedBatchJobs(getpass.getuser())
+        BatchSystem = BatchMeta.from_env_var_or_guess()
+
+        if server:
+            server = translate_server(server)
+
+        jobs = BatchSystem.get_unfinished_batch_jobs(getpass.getuser(), server)
         if not jobs:
             logger.info("You have no active jobs. Nothing to kill.")
             sys.exit(0)
@@ -67,8 +79,8 @@ def killall(yes: bool = False, force: bool = False) -> NoReturn:
                 force=force,
                 yes=True,  # assume yes
             )
-            repeater.onException(QQNotSuitableError, _log_error_and_continue)
-            repeater.onException(QQError, _log_error_and_continue)
+            repeater.on_exception(QQNotSuitableError, _log_error_and_continue)
+            repeater.on_exception(QQError, _log_error_and_continue)
             repeater.run()
         else:
             logger.info("Operation aborted.")
@@ -90,7 +102,7 @@ def _informers_from_jobs(jobs: Iterable[BatchJobInterface]) -> list[Informer]:
     informers = []
     for job in jobs:
         try:
-            informers.append(Informer.fromBatchJob(job))
+            informers.append(Informer.from_batch_job(job))
         except (QQError, QQJobMismatchError):
             continue
 
