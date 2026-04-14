@@ -1,4 +1,5 @@
 ## Version 0.10.1
+- The minimal width of the job status info panel was slightly increased to better accomodate long node names.
 - **Bug fix:** None is no longer displayed in the subtitle of the panel when using `qq nodes`.
 
 ## Version 0.10.0

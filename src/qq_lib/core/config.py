@@ -142,7 +142,7 @@ class JobStatusPanelSettings:
     # Maximal width of the job status panel.
     max_width: int | None = None
     # Minimal width of the job status panel.
-    min_width: int | None = 60
+    min_width: int | None = 70
     # Style of the border lines.
     border_style: str = "white"
     # Style of the title.

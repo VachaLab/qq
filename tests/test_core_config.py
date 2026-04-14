@@ -180,7 +180,7 @@ max_width = 80
     assert config.presenter.job_status_panel.border_style == "default"
     assert config.presenter.job_status_panel.max_width == 80
 
-    assert config.presenter.job_status_panel.min_width == 60
+    assert config.presenter.job_status_panel.min_width == 70
 
 
 def test_load_returns_defaults_when_file_missing(tmp_path):
