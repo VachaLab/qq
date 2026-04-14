@@ -459,7 +459,9 @@ class NodesPresenter:
                 f"{self._server}",
                 style=CFG.jobs_presenter.subtitle_style,
                 justify="center",
-            ),
+            )
+            if self._server is not None
+            else None,
             border_style=CFG.nodes_presenter.border_style,
             padding=(1, 1),
             width=get_panel_width(

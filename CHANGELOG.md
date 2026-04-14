@@ -1,3 +1,6 @@
+## Version 0.10.1
+- **Bug fix:** None is no longer displayed in the subtitle of the panel when using `qq nodes`.
+
 ## Version 0.10.0
 
 ### New features
