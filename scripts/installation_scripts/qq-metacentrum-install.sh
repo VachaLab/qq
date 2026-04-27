@@ -1,6 +1,6 @@
 #!/bin/bash
 # Installs qq on your current desktop and on the computing nodes of all Metacentrum clusters.
-# Script version: 0.5.0
+# Script version: 0.6.0
 
 set -euo pipefail
 
@@ -78,6 +78,8 @@ echo "INFO    [qq metacentrum installer] Downloading qq setup from ${SETUP_SCRIP
 curl -fsSL -o "$TMP_SETUP" "$SETUP_SCRIPT_URL"
 chmod +x "$TMP_SETUP"
 
+MISSING_HOMES=()
+
 for HOME_DIR in "${TARGET_HOMES[@]}"; do
     echo "--------------------------------------------"
     echo "INFO    [qq metacentrum installer] Linking qq to ${HOME_DIR}..."
@@ -85,6 +87,7 @@ for HOME_DIR in "${TARGET_HOMES[@]}"; do
         "$TMP_SETUP" "$HOME_DIR" "${MAIN_HOME}/qq"
     else
         echo "WARN    [qq metacentrum installer] Skipping ${HOME_DIR} (directory not found)"
+        MISSING_HOMES+=("$HOME_DIR")
     fi
 done
 
@@ -101,8 +104,19 @@ for HOST in "${LOCAL_HOME_HOSTS[@]}"; do
 done
 
 echo "--------------------------------------------"
-echo "INFO    [qq metacentrum installer] qq installation completed for all target home directories."
-echo "INFO    [qq metacentrum installer] Run 'source ${HOME}/.bashrc' to make qq available on the current machine."
+
+if [ ${#MISSING_HOMES[@]} -gt 0 ]; then
+    echo "WARN    [qq metacentrum installer] qq installation failed for the following home directories:"
+    for MISSING in "${MISSING_HOMES[@]}"; do
+        echo "WARN    [qq metacentrum installer]   - $MISSING"
+    done
+else
+    echo "INFO    [qq metacentrum installer] qq installation completed for all target home directories."
+fi
+
+if [[ ! " ${MISSING_HOMES[*]} " == *" ${HOME} "* ]]; then
+    echo "INFO    [qq metacentrum installer] Run 'source ${HOME}/.bashrc' to make qq available on the current machine."
+fi
 
 # Cleanup
 rm -f "$TMP_INSTALLER"
