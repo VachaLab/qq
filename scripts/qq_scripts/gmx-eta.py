@@ -20,6 +20,7 @@ Requires `uv`: https://docs.astral.sh/uv
 # ///
 
 import argparse
+import getpass
 from datetime import datetime
 from pathlib import Path
 
@@ -36,6 +37,11 @@ def get_informer(id: str | None) -> Informer:
     if id:
         return Informer.from_job_id(id)
     return Informer.from_file(get_info_files(Path())[-1])
+
+def get_all_job_ids() -> list[str]:
+    batch_system = BatchMeta.from_env_var_or_guess()
+    jobs = batch_system.get_unfinished_batch_jobs(getpass.getuser(), None)
+    return [job.get_id() for job in jobs]
 
 
 def get_eta_from_content(content: str) -> datetime | None:
@@ -62,9 +68,11 @@ def main():
         description="Get the estimated time of a Gromacs simulation finishing.",
     )
     parser.add_argument("job_id", nargs="*", help="Job ID(s). Optional.", default=[None])
+    parser.add_argument("--all", "-a", action="store_true", help="Show ETA for all jobs.")
+
     args = parser.parse_args()
 
-    job_ids = args.job_id if args.job_id else [None]
+    job_ids = get_all_job_ids() if args.all else (args.job_id or [None])
 
     for job_id in job_ids:
         informer = get_informer(job_id)
