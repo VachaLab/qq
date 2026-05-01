@@ -61,44 +61,49 @@ def main():
         "gmx-eta",
         description="Get the estimated time of a Gromacs simulation finishing.",
     )
-    parser.add_argument("job_id", nargs="?", help="Job ID. Optional.", default=None)
+    parser.add_argument("job_id", nargs="*", help="Job ID(s). Optional.", default=[None])
     args = parser.parse_args()
 
-    informer = get_informer(args.job_id)
-    navigator = Navigator.from_informer(informer)
+    job_ids = args.job_id if args.job_id else [None]
 
-    if (main_node := navigator.get_main_node()) and (
-        work_dir := navigator.get_work_dir()
-    ):
-        BatchSystem = BatchMeta.from_env_var_or_guess()
-        # use the batch system to read the remote file with Gromacs output
-        # split the lines and reverse the content to read from the end
-        try:
-            content = reversed(
-                BatchSystem.read_remote_file(
-                    main_node, work_dir / informer.info.stderr_file
-                ).splitlines()
-            )
-        except Exception as e:
-            print(f"No information is available: {e}")
-            return
+    for job_id in job_ids:
+        informer = get_informer(job_id)
+        navigator = Navigator.from_informer(informer)
 
-        # get eta
-        eta = get_eta_from_content(content)
-        if eta and datetime.now() <= eta:
-            print(
-                f"Simulation will finish in [bright_blue bold]{format_duration_wdhhmmss(eta - datetime.now())}[/bright_blue bold]."
-            )
-        elif eta and datetime.now() > eta:
-            print(
-                f"Simulation has finished at [bright_green bold]{str(eta)}[/bright_green bold]."
-            )
+        jobname = f"[yellow bold]{informer.info.job_name}[/yellow bold]"
+
+        if (main_node := navigator.get_main_node()) and (
+            work_dir := navigator.get_work_dir()
+        ):
+            BatchSystem = BatchMeta.from_env_var_or_guess()
+            # use the batch system to read the remote file with Gromacs output
+            # split the lines and reverse the content to read from the end
+            try:
+                content = reversed(
+                    BatchSystem.read_remote_file(
+                        main_node, work_dir / informer.info.stderr_file
+                    ).splitlines()
+                )
+            except Exception as e:
+                print(f"{jobname}: No information is available: {e}")
+                return
+
+            # get eta
+            eta = get_eta_from_content(content)
+            if eta and datetime.now() <= eta:
+                print(
+                    f"{jobname}: Simulation will finish in [bright_blue bold]{format_duration_wdhhmmss(eta - datetime.now())}[/bright_blue bold]."
+                )
+            elif eta and datetime.now() > eta:
+                print(
+                    f"{jobname}: Simulation has finished at [bright_green bold]{str(eta)}[/bright_green bold]."
+                )
+            else:
+                print("No information is available.")
+
         else:
-            print("No information is available.")
-
-    else:
-        print("No information is available: job does not have a working directory.")
-        return
+            print(f"{jobname}: No information is available: job does not have a working directory.")
+            return
 
 
 if __name__ == "__main__":
