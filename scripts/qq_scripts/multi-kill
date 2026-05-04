@@ -16,7 +16,7 @@ Requires `uv`: https://docs.astral.sh/uv
 # ]
 #
 # [tool.uv.sources]
-# qq = { git = "https://github.com/Ladme/qq.git", tag = "v0.10.1" }
+# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.10.1" }
 # ///
 
 import argparse
@@ -40,11 +40,11 @@ logging.disable(logging.ERROR)
 def get_killer(directory: str) -> Killer | None:
     """Get killer for the newest job in the specified directory."""
     # check that the directory is actually a directory and convert it to Path
-    if not (directory := Path(directory)).is_dir():
+    if not (directory_path := Path(directory)).is_dir():
         return None
 
     # get all info files in the directory
-    info_files = get_info_files(directory)
+    info_files = get_info_files(directory_path)
 
     # if no qq info files are found, return None
     if not info_files:
@@ -111,7 +111,9 @@ def kill_directories(
         with ThreadPoolExecutor(max_workers=threads) as executor:
             # submit each job to the thread pool
             # `futures` maps Future objects to directories
-            futures = {executor.submit(process_directory, d): d for d in directories}
+            futures = {
+                executor.submit(process_directory, str(d)): d for d in directories
+            }
 
             # iterate over futures as they finish (in arbitrary order)
             for future in as_completed(futures):

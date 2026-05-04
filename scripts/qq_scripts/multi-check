@@ -16,7 +16,7 @@ Requires `uv`: https://docs.astral.sh/uv
 # ]
 #
 # [tool.uv.sources]
-# qq = { git = "https://github.com/Ladme/qq.git", tag = "v0.10.1" }
+# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.10.1" }
 # ///
 
 import argparse
@@ -53,11 +53,11 @@ class Job:
 def get_informer(directory: str) -> Informer | None:
     """Get informer for the newest job in the specified directory."""
     # check that the directory is actually a directory and convert it to Path
-    if not (directory := Path(directory)).is_dir():
+    if not (directory_path := Path(directory)).is_dir():
         return None
 
     # get all info files in the directory
-    info_files = get_info_files(directory)
+    info_files = get_info_files(directory_path)
 
     # if no qq info files are found, return None
     if not info_files:
@@ -114,9 +114,10 @@ def fix_job(job: Job) -> tuple[Job, bool]:
             informer.info.excluded_files,
             informer.info.included_files,
             # remove dependencies
-            informer.info.transfer_mode,
-            informer.info.server,
-            informer.info.interpreter,
+            depend=None,
+            transfer_mode=informer.info.transfer_mode,
+            server=informer.info.server,
+            interpreter=informer.info.interpreter,
         )
         submitter.submit()
         return (job, True)
@@ -174,7 +175,7 @@ def get_jobs_and_states(
     return states
 
 
-def fix_jobs(states: dict[RealState, set[Path]]) -> tuple[set[Job], set[Job]]:
+def fix_jobs(states: dict[RealState, set[Job]]) -> tuple[set[Job], set[Job]]:
     """Fix all failed and killed jobs by deleting their working directories and resubmitting them."""
     # get failed nad killed jobs
     jobs = states.get(RealState.FAILED, set()).union(
