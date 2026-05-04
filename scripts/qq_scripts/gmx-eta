@@ -1,0 +1,158 @@
+#!/usr/bin/env -S uv run --script
+
+# Released under MIT License.
+# Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
+
+"""
+Get the estimated time of a Gromacs simulation finishing.
+Version qq 0.10.1.
+Requires `uv`: https://docs.astral.sh/uv
+"""
+
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "qq",
+# ]
+#
+# [tool.uv.sources]
+# qq = { git = "https://github.com/Ladme/qq.git", tag = "v0.10.1" }
+# ///
+
+import argparse
+import getpass
+from collections.abc import Iterator
+from datetime import datetime
+from pathlib import Path
+
+from rich import print
+
+from qq_lib.batch.interface import BatchInterface, BatchMeta
+from qq_lib.core.common import format_duration_wdhhmmss, get_info_files
+from qq_lib.core.navigator import Navigator
+from qq_lib.info import Informer
+
+
+def get_informers_for_all_jobs(BatchSystem: type[BatchInterface]) -> list[Informer]:
+    """Get informers for all unfinished jobs of the current user."""
+    jobs = BatchSystem.get_unfinished_batch_jobs(getpass.getuser(), None)
+    informers = []
+    for job in jobs:
+        try:
+            informers.append(Informer.from_batch_job(job))
+        except Exception as e:
+            print(f"Could not get information about job {job.get_id()}: {e}.")
+            continue
+
+    return informers
+
+
+def get_informers_from_job_ids(ids: list[str]) -> list[Informer]:
+    """Get informers for all provided job IDs."""
+    informers = []
+    for id in ids:
+        try:
+            informers.append(Informer.from_job_id(id))
+        except Exception as e:
+            print(f"Could not get information about job {id}: {e}.")
+            continue
+
+    return informers
+
+
+def get_eta_from_content(content: Iterator[str]) -> datetime:
+    """Get the time at which the Gromacs simulation is expected to finish."""
+
+    # find the last line containing the ETA
+    eta_line = next((s for s in content if "will finish" in s), None)
+    if not eta_line:
+        raise RuntimeError("Did not find information about ETA.")
+
+    # assuming the time information is stored in the last 5 words
+    eta = " ".join(eta_line.split()[-5:])
+
+    return datetime.strptime(eta, "%a %b %d %H:%M:%S %Y")
+
+
+def get_content_from_job(
+    informer: Informer, BatchSystem: type[BatchInterface]
+) -> Iterator[str]:
+    """Get the reversed content of the standard error output file for the job."""
+    navigator = Navigator.from_informer(informer)
+
+    if (main_node := navigator.get_main_node()) and (
+        work_dir := navigator.get_work_dir()
+    ):
+        # use the batch system to read the remote file with Gromacs output
+        # split the lines and reverse the content to read from the end
+        return reversed(
+            BatchSystem.read_remote_file(
+                main_node, work_dir / informer.info.stderr_file
+            ).splitlines()
+        )
+
+    raise RuntimeError("Job does not have a working directory.")
+
+
+def main():
+    # parse command line options
+    parser = argparse.ArgumentParser(
+        "gmx-eta",
+        description="Get the estimated time of a Gromacs simulation finishing.",
+    )
+    parser.add_argument(
+        "job_id",
+        nargs="*",
+        help="Job ID(s). Optional. If not provided, ETA is obtained for the newest job submitted from the current directory.",
+        default=[],
+    )
+    parser.add_argument(
+        "--all", "-a", action="store_true", help="Show ETA for all jobs."
+    )
+
+    args = parser.parse_args()
+
+    # detect batch system to use
+    BatchSystem = BatchMeta.from_env_var_or_guess()
+
+    if args.all:
+        # get informers for all unfinished jobs of the user
+        informers = get_informers_for_all_jobs(BatchSystem)
+    elif len(args.job_id) > 0:
+        # get informers from the IDs specified on the command line
+        informers = get_informers_from_job_ids(args.job_id)
+    else:
+        # get informer from the newest job submitted from the current directory
+        try:
+            informers = [Informer.from_file(get_info_files(Path())[-1])]
+        except Exception:
+            print("No job detected in the current directory.")
+            return
+
+    for informer in informers:
+        job_id_name = f"[cyan bold][{informer.info.job_id.split('.')[0]}][/cyan bold] [yellow bold]{informer.info.job_name}[/yellow bold]"
+
+        # get content of the Gromacs output
+        try:
+            content = get_content_from_job(informer, BatchSystem)
+        except Exception as e:
+            print(f"{job_id_name}: No information is available: {e}")
+            continue
+
+        # extract ETA from the content
+        try:
+            eta = get_eta_from_content(content)
+            if eta and datetime.now() <= eta:
+                print(
+                    f"{job_id_name}: Simulation will finish in [bright_blue bold]{format_duration_wdhhmmss(eta - datetime.now())}[/bright_blue bold]."
+                )
+            else:
+                print(
+                    f"{job_id_name}: Simulation has finished at [bright_green bold]{str(eta)}[/bright_green bold]."
+                )
+        except Exception as e:
+            print(f"{job_id_name}: No information is available: {e}")
+
+
+if __name__ == "__main__":
+    main()
