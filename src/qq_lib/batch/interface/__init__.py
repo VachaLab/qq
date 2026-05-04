@@ -26,14 +26,12 @@ multiple batch systems through a unified API. It provides:
 
 from .interface import AnyBatchClass, BatchInterface
 from .job import BatchJobInterface
-from .meta import BatchMeta
 from .node import BatchNodeInterface
 from .queue import BatchQueueInterface
 
 __all__ = [
     "BatchInterface",
     "BatchJobInterface",
-    "BatchMeta",
     "BatchNodeInterface",
     "BatchQueueInterface",
     "AnyBatchClass",

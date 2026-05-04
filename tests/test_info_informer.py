@@ -485,7 +485,7 @@ def test_informer_from_job_id_raises_when_empty():
 
     with (
         patch(
-            "qq_lib.info.informer.BatchMeta.from_env_var_or_guess",
+            "qq_lib.info.informer.BatchInterface.from_env_var_or_guess",
             return_value=batch_system,
         ),
         pytest.raises(QQError, match="Job '123' does not exist."),
@@ -503,7 +503,7 @@ def test_informer_from_job_id_returns_informer_when_valid():
 
     with (
         patch(
-            "qq_lib.info.informer.BatchMeta.from_env_var_or_guess",
+            "qq_lib.info.informer.BatchInterface.from_env_var_or_guess",
             return_value=batch_system,
         ),
         patch(

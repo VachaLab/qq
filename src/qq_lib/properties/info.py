@@ -22,7 +22,7 @@ from typing import Self
 
 import yaml
 
-from qq_lib.batch.interface import AnyBatchClass, BatchMeta
+from qq_lib.batch.interface import AnyBatchClass, BatchInterface
 from qq_lib.core.common import load_yaml_dumper, load_yaml_loader
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -165,7 +165,7 @@ class Info:
                 # remote file
                 logger.debug(f"Loading qq info from '{file}' on '{host}'.")
 
-                BatchSystem = BatchMeta.from_env_var_or_guess()
+                BatchSystem = BatchInterface.from_env_var_or_guess()
                 data: dict[str, object] = yaml.load(
                     BatchSystem.read_remote_file(host, file),
                     Loader=SafeLoader,
@@ -373,7 +373,7 @@ class Info:
                 init_kwargs[name] = Resources(**value)  # ty: ignore[invalid-argument-type]
             # convert the batch system
             elif f.type == AnyBatchClass and isinstance(value, str):
-                init_kwargs[name] = BatchMeta.from_str(value)
+                init_kwargs[name] = BatchInterface.from_str(value)
             # convert the job state
             elif f.type == NaiveState and isinstance(value, str):
                 init_kwargs[name] = (

@@ -15,7 +15,7 @@ from typing import NoReturn
 
 import qq_lib
 from qq_lib.archive.archiver import Archiver
-from qq_lib.batch.interface.meta import BatchMeta
+from qq_lib.batch.interface import BatchInterface
 from qq_lib.core.common import construct_loop_job_name
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
@@ -71,7 +71,7 @@ class Runner:
         # load the info file or raise a fatal qq error if this fails
         try:
             # get the batch system from the environment variable (or guess it)
-            self._batch_system = BatchMeta.from_env_var_or_guess()
+            self._batch_system = BatchInterface.from_env_var_or_guess()
             logger.debug(f"Batch system: {str(self._batch_system)}.")
 
             # get the id of the job from the batch system

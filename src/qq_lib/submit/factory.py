@@ -4,7 +4,7 @@
 from dataclasses import fields
 from pathlib import Path
 
-from qq_lib.batch.interface import BatchInterface, BatchMeta
+from qq_lib.batch.interface import BatchInterface
 from qq_lib.core.common import split_files_list, translate_server
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
@@ -90,8 +90,8 @@ class SubmitterFactory:
             type[BatchInterface]: The selected batch system class.
         """
         if batch_system := self._kwargs.get("batch_system"):
-            return BatchMeta.from_str(batch_system)
-        return self._parser.get_batch_system() or BatchMeta.from_env_var_or_guess()
+            return BatchInterface.from_str(batch_system)
+        return self._parser.get_batch_system() or BatchInterface.from_env_var_or_guess()
 
     def _get_job_type(self) -> JobType:
         """

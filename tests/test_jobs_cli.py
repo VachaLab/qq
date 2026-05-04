@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from qq_lib.batch.interface import BatchMeta
+from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
 from qq_lib.jobs.cli import jobs
@@ -78,7 +78,7 @@ def test_jobs_command_unfinished_shows_jobs(parsed_jobs):
     runner = CliRunner()
 
     with (
-        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
+        patch.object(BatchInterface, "from_env_var_or_guess", return_value=PBS),
         patch.object(
             PBS, "get_unfinished_batch_jobs", return_value=parsed_jobs
         ) as mock_get_jobs,
@@ -107,7 +107,7 @@ def test_jobs_command_unfinished_shows_jobs_with_server(parsed_jobs):
     runner = CliRunner()
 
     with (
-        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
+        patch.object(BatchInterface, "from_env_var_or_guess", return_value=PBS),
         patch.object(
             PBS, "get_unfinished_batch_jobs", return_value=parsed_jobs
         ) as mock_get_jobs,
@@ -136,7 +136,7 @@ def test_jobs_command_all_flag_shows_all_jobs(parsed_jobs):
     runner = CliRunner()
 
     with (
-        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
+        patch.object(BatchInterface, "from_env_var_or_guess", return_value=PBS),
         patch.object(PBS, "get_batch_jobs", return_value=parsed_jobs) as mock_get_jobs,
         patch.object(
             PBS,
@@ -163,7 +163,7 @@ def test_jobs_command_all_flag_shows_all_jobs_with_server(parsed_jobs):
     runner = CliRunner()
 
     with (
-        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
+        patch.object(BatchInterface, "from_env_var_or_guess", return_value=PBS),
         patch.object(PBS, "get_batch_jobs", return_value=parsed_jobs) as mock_get_jobs,
         patch.object(
             PBS,
@@ -190,7 +190,7 @@ def test_jobs_command_yaml_flag_outputs_yaml(parsed_jobs):
     runner = CliRunner()
 
     with (
-        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
+        patch.object(BatchInterface, "from_env_var_or_guess", return_value=PBS),
         patch.object(PBS, "get_unfinished_batch_jobs", return_value=parsed_jobs),
         patch.object(
             PBS,
@@ -217,7 +217,7 @@ def test_jobs_command_no_jobs():
     runner = CliRunner()
 
     with (
-        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
+        patch.object(BatchInterface, "from_env_var_or_guess", return_value=PBS),
         patch.object(PBS, "get_unfinished_batch_jobs", return_value=[]),
         patch.object(
             PBS,

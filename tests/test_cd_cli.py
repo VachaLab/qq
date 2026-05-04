@@ -6,16 +6,16 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from qq_lib.batch.interface import BatchMeta
-from qq_lib.batch.interface.interface import CFG
+from qq_lib.batch.interface import BatchInterface
+from qq_lib.batch.interface.interface import CFG, _BatchMeta
 from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.cd.cli import cd
 
 
 @pytest.fixture(autouse=True)
 def register():
-    BatchMeta._registry.clear()
-    BatchMeta.register_batch_system(PBS)
+    _BatchMeta._registry.clear()
+    _BatchMeta._registry[PBS.env_name()] = PBS
 
 
 def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJob:
@@ -31,7 +31,7 @@ def test_cd_command_success_pbs_o_workdir():
     job_info = _make_jobinfo_with_info({"Variable_List": env_vars})
 
     with (
-        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
+        patch.object(BatchInterface, "from_env_var_or_guess", return_value=PBS),
         patch.object(PBS, "get_batch_job", return_value=job_info),
     ):
         result = runner.invoke(cd, ["1234"])
@@ -45,7 +45,7 @@ def test_cd_command_success_input_dir():
     job_info = _make_jobinfo_with_info({"Variable_List": env_vars})
 
     with (
-        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
+        patch.object(BatchInterface, "from_env_var_or_guess", return_value=PBS),
         patch.object(PBS, "get_batch_job", return_value=job_info),
     ):
         result = runner.invoke(cd, ["1234"])
@@ -58,7 +58,7 @@ def test_cd_command_job_does_not_exist():
     job_info_empty = _make_jobinfo_with_info({})
 
     with (
-        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
+        patch.object(BatchInterface, "from_env_var_or_guess", return_value=PBS),
         patch.object(PBS, "get_batch_job", return_value=job_info_empty),
     ):
         result = runner.invoke(cd, ["1234"])

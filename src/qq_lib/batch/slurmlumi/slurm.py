@@ -7,7 +7,6 @@ import shutil
 from pathlib import Path
 from typing import cast
 
-from qq_lib.batch.interface.meta import BatchMeta, batch_system
 from qq_lib.batch.slurm import Slurm
 from qq_lib.batch.slurmit4i import SlurmIT4I
 from qq_lib.batch.slurmlumi.node import SlurmLumiNode
@@ -20,8 +19,7 @@ from qq_lib.properties.resources import Resources
 logger = get_logger(__name__)
 
 
-@batch_system
-class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
+class SlurmLumi(SlurmIT4I):
     """
     Implementation of BatchInterface for Slurm on the LUMI supercomputer.
     """

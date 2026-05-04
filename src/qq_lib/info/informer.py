@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Self
 
 from qq_lib.batch.interface import BatchInterface, BatchJobInterface
-from qq_lib.batch.interface.meta import BatchMeta
 from qq_lib.core.common import construct_info_file_path
 from qq_lib.core.error import QQError, QQJobMismatchError
 from qq_lib.core.logger import get_logger
@@ -79,8 +78,8 @@ class Informer:
             QQError: If the job does not exist or is not a valid qq job.
             QQJobMismatchError: If the info file does not correspond to the job's ID.
         """
-        batch_system = BatchMeta.from_env_var_or_guess()
-        batch_job: BatchJobInterface = batch_system.get_batch_job(job_id)
+        BatchSystem = BatchInterface.from_env_var_or_guess()
+        batch_job: BatchJobInterface = BatchSystem.get_batch_job(job_id)
 
         if batch_job.is_empty():
             raise QQError(f"Job '{job_id}' does not exist.")

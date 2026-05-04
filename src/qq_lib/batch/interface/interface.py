@@ -1,24 +1,29 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
+from __future__ import annotations
 
+import inspect
+import os
 import socket
 import subprocess
-from abc import ABC
+from abc import ABC, ABCMeta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from qq_lib.core.common import convert_absolute_to_relative
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
-from qq_lib.properties.depend import Depend
-from qq_lib.properties.resources import Resources
 
 from .job import BatchJobInterface
 from .node import BatchNodeInterface
 from .queue import BatchQueueInterface
+
+if TYPE_CHECKING:
+    from qq_lib.properties.depend import Depend
+    from qq_lib.properties.resources import Resources
 
 logger = get_logger(__name__)
 
@@ -28,11 +33,106 @@ Type alias for a batch system class.
 type AnyBatchClass = type[BatchInterface[Any, Any, Any]]
 
 
+class _BatchMeta(ABCMeta):
+    """
+    Metaclass for batch system classes.
+
+    Provides automatic registration of concrete subclasses and lookup
+    methods that are callable directly on BatchInterface (or any class
+    using this metaclass).
+
+    Examples:
+        BatchSystem = BatchInterface.from_env_var_or_guess()
+        BatchSystem = BatchInterface.from_str("PBS")
+    """
+
+    _registry: dict[str, AnyBatchClass] = {}
+
+    def __init__(cls, name: str, bases: tuple[type, ...], namespace: dict) -> None:
+        super().__init__(name, bases, namespace)
+        # register every concrete (non-abstract) subclass automatically
+        if any(isinstance(b, _BatchMeta) for b in bases) and not inspect.isabstract(
+            cls
+        ):
+            batch_cls = cast("type[BatchInterface]", cls)
+            _BatchMeta._registry[batch_cls.env_name()] = batch_cls
+
+    def __str__(cls: type[BatchInterface]) -> str:
+        """
+        Get the string representation of the batch system class.
+        """
+        return cls.env_name()
+
+    def from_str(cls, name: str) -> type[BatchInterface]:
+        """
+        Return the batch system class registered under the given name.
+
+        Raises:
+            QQError: If no class is registered for the given name.
+        """
+        try:
+            return _BatchMeta._registry[name]
+        except KeyError as e:
+            raise QQError(f"No batch system registered as '{name}'.") from e
+
+    def guess(cls) -> type[BatchInterface]:
+        """
+        Return the first registered batch system that reports itself
+        as available.
+
+        Raises:
+            QQError: If no available batch system is found.
+        """
+        for BatchSystem in _BatchMeta._registry.values():
+            if BatchSystem.is_available():
+                logger.debug(f"Guessed batch system: {BatchSystem}.")
+                return BatchSystem
+
+        raise QQError(
+            "Could not guess a batch system. No registered batch system available."
+        )
+
+    def from_env_var_or_guess(cls) -> type[BatchInterface]:
+        """
+        Select a batch system from the `QQ_BATCH_SYSTEM` environment
+        variable, falling back to `guess` when the variable is unset.
+
+        Raises:
+            QQError: If the variable names an unknown system, or if no
+                     available system can be guessed.
+        """
+        name = os.environ.get(CFG.env_vars.batch_system)
+        if name:
+            logger.debug(
+                f"Using batch system name from an environment variable: {name}."
+            )
+            return cls.from_str(name)
+
+        return cls.guess()
+
+    def obtain(cls, name: str | None) -> type[BatchInterface]:
+        """
+        Obtain a batch system class by explicit name, environment
+        variable, or automatic detection - in that priority order.
+
+        Args:
+            name: Optional batch system name.  When `None`, delegates
+                  to `from_env_var_or_guess`.
+
+        Raises:
+            QQError: If the name is unknown or no system can be resolved.
+        """
+        if name:
+            return cls.from_str(name)
+
+        return cls.from_env_var_or_guess()
+
+
 class BatchInterface[
     TBatchJob: BatchJobInterface = BatchJobInterface,
     TBatchQueue: BatchQueueInterface = BatchQueueInterface,
     TBatchNode: BatchNodeInterface = BatchNodeInterface,
-](ABC):
+](ABC, metaclass=_BatchMeta):
     """
     Abstract base class for batch system integrations.
 

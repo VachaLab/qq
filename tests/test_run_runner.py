@@ -30,12 +30,12 @@ def test_runner_init_success():
             "qq_lib.run.runner.socket.getfqdn", return_value="mockhost"
         ) as mock_socket,
         patch("qq_lib.run.runner.qq_lib.__version__", "1.0.0"),
-        patch("qq_lib.run.runner.BatchMeta.from_env_var_or_guess") as mock_batchmeta,
+        patch("qq_lib.run.runner.BatchInterface.from_env_var_or_guess") as mock_batch,
         patch("qq_lib.run.runner.Retryer") as mock_retryer,
     ):
         batch = MagicMock()
         batch.get_job_id.return_value = "12345"
-        mock_batchmeta.return_value = batch
+        mock_batch.return_value = batch
 
         informer = MagicMock()
         informer.matches_job.return_value = True
@@ -53,7 +53,7 @@ def test_runner_init_success():
         runner = Runner(Path("job.qqinfo"), "input_host")
 
         mock_signal.assert_called_once()
-        mock_batchmeta.assert_called_once()
+        mock_batch.assert_called_once()
         mock_retryer.assert_called_once()
         retryer.run.assert_called_once()
         mock_logger.info.assert_called_once()
@@ -72,7 +72,7 @@ def test_runner_init_success():
 def test_runner_init_raises_when_get_job_id_missing():
     with (
         patch("qq_lib.run.runner.signal.signal"),
-        patch("qq_lib.run.runner.BatchMeta.from_env_var_or_guess") as mock_meta,
+        patch("qq_lib.run.runner.BatchInterface.from_env_var_or_guess") as mock_meta,
     ):
         batch = MagicMock()
         batch.get_job_id.return_value = None
@@ -89,7 +89,7 @@ def test_runner_init_raises_on_batchmeta_failure():
     with (
         patch("qq_lib.run.runner.signal.signal"),
         patch(
-            "qq_lib.run.runner.BatchMeta.from_env_var_or_guess",
+            "qq_lib.run.runner.BatchInterface.from_env_var_or_guess",
             side_effect=Exception("boom"),
         ),
         pytest.raises(QQRunFatalError, match="Unable to load valid qq info file"),
@@ -100,7 +100,9 @@ def test_runner_init_raises_on_batchmeta_failure():
 def test_runner_init_raises_on_job_mismatch():
     with (
         patch("qq_lib.run.runner.signal.signal"),
-        patch("qq_lib.run.runner.BatchMeta.from_env_var_or_guess") as mock_batchmeta,
+        patch(
+            "qq_lib.run.runner.BatchInterface.from_env_var_or_guess"
+        ) as mock_batchmeta,
         patch("qq_lib.run.runner.Retryer") as mock_retryer,
     ):
         batch = MagicMock()
@@ -127,7 +129,9 @@ def test_runner_init_raises_on_job_mismatch():
 def test_runner_init_raises_on_batch_system_mismatch():
     with (
         patch("qq_lib.run.runner.signal.signal"),
-        patch("qq_lib.run.runner.BatchMeta.from_env_var_or_guess") as mock_batchmeta,
+        patch(
+            "qq_lib.run.runner.BatchInterface.from_env_var_or_guess"
+        ) as mock_batchmeta,
         patch("qq_lib.run.runner.Retryer") as mock_retryer,
     ):
         batch = MagicMock()
@@ -154,7 +158,9 @@ def test_runner_init_raises_on_batch_system_mismatch():
 def test_runner_init_creates_archiver_when_loop_info_present():
     with (
         patch("qq_lib.run.runner.signal.signal"),
-        patch("qq_lib.run.runner.BatchMeta.from_env_var_or_guess") as mock_batchmeta,
+        patch(
+            "qq_lib.run.runner.BatchInterface.from_env_var_or_guess"
+        ) as mock_batchmeta,
         patch("qq_lib.run.runner.Retryer") as mock_retryer,
         patch("qq_lib.run.runner.Archiver") as mock_archiver,
     ):

@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qq_lib.batch.interface import BatchMeta
 from qq_lib.batch.interface.interface import BatchInterface
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
@@ -434,7 +433,9 @@ def test_submitter_factory_get_batch_system_uses_cli_over_parser_and_env():
     factory._kwargs = {"batch_system": "PBS"}
 
     mock_class = MagicMock(spec=BatchInterface)
-    with patch.object(BatchMeta, "from_str", return_value=mock_class) as mock_from_str:
+    with patch.object(
+        BatchInterface, "from_str", return_value=mock_class
+    ) as mock_from_str:
         result = factory._get_batch_system()
 
     mock_from_str.assert_called_once_with("PBS")
@@ -464,7 +465,7 @@ def test_submitter_factory_get_batch_system_uses_env_guess_if_no_cli_or_parser()
 
     mock_guess = MagicMock(spec=BatchInterface)
     with patch.object(
-        BatchMeta, "from_env_var_or_guess", return_value=mock_guess
+        BatchInterface, "from_env_var_or_guess", return_value=mock_guess
     ) as mock_method:
         result = factory._get_batch_system()
 

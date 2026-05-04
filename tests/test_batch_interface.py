@@ -9,8 +9,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qq_lib.batch.interface import BatchInterface, BatchJobInterface, BatchMeta
-from qq_lib.batch.interface.interface import CFG
+from qq_lib.batch.interface import BatchInterface, BatchJobInterface
+from qq_lib.batch.interface.interface import CFG, _BatchMeta
 from qq_lib.batch.pbs import PBS
 from qq_lib.core.error import QQError
 
@@ -57,99 +57,99 @@ def test_navigate_same_host_error():
 
 
 def test_guess_pbs():
-    BatchMeta._registry.clear()
-    BatchMeta.register_batch_system(PBS)
+    _BatchMeta._registry.clear()
+    _BatchMeta._registry[PBS.env_name()] = PBS
 
     with patch.object(PBS, "is_available", return_value=True):
-        assert BatchMeta.guess() is PBS
+        assert BatchInterface.guess() is PBS
 
     with (
         patch.object(PBS, "is_available", return_value=False),
         pytest.raises(QQError, match="Could not guess a batch system"),
     ):
-        BatchMeta.guess()
+        BatchInterface.guess()
 
 
 def test_guess_empty_registry():
-    BatchMeta._registry.clear()
+    _BatchMeta._registry.clear()
     with pytest.raises(QQError, match="Could not guess a batch system"):
-        BatchMeta.guess()
+        BatchInterface.guess()
 
 
 def test_from_str_success():
-    BatchMeta._registry.clear()
-    BatchMeta.register_batch_system(PBS)
+    _BatchMeta._registry.clear()
+    _BatchMeta._registry[PBS.env_name()] = PBS
 
-    assert BatchMeta.from_str("PBS") is PBS
+    assert BatchInterface.from_str("PBS") is PBS
 
 
 def test_from_str_pbs_not_registered():
-    BatchMeta._registry.clear()
+    _BatchMeta._registry.clear()
 
     with pytest.raises(QQError, match="No batch system registered"):
-        BatchMeta.from_str("PBS")
+        BatchInterface.from_str("PBS")
 
 
 def test_from_str_none_registered():
-    BatchMeta._registry.clear()
+    _BatchMeta._registry.clear()
 
     with pytest.raises(QQError, match="No batch system registered"):
-        BatchMeta.from_str("PBS")
+        BatchInterface.from_str("PBS")
 
 
 def test_env_var_or_guess_from_env_var_returns_value(monkeypatch):
-    BatchMeta._registry.clear()
-    BatchMeta.register_batch_system(PBS)
+    _BatchMeta._registry.clear()
+    _BatchMeta._registry[PBS.env_name()] = PBS
     monkeypatch.setenv(CFG.env_vars.batch_system, "PBS")
 
-    assert BatchMeta.from_env_var_or_guess() is PBS
+    assert BatchInterface.from_env_var_or_guess() is PBS
 
 
 def test_env_var_or_guess_from_env_var_not_set_calls_guess():
-    BatchMeta._registry.clear()
-    BatchMeta.register_batch_system(PBS)
+    _BatchMeta._registry.clear()
+    _BatchMeta._registry[PBS.env_name()] = PBS
     if CFG.env_vars.batch_system in os.environ:
         del os.environ[CFG.env_vars.batch_system]
 
     with (
         patch.object(PBS, "is_available", return_value=True),
     ):
-        assert BatchMeta.from_env_var_or_guess() is PBS
+        assert BatchInterface.from_env_var_or_guess() is PBS
 
 
 def test_from_env_var_not_set_calls_guess():
-    BatchMeta._registry.clear()
+    _BatchMeta._registry.clear()
     if CFG.env_vars.batch_system in os.environ:
         del os.environ[CFG.env_vars.batch_system]
 
     with pytest.raises(QQError, match="Could not guess a batch system"):
-        BatchMeta.from_env_var_or_guess()
+        BatchInterface.from_env_var_or_guess()
 
 
 def test_obtain_with_name_registered():
-    BatchMeta._registry.clear()
-    BatchMeta.register_batch_system(PBS)
+    _BatchMeta._registry.clear()
+    _BatchMeta._registry[PBS.env_name()] = PBS
 
-    assert BatchMeta.obtain("PBS") is PBS
+    assert BatchInterface.obtain("PBS") is PBS
 
 
 def test_obtain_with_name_not_registered():
-    BatchMeta._registry.clear()
+    _BatchMeta._registry.clear()
 
     with pytest.raises(QQError, match="No batch system registered"):
-        BatchMeta.obtain("PBS")
+        BatchInterface.obtain("PBS")
 
 
 def test_obtain_without_name_env_var(monkeypatch):
-    BatchMeta._registry.clear()
-    BatchMeta.register_batch_system(PBS)
+    _BatchMeta._registry.clear()
+    _BatchMeta._registry[PBS.env_name()] = PBS
     monkeypatch.setenv(CFG.env_vars.batch_system, "PBS")
 
-    assert BatchMeta.obtain(None) is PBS
+    assert BatchInterface.obtain(None) is PBS
 
 
 def test_obtain_without_name_and_guess_fails():
-    BatchMeta._registry.clear()
+    _BatchMeta._registry.clear()
     if CFG.env_vars.batch_system in os.environ:
         del os.environ[CFG.env_vars.batch_system]
 
@@ -157,7 +157,7 @@ def test_obtain_without_name_and_guess_fails():
         patch.object(PBS, "is_available", return_value=False),
         pytest.raises(QQError, match="Could not guess a batch system"),
     ):
-        BatchMeta.obtain(None)
+        BatchInterface.obtain(None)
 
 
 def test_sync_with_exclusions_copies_new_files(tmp_path):

@@ -10,7 +10,6 @@ import pytest
 from click_option_group import GroupedOption
 
 from qq_lib.batch.interface.interface import BatchInterface
-from qq_lib.batch.interface.meta import BatchMeta
 from qq_lib.batch.pbs import PBS
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
@@ -324,7 +323,9 @@ def test_parser_get_batch_system_value():
 
     mock_class = MagicMock(spec=BatchInterface)
 
-    with patch.object(BatchMeta, "from_str", return_value=mock_class) as mock_from_str:
+    with patch.object(
+        BatchInterface, "from_str", return_value=mock_class
+    ) as mock_from_str:
         result = parser.get_batch_system()
 
     mock_from_str.assert_called_once_with("PBS")
@@ -552,9 +553,9 @@ def test_parser_parse_integration_skips_empty_lines(temp_script_file):
 def test_parser_parse_integration_skips_empty_lines_at_start(temp_script_file):
     tmp_file, path = temp_script_file
     tmp_file.write("""#!/usr/bin/env -S qq run
-  
 
-    
+
+
 
 
 # qq ncpus 8
@@ -686,7 +687,7 @@ module add random_module
 run_random_program path/to/random/script
 # qq ngpus 3
 # the above line should not be parsed
-   
+
 # qq this line should definitely not be parsed
 # qq mem 16gb
 exit 0

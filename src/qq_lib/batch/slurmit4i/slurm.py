@@ -8,7 +8,6 @@ import subprocess
 from pathlib import Path
 
 from qq_lib.batch.interface import BatchInterface
-from qq_lib.batch.interface.meta import BatchMeta, batch_system
 from qq_lib.batch.slurm import Slurm
 from qq_lib.batch.slurm.queue import SlurmQueue
 from qq_lib.core.common import equals_normalized
@@ -20,8 +19,7 @@ from qq_lib.properties.resources import Resources
 logger = get_logger(__name__)
 
 
-@batch_system
-class SlurmIT4I(Slurm, metaclass=BatchMeta):
+class SlurmIT4I(Slurm):
     """
     Implementation of BatchInterface for Slurm on IT4I clusters.
     """

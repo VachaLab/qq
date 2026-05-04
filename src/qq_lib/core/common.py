@@ -156,12 +156,9 @@ def get_info_file_from_job_id(job_id: str) -> Path:
         the job does not exist or is not a qq job.
     """
 
-    from qq_lib.batch.interface import (
-        BatchJobInterface,
-        BatchMeta,
-    )
+    from qq_lib.batch.interface import BatchInterface, BatchJobInterface
 
-    BatchSystem = BatchMeta.from_env_var_or_guess()
+    BatchSystem = BatchInterface.from_env_var_or_guess()
     job_info: BatchJobInterface = BatchSystem.get_batch_job(job_id)
 
     if job_info.is_empty():
@@ -719,11 +716,11 @@ def available_work_dirs() -> str:
         str: A comma-separated list of supported work directory types, each
         wrapped in quotes.
     """
-    from qq_lib.batch.interface.meta import BatchMeta
+    from qq_lib.batch.interface import BatchInterface
 
     try:
-        batch_system = BatchMeta.from_env_var_or_guess()
-        work_dirs = batch_system.get_supported_work_dir_types()
+        BatchSystem = BatchInterface.from_env_var_or_guess()
+        work_dirs = BatchSystem.get_supported_work_dir_types()
         return ", ".join([f"'{work_dir_type}'" for work_dir_type in work_dirs])
     except QQError:
         return "??? (no batch system detected)"

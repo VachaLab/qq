@@ -9,8 +9,8 @@ from typing import NoReturn
 
 import click
 
+from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.interface.job import BatchJobInterface
-from qq_lib.batch.interface.meta import BatchMeta
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import translate_server, yes_or_no_prompt
 from qq_lib.core.config import CFG
@@ -49,7 +49,7 @@ def killall(
     yes: bool = False, force: bool = False, server: str | None = None
 ) -> NoReturn:
     try:
-        BatchSystem = BatchMeta.from_env_var_or_guess()
+        BatchSystem = BatchInterface.from_env_var_or_guess()
 
         if server:
             server = translate_server(server)

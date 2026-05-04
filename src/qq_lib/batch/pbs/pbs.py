@@ -9,8 +9,7 @@ import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
-from qq_lib.batch.interface import BatchInterface, BatchMeta
-from qq_lib.batch.interface.meta import batch_system
+from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
 from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.batch.pbs.queue import PBSQueue
@@ -27,8 +26,7 @@ from .job import PBSJob
 logger = get_logger(__name__)
 
 
-@batch_system
-class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
+class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
     """
     Implementation of BatchInterface for PBS Pro batch system.
     """

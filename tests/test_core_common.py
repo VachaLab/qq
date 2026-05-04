@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from rich.console import Console
 
-from qq_lib.batch.interface.meta import BatchMeta
+from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.core.common import (
     CFG,
@@ -747,7 +747,7 @@ def _make_jobinfo_with_info(info: dict[str, str]) -> PBSJob:
 
 def test_get_info_file_from_job_id_success():
     with (
-        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
+        patch.object(BatchInterface, "from_env_var_or_guess", return_value=PBS),
         patch.object(
             PBS,
             "get_batch_job",
@@ -763,7 +763,7 @@ def test_get_info_file_from_job_id_success():
 
 def test_get_info_file_from_job_id_no_info():
     with (
-        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
+        patch.object(BatchInterface, "from_env_var_or_guess", return_value=PBS),
         patch.object(
             PBS,
             "get_batch_job",
@@ -780,7 +780,7 @@ def test_get_info_file_from_job_id_no_info():
 
 def test_get_info_file_from_job_id_nonexistent_job():
     with (
-        patch.object(BatchMeta, "from_env_var_or_guess", return_value=PBS),
+        patch.object(BatchInterface, "from_env_var_or_guess", return_value=PBS),
         patch.object(
             PBS,
             "get_batch_job",
@@ -1071,7 +1071,7 @@ def test_available_work_dirs_returns_joined_list():
     mock_batch_system.get_supported_work_dir_types.return_value = ["a", "b"]
 
     with patch.object(
-        BatchMeta, "from_env_var_or_guess", return_value=mock_batch_system
+        BatchInterface, "from_env_var_or_guess", return_value=mock_batch_system
     ):
         expected = "'a', 'b'"
 
@@ -1079,7 +1079,7 @@ def test_available_work_dirs_returns_joined_list():
 
 
 def test_available_work_dirs_returns_placeholder_on_error():
-    with patch.object(BatchMeta, "from_env_var_or_guess", side_effect=QQError):
+    with patch.object(BatchInterface, "from_env_var_or_guess", side_effect=QQError):
         assert available_work_dirs() == "??? (no batch system detected)"
 
 

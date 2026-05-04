@@ -16,7 +16,7 @@ def test_queues_command_prints_available_queues():
     mock_queue.is_available_to_user.return_value = True
 
     with (
-        patch("qq_lib.queues.cli.BatchMeta.from_env_var_or_guess") as mock_meta,
+        patch("qq_lib.queues.cli.BatchInterface.from_env_var_or_guess") as mock_meta,
         patch("qq_lib.queues.cli.QueuesPresenter") as mock_presenter_cls,
         patch("qq_lib.queues.cli.Console"),
         patch("qq_lib.queues.cli.getpass.getuser", return_value="user"),
@@ -43,7 +43,7 @@ def test_queues_command_prints_available_queues_with_server():
     mock_queue.is_available_to_user.return_value = True
 
     with (
-        patch("qq_lib.queues.cli.BatchMeta.from_env_var_or_guess") as mock_meta,
+        patch("qq_lib.queues.cli.BatchInterface.from_env_var_or_guess") as mock_meta,
         patch("qq_lib.queues.cli.QueuesPresenter") as mock_presenter_cls,
         patch("qq_lib.queues.cli.Console"),
         patch("qq_lib.queues.cli.getpass.getuser", return_value="user"),
@@ -69,7 +69,7 @@ def test_queues_command_prints_all_queues_with_flag():
     mock_queue = MagicMock()
 
     with (
-        patch("qq_lib.queues.cli.BatchMeta.from_env_var_or_guess") as mock_meta,
+        patch("qq_lib.queues.cli.BatchInterface.from_env_var_or_guess") as mock_meta,
         patch("qq_lib.queues.cli.QueuesPresenter") as mock_presenter_cls,
         patch("qq_lib.queues.cli.Console"),
         patch("qq_lib.queues.cli.getpass.getuser", return_value="testuser"),
@@ -93,7 +93,7 @@ def test_queues_command_prints_all_queues_with_flag_with_server():
     mock_queue = MagicMock()
 
     with (
-        patch("qq_lib.queues.cli.BatchMeta.from_env_var_or_guess") as mock_meta,
+        patch("qq_lib.queues.cli.BatchInterface.from_env_var_or_guess") as mock_meta,
         patch("qq_lib.queues.cli.QueuesPresenter") as mock_presenter_cls,
         patch("qq_lib.queues.cli.Console"),
         patch("qq_lib.queues.cli.getpass.getuser", return_value="testuser"),
@@ -118,7 +118,7 @@ def test_queues_command_outputs_yaml_when_flag_set():
     mock_queue.is_available_to_user.return_value = True
 
     with (
-        patch("qq_lib.queues.cli.BatchMeta.from_env_var_or_guess") as mock_meta,
+        patch("qq_lib.queues.cli.BatchInterface.from_env_var_or_guess") as mock_meta,
         patch("qq_lib.queues.cli.QueuesPresenter") as mock_presenter_cls,
         patch("qq_lib.queues.cli.getpass.getuser", return_value="testuser"),
     ):
@@ -140,7 +140,7 @@ def test_queues_command_handles_qqerror_and_exits_91():
 
     with (
         patch(
-            "qq_lib.queues.cli.BatchMeta.from_env_var_or_guess",
+            "qq_lib.queues.cli.BatchInterface.from_env_var_or_guess",
             side_effect=QQError("error"),
         ),
         patch("qq_lib.queues.cli.logger") as mock_logger,
@@ -156,7 +156,7 @@ def test_queues_command_handles_unexpected_exception_and_exits_99():
 
     with (
         patch(
-            "qq_lib.queues.cli.BatchMeta.from_env_var_or_guess",
+            "qq_lib.queues.cli.BatchInterface.from_env_var_or_guess",
             side_effect=RuntimeError("fatal"),
         ),
         patch("qq_lib.queues.cli.logger") as mock_logger,

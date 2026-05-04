@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 import yaml
 
-from qq_lib.batch.interface import BatchMeta
+from qq_lib.batch.interface.interface import _BatchMeta
 from qq_lib.batch.pbs import PBS
 from qq_lib.batch.slurmit4i import SlurmIT4I
 from qq_lib.core.error import QQError
@@ -22,7 +22,7 @@ from qq_lib.properties.states import NaiveState
 
 @pytest.fixture(autouse=True)
 def register():
-    BatchMeta.register_batch_system(PBS)
+    _BatchMeta._registry[PBS.env_name()] = PBS
 
 
 @pytest.fixture

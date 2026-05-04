@@ -43,7 +43,9 @@ def test_informers_from_jobs_no_jobs():
 def test_killall_no_jobs_exits_zero():
     runner = CliRunner()
     with (
-        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
+        patch(
+            "qq_lib.killall.cli.BatchInterface.from_env_var_or_guess"
+        ) as batch_meta_mock,
         patch("qq_lib.killall.cli.logger") as logger_mock,
     ):
         batch_system = batch_meta_mock.return_value
@@ -65,7 +67,9 @@ def test_killall_jobs_but_no_info_files_exits_zero():
     job_mock = MagicMock(spec=BatchJobInterface)
 
     with (
-        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
+        patch(
+            "qq_lib.killall.cli.BatchInterface.from_env_var_or_guess"
+        ) as batch_meta_mock,
         patch("qq_lib.killall.cli._informers_from_jobs", return_value=[]),
         patch("qq_lib.killall.cli.logger") as logger_mock,
     ):
@@ -91,7 +95,9 @@ def test_killall_yes_flag_invokes_repeater():
     job_mock = MagicMock(spec=BatchJobInterface)
 
     with (
-        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
+        patch(
+            "qq_lib.killall.cli.BatchInterface.from_env_var_or_guess"
+        ) as batch_meta_mock,
         patch("qq_lib.killall.cli._informers_from_jobs", return_value=[informer_mock]),
         patch(
             "qq_lib.killall.cli.Repeater", return_value=repeater_mock
@@ -128,7 +134,9 @@ def test_killall_force_flag_invokes_repeater():
     job_mock = MagicMock(spec=BatchJobInterface)
 
     with (
-        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
+        patch(
+            "qq_lib.killall.cli.BatchInterface.from_env_var_or_guess"
+        ) as batch_meta_mock,
         patch("qq_lib.killall.cli._informers_from_jobs", return_value=[informer_mock]),
         patch(
             "qq_lib.killall.cli.Repeater", return_value=repeater_mock
@@ -163,7 +171,9 @@ def test_killall_user_prompt_yes(monkeypatch):
     job_mock = MagicMock(spec=BatchJobInterface)
 
     with (
-        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
+        patch(
+            "qq_lib.killall.cli.BatchInterface.from_env_var_or_guess"
+        ) as batch_meta_mock,
         patch("qq_lib.killall.cli._informers_from_jobs", return_value=[informer_mock]),
         patch(
             "qq_lib.killall.cli.Repeater", return_value=repeater_mock
@@ -197,7 +207,9 @@ def test_killall_user_prompt_no(monkeypatch):
     job_mock = MagicMock(spec=BatchJobInterface)
 
     with (
-        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
+        patch(
+            "qq_lib.killall.cli.BatchInterface.from_env_var_or_guess"
+        ) as batch_meta_mock,
         patch("qq_lib.killall.cli._informers_from_jobs", return_value=[informer_mock]),
         patch("qq_lib.killall.cli.logger") as logger_mock,
     ):
@@ -216,7 +228,9 @@ def test_killall_user_prompt_no(monkeypatch):
 def test_killall_with_full_server_name_forwards_server():
     runner = CliRunner()
     with (
-        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
+        patch(
+            "qq_lib.killall.cli.BatchInterface.from_env_var_or_guess"
+        ) as batch_meta_mock,
         patch("qq_lib.killall.cli.logger"),
     ):
         batch_system = batch_meta_mock.return_value
@@ -231,7 +245,9 @@ def test_killall_with_full_server_name_forwards_server():
 def test_killall_with_server_shortcut_translates_and_forwards_server():
     runner = CliRunner()
     with (
-        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
+        patch(
+            "qq_lib.killall.cli.BatchInterface.from_env_var_or_guess"
+        ) as batch_meta_mock,
         patch("qq_lib.killall.cli.logger"),
     ):
         batch_system = batch_meta_mock.return_value
@@ -248,7 +264,9 @@ def test_killall_qqerror_in_main_loop_exits_91():
     runner = CliRunner()
 
     with (
-        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
+        patch(
+            "qq_lib.killall.cli.BatchInterface.from_env_var_or_guess"
+        ) as batch_meta_mock,
         patch("qq_lib.killall.cli._informers_from_jobs", return_value=[informer_mock]),
         patch("qq_lib.killall.cli.Repeater", side_effect=QQError("fail")),
         patch("qq_lib.killall.cli.logger"),
@@ -269,7 +287,9 @@ def test_killall_generic_exception_exits_99():
         raise RuntimeError("unexpected")
 
     with (
-        patch("qq_lib.killall.cli.BatchMeta.from_env_var_or_guess") as batch_meta_mock,
+        patch(
+            "qq_lib.killall.cli.BatchInterface.from_env_var_or_guess"
+        ) as batch_meta_mock,
         patch("qq_lib.killall.cli._informers_from_jobs", return_value=[informer_mock]),
         patch("qq_lib.killall.cli.Repeater", side_effect=raise_exception),
         patch("qq_lib.killall.cli.logger"),

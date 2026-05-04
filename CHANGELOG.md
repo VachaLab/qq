@@ -4,6 +4,7 @@
 ### Internal changes
 - qq now uses Python 3.13 for better generics support.
 - Fixed type errors in qq scripts.
+- Refactored BatchMeta.
 
 ***
 

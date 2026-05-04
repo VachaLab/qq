@@ -8,7 +8,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from qq_lib.batch.interface import BatchInterface
-from qq_lib.batch.interface.meta import BatchMeta, batch_system
 from qq_lib.batch.pbs.pbs import PBS
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -28,8 +27,7 @@ from .queue import SlurmQueue
 logger = get_logger(__name__)
 
 
-@batch_system
-class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode], metaclass=BatchMeta):
+class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
     """
     Implementation of BatchInterface for Slurm batch system.
     """

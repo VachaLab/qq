@@ -16,7 +16,7 @@ def test_nodes_command_prints_available_nodes():
     mock_node.is_available_to_user.return_value = True
 
     with (
-        patch("qq_lib.nodes.cli.BatchMeta.from_env_var_or_guess") as mock_meta,
+        patch("qq_lib.nodes.cli.BatchInterface.from_env_var_or_guess") as mock_meta,
         patch("qq_lib.nodes.cli.NodesPresenter") as mock_presenter_cls,
         patch("qq_lib.nodes.cli.Console"),
         patch("qq_lib.nodes.cli.getpass.getuser", return_value="user"),
@@ -43,7 +43,7 @@ def test_nodes_command_prints_available_nodes_with_server():
     mock_node.is_available_to_user.return_value = True
 
     with (
-        patch("qq_lib.nodes.cli.BatchMeta.from_env_var_or_guess") as mock_meta,
+        patch("qq_lib.nodes.cli.BatchInterface.from_env_var_or_guess") as mock_meta,
         patch("qq_lib.nodes.cli.NodesPresenter") as mock_presenter_cls,
         patch("qq_lib.nodes.cli.Console"),
         patch("qq_lib.nodes.cli.getpass.getuser", return_value="user"),
@@ -69,7 +69,7 @@ def test_nodes_command_prints_all_nodes_with_flag():
     mock_node = MagicMock()
 
     with (
-        patch("qq_lib.nodes.cli.BatchMeta.from_env_var_or_guess") as mock_meta,
+        patch("qq_lib.nodes.cli.BatchInterface.from_env_var_or_guess") as mock_meta,
         patch("qq_lib.nodes.cli.NodesPresenter") as mock_presenter_cls,
         patch("qq_lib.nodes.cli.Console"),
         patch("qq_lib.nodes.cli.getpass.getuser", return_value="testuser"),
@@ -95,7 +95,7 @@ def test_nodes_command_prints_all_nodes_with_flag_with_server():
     mock_node = MagicMock()
 
     with (
-        patch("qq_lib.nodes.cli.BatchMeta.from_env_var_or_guess") as mock_meta,
+        patch("qq_lib.nodes.cli.BatchInterface.from_env_var_or_guess") as mock_meta,
         patch("qq_lib.nodes.cli.NodesPresenter") as mock_presenter_cls,
         patch("qq_lib.nodes.cli.Console"),
         patch("qq_lib.nodes.cli.getpass.getuser", return_value="testuser"),
@@ -122,7 +122,7 @@ def test_nodes_command_outputs_yaml_when_flag_set():
     mock_node.is_available_to_user.return_value = True
 
     with (
-        patch("qq_lib.nodes.cli.BatchMeta.from_env_var_or_guess") as mock_meta,
+        patch("qq_lib.nodes.cli.BatchInterface.from_env_var_or_guess") as mock_meta,
         patch("qq_lib.nodes.cli.NodesPresenter") as mock_presenter_cls,
         patch("qq_lib.nodes.cli.getpass.getuser", return_value="testuser"),
     ):
@@ -147,7 +147,7 @@ def test_nodes_command_handles_qqerror_and_exits_91():
 
     with (
         patch(
-            "qq_lib.nodes.cli.BatchMeta.from_env_var_or_guess",
+            "qq_lib.nodes.cli.BatchInterface.from_env_var_or_guess",
             side_effect=QQError("error"),
         ),
         patch("qq_lib.nodes.cli.logger") as mock_logger,
@@ -163,7 +163,7 @@ def test_nodes_command_handles_unexpected_exception_and_exits_99():
 
     with (
         patch(
-            "qq_lib.nodes.cli.BatchMeta.from_env_var_or_guess",
+            "qq_lib.nodes.cli.BatchInterface.from_env_var_or_guess",
             side_effect=RuntimeError("fatal"),
         ),
         patch("qq_lib.nodes.cli.logger") as mock_logger,
