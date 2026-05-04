@@ -5,6 +5,7 @@
 import os
 from abc import ABCMeta
 
+from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -29,7 +30,7 @@ class BatchMeta(ABCMeta):
         return cls.env_name()
 
     @classmethod
-    def register_batch_system(cls, batch_cls: type[BatchInterface]) -> None:
+    def register_batch_system(cls, batch_cls: AnyBatchClass) -> None:
         """
         Register a batch system class in the metaclass registry.
 

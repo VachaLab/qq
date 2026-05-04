@@ -6,6 +6,7 @@ import socket
 import subprocess
 from abc import ABC
 from pathlib import Path
+from typing import Any
 
 from qq_lib.core.common import convert_absolute_to_relative
 from qq_lib.core.config import CFG
@@ -21,11 +22,16 @@ from .queue import BatchQueueInterface
 
 logger = get_logger(__name__)
 
+"""
+Type alias for a batch system class.
+"""
+type AnyBatchClass = type[BatchInterface[Any, Any, Any]]
+
 
 class BatchInterface[
-    TBatchJob: BatchJobInterface,
-    TBatchQueue: BatchQueueInterface,
-    TBatchNode: BatchNodeInterface,
+    TBatchJob: BatchJobInterface = BatchJobInterface,
+    TBatchQueue: BatchQueueInterface = BatchQueueInterface,
+    TBatchNode: BatchNodeInterface = BatchNodeInterface,
 ](ABC):
     """
     Abstract base class for batch system integrations.
@@ -179,7 +185,7 @@ class BatchInterface[
             job_id (str): Identifier of the job.
 
         Returns:
-            TBatchJob: Object containing the job's metadata and state.
+            BatchJobInterface: Object containing the job's metadata and state.
         """
         raise NotImplementedError(
             f"get_batch_job method is not implemented for {cls.__name__}"
@@ -200,7 +206,7 @@ class BatchInterface[
             server (str | None): Optional name of the batch server to get jobs from.
 
         Returns:
-            list[TBatchJob]: A list of job info objects representing the user's uncompleted jobs.
+            list[BatchJobInterface]: A list of job info objects representing the user's uncompleted jobs.
         """
         raise NotImplementedError(
             f"get_unfinished_batch_jobs method is not implemented for {cls.__name__}"
@@ -219,7 +225,7 @@ class BatchInterface[
             server (str | None): Optional name of the batch server to get jobs from.
 
         Returns:
-            list[TBatchJob]: A list of job info objects representing all jobs of the user.
+            list[BatchJobInterface]: A list of job info objects representing all jobs of the user.
         """
         raise NotImplementedError(
             f"get_batch_jobs method is not implemented for {cls.__name__}"
@@ -238,7 +244,7 @@ class BatchInterface[
             server (str | None): Optional name of the batch server to get jobs from.
 
         Returns:
-            list[TBatchJob]: A list of job info objects representing uncompleted jobs of all users.
+            list[BatchJobInterface]: A list of job info objects representing uncompleted jobs of all users.
         """
         raise NotImplementedError(
             f"get_all_unfinished_batch_jobs method is not implemented for {cls.__name__}"
@@ -255,7 +261,7 @@ class BatchInterface[
             server (str | None): Optional name of the batch server to get jobs from.
 
         Returns:
-            list[TBatchJob]: A list of job info objects representing all jobs of all users.
+            list[BatchJobInterface]: A list of job info objects representing all jobs of all users.
         """
         raise NotImplementedError(
             f"get_all_batch_jobs method is not implemented for {cls.__name__}"
@@ -270,7 +276,7 @@ class BatchInterface[
             server (str | None): Optional name of the batch server to get queues from.
 
         Returns:
-            list[TBatchQueue]: A list of queue objects existing in the batch system.
+            list[BatchQueueInterface]: A list of queue objects existing in the batch system.
         """
         raise NotImplementedError(
             f"get_queues method is not implemented for {cls.__name__}"
@@ -285,7 +291,7 @@ class BatchInterface[
             server (str | None): Optional name of the batch server to get nodes from.
 
         Returns:
-            list[TBatchNode]: A list of node objects existing in the batch system.
+            list[BatchNodeInterface]: A list of node objects existing in the batch system.
         """
         raise NotImplementedError(
             f"get_nodes method is not implemented for {cls.__name__}"
@@ -797,7 +803,7 @@ class BatchInterface[
         implement custom sorting logic.
 
         Args:
-            jobs (list[TBatchJob]): A list of batch job objects to be sorted
+            jobs (list[BatchJobInterface]): A list of batch job objects to be sorted
                 in-place.
         """
         jobs.sort(key=lambda job: job.get_id())

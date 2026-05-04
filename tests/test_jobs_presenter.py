@@ -5,6 +5,7 @@
 import io
 import sys
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
 import pytest
@@ -20,11 +21,14 @@ from qq_lib.core.common import format_duration_wdhhmmss
 from qq_lib.jobs.presenter import CFG, JobsPresenter, JobsStatistics
 from qq_lib.properties.states import BatchState
 
+if TYPE_CHECKING:
+    from qq_lib.batch.interface import BatchJobInterface
+
 
 def test_init_sets_all_attributes_and_creates_statistics():
     job1 = Mock()
     job2 = Mock()
-    jobs = [job1, job2]
+    jobs: list[BatchJobInterface] = [job1, job2]
 
     with patch("qq_lib.jobs.presenter.JobsStatistics") as mock_stats_class:
         mock_stats_instance = Mock()
@@ -44,7 +48,7 @@ def test_init_sets_all_attributes_and_creates_statistics():
 def test_init_with_server_sets_all_attributes_and_creates_statistics():
     job1 = Mock()
     job2 = Mock()
-    jobs = [job1, job2]
+    jobs: list[BatchJobInterface] = [job1, job2]
 
     with patch("qq_lib.jobs.presenter.JobsStatistics") as mock_stats_class:
         mock_stats_instance = Mock()

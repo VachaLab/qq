@@ -4,11 +4,12 @@
 import os
 import subprocess
 from pathlib import Path
+from typing import cast
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qq_lib.batch.interface import BatchInterface, BatchMeta
+from qq_lib.batch.interface import BatchInterface, BatchJobInterface, BatchMeta
 from qq_lib.batch.interface.interface import CFG
 from qq_lib.batch.pbs import PBS
 from qq_lib.core.error import QQError
@@ -648,14 +649,14 @@ class DummyJob:
 
 def test_batch_interface_sort_jobs_sorts_by_id():
     jobs = [DummyJob("c"), DummyJob("a"), DummyJob("b")]
-    BatchInterface.sort_jobs(jobs)
+    BatchInterface.sort_jobs(cast("list[BatchJobInterface]", jobs))
     ids = [job.get_id() for job in jobs]
     assert ids == ["a", "b", "c"]
 
 
 def test_batch_interface_sort_jobs_with_numeric_ids():
     jobs = [DummyJob("10"), DummyJob("2"), DummyJob("1")]
-    BatchInterface.sort_jobs(jobs)
+    BatchInterface.sort_jobs(cast("list[BatchJobInterface]", jobs))
     ids = [job.get_id() for job in jobs]
     assert ids == ["1", "10", "2"]
 

@@ -5,6 +5,7 @@
 import sys
 from datetime import timedelta
 from io import StringIO
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,9 +19,12 @@ from qq_lib.batch.pbs.queue import PBSQueue
 from qq_lib.core.config import CFG
 from qq_lib.queues.presenter import QueuesPresenter
 
+if TYPE_CHECKING:
+    from qq_lib.batch.interface import BatchQueueInterface
+
 
 def test_queues_presenter_init_sets_fields_correctly():
-    queues = [MagicMock(), MagicMock()]
+    queues: list[BatchQueueInterface] = [MagicMock(), MagicMock()]
     user = "user"
     display_all = True
 
@@ -33,7 +37,7 @@ def test_queues_presenter_init_sets_fields_correctly():
 
 
 def test_queues_presenter_init_with_server_sets_fields_correctly():
-    queues = [MagicMock(), MagicMock()]
+    queues: list[BatchQueueInterface] = [MagicMock(), MagicMock()]
     user = "user"
     display_all = True
     server = "server"

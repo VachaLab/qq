@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 import qq_lib
-from qq_lib.batch.interface import BatchInterface
+from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.core.common import (
     construct_info_file_path,
     construct_loop_job_name,
@@ -48,7 +48,7 @@ class Submitter:
 
     def __init__(
         self,
-        batch_system: type[BatchInterface],
+        batch_system: AnyBatchClass,
         queue: str,
         account: str | None,
         script: Path,
@@ -66,7 +66,7 @@ class Submitter:
         Initialize a Submitter instance.
 
         Args:
-            batch_system (type[BatchInterface]): The batch system class implementing
+            batch_system (AnyBatchClass): The batch system class implementing
                 the BatchInterface used for job submission.
             queue (str): The name of the batch system queue to which the job will be submitted.
             account (str | None): The name of the account to use for the job.
@@ -267,7 +267,7 @@ class Submitter:
         """
         return self._input_dir
 
-    def get_batch_system(self) -> type[BatchInterface]:
+    def get_batch_system(self) -> AnyBatchClass:
         """Get the batch system used for submiting."""
         return self._batch_system
 

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "qq"
 description = "A friendly interface to batch processing"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 license = { text = "MIT" }
 authors = [{ name = "Ladislav Bartos", email = "ladmeb@gmail.com" }]
 keywords = ["batch", "processing", "cli", "automation"]
@@ -16,7 +16,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
     "Topic :: System :: Distributed Computing",
@@ -51,7 +50,7 @@ dev = [
     "pytest-cov>=7.0.0",
     "ruff>=0.13.0",
     "snakeviz>=2.2.2",
-    "ty>=0.0.18",
+    "ty>=0.0.34",
 ]
 
 

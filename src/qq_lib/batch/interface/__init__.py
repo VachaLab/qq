@@ -24,7 +24,7 @@ multiple batch systems through a unified API. It provides:
   implementations automatically.
 """
 
-from .interface import BatchInterface
+from .interface import AnyBatchClass, BatchInterface
 from .job import BatchJobInterface
 from .meta import BatchMeta
 from .node import BatchNodeInterface
@@ -36,4 +36,5 @@ __all__ = [
     "BatchMeta",
     "BatchNodeInterface",
     "BatchQueueInterface",
+    "AnyBatchClass",
 ]

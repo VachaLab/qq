@@ -22,7 +22,7 @@ from typing import Self
 
 import yaml
 
-from qq_lib.batch.interface import BatchInterface, BatchMeta
+from qq_lib.batch.interface import AnyBatchClass, BatchMeta
 from qq_lib.core.common import load_yaml_dumper, load_yaml_loader
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -52,7 +52,7 @@ class Info:
     """
 
     # The batch system class used
-    batch_system: type[BatchInterface]
+    batch_system: AnyBatchClass
 
     # Version of qq that submitted the job
     qq_version: str
@@ -318,7 +318,7 @@ class Info:
             # convert the state and the batch system
             elif (
                 f.type == NaiveState
-                or f.type == type[BatchInterface]
+                or f.type == AnyBatchClass
                 or f.type == Path
                 or f.type == Path | None
             ):
@@ -372,7 +372,7 @@ class Info:
             elif f.type == Resources:
                 init_kwargs[name] = Resources(**value)  # ty: ignore[invalid-argument-type]
             # convert the batch system
-            elif f.type == type[BatchInterface] and isinstance(value, str):
+            elif f.type == AnyBatchClass and isinstance(value, str):
                 init_kwargs[name] = BatchMeta.from_str(value)
             # convert the job state
             elif f.type == NaiveState and isinstance(value, str):

@@ -143,18 +143,9 @@ class BatchState(Enum):
         Returns:
             str: A string representing the color for presentation purposes.
         """
-        return {
-            self.QUEUED: RealState.QUEUED.color,
-            self.HELD: RealState.HELD.color,
-            self.SUSPENDED: RealState.SUSPENDED.color,
-            self.WAITING: RealState.WAITING.color,
-            self.RUNNING: RealState.RUNNING.color,
-            self.FAILED: RealState.FAILED.color,
-            self.FINISHED: RealState.FINISHED.color,
-            self.EXITING: RealState.EXITING.color,
-            self.MOVING: RealState.QUEUED.color,
-            self.UNKNOWN: RealState.UNKNOWN.color,
-        }[self]
+        if self is BatchState.MOVING:
+            return RealState.QUEUED.color
+        return RealState[self.name].color
 
 
 class RealState(Enum):
@@ -266,17 +257,4 @@ class RealState(Enum):
         Returns:
             str: A string representing the color for presentation purposes.
         """
-        return {
-            self.QUEUED: CFG.state_colors.queued,
-            self.HELD: CFG.state_colors.held,
-            self.SUSPENDED: CFG.state_colors.suspended,
-            self.WAITING: CFG.state_colors.waiting,
-            self.RUNNING: CFG.state_colors.running,
-            self.BOOTING: CFG.state_colors.booting,
-            self.KILLED: CFG.state_colors.killed,
-            self.FAILED: CFG.state_colors.failed,
-            self.FINISHED: CFG.state_colors.finished,
-            self.EXITING: CFG.state_colors.exiting,
-            self.IN_AN_INCONSISTENT_STATE: CFG.state_colors.in_an_inconsistent_state,
-            self.UNKNOWN: CFG.state_colors.unknown,
-        }[self]
+        return getattr(CFG.state_colors, self.name.lower())

@@ -11,6 +11,7 @@ import yaml
 
 from qq_lib.batch.interface import BatchMeta
 from qq_lib.batch.pbs import PBS
+from qq_lib.batch.slurmit4i import SlurmIT4I
 from qq_lib.core.error import QQError
 from qq_lib.properties.info import CFG, Info
 from qq_lib.properties.job_type import JobType
@@ -102,6 +103,19 @@ def test_to_yaml_contains_fields(sample_info):
     data: dict[str, Any] = yaml.safe_load(yaml_str)
 
     assert data["batch_system"] == "PBS"
+    assert data["job_id"] == "12345.fake.server.com"
+    assert data["job_name"] == "script.sh+025"
+    assert data["resources"]["ncpus"] == 8
+    assert data["account"] == "fake-account"
+    assert data["transfer_mode"] == ["success"]
+
+
+def test_to_yaml_with_slurm_contains_fields(sample_info):
+    sample_info.batch_system = SlurmIT4I
+    yaml_str = sample_info._to_yaml()
+    data: dict[str, Any] = yaml.safe_load(yaml_str)
+
+    assert data["batch_system"] == "SlurmIT4I"
     assert data["job_id"] == "12345.fake.server.com"
     assert data["job_name"] == "script.sh+025"
     assert data["resources"]["ncpus"] == 8

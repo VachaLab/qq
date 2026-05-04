@@ -6,7 +6,7 @@ import socket
 from collections.abc import Iterable
 from pathlib import Path
 
-from qq_lib.batch.interface import BatchInterface
+from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.core.common import is_printf_pattern, printf_to_regex
 from qq_lib.core.config import CFG
 from qq_lib.core.logger import get_logger
@@ -27,7 +27,7 @@ class Archiver:
         archive_format: str,
         input_machine: str,
         input_dir: Path,
-        batch_system: type[BatchInterface],
+        batch_system: AnyBatchClass,
     ):
         """
         Initialize the Archiver.
@@ -37,7 +37,7 @@ class Archiver:
             archive_format (str): Printf-style or regex pattern describing archived filenames.
             input_machine (str): The hostname from which the job was submitted.
             input_dir (Path): The directory from which the job was submitted.
-            batch_system (type[BatchInterface]): The batch system which manages the job.
+            batch_system (AnyBatchClass): The batch system which manages the job.
         """
         self._batch_system = batch_system
         self._archive = archive

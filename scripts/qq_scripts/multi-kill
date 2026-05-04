@@ -5,12 +5,12 @@
 
 """
 Kill qq jobs in multiple directories.
-Version qq 0.10.0.
+Version qq 0.10.1.
 Requires `uv`: https://docs.astral.sh/uv
 """
 
 # /// script
-# requires-python = ">=3.12"
+# requires-python = ">=3.13"
 # dependencies = [
 #     "qq",
 # ]

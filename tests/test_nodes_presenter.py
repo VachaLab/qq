@@ -4,6 +4,7 @@
 
 import sys
 from io import StringIO
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,6 +19,9 @@ from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.core.config import CFG
 from qq_lib.nodes.presenter import NodeGroup, NodeGroupStats, NodesPresenter
 from qq_lib.properties.size import Size
+
+if TYPE_CHECKING:
+    from qq_lib.batch.interface import BatchNodeInterface
 
 
 @patch.object(NodeGroup, "_should_show_properties", return_value=True)
@@ -38,7 +42,7 @@ def test_node_group_init(
     mock_show_shared,
     mock_show_props,
 ):
-    nodes = [MagicMock(), MagicMock()]
+    nodes: list[BatchNodeInterface] = [MagicMock(), MagicMock()]
     group = NodeGroup("gpu_nodes", nodes, "user1")
 
     mock_sort.assert_called_once()
@@ -652,7 +656,7 @@ def test_node_group_stats_create_stats_table_excludes_gpu_columns_when_none(
     return_value=["group1", "group2"],
 )
 def test_nodes_presenter_init(mock_create_groups):
-    nodes = [MagicMock(), MagicMock()]
+    nodes: list[BatchNodeInterface] = [MagicMock(), MagicMock()]
     presenter = NodesPresenter(nodes, "user1", True, None)
 
     assert presenter._nodes == nodes
@@ -668,7 +672,7 @@ def test_nodes_presenter_init(mock_create_groups):
     return_value=["group1", "group2"],
 )
 def test_nodes_presenter_init_with_server(mock_create_groups):
-    nodes = [MagicMock(), MagicMock()]
+    nodes: list[BatchNodeInterface] = [MagicMock(), MagicMock()]
     presenter = NodesPresenter(nodes, "user1", True, "server")
 
     assert presenter._nodes == nodes

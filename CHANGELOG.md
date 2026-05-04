@@ -1,6 +1,9 @@
 ## Version 0.11
 - Updated the installation scripts to more clearly report issues that occured during the install.
 
+### Internal changes
+- qq now uses Python 3.13 for better generics support.
+
 ***
 
 ## Version 0.10.1

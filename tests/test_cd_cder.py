@@ -46,6 +46,18 @@ def test_cder_cd_success_inf_input_dir():
         assert cder.cd() == "/infinity/input/dir"
 
 
+def test_cder_cd_failure_no_input_dir():
+    env_vars = "OTHER_VAR=123"
+    job_info = _make_jobinfo_with_info({"Variable_List": env_vars})
+
+    with (
+        patch.object(PBS, "get_batch_job", return_value=job_info),
+        pytest.raises(QQError, match="has an unknown input directory"),
+    ):
+        cder = Cder(PBS, "1234")
+        cder.cd()
+
+
 def test_cder_cd_does_not_exist():
     job_info_empty = _make_jobinfo_with_info({})
 
