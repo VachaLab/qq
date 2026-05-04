@@ -18,10 +18,7 @@ multiple batch systems through a unified API. It provides:
   and allow qq to present consistent job/queue/node information regardless
   of scheduler differences.
 
-- `BatchMeta`: a metaclass that registers available batch-system backends
-  and provides mechanisms for selecting one from environment variables or by
-  probing system availability. The `@batch_system` decorator registers
-  implementations automatically.
+- `AnyBatchClass`: a type alias for batch system implementations.
 """
 
 from .interface import AnyBatchClass, BatchInterface
