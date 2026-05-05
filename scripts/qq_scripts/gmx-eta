@@ -142,7 +142,7 @@ def main():
         # extract ETA from the content
         try:
             eta = get_eta_from_content(content)
-            if eta and datetime.now() <= eta:
+            if datetime.now() <= eta:
                 print(
                     f"{job_id_name}: Simulation will finish in [bright_blue bold]{format_duration_wdhhmmss(eta - datetime.now())}[/bright_blue bold]."
                 )
