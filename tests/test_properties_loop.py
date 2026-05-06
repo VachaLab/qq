@@ -162,13 +162,13 @@ def temp_dir():
 
 def test_get_cycle_returns_start_if_archive_does_not_exist(tmp_path):
     loop_info = _create_loop_info_stub(5, tmp_path / "nonexistent", "md%04d")
-    assert loop_info._get_cycle() == 5
+    assert loop_info.determine_cycle_from_archive() == 5
 
 
 def test_get_cycle_returns_start_if_no_matching_files(temp_dir):
     (temp_dir / "foo.txt").write_text("dummy")
     loop_info = _create_loop_info_stub(2, temp_dir, "md%04d")
-    assert loop_info._get_cycle() == 2
+    assert loop_info.determine_cycle_from_archive() == 2
 
 
 def test_get_cycle_selects_highest_number(temp_dir):
@@ -176,7 +176,7 @@ def test_get_cycle_selects_highest_number(temp_dir):
     (temp_dir / "md0002.csv").write_text("x")
     (temp_dir / "md0007.txt").write_text("x")
     loop_info = _create_loop_info_stub(0, temp_dir, "md%04d")
-    assert loop_info._get_cycle() == 7
+    assert loop_info.determine_cycle_from_archive() == 7
 
 
 def test_get_cycle_selects_highest_number_partial_match(temp_dir):
@@ -184,7 +184,7 @@ def test_get_cycle_selects_highest_number_partial_match(temp_dir):
     (temp_dir / "md0002.csv").write_text("x")
     (temp_dir / "md0007_px.txt").write_text("x")
     loop_info = _create_loop_info_stub(0, temp_dir, "md%04d")
-    assert loop_info._get_cycle() == 7
+    assert loop_info.determine_cycle_from_archive() == 7
 
 
 def test_get_cycle_selects_highest_number_partial_match2(temp_dir):
@@ -192,7 +192,7 @@ def test_get_cycle_selects_highest_number_partial_match2(temp_dir):
     (temp_dir / "md0002.csv").write_text("x")
     (temp_dir / "file_md0007.txt").write_text("x")
     loop_info = _create_loop_info_stub(0, temp_dir, "md%04d")
-    assert loop_info._get_cycle() == 7
+    assert loop_info.determine_cycle_from_archive() == 7
 
 
 def test_get_cycle_files_without_digits_are_ignored(temp_dir):
@@ -200,7 +200,7 @@ def test_get_cycle_files_without_digits_are_ignored(temp_dir):
     (temp_dir / "mdxxxx.txt").write_text("x")
     loop_info = _create_loop_info_stub(3, temp_dir, "md.*")
     # no numerical values in filenames; use start cycle
-    assert loop_info._get_cycle() == 3
+    assert loop_info.determine_cycle_from_archive() == 3
 
 
 def test_get_cycle_mixed_files_some_match_some_not(temp_dir):
@@ -208,26 +208,26 @@ def test_get_cycle_mixed_files_some_match_some_not(temp_dir):
     (temp_dir / "md25.xtc").write_text("x")  # wrong stem
     (temp_dir / "md0005.mdp").write_text("x")
     loop_info = _create_loop_info_stub(0, temp_dir, "md%04d")
-    assert loop_info._get_cycle() == 5
+    assert loop_info.determine_cycle_from_archive() == 5
 
 
 def test_get_cycle_multiple_digit_sequences_in_stem(temp_dir):
     (temp_dir / "md0003extra123.tpr").write_text("x")
     loop_info = _create_loop_info_stub(0, temp_dir, "md.*")
-    assert loop_info._get_cycle() == 3
+    assert loop_info.determine_cycle_from_archive() == 3
 
 
 def test_get_cycle_start_value_is_used_as_lower_bound(temp_dir):
     (temp_dir / "md0001.xtc").write_text("x")
     loop_info = _create_loop_info_stub(5, temp_dir, "md%04d")
-    assert loop_info._get_cycle() == 5
+    assert loop_info.determine_cycle_from_archive() == 5
 
 
 def test_get_cycle_non_numeric_files_are_ignored_but_numeric_stems_count(temp_dir):
     (temp_dir / "md0010.xtc").write_text("x")
     (temp_dir / "mdxxxx.txt").write_text("x")
     loop_info = _create_loop_info_stub(0, temp_dir, "md.*")
-    assert loop_info._get_cycle() == 10
+    assert loop_info.determine_cycle_from_archive() == 10
 
 
 def test_to_command_line_basic():

@@ -82,7 +82,7 @@ class LoopInfo:
 
         self.start = start
         self.end = end
-        self.current = current or self._get_cycle()
+        self.current = current or self.determine_cycle_from_archive()
 
         if self.start < 0:
             raise QQError(f"Attribute 'loop-start' ({self.start}) cannot be negative.")
@@ -176,7 +176,7 @@ class LoopInfo:
             ":".join(mode.to_str() for mode in self.archive_mode),
         ]
 
-    def _get_cycle(self) -> int:
+    def determine_cycle_from_archive(self) -> int:
         """
         Determine the current cycle number based on files in the archive directory.
 

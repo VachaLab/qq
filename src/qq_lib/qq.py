@@ -15,6 +15,7 @@ from qq_lib.kill.cli import kill
 from qq_lib.killall.cli import killall
 from qq_lib.nodes.cli import nodes
 from qq_lib.queues.cli import queues
+from qq_lib.respawn.cli import respawn
 from qq_lib.run.cli import run
 from qq_lib.shebang.cli import shebang
 from qq_lib.stat.cli import stat
@@ -75,3 +76,4 @@ cli.add_command(queues)
 cli.add_command(nodes)
 cli.add_command(shebang)
 cli.add_command(wipe)
+cli.add_command(respawn)
