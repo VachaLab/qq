@@ -289,13 +289,13 @@ using qq directives of this format: `# qq <option> <value>`.
     "--archive",
     type=str,
     default=None,
-    help=f"Directory name for archiving files from a loop job. Defaults to {click.style('storage', bold=True)}.",
+    help=f"Directory name for archiving files from a loop job. Defaults to {click.style(f'{CFG.loop_jobs.archive_dir}', bold=True)}.",
 )
 @optgroup.option(
     "--archive-format",
     type=str,
     default=None,
-    help=f"Filename format for archived files. Defaults to {click.style('job%04d', bold=True)}.",
+    help=f"Filename format for archived files. Defaults to {click.style(f'{CFG.loop_jobs.archive_format}', bold=True)}.",
 )
 @optgroup.option(
     "--archive-mode",

@@ -146,6 +146,10 @@ class LoopJobSettings:
 
     # Pattern used for naming loop jobs.
     pattern: str = "+%04d"
+    # Pattern used for names of archived files.
+    archive_format: str = "job%04d"
+    # Default name of the archive directory.
+    archive_dir: str = "storage"
 
 
 @dataclass(frozen=True)

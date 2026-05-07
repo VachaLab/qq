@@ -6,6 +6,7 @@ from pathlib import Path
 
 from qq_lib.batch.interface import BatchInterface
 from qq_lib.core.common import split_files_list, translate_server
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
@@ -173,10 +174,14 @@ class SubmitterFactory:
             self._kwargs.get("loop_start") or self._parser.get_loop_start() or 1,
             self._kwargs.get("loop_end") or self._parser.get_loop_end(),
             self._input_dir
-            / (self._kwargs.get("archive") or self._parser.get_archive() or "storage"),
+            / (
+                self._kwargs.get("archive")
+                or self._parser.get_archive()
+                or CFG.loop_jobs.archive_dir
+            ),
             self._kwargs.get("archive_format")
             or self._parser.get_archive_format()
-            or "job%04d",
+            or CFG.loop_jobs.archive_format,
             input_dir=self._input_dir,
             archive_mode=TransferMode.multi_from_str(
                 self._kwargs.get("archive_mode") or ""

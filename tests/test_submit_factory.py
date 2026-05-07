@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from qq_lib.batch.interface.interface import BatchInterface
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
@@ -240,8 +241,33 @@ def test_submitter_factory_get_loop_info_mixed_cli_parser_and_defaults():
     assert isinstance(loop_info, LoopInfo)
     assert loop_info.start == 10  # CLI
     assert loop_info.end == 50  # parser
-    assert loop_info.archive == Path("fake_path/storage").resolve()  # default
+    assert (
+        loop_info.archive == Path(f"fake_path/{CFG.loop_jobs.archive_dir}").resolve()
+    )  # default
     assert loop_info.archive_format == "job%02d"  # parser
+
+
+def test_submitter_factory_get_loop_info_mixed_cli_parser_and_defaults2():
+    mock_parser = MagicMock()
+    mock_parser.get_loop_start.return_value = None
+    mock_parser.get_loop_end.return_value = 50
+    mock_parser.get_archive.return_value = "archive"
+    mock_parser.get_archive_format.return_value = None
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._input_dir = Path("fake_path")
+    factory._parser = mock_parser
+    factory._kwargs = {
+        "loop_end": 10,
+    }
+
+    loop_info = factory._get_loop_info()
+
+    assert isinstance(loop_info, LoopInfo)
+    assert loop_info.start == 1  # default
+    assert loop_info.end == 10  # CLI
+    assert loop_info.archive == Path("fake_path/archive").resolve()  # parser
+    assert loop_info.archive_format == CFG.loop_jobs.archive_format  # default
 
 
 def test_submitter_factory_get_loop_info_mixed_cli_parser_and_defaults_with_archive_mode():
@@ -262,7 +288,9 @@ def test_submitter_factory_get_loop_info_mixed_cli_parser_and_defaults_with_arch
     assert isinstance(loop_info, LoopInfo)
     assert loop_info.start == 10  # CLI
     assert loop_info.end == 50  # parser
-    assert loop_info.archive == Path("fake_path/storage").resolve()  # default
+    assert (
+        loop_info.archive == Path(f"fake_path/{CFG.loop_jobs.archive_dir}").resolve()
+    )  # default
     assert loop_info.archive_format == "job%02d"  # parser
     assert loop_info.archive_mode == [Never()]  # CLI
 
