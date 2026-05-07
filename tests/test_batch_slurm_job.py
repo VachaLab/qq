@@ -637,44 +637,42 @@ def test_slurm_job_get_input_dir_returns_none():
     assert job.get_input_dir() is None
 
 
-def test_slurm_job_get_info_file_returns_path_when_file_exists(monkeypatch):
+def test_slurm_job_get_info_file_returns_path_when_file_exists():
     job = SlurmJob.__new__(SlurmJob)
     fake_path = Path("/tmp/testfile.qqinfo")
-    monkeypatch.setattr(job, "get_input_dir", lambda: Path("/tmp"))
-    monkeypatch.setattr(job, "get_name", lambda: "testfile")
-    monkeypatch.setattr(
-        "qq_lib.batch.slurm.job.CFG.suffixes", MagicMock(qq_info=".qqinfo")
-    )
-    monkeypatch.setattr(Path, "is_file", lambda _: True)
-    result = job.get_info_file()
-    assert result == fake_path
+    with (
+        patch.object(job, "get_input_dir", return_value=Path("/tmp")),
+        patch.object(job, "get_name", return_value="testfile"),
+        patch("qq_lib.batch.slurm.job.CFG") as cfg_mock,
+        patch.object(Path, "is_file", return_value=True),
+    ):
+        cfg_mock.suffixes = MagicMock(qq_info=".qqinfo")
+        result = job.get_info_file()
+        assert result == fake_path
 
 
-def test_slurm_job_get_info_file_returns_none_when_file_missing(monkeypatch):
+def test_slurm_job_get_info_file_returns_none_when_file_missing():
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "get_input_dir", lambda: Path("/tmp"))
-    monkeypatch.setattr(job, "get_name", lambda: "missingfile")
-    monkeypatch.setattr(
-        "qq_lib.batch.slurm.job.CFG.suffixes", MagicMock(qq_info=".qqinfo")
-    )
-    monkeypatch.setattr(Path, "is_file", lambda _: False)
-    assert job.get_info_file() is None
+    with (
+        patch.object(job, "get_input_dir", return_value=Path("/tmp")),
+        patch.object(job, "get_name", return_value="missingfile"),
+        patch("qq_lib.batch.slurm.job.CFG") as cfg_mock,
+        patch.object(Path, "is_file", return_value=False),
+    ):
+        cfg_mock.suffixes = MagicMock(qq_info=".qqinfo")
+        assert job.get_info_file() is None
 
 
-def test_slurm_job_get_info_file_returns_none_when_permission_error(monkeypatch):
+def test_slurm_job_get_info_file_returns_none_when_permission_error():
     job = SlurmJob.__new__(SlurmJob)
-    monkeypatch.setattr(job, "get_input_dir", lambda: Path("/tmp"))
-    monkeypatch.setattr(job, "get_name", lambda: "noaccessfile")
-    monkeypatch.setattr(
-        "qq_lib.batch.slurm.job.CFG.suffixes", MagicMock(qq_info=".qqinfo")
-    )
-
-    def raise_permission_error(self):
-        _ = self
-        raise PermissionError
-
-    monkeypatch.setattr(Path, "is_file", raise_permission_error)
-    assert job.get_info_file() is None
+    with (
+        patch.object(job, "get_input_dir", return_value=Path("/tmp")),
+        patch.object(job, "get_name", return_value="noaccessfile"),
+        patch("qq_lib.batch.slurm.job.CFG") as cfg_mock,
+        patch.object(Path, "is_file", side_effect=PermissionError),
+    ):
+        cfg_mock.suffixes = MagicMock(qq_info=".qqinfo")
+        assert job.get_info_file() is None
 
 
 def test_slurm_job_to_yaml_returns_valid_yaml_string():

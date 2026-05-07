@@ -1831,7 +1831,8 @@ def test_modify_ams_env_vars_raises_for_unknown_server_with_ams_vars():
     ],
 )
 def test_translate_output_server_no_server(input_dir, job_name, expected_path):
-    with patch("qq_lib.batch.pbs.pbs.CFG.suffixes.qq_out", ".qqout"):
+    with patch("qq_lib.batch.pbs.pbs.CFG") as cfg_mock:
+        cfg_mock.suffixes.qq_out = ".qqout"
         result = PBS._translate_output_server(input_dir, job_name, None)
         assert result == expected_path
 

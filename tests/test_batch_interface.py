@@ -276,8 +276,9 @@ def test_sync_with_exclusions_rsync_timeout(tmp_path):
 
     with (
         pytest.raises(QQError, match="Could not rsync files"),
-        patch("qq_lib.batch.interface.interface.CFG.timeouts.rsync", 0),
+        patch("qq_lib.batch.interface.interface.CFG") as cfg_mock,
     ):
+        cfg_mock.timeouts.rsync = 0
         BatchInterface.sync_with_exclusions(src, dest, None, None)
 
 
@@ -450,8 +451,9 @@ def test_sync_selected_rsync_timeout(tmp_path):
 
     with (
         pytest.raises(QQError, match="Could not rsync files"),
-        patch("qq_lib.batch.interface.interface.CFG.timeouts.rsync", 0),
+        patch("qq_lib.batch.interface.interface.CFG") as cfg_mock,
     ):
+        cfg_mock.timeouts.rsync = 0
         BatchInterface.sync_selected(
             src, dest, None, None, include_files=[src / "file.txt"]
         )

@@ -658,9 +658,11 @@ def test_runner_update_info_running_raises_qqerror_on_failure():
 
     with (
         patch("qq_lib.run.runner.socket.getfqdn", return_value="localhost"),
-        patch("qq_lib.run.runner.CFG.runner.retry_wait", return_value=0.1),
+        patch("qq_lib.run.runner.CFG") as cfg_mock,
         pytest.raises(QQError, match="Could not update qqinfo file"),
     ):
+        cfg_mock.runner.retry_tries = 2
+        cfg_mock.runner.retry_wait = 0.1
         runner._update_info_running()
 
 
@@ -677,11 +679,13 @@ def test_runner_update_info_running_raises_on_empty_node_list():
 
     with (
         patch("qq_lib.run.runner.socket.getfqdn", return_value="localhost"),
-        patch("qq_lib.run.runner.CFG.runner.retry_wait", return_value=0.1),
+        patch("qq_lib.run.runner.CFG") as cfg_mock,
         pytest.raises(
             QQError, match="Could not get the list of used nodes from the batch server"
         ),
     ):
+        cfg_mock.runner.retry_tries = 2
+        cfg_mock.runner.retry_wait = 0.1
         runner._update_info_running()
 
 
