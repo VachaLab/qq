@@ -74,11 +74,12 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         env_vars: dict[str, str],
         account: str | None = None,
         server: str | None = None,
+        remote_host: str | None = None,
     ) -> str:
         # account unused
         _ = account
 
-        cls._shared_guard(res, env_vars, server)
+        cls._shared_guard(res, env_vars, server, remote_host)
 
         # set env vars required for Infinity modules
         # this can be removed once Infinity stops being supported
@@ -102,15 +103,35 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         )
         logger.debug(command)
 
-        # submit the script
-        result = subprocess.run(
-            ["bash"],
-            input=command,
-            text=True,
-            check=False,
-            capture_output=True,
-            errors="replace",
-        )
+        if not remote_host:
+            # submit the script from the current host
+            result = subprocess.run(
+                ["bash"],
+                input=command,
+                text=True,
+                check=False,
+                capture_output=True,
+                errors="replace",
+            )
+        else:
+            # submit the script from the remote host
+            logger.debug(
+                f"Navigating to '{remote_host}' to execute the submission command '{command}'."
+            )
+            result = subprocess.run(
+                [
+                    "ssh",
+                    "-o PasswordAuthentication=no",
+                    "-o GSSAPIAuthentication=yes",
+                    "-o StrictHostKeyChecking=no",  # allow unknown hosts
+                    f"-o ConnectTimeout={CFG.timeouts.ssh}",
+                    "-q",  # suppress some SSH messages
+                    remote_host,
+                    command,
+                ],
+                capture_output=True,
+                text=True,
+            )
 
         if result.returncode != 0:
             raise QQError(
@@ -476,7 +497,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
 
     @classmethod
     def _shared_guard(
-        cls, res: Resources, env_vars: dict[str, str], server: str | None
+        cls,
+        res: Resources,
+        env_vars: dict[str, str],
+        server: str | None,
+        remote_host: str | None,
     ) -> None:
         """
         Ensure correct handling of shared vs. local submission directories.
@@ -490,6 +515,8 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
 
         If the job is to be submitted to a potentially non-local server
         but the directory is not shared, a `QQError` is raised.
+
+        If the job is to be submitted on a remote host, but the directory is not shared, a `QQError` is raised.
 
         Args:
             res (Resources): The job's resource configuration.
@@ -513,6 +540,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             # if we are submitting to a different server
             raise QQError(
                 f"Job was requested to be submitted to server '{server}' which is potentially non-local, but the submission is done from a local filesystem."
+            )
+        elif remote_host is not None:
+            # if we are submitting from a different host
+            raise QQError(
+                f"Job was requested to be submitted from host '{remote_host}', but the submission is done from a local filesystem."
             )
 
     @classmethod
@@ -579,7 +611,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             command += f"-W depend={converted_depend} "
 
         # add script
-        command += script
+        command += str(input_dir / script)
 
         return command
 

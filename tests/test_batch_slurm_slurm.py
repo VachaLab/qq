@@ -388,7 +388,8 @@ def test_slurm_translate_submit_basic_command():
     assert f"--mem={(res.mem // res.nnodes).to_str_exact_slurm()}" in command
     assert f"--gpus-per-node={res.ngpus // res.nnodes}" in command
     assert f"--time={res.walltime}" in command
-    assert command.endswith(script)
+    assert f"--chdir={input_dir}" in command
+    assert command.endswith(str(input_dir / script))
 
 
 def test_slurm_translate_submit_basic_command_with_per_node_properties():
@@ -423,7 +424,8 @@ def test_slurm_translate_submit_basic_command_with_per_node_properties():
     assert f"--mem={res.mem_per_node.to_str_exact_slurm()}" in command
     assert f"--gpus-per-node={res.ngpus_per_node}" in command
     assert f"--time={res.walltime}" in command
-    assert command.endswith(script)
+    assert f"--chdir={input_dir}" in command
+    assert command.endswith(str(input_dir / script))
 
 
 def test_slurm_translate_submit_with_account_and_env_vars():
@@ -448,7 +450,8 @@ def test_slurm_translate_submit_with_account_and_env_vars():
 
     assert "--account project123" in command
     assert '--export ALL,VAR1="A",VAR2="B"' in command
-    assert command.endswith(script)
+    assert f"--chdir={input_dir}" in command
+    assert command.endswith(str(input_dir / script))
 
 
 def test_slurm_translate_submit_with_dependencies():
@@ -470,7 +473,8 @@ def test_slurm_translate_submit_with_dependencies():
     )
 
     assert "--dependency=afterok:111:222" in command
-    assert command.endswith(script)
+    assert f"--chdir={input_dir}" in command
+    assert command.endswith(str(input_dir / script))
 
 
 def test_slurm_translate_submit_with_props_true_only():
@@ -492,7 +496,8 @@ def test_slurm_translate_submit_with_props_true_only():
     )
 
     assert '--constraint="gpu&ssd"' in command
-    assert command.endswith(script)
+    assert f"--chdir={input_dir}" in command
+    assert command.endswith(str(input_dir / script))
 
 
 def test_slurm_translate_submit_raises_on_invalid_prop_value():
@@ -746,7 +751,7 @@ def test_slurm_job_submit_success(mock_guard, mock_translate, mock_run):
 
     result = Slurm.job_submit(res, "qgpu", script, "job1", [], {}, "acc")
 
-    mock_guard.assert_called_once_with(res, {}, None)
+    mock_guard.assert_called_once_with(res, {}, None, None)
     mock_translate.assert_called_once()
     mock_run.assert_called_once()
     assert result == "56789"
@@ -763,7 +768,7 @@ def test_slurm_job_submit_raises_on_error(mock_guard, mock_translate, mock_run):
     with pytest.raises(QQError, match="Failed to submit script"):
         Slurm.job_submit(res, "qgpu", script, "fail_job", [], {}, None)
 
-    mock_guard.assert_called_once_with(res, {}, None)
+    mock_guard.assert_called_once_with(res, {}, None, None)
     mock_translate.assert_called_once()
     mock_run.assert_called_once()
 

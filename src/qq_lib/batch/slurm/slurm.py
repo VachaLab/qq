@@ -59,27 +59,48 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         env_vars: dict[str, str],
         account: str | None = None,
         server: str | None = None,
+        remote_host: str | None = None,
     ) -> str:
         # server is unused
-        _ = server
+        if server:
+            logger.warning("The 'server' option is ignored for Slurm.")
 
         # intentionally using PBS
-        PBS._shared_guard(res, env_vars, server)
+        PBS._shared_guard(res, env_vars, server, remote_host)
 
         command = cls._translate_submit(
             res, queue, script.parent, str(script), job_name, depend, env_vars, account
         )
-        logger.debug(command)
 
-        # submit the script
-        result = subprocess.run(
-            ["bash"],
-            input=command,
-            text=True,
-            check=False,
-            capture_output=True,
-            errors="replace",
-        )
+        if not remote_host:
+            logger.debug(f"Submitting job using '{command}'.")
+            result = subprocess.run(
+                ["bash"],
+                input=command,
+                text=True,
+                check=False,
+                capture_output=True,
+                errors="replace",
+            )
+        else:
+            # submit the script from the remote host
+            logger.debug(
+                f"Navigating to '{remote_host}' to execute the submission command '{command}'."
+            )
+            result = subprocess.run(
+                [
+                    "ssh",
+                    "-o PasswordAuthentication=no",
+                    "-o GSSAPIAuthentication=yes",
+                    "-o StrictHostKeyChecking=no",  # allow unknown hosts
+                    f"-o ConnectTimeout={CFG.timeouts.ssh}",
+                    "-q",  # suppress some SSH messages
+                    remote_host,
+                    command,
+                ],
+                capture_output=True,
+                text=True,
+            )
 
         if result.returncode != 0:
             raise QQError(
@@ -431,8 +452,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         if converted_depend := cls._translate_dependencies(depend):
             command += f"--dependency={converted_depend} "
 
+        # set input directory for the job
+        command += f"--chdir={str(input_dir)} "
+
         # add script
-        command += script
+        command += str(input_dir / script)
 
         return command
 

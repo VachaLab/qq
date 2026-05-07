@@ -217,11 +217,14 @@ class BatchInterface[
         env_vars: dict[str, str],
         account: str | None = None,
         server: str | None = None,
+        remote_host: str | None = None,
     ) -> str:
         """
         Submit a job to the batch system.
 
         Can also perform additional validation of the job's resources.
+
+        This method is NOT guaranteed to be thread-safe.
 
         Args:
             res (Resources): Resources required for the job.
@@ -232,6 +235,7 @@ class BatchInterface[
             env_vars (dict[str, str]): Dictionary of environment variables to propagate to the job.
             account (str | None): Optional account name to use for the job.
             server (str | None): Optional name of the server to submit the job to.
+            remote_host (str | None): Optional name of the machine to submit the job from.
 
         Returns:
             str: Unique ID of the submitted job.

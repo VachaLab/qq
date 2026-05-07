@@ -46,6 +46,7 @@ class SlurmLumi(SlurmIT4I):
         env_vars: dict[str, str],
         account: str | None = None,
         server: str | None = None,
+        remote_host: str | None = None,
     ) -> str:
         # set the 'lumi_scratch_type' env var to be able to decide in get_scratch_dir
         # whether to create a scratch directory on /scratch or on /flash
@@ -54,7 +55,7 @@ class SlurmLumi(SlurmIT4I):
             env_vars[CFG.env_vars.lumi_scratch_type] = res.work_dir
 
         return super().job_submit(
-            res, queue, script, job_name, depend, env_vars, account, server
+            res, queue, script, job_name, depend, env_vars, account, server, remote_host
         )
 
     @classmethod

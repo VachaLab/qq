@@ -4,7 +4,6 @@
 import getpass
 import os
 import socket
-from contextlib import chdir
 from datetime import datetime
 from pathlib import Path
 
@@ -124,15 +123,18 @@ class Submitter:
                 f"Script '{self._script}' has an invalid shebang. The first line of the script should be '#!/usr/bin/env -S {CFG.binary_name} run'."
             )
 
-    def submit(self) -> str:
+    def submit(self, remote: str | None = None) -> str:
         """
         Submit the script to the batch system.
 
         Sets required environment variables, calls the batch system's
         job submission mechanism, and creates an info file with job metadata.
 
-        Note that this method temporarily changes the current working directory,
-        and is therefore not thread-safe.
+        This method is thread-safe, if the submission is done from the current machine.
+
+        Args:
+            remote (str | None): Name of the machine from which the job should be submitted.
+                If `None`, the current machine is used.
 
         Returns:
             str: The job ID of the submitted job.
@@ -140,58 +142,52 @@ class Submitter:
         Raises:
             QQError: If job submission fails.
         """
-        # move to the script's parent directory and submit the script
-        # with PBS it is possible to submit the script from anywhere
-        # but with Slurm the input directory path is then not set correctly
-        # it is safer and easier to just move to the input directory,
-        # execute the command and then return back
-        with chdir(self._input_dir):
-            # submit the job
-            job_id = self._batch_system.job_submit(
-                self._resources,
-                self._queue,
-                self._script,
-                self._job_name,
-                self._depend,
-                self._create_env_vars_dict(),
-                self._account,
-                self._server,
-            )
+        job_id = self._batch_system.job_submit(
+            self._resources,
+            self._queue,
+            self._script,
+            self._job_name,
+            self._depend,
+            self._create_env_vars_dict(),
+            self._account,
+            self._server,
+        )
 
-            # create job qq info file
-            informer = Informer(
-                Info(
-                    batch_system=self._batch_system,
-                    qq_version=qq_lib.__version__,
-                    username=getpass.getuser(),
-                    job_id=job_id,
-                    job_name=self._job_name,
-                    script_name=self._script_name,
-                    queue=self._queue,
-                    job_type=self._job_type,
-                    input_machine=socket.getfqdn(),
-                    input_dir=self._input_dir,
-                    job_state=NaiveState.QUEUED,
-                    submission_time=datetime.now(),
-                    stdout_file=str(
-                        Path(self._job_name).with_suffix(CFG.suffixes.stdout)
-                    ),
-                    stderr_file=str(
-                        Path(self._job_name).with_suffix(CFG.suffixes.stderr)
-                    ),
-                    resources=self._resources,
-                    loop_info=self._loop_info,
-                    excluded_files=self._exclude,
-                    included_files=self._include,
-                    depend=self._depend,
-                    account=self._account,
-                    transfer_mode=self._transfer_mode,
-                    server=self._server,
-                    interpreter=self._interpreter,
-                )
+        # create job qq info file
+        informer = Informer(
+            Info(
+                batch_system=self._batch_system,
+                qq_version=qq_lib.__version__,
+                username=getpass.getuser(),
+                job_id=job_id,
+                job_name=self._job_name,
+                script_name=self._script_name,
+                queue=self._queue,
+                job_type=self._job_type,
+                input_machine=remote or socket.getfqdn(),
+                input_dir=self._input_dir,
+                job_state=NaiveState.QUEUED,
+                submission_time=datetime.now(),
+                stdout_file=str(Path(self._job_name).with_suffix(CFG.suffixes.stdout)),
+                stderr_file=str(Path(self._job_name).with_suffix(CFG.suffixes.stderr)),
+                resources=self._resources,
+                loop_info=self._loop_info,
+                excluded_files=self._exclude,
+                included_files=self._include,
+                depend=self._depend,
+                account=self._account,
+                transfer_mode=self._transfer_mode,
+                server=self._server,
+                interpreter=self._interpreter,
             )
-            informer.to_file(self._info_file)
-            return job_id
+        )
+
+        # we create the info file from the current machine no matter
+        # whether we are submiting from the current machine or from the remote machine
+        # the input directory should be available on both concerned machines,
+        # so this should be okay
+        informer.to_file(self._info_file)
+        return job_id
 
     def continues_loop(self) -> bool:
         """

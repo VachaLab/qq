@@ -5,6 +5,8 @@
 - qq now uses Python 3.13 for better generics support.
 - Fixed type errors in qq scripts.
 - Refactored BatchMeta.
+- Jobs can be now submitted from a remote machine.
+- Submitting jobs using `Submitter.submit` is now thread-safe.
 
 ***
 
