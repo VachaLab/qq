@@ -1,6 +1,9 @@
 ## Version 0.11
 - Updated the installation scripts to more clearly report issues that occured during the install.
 
+### Resubmitting with fallback hosts
+- Resubmission of loop and continuous jobs now supports multiple fallback hosts. Previously, jobs were resubmitted from a single machine (the input machine or the working node, depending on the batch system). A list of hosts can now be specified via `--resubmit-from` or in the config file; they are tried in order until one succeeds, making resubmission more resilient to individual machine failures.
+
 ### Internal changes
 - qq now uses Python 3.13 for better generics support.
 - Fixed type errors in qq scripts.
