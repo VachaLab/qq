@@ -1,6 +1,9 @@
 ## Version 0.11
 - Updated the installation scripts to more clearly report issues that occured during the install.
 
+### Better support for non-bash interpreters
+- Interpreters now support additional command-line arguments.
+
 ### Resubmitting with fallback hosts
 - Resubmission of loop and continuous jobs now supports multiple fallback hosts. Previously, jobs were resubmitted from a single machine (the input machine or the working node, depending on the batch system). A list of hosts can now be specified via `--resubmit-from` or in the config file; they are tried in order until one succeeds, making resubmission more resilient to individual machine failures.
 
@@ -14,6 +17,7 @@
 - When reading configuration file fails, an exception is no longer raised, instead an error is reported and a default configuration is used.
 - `CFG` is now a frozen dataclass.
 - Default archive directory and archive format are now configurable.
+- Changed internal representation of the interpreter specified to execute the script.
 
 ***
 
