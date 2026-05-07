@@ -12,7 +12,8 @@ from qq_lib.core.error import QQError
 
 @dataclass(frozen=True)
 class Interpreter:
-    """Configuration for the interpreter used to execute a job script.
+    """
+    Configuration for the interpreter used to execute a job script.
 
     Attributes:
         executable: Name or path of the interpreter executable.
