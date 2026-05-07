@@ -13,6 +13,7 @@
 - Handling exceptions that occur when reading a configuration file.
 - When reading configuration file fails, an exception is no longer raised, instead an error is reported and a default configuration is used.
 - `CFG` is now a frozen dataclass.
+- Default archive directory and archive format are now configurable.
 
 ***
 
