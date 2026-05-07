@@ -267,8 +267,12 @@ class PBSJob(BatchJobInterface):
             return None
 
         if not (
-            input_dir := env_vars.get("PBS_O_WORKDIR")  # try PBS first
-            or env_vars.get(CFG.env_vars.input_dir)  # if this fails, try qq
+            # try qq first
+            # we always try qq first because it provides the most reliable information
+            # PBS sometimes sets the input directory to absolute path (resolving symlinks)
+            # which is not necessarily what we want
+            input_dir := env_vars.get(CFG.env_vars.input_dir)
+            or env_vars.get("PBS_O_WORKDIR")  # if this fails, try PBS
             or env_vars.get("INF_INPUT_DIR")  # if this fails, try Infinity
         ):
             logger.debug(f"Could not obtain input directory for '{self._job_id}'.")
