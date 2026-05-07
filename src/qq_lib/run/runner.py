@@ -30,6 +30,7 @@ from qq_lib.core.retryer import Retryer
 from qq_lib.info.informer import Informer
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.states import NaiveState
+from qq_lib.run.resubmitter import Resubmitter
 
 logger = get_logger(__name__, show_time=True)
 
@@ -716,20 +717,10 @@ class Runner:
                 return
 
         logger.info("Resubmitting the job.")
-        logger.debug(
-            f"Resubmitting using the batch system '{str(self._batch_system)}'."
-        )
+        resubmitter = Resubmitter.from_informer(self._informer)
+        job_id = resubmitter.resubmit()
 
-        Retryer(
-            self._batch_system.resubmit,
-            input_machine=self._informer.info.input_machine,
-            input_dir=self._informer.info.input_dir,
-            command_line=self._informer.info.get_command_line_for_resubmit(),
-            max_tries=CFG.runner.retry_tries,
-            wait_seconds=CFG.runner.retry_wait,
-        ).run()
-
-        logger.info("Job successfully resubmitted.")
+        logger.info(f"Job resubmitted successfully as '{job_id}'.")
 
     def _get_explicitly_included_files_in_work_dir(self) -> list[Path]:
         """

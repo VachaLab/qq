@@ -376,23 +376,20 @@ def test_runner_resubmit_successful_resubmission():
     retryer_mock = MagicMock()
     retryer_mock.run.return_value = None
 
+    resubmitter_mock = MagicMock()
+    resubmitter_mock.resubmit.return_value = "12345"
+
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
-        patch("qq_lib.run.runner.Retryer", return_value=retryer_mock) as mock_retryer,
+        patch("qq_lib.run.runner.Resubmitter") as mock_resubmitter_cls,
     ):
+        mock_resubmitter_cls.from_informer.return_value = resubmitter_mock
         runner._resubmit()
 
     mock_logger.info.assert_any_call("Resubmitting the job.")
-    mock_retryer.assert_called_once_with(
-        runner._batch_system.resubmit,
-        input_machine="random.host.org",
-        input_dir="/dir",
-        command_line=["cmd"],
-        max_tries=CFG.runner.retry_tries,
-        wait_seconds=CFG.runner.retry_wait,
-    )
-    retryer_mock.run.assert_called_once()
-    mock_logger.info.assert_any_call("Job successfully resubmitted.")
+    mock_resubmitter_cls.from_informer.assert_called_once_with(runner._informer)
+    resubmitter_mock.resubmit.assert_called_once()
+    mock_logger.info.assert_any_call("Job resubmitted successfully as '12345'.")
 
 
 def test_runner_resubmit_raises_qqerror():
@@ -410,7 +407,10 @@ def test_runner_resubmit_raises_qqerror():
     runner._should_resubmit = True
 
     with (
-        patch("qq_lib.run.runner.Retryer", side_effect=QQError("resubmit failed")),
+        patch(
+            "qq_lib.run.runner.Resubmitter.resubmit",
+            side_effect=QQError("resubmit failed"),
+        ),
         patch("qq_lib.run.runner.logger"),
         pytest.raises(QQError, match="resubmit failed"),
     ):
@@ -1082,6 +1082,9 @@ def test_runner_finalize_with_scratch_archiver_and_resubmit(mock_logger_info):
     runner._delete_work_dir = MagicMock()
     runner._update_info_finished = MagicMock()
     runner._resubmit = MagicMock()
+
+    resubmitter_mock = MagicMock()
+    resubmitter_mock.resubmit.return_value = "12345"
 
     with (
         patch("qq_lib.run.runner.Retryer") as retryer_mock,

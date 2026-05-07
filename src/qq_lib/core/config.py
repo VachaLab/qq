@@ -109,6 +109,19 @@ class RunnerSettings:
 
 
 @dataclass
+class ResubmitterSettings:
+    """Settings for Resubmitter operations."""
+
+    # Maximum number of attempts when retrying an operation.
+    retry_tries: int = 3
+    # Wait time (in seconds) between retry attempts.
+    retry_wait: int = 300
+    # List of hosts from which job resubmission should be attempted.
+    # If empty, the batch system defaults are used.
+    default_resubmit_hosts: str = ""
+
+
+@dataclass
 class ArchiverSettings:
     """Settings for Archiver operations."""
 
@@ -454,6 +467,7 @@ class Config:
     env_vars: EnvironmentVariables = field(default_factory=EnvironmentVariables)
     timeouts: TimeoutSettings = field(default_factory=TimeoutSettings)
     runner: RunnerSettings = field(default_factory=RunnerSettings)
+    resubmitter: ResubmitterSettings = field(default_factory=ResubmitterSettings)
     archiver: ArchiverSettings = field(default_factory=ArchiverSettings)
     goer: GoerSettings = field(default_factory=GoerSettings)
     presenter: PresenterSettings = field(default_factory=PresenterSettings)

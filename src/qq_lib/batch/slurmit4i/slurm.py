@@ -4,7 +4,6 @@
 import getpass
 import os
 import shutil
-import subprocess
 from pathlib import Path
 
 from qq_lib.batch.interface import BatchInterface
@@ -15,6 +14,7 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.resources import Resources
+from qq_lib.properties.resubmit_host import ResubmitHost, WorkHost
 
 logger = get_logger(__name__)
 
@@ -212,34 +212,8 @@ class SlurmIT4I(Slurm):
         return True
 
     @classmethod
-    def resubmit(
-        cls, input_machine: str, input_dir: Path, command_line: list[str]
-    ) -> None:
-        # input machine is unused, resubmit from the current machine
-        _ = input_machine
-
-        qq_submit_command = f"{CFG.binary_name} submit {' '.join(command_line)}"
-
-        logger.debug(f"Navigating to '{input_dir}' to execute '{qq_submit_command}'.")
-        try:
-            os.chdir(input_dir)
-        except Exception as e:
-            raise QQError(
-                f"Could not resubmit the job. Could not navigate to '{input_dir}': {e}."
-            ) from e
-
-        logger.debug(f"Navigated to {str(input_dir)}.")
-        result = subprocess.run(
-            ["bash"],
-            input=qq_submit_command,
-            text=True,
-            check=False,
-            capture_output=True,
-            errors="replace",
-        )
-
-        if result.returncode != 0:
-            raise QQError(f"Could not resubmit the job: {result.stderr.strip()}.")
+    def get_default_resubmit_hosts(cls) -> list[ResubmitHost]:
+        return [WorkHost()]
 
     @classmethod
     def _get_default_resources(cls) -> Resources:

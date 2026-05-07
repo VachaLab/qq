@@ -28,6 +28,7 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
+from qq_lib.properties.resubmit_host import ResubmitHost
 from qq_lib.properties.transfer_mode import Success, TransferMode
 
 from .job_type import JobType
@@ -118,6 +119,9 @@ class Info:
     # Can be `None` which indicates the job was submitted
     # to the default (main) batch server the input machine is connected to
     server: str | None = None
+
+    # Hosts from which a loop job or a continuous job should be resubmitted
+    resubmit_from: list[ResubmitHost] | None = None
 
     # Interpreter to use for running the submitted script
     interpreter: str | None = None

@@ -16,6 +16,7 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
+from qq_lib.properties.resubmit_host import InputHost, ResubmitHost
 
 from .job import BatchJobInterface
 from .node import BatchNodeInterface
@@ -851,51 +852,16 @@ class BatchInterface[
         return result.returncode != 0
 
     @classmethod
-    def resubmit(
-        cls, input_machine: str, input_dir: Path, command_line: list[str]
-    ) -> None:
+    def get_default_resubmit_hosts(cls) -> list[ResubmitHost]:
         """
-        Resubmit a job to the batch system.
+        Get the default job resubmission hosts for this batch system.
 
-        The default implementation connects via SSH to the specified machine,
-        changes into the job directory, and re-executes the original job
-        submission command (`qq submit ...`).
+        In the default implementation, resubmission from the input machine is attempted.
 
-        If the resubmission fails, a QQError is raised.
-
-        Args:
-            input_machine (str): Name of the host from which the job is to be submitted.
-            input_dir (Path): Path to the job's input directory.
-            command_line (list[str]): Options and arguments to use for submitting.
-
-        Raises:
-            QQError: If the resubmission fails (non-zero return code from the
-            SSH command).
+        Returns:
+            list[ResubmitHost]: A list of resubmission hosts.
         """
-        qq_submit_command = f"{CFG.binary_name} submit {' '.join(command_line)}"
-
-        logger.debug(
-            f"Navigating to '{input_machine}:{str(input_dir)}' to execute '{qq_submit_command}'."
-        )
-        result = subprocess.run(
-            [
-                "ssh",
-                "-o PasswordAuthentication=no",
-                "-o GSSAPIAuthentication=yes",
-                "-o StrictHostKeyChecking=no",  # allow unknown hosts
-                f"-o ConnectTimeout={CFG.timeouts.ssh}",
-                "-q",  # suppress some SSH messages
-                input_machine,
-                f"cd {str(input_dir)} && {qq_submit_command}",
-            ],
-            capture_output=True,
-            text=True,
-        )
-
-        if result.returncode != 0:
-            raise QQError(
-                f"Could not resubmit the job on '{input_machine}': {result.stderr.strip()}."
-            )
+        return [InputHost()]
 
     @classmethod
     def sort_jobs(cls, jobs: list[TBatchJob]) -> None:

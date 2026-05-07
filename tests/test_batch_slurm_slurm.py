@@ -542,20 +542,6 @@ def test_slurm_is_shared_delegates_to_interface(mock_is_shared):
     assert result is True
 
 
-@patch("qq_lib.batch.slurm.slurm.BatchInterface.resubmit")
-def test_slurm_resubmit_delegates_to_interface(mock_resubmit):
-    Slurm.resubmit(
-        input_machine="machine1",
-        input_dir=Path("/work/job"),
-        command_line=["-q gpu", "--account fake-account"],
-    )
-    mock_resubmit.assert_called_once_with(
-        input_machine="machine1",
-        input_dir=Path("/work/job"),
-        command_line=["-q gpu", "--account fake-account"],
-    )
-
-
 @patch("qq_lib.batch.slurm.slurm.PBS.read_remote_file", return_value="content")
 def test_slurm_read_remote_file_delegates(mock_read):
     result = Slurm.read_remote_file("host1", Path("/tmp/file.txt"))

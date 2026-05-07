@@ -84,43 +84,6 @@ def test_slurmit4i_get_default_server_resources_returns_empty_on_failure(
     assert result == Resources()
 
 
-@patch("qq_lib.batch.slurmit4i.slurm.subprocess.run")
-@patch("qq_lib.batch.slurmit4i.slurm.os.chdir")
-def test_slurmit4i_resubmit_success(mock_chdir, mock_run):
-    mock_run.return_value = MagicMock(returncode=0)
-    SlurmIT4I.resubmit(
-        input_machine="unused_machine",
-        input_dir=Path("/home/user/jobdir"),
-        command_line=["-q", "default"],
-    )
-    mock_chdir.assert_called_once_with(Path("/home/user/jobdir"))
-    mock_run.assert_called_once()
-
-
-@patch("qq_lib.batch.slurmit4i.slurm.os.chdir", side_effect=OSError("failed to cd"))
-def test_slurmit4i_resubmit_raises_when_cannot_cd(mock_chdir):
-    with pytest.raises(QQError, match="Could not navigate to"):
-        SlurmIT4I.resubmit(
-            input_machine="unused_machine",
-            input_dir=Path("/home/user/jobdir"),
-            command_line=["-q", "default"],
-        )
-    mock_chdir.assert_called_once_with(Path("/home/user/jobdir"))
-
-
-@patch("qq_lib.batch.slurmit4i.slurm.subprocess.run")
-@patch("qq_lib.batch.slurmit4i.slurm.os.chdir")
-def test_slurmit4i_resubmit_raises_when_command_fails(mock_chdir, mock_run):
-    mock_run.return_value = MagicMock(returncode=1, stderr="execution failed")
-    with pytest.raises(QQError):
-        SlurmIT4I.resubmit(
-            input_machine="unused_machine",
-            input_dir=Path("/home/user/jobdir"),
-            command_line=["-q", "default"],
-        )
-    mock_chdir.assert_called_once_with(Path("/home/user/jobdir"))
-
-
 def test_slurmit4i_is_shared_returns_true():
     assert SlurmIT4I.is_shared(Path.cwd())
 
