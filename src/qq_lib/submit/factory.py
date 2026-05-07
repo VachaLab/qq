@@ -8,6 +8,7 @@ from qq_lib.batch.interface import BatchInterface
 from qq_lib.core.common import split_files_list, translate_server
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
+from qq_lib.core.interpreter import Interpreter
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
@@ -287,7 +288,7 @@ class SubmitterFactory:
 
         return None
 
-    def _get_interpreter(self) -> str | None:
+    def _get_interpreter(self) -> Interpreter | None:
         """
         Determine the interpreter to use for running the script.
 
@@ -297,15 +298,13 @@ class SubmitterFactory:
             3. None - the default intepreter
 
         Returns:
-            str | None: The interpreter to use for running the script
+            Interpreter | None: The interpreter to use for running the script
                 or `None` to use the default intepreter.
         """
-        if interpreter := (
-            self._kwargs.get("interpreter") or self._parser.get_interpreter()
-        ):
-            return interpreter
+        if (raw := self._kwargs.get("interpreter")) is not None:
+            return Interpreter.from_str(raw)
 
-        return None
+        return self._parser.get_interpreter()
 
     def _get_resubmit_from(self) -> list[ResubmitHost]:
         """

@@ -4,7 +4,6 @@
 import os
 import shutil
 import signal
-import sys
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -17,6 +16,7 @@ from qq_lib.core.error import (
     QQRunCommunicationError,
     QQRunFatalError,
 )
+from qq_lib.core.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.states import NaiveState
 from qq_lib.run.runner import CFG, Runner, log_fatal_error_and_exit
@@ -1166,7 +1166,9 @@ def test_runner_execute_updates_info_and_runs_script_using_python(tmp_path):
     runner._update_info_running = MagicMock()
     runner._informer = MagicMock()
     runner._informer.info.script_name = str(script_file)
-    runner._informer.info.interpreter = "python"
+    runner._informer.info.interpreter = Interpreter(
+        executable="python", arguments=["-u"]
+    )
     runner._informer.info.stdout_file = stdout_file
     runner._informer.info.stderr_file = stderr_file
 
@@ -1196,7 +1198,7 @@ def test_runner_execute_updates_info_and_runs_script_using_python(tmp_path):
     which_mock.assert_called_once_with("python")
     runner._update_info_running.assert_called_once()
     popen_mock.assert_called_once_with(
-        ["/usr/bin/python", str(script_file.resolve())],
+        ["/usr/bin/python", "-u", str(script_file.resolve())],
         stdout=mock_file,
         stderr=mock_file,
         text=True,
@@ -1662,45 +1664,3 @@ def test_runner_copy_files_calls_sync_selected(tmp_path):
     )
 
     assert runner._batch_system.sync_selected.call_count == 2
-
-
-def test_runner_get_interpreter_returns_full_path_when_interpreter_set():
-    informer_mock = MagicMock()
-    informer_mock.info.interpreter = Path(sys.executable).name
-
-    runner = Runner.__new__(Runner)
-    runner._informer = informer_mock
-
-    assert runner._get_interpreter() == shutil.which(Path(sys.executable).name)
-
-
-def test_runner_get_interpreter_returns_absolute_path():
-    informer_mock = MagicMock()
-    informer_mock.info.interpreter = Path(sys.executable).name
-
-    runner = Runner.__new__(Runner)
-    runner._informer = informer_mock
-
-    assert Path(runner._get_interpreter()).is_absolute()
-
-
-def test_runner_get_interpreter_falls_back_to_default_interpreter():
-    informer_mock = MagicMock()
-    informer_mock.info.interpreter = None
-
-    runner = Runner.__new__(Runner)
-    runner._informer = informer_mock
-
-    result = runner._get_interpreter()
-    assert result == shutil.which(CFG.runner.default_interpreter)
-
-
-def test_runner_get_interpreter_raises_when_interpreter_not_found():
-    informer_mock = MagicMock()
-    informer_mock.info.interpreter = "nonexistent-interpreter-xyz"
-
-    runner = Runner.__new__(Runner)
-    runner._informer = informer_mock
-
-    with pytest.raises(QQError, match="nonexistent-interpreter-xyz"):
-        runner._get_interpreter()

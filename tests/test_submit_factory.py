@@ -9,6 +9,7 @@ import pytest
 from qq_lib.batch.interface.interface import BatchInterface
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
+from qq_lib.core.interpreter import Interpreter
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
@@ -564,7 +565,7 @@ def test_submitter_factory_get_server_returns_none_if_no_cli_nor_parser():
 
 def test_submitter_factory_get_interpreter_uses_cli_over_parser():
     mock_parser = MagicMock()
-    parser_interpreter = "python"
+    parser_interpreter = Interpreter.from_str("python")
     mock_parser.get_interpreter.return_value = parser_interpreter
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
@@ -572,12 +573,12 @@ def test_submitter_factory_get_interpreter_uses_cli_over_parser():
     factory._kwargs = {"interpreter": "bash"}
 
     result = factory._get_interpreter()
-    assert result == "bash"
+    assert result == Interpreter(executable="bash")
 
 
 def test_submitter_factory_get_interpreter_uses_parser_if_no_cli():
     mock_parser = MagicMock()
-    parser_interpreter = "python"
+    parser_interpreter = Interpreter.from_str("python")
     mock_parser.get_interpreter.return_value = parser_interpreter
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
@@ -585,7 +586,7 @@ def test_submitter_factory_get_interpreter_uses_parser_if_no_cli():
     factory._kwargs = {}
 
     result = factory._get_interpreter()
-    assert result == "python"
+    assert result == Interpreter(executable="python")
 
 
 def test_submitter_factory_get_interpreter_returns_none_if_no_cli_no_parser():

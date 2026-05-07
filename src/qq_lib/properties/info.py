@@ -26,6 +26,7 @@ from qq_lib.batch.interface import AnyBatchClass, BatchInterface
 from qq_lib.core.common import load_yaml_dumper, load_yaml_loader
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
+from qq_lib.core.interpreter import Interpreter
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.resubmit_host import ResubmitHost
@@ -124,7 +125,7 @@ class Info:
     resubmit_from: list[ResubmitHost] = field(default_factory=list)
 
     # Interpreter to use for running the submitted script
-    interpreter: str | None = None
+    interpreter: Interpreter | None = None
 
     # Job start time
     start_time: datetime | None = None
@@ -286,6 +287,9 @@ class Info:
                 or f.type == list[Depend]
             ):
                 result[f.name] = [x.to_str() for x in value]
+            # convert interpreter
+            elif f.type == Interpreter or f.type == Interpreter | None:
+                result[f.name] = value.to_dict()
             # convert timestamp
             elif f.type == datetime or f.type == datetime | None:
                 result[f.name] = value.strftime(CFG.date_formats.standard)
@@ -351,6 +355,16 @@ class Info:
             # convert resubmit hosts
             elif f.type == list[ResubmitHost] and isinstance(value, list):
                 init_kwargs[name] = [ResubmitHost.from_str(x) for x in value]  # ty: ignore[invalid-argument-type]
+            # convert interpreter from string (legacy)
+            elif (f.type == Interpreter or f.type == Interpreter | None) and isinstance(
+                value, str
+            ):
+                init_kwargs[name] = Interpreter.from_str(value)
+            # convert interpreter from dict
+            elif (f.type == Interpreter or f.type == Interpreter | None) and isinstance(
+                value, dict
+            ):
+                init_kwargs[name] = Interpreter.from_dict(value)  # ty: ignore[invalid-argument-type]
             # convert timestamp
             elif (f.type == datetime or f.type == datetime | None) and isinstance(
                 value, str

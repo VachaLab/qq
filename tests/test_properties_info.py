@@ -13,6 +13,7 @@ from qq_lib.batch.interface.interface import _BatchMeta
 from qq_lib.batch.pbs import PBS
 from qq_lib.batch.slurmit4i import SlurmIT4I
 from qq_lib.core.error import QQError
+from qq_lib.core.interpreter import Interpreter
 from qq_lib.properties.info import CFG, Info
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import Resources
@@ -54,6 +55,7 @@ def sample_info(sample_resources):
         work_dir=Path("/scratch/job_12345.fake.server.com"),
         account="fake-account",
         resubmit_from=[InputHost(), ExplicitHost("node01.fake.server.com")],
+        interpreter=Interpreter(executable="python", arguments=["-u"]),
     )
 
 
@@ -69,6 +71,7 @@ def test_to_dict_skips_none(sample_info):
     assert result["work_dir"] == "/scratch/job_12345.fake.server.com"
     assert result["input_dir"] == "/shared/storage"
     assert result["submission_time"] == "2025-09-21 12:00:00"
+    assert result["interpreter"] == {"executable": "python", "arguments": ["-u"]}
 
 
 def test_to_dict_contains_all_non_none_fields(sample_info):
@@ -92,6 +95,7 @@ def test_to_dict_contains_all_non_none_fields(sample_info):
         "account",
         "transfer_mode",
         "resubmit_from",
+        "interpreter",
     }
     assert expected_fields.issubset(result.keys())
 
@@ -209,6 +213,7 @@ def test_from_dict_roundtrip(sample_info):
         "stderr_file",
         "transfer_mode",
         "resubmit_from",
+        "interpreter",
     ]:
         assert getattr(reconstructed, field_name) == getattr(sample_info, field_name)
         assert type(getattr(reconstructed, field_name)) is type(

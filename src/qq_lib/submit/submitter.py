@@ -17,6 +17,7 @@ from qq_lib.core.common import (
 )
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
+from qq_lib.core.interpreter import Interpreter
 from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.info.informer import Informer
@@ -60,7 +61,7 @@ class Submitter:
         depend: list[Depend] | None = None,
         transfer_mode: list[TransferMode] | None = None,
         server: str | None = None,
-        interpreter: str | None = None,
+        interpreter: Interpreter | None = None,
         resubmit_from: list[ResubmitHost] | None = None,
     ):
         """
@@ -85,7 +86,7 @@ class Submitter:
                 working directory to the input directory. Defaults to [`Success()`].
             server (str | None): Optional name of the server to which the job should be submitted.
                 If `None`, the default batch server, as configured by the batch system is used.
-            intepreter (str | None): Optional executable name or absolute path of the interpreter to use to execute the script.
+            intepreter (Interpreter | None): Optional interpreter specification to use to execute the script.
                 If not specified, the config default is used.
             resubmit_from (list[ResubmitHost] | None): List of hosts from which a loop/continuous job should be resubmitted.
                 If not specified, the config or batch system default is used.
@@ -318,7 +319,7 @@ class Submitter:
         """Get the submission server."""
         return self._server
 
-    def get_interpreter(self) -> str | None:
+    def get_interpreter(self) -> Interpreter | None:
         """Get the interpreter to use for running the script."""
         return self._interpreter
 

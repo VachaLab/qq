@@ -24,6 +24,7 @@ from qq_lib.core.error import (
     QQRunCommunicationError,
     QQRunFatalError,
 )
+from qq_lib.core.interpreter import Interpreter
 from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.core.retryer import Retryer
@@ -197,10 +198,17 @@ class Runner:
 
         logger.info(f"Executing script '{script}'.")
 
+        # get intepreter if configured, otherwise use the default
+        interpreter = self._informer.info.interpreter or Interpreter()
+
+        # get the command to execute
+        command_list = [*interpreter.to_command_list(), str(script)]
+        logger.debug(f"Command executed using subprocess.Popen: {command_list}")
+
         try:
             with Path(stdout_log).open("w") as out, Path(stderr_log).open("w") as err:
                 self._process = subprocess.Popen(
-                    [self._get_interpreter(), str(script)],
+                    command_list,
                     stdout=out,
                     stderr=err,
                     text=True,
@@ -415,29 +423,6 @@ class Runner:
             max_tries=CFG.runner.retry_tries,
             wait_seconds=CFG.runner.retry_wait,
         ).run()
-
-    def _get_interpreter(self) -> str:
-        """
-        Resolve the fully qualified path to the job's interpreter.
-
-        Uses the interpreter specified in the job's info if set, otherwise falls
-        back to the configured default interpreter. The interpreter is resolved
-        via `shutil.which`, ensuring the returned path is absolute and
-        executable on the current node.
-
-        Returns:
-            str: The fully qualified path to the interpreter binary.
-
-        Raises:
-            QQError: If the interpreter cannot be found on the current node.
-        """
-        interpreter = self._informer.info.interpreter or CFG.runner.default_interpreter
-        if not (full := shutil.which(interpreter)):
-            raise QQError(
-                f"Interpreter '{interpreter}' is not available on node '{socket.getfqdn()}'."
-            )
-
-        return full
 
     def _update_info_running(self) -> None:
         """

@@ -11,6 +11,7 @@ from click_option_group import GroupedOption
 from qq_lib.batch.interface import BatchInterface
 from qq_lib.core.common import split_files_list, to_snake_case
 from qq_lib.core.error import QQError
+from qq_lib.core.interpreter import Interpreter
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
@@ -291,15 +292,15 @@ class Parser:
 
         return None
 
-    def get_interpreter(self) -> str | None:
+    def get_interpreter(self) -> Interpreter | None:
         """
         Get the interpreter that should be used to run the script.
 
         Returns:
-            str | None: The interpreter or `None` if not specified.
+            Interpreter | None: The interpreter or `None` if not specified.
         """
-        if (interpreter := self._options.get("interpreter")) is not None:
-            return str(interpreter)
+        if (raw := self._options.get("interpreter")) is not None:
+            return Interpreter.from_str(str(raw))
 
         return None
 

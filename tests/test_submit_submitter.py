@@ -12,6 +12,7 @@ import pytest
 
 from qq_lib.batch.pbs.pbs import PBS
 from qq_lib.core.error import QQError
+from qq_lib.core.interpreter import Interpreter
 from qq_lib.info.informer import Informer
 from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.job_type import JobType
@@ -597,7 +598,7 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
     submitter._transfer_mode = [Success()]
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
     submitter._server = None
-    submitter._interpreter = "python3"
+    submitter._interpreter = Interpreter.from_str("python3")
     submitter._resubmit_from = []
     env_vars = {CFG.env_vars.guard: "true"}
 

@@ -12,6 +12,7 @@ from click_option_group import GroupedOption
 from qq_lib.batch.interface.interface import BatchInterface
 from qq_lib.batch.pbs import PBS
 from qq_lib.core.error import QQError
+from qq_lib.core.interpreter import Interpreter
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import Resources
@@ -72,6 +73,8 @@ def test_parser_init(tmp_path):
         ("# Qq key=value", ["key", "value"]),
         # multiple equals, split only once
         ("# qq name=John=Doe", ["name", "John=Doe"]),
+        # multiple spaces
+        ("# qq key value is this", ["key", "value is this"]),
         # inline comments
         ("# qq key=value # key is value", ["key", "value"]),
         ("# qq key value# key is value", ["key", "value"]),
@@ -421,7 +424,15 @@ def test_parser_get_interpreter_value():
     parser._options = {"interpreter": "/usr/bin/python"}
 
     result = parser.get_interpreter()
-    assert result == "/usr/bin/python"
+    assert result == Interpreter(executable="/usr/bin/python", arguments=[])
+
+
+def test_parser_get_interpreter_value_with_arguments():
+    parser = Parser.__new__(Parser)
+    parser._options = {"interpreter": "python3 -u -O"}
+
+    result = parser.get_interpreter()
+    assert result == Interpreter(executable="python3", arguments=["-u", "-O"])
 
 
 def test_parser_get_resubmit_from_empty_list():
