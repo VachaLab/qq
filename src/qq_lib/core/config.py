@@ -13,6 +13,7 @@ and provides a globally accessible `CFG` instance.
 """
 
 import os
+import sys
 import tomllib
 from dataclasses import dataclass, field, fields, is_dataclass
 from pathlib import Path
@@ -570,4 +571,8 @@ def _dict_to_dataclass(cls, data: dict[str, Any]):
 
 
 # Global configuration for qq.
-CFG = Config.load()
+try:
+    CFG = Config.load()
+except Exception as e:
+    print(f"[ FATAL CONFIGURATION ERROR ] Could not read qq config file: {e}")
+    sys.exit(91)

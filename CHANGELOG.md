@@ -7,6 +7,7 @@
 - Refactored BatchMeta.
 - Jobs can be now submitted from a remote machine.
 - Submitting jobs using `Submitter.submit` is now thread-safe.
+- Handling exceptions that occur when reading a configuration file.
 
 ***
 
