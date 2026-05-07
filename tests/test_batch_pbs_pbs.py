@@ -175,6 +175,20 @@ def test_shared_guard_does_not_raise_when_remote_specified_and_shared():
         assert env_vars[CFG.env_vars.shared_submit] == "true"
 
 
+def test_shared_guard_does_not_raise_when_remote_is_current_host_and_not_shared():
+    with (
+        patch.object(PBS, "is_shared", return_value=False),
+        patch("qq_lib.batch.pbs.pbs.socket.getfqdn", return_value="node01.cluster.org"),
+    ):
+        PBS._shared_guard(
+            Path("/path/to/local/dir"),
+            Resources(work_dir="scratch_local"),
+            {},
+            None,
+            "node01.cluster.org",
+        )
+
+
 def test_sync_with_exclusions_shared_storage_sets_local(monkeypatch):
     src_dir = Path("/src")
     dest_dir = Path("/dest")

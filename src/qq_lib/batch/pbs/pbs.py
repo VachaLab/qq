@@ -548,8 +548,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             raise QQError(
                 f"Job was requested to be submitted to server '{server}' which is potentially non-local, but the submission is done from a local filesystem."
             )
-        elif remote_host is not None:
-            # if we are submitting from a different host
+        elif (
+            remote_host is not None and socket.getfqdn(remote_host) != socket.getfqdn()
+        ):
+            # if we are submitting from a different host than the current one
             raise QQError(
                 f"Job was requested to be submitted from host '{remote_host}', but the submission is done from a local filesystem."
             )
