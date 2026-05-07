@@ -17,6 +17,7 @@ from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
+from qq_lib.properties.resubmit_host import ExplicitHost, WorkHost
 from qq_lib.properties.states import NaiveState
 from qq_lib.properties.transfer_mode import Always, Success
 from qq_lib.submit.submitter import CFG, Submitter
@@ -57,6 +58,7 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
         assert submitter._depend == []
         assert isinstance(submitter._transfer_mode[0], Always)
         assert submitter._server is None
+        assert submitter._resubmit_from == []
 
 
 def test_submitter_init_raises_error_if_script_does_not_exist(tmp_path):
@@ -118,6 +120,7 @@ def test_submitter_init_sets_all_optional_arguments_correctly(tmp_path):
             exclude=exclude_files,
             depend=depend_jobs,
             server="fake.server.com",
+            resubmit_from=[WorkHost(), ExplicitHost("node01")],
         )
 
         assert submitter._batch_system == PBS
@@ -134,6 +137,7 @@ def test_submitter_init_sets_all_optional_arguments_correctly(tmp_path):
         assert submitter._exclude == exclude_files
         assert submitter._depend == depend_jobs
         assert submitter._server == "fake.server.com"
+        assert submitter._resubmit_from == [WorkHost(), ExplicitHost("node01")]
 
 
 def test_submitter_construct_job_name_returns_script_name_for_standard_job(
@@ -594,6 +598,7 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
     submitter._server = None
     submitter._interpreter = "python3"
+    submitter._resubmit_from = []
     env_vars = {CFG.env_vars.guard: "true"}
 
     with (
@@ -621,6 +626,7 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
         env_vars,
         submitter._account,
         submitter._server,
+        remote_host=None,
     )
     mock_informer_class.assert_called_once()
     mock_informer_instance.to_file.assert_called_once_with(submitter._info_file)
@@ -646,6 +652,7 @@ def test_submitter_submit(tmp_path):
     submitter._server = "fake.server.com"
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
     submitter._interpreter = None
+    submitter._resubmit_from = [WorkHost()]
     env_vars = {CFG.env_vars.guard: "true"}
 
     with (
@@ -677,6 +684,7 @@ def test_submitter_submit(tmp_path):
         env_vars,
         submitter._account,
         submitter._server,
+        remote_host=None,
     )
     mock_informer_class.assert_called_once()
     mock_informer_instance.to_file.assert_called_once_with(submitter._info_file)
@@ -712,3 +720,4 @@ def test_submitter_submit(tmp_path):
     assert info_arg.transfer_mode == [Always()]
     assert info_arg.server == submitter._server
     assert info_arg.interpreter is None
+    assert info_arg.resubmit_from == [WorkHost()]

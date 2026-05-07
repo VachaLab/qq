@@ -58,6 +58,7 @@ def test_resubmitter_build_submitter_creates_submitter_with_correct_params():
         transfer_mode=informer.info.transfer_mode,
         server=informer.info.server,
         interpreter=informer.info.interpreter,
+        resubmit_from=informer.info.resubmit_from,
     )
 
 

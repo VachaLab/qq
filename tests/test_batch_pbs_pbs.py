@@ -66,7 +66,9 @@ def test_shared_guard_sets_env_var():
 
     # patch is_shared to return True
     with patch.object(PBS, "is_shared", return_value=True):
-        PBS._shared_guard(Resources(work_dir="scratch_local"), env_vars, None, None)
+        PBS._shared_guard(
+            Path(), Resources(work_dir="scratch_local"), env_vars, None, None
+        )
         assert env_vars[CFG.env_vars.shared_submit] == "true"
         # previous env vars not removed
         assert env_vars[CFG.env_vars.guard] == "true"
@@ -77,7 +79,13 @@ def test_shared_guard_does_not_set_env_var():
 
     # patch is_shared to return False
     with patch.object(PBS, "is_shared", return_value=False):
-        PBS._shared_guard(Resources(work_dir="scratch_local"), env_vars, None, None)
+        PBS._shared_guard(
+            Path("/path/to/local/dir"),
+            Resources(work_dir="scratch_local"),
+            env_vars,
+            None,
+            None,
+        )
         assert CFG.env_vars.shared_submit not in env_vars
         # previous env vars not removed
         assert env_vars[CFG.env_vars.guard] == "true"
@@ -89,7 +97,9 @@ def test_shared_guard_input_dir_does_not_raise(dir):
 
     # patch isShared to return True
     with patch.object(PBS, "is_shared", return_value=True):
-        PBS._shared_guard(Resources(work_dir=dir), env_vars, None, None)
+        PBS._shared_guard(
+            Path("/path/to/shared/dir"), Resources(work_dir=dir), env_vars, None, None
+        )
         assert env_vars[CFG.env_vars.shared_submit] == "true"
 
 
@@ -105,7 +115,7 @@ def test_shared_guard_input_dir_raises(dir):
             match="Job was requested to run directly in the submission directory",
         ),
     ):
-        PBS._shared_guard(Resources(work_dir=dir), env_vars, None, None)
+        PBS._shared_guard(Path(), Resources(work_dir=dir), env_vars, None, None)
         assert CFG.env_vars.shared_submit not in env_vars
 
 
@@ -117,13 +127,21 @@ def test_shared_guard_raises_when_server_specified_and_not_shared():
             match="which is potentially non-local",
         ),
     ):
-        PBS._shared_guard(Resources(work_dir="scratch_local"), {}, "server", None)
+        PBS._shared_guard(
+            Path(), Resources(work_dir="scratch_local"), {}, "server", None
+        )
 
 
 def test_shared_guard_does_not_raise_when_server_specified_and_shared():
     env_vars = {}
     with patch.object(PBS, "is_shared", return_value=True):
-        PBS._shared_guard(Resources(work_dir="scratch_local"), env_vars, "sokar", None)
+        PBS._shared_guard(
+            Path("/path/to/shared/dir"),
+            Resources(work_dir="scratch_local"),
+            env_vars,
+            "sokar",
+            None,
+        )
         assert env_vars[CFG.env_vars.shared_submit] == "true"
 
 
@@ -136,7 +154,11 @@ def test_shared_guard_raises_when_remote_specified_and_not_shared():
         ),
     ):
         PBS._shared_guard(
-            Resources(work_dir="scratch_local"), {}, None, "random.node.org"
+            Path("/path/to/local/dir"),
+            Resources(work_dir="scratch_local"),
+            {},
+            None,
+            "random.node.org",
         )
 
 
@@ -144,7 +166,11 @@ def test_shared_guard_does_not_raise_when_remote_specified_and_shared():
     env_vars = {}
     with patch.object(PBS, "is_shared", return_value=True):
         PBS._shared_guard(
-            Resources(work_dir="scratch_local"), env_vars, None, "random.node.org"
+            Path(),
+            Resources(work_dir="scratch_local"),
+            env_vars,
+            None,
+            "random.node.org",
         )
         assert env_vars[CFG.env_vars.shared_submit] == "true"
 

@@ -25,6 +25,7 @@ from qq_lib.properties.info import Info
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
+from qq_lib.properties.resubmit_host import ResubmitHost
 from qq_lib.properties.states import NaiveState
 from qq_lib.properties.transfer_mode import TransferMode
 
@@ -60,6 +61,7 @@ class Submitter:
         transfer_mode: list[TransferMode] | None = None,
         server: str | None = None,
         interpreter: str | None = None,
+        resubmit_from: list[ResubmitHost] | None = None,
     ):
         """
         Initialize a Submitter instance.
@@ -85,6 +87,8 @@ class Submitter:
                 If `None`, the default batch server, as configured by the batch system is used.
             intepreter (str | None): Optional executable name or absolute path of the interpreter to use to execute the script.
                 If not specified, the config default is used.
+            resubmit_from (list[ResubmitHost] | None): List of hosts from which a loop/continuous job should be resubmitted.
+                If not specified, the config or batch system default is used.
 
         Raises:
             QQError: If the script does not exist or has an invalid shebang line.
@@ -112,6 +116,7 @@ class Submitter:
             CFG.transfer_files_options.default_transfer_mode
         )
         self._interpreter = interpreter
+        self._resubmit_from = resubmit_from or []
 
         # script must exist
         if not self._script.is_file():
@@ -151,6 +156,7 @@ class Submitter:
             self._create_env_vars_dict(),
             self._account,
             self._server,
+            remote_host=remote,
         )
 
         # create job qq info file
@@ -179,6 +185,7 @@ class Submitter:
                 transfer_mode=self._transfer_mode,
                 server=self._server,
                 interpreter=self._interpreter,
+                resubmit_from=self._resubmit_from,
             )
         )
 
@@ -314,6 +321,10 @@ class Submitter:
     def get_interpreter(self) -> str | None:
         """Get the interpreter to use for running the script."""
         return self._interpreter
+
+    def get_resubmit_from(self) -> list[ResubmitHost] | None:
+        """Get the list of hosts to resubmit the job from."""
+        return self._resubmit_from
 
     def _create_env_vars_dict(self) -> dict[str, str]:
         """

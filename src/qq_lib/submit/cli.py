@@ -14,6 +14,7 @@ from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import (
     available_job_types,
     available_work_dirs,
+    default_resubmit_from_hosts,
     get_runtime_files,
 )
 from qq_lib.core.config import CFG
@@ -254,7 +255,25 @@ using qq directives of this format: `# qq <option> <value>`.
     help="Colon-, comma-, or space-separated list of node properties required (e.g., cl_two) or prohibited (e.g., ^cl_two) to run the job.",
 )
 @optgroup.group(
-    f"{click.style('Loop options', fg='yellow')}",
+    f"{click.style('Settings for loop and continuous jobs', fg='yellow')}",
+    help=f"Only used when job-type is {click.style('loop', bold=True)} or {click.style('continuous', bold=True)}.",
+)
+@optgroup.option(
+    "--resubmit-from",
+    type=str,
+    default=None,
+    help=(
+        f"Colon-, comma-, or space-separated ordered list of hosts to try resubmitting from. "
+        f"The job is resubmitted from the first reachable host.\n"
+        f"Allowed values: {click.style('input', bold=True)} (the submission machine), "
+        f"{click.style('working', bold=True)} (the execution node), "
+        f"or a specific hostname (e.g., perian.metacentrum.cz).\n"
+        f"Defaults to {click.style(default_resubmit_from_hosts(), bold=True)}.\n"
+        f"Examples: 'input', 'input,working', 'input:st1:st2', 'working perian.metacentrum.cz'."
+    ),
+)
+@optgroup.group(
+    f"{click.style('Settings for loop jobs', fg='yellow')}",
     help=f"Only used when job-type is {click.style('loop', bold=True)}.",
 )
 @optgroup.option(

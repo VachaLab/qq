@@ -15,6 +15,7 @@ from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import Resources
+from qq_lib.properties.resubmit_host import ResubmitHost
 from qq_lib.properties.transfer_mode import TransferMode
 
 logger = get_logger(__name__)
@@ -301,6 +302,18 @@ class Parser:
             return str(interpreter)
 
         return None
+
+    def get_resubmit_from(self) -> list[ResubmitHost]:
+        """
+        Return the list of resubmission hosts.
+
+        Returns:
+            list[ResubmitHost]: List of job dependencies.
+        """
+        if (raw := self._options.get("resubmit_from")) is not None:
+            return ResubmitHost.multi_from_str(str(raw))
+
+        return []
 
     @staticmethod
     def _strip_and_split(string: str) -> list[str]:

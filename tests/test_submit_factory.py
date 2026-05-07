@@ -12,6 +12,7 @@ from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
+from qq_lib.properties.resubmit_host import InputHost, ResubmitHost, WorkHost
 from qq_lib.properties.size import Size
 from qq_lib.properties.transfer_mode import (
     Always,
@@ -571,6 +572,39 @@ def test_submitter_factory_get_interpreter_returns_none_if_no_cli_no_parser():
     assert result is None
 
 
+def test_submitter_factory_get_resubmit_from_from_command_line():
+    mock_parser = MagicMock()
+    parser_resubmit_from = [MagicMock(), MagicMock()]
+    mock_parser.get_resubmit_from.return_value = parser_resubmit_from
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {"resubmit_from": "input,node01"}
+
+    cli_resubmit_from = [MagicMock(), MagicMock()]
+
+    with patch.object(
+        ResubmitHost, "multi_from_str", return_value=cli_resubmit_from
+    ) as mock_multi:
+        result = factory._get_resubmit_from()
+
+    mock_multi.assert_called_once_with("input,node01")
+    assert result == cli_resubmit_from
+
+
+def test_submitter_factory_get_resubmit_from_from_parser():
+    mock_parser = MagicMock()
+    parser_resubmit_from = [MagicMock(), MagicMock()]
+    mock_parser.get_resubmit_from.return_value = parser_resubmit_from
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {}
+
+    result = factory._get_resubmit_from()
+    assert result == parser_resubmit_from
+
+
 @pytest.mark.parametrize("server", [None, "fake.server.org"])
 def test_submitter_factory_make_submitter_standard_job(server):
     mock_parser = MagicMock()
@@ -583,6 +617,7 @@ def test_submitter_factory_make_submitter_standard_job(server):
     account = "fake-account"
     transfer = [Always()]
     interpreter = None
+    resubmit_from = [WorkHost(), InputHost()]
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
@@ -610,6 +645,9 @@ def test_submitter_factory_make_submitter_standard_job(server):
             factory, "_get_transfer_mode", return_value=transfer
         ) as mock_get_transfer,
         patch.object(factory, "_get_server", return_value=server) as mock_get_server,
+        patch.object(
+            factory, "_get_resubmit_from", return_value=resubmit_from
+        ) as mock_resubmit_from,
         patch("qq_lib.submit.factory.Submitter") as mock_submitter_class,
     ):
         mock_submit_instance = MagicMock()
@@ -629,6 +667,7 @@ def test_submitter_factory_make_submitter_standard_job(server):
     mock_get_acct.assert_called_once()
     mock_get_transfer.assert_called_once()
     mock_get_interpreter.assert_called_once()
+    mock_resubmit_from.assert_called_once()
 
     mock_submitter_class.assert_called_once_with(
         BatchSystem,
@@ -644,6 +683,7 @@ def test_submitter_factory_make_submitter_standard_job(server):
         transfer,
         server,
         interpreter,
+        resubmit_from,
     )
     assert result == mock_submit_instance
 
@@ -660,6 +700,7 @@ def test_submitter_factory_make_submitter_loop_job(server):
     account = None
     transfer = [Always()]
     interpreter = "python3"
+    resubmit_from = [WorkHost(), InputHost()]
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
@@ -689,6 +730,9 @@ def test_submitter_factory_make_submitter_loop_job(server):
         patch.object(
             factory, "_get_transfer_mode", return_value=transfer
         ) as mock_get_transfer,
+        patch.object(
+            factory, "_get_resubmit_from", return_value=resubmit_from
+        ) as mock_resubmit_from,
         patch.object(factory, "_get_server", return_value=server) as mock_get_server,
         patch("qq_lib.submit.factory.Submitter") as mock_submitter_class,
     ):
@@ -709,6 +753,7 @@ def test_submitter_factory_make_submitter_loop_job(server):
     mock_get_acct.assert_called_once()
     mock_get_transfer.assert_called_once()
     mock_get_interpreter.assert_called_once()
+    mock_resubmit_from.assert_called_once()
 
     mock_submitter_class.assert_called_once_with(
         BatchSystem,
@@ -724,5 +769,6 @@ def test_submitter_factory_make_submitter_loop_job(server):
         transfer,
         server,
         interpreter,
+        resubmit_from,
     )
     assert result == mock_submit_instance

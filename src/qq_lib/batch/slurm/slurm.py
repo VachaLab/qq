@@ -65,8 +65,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         if server:
             logger.warning("The 'server' option is ignored for Slurm.")
 
+        input_dir = script.parent
+        logger.debug(f"Job submission: input directory is '{str(input_dir)}'.")
+
         # intentionally using PBS
-        PBS._shared_guard(res, env_vars, server, remote_host)
+        PBS._shared_guard(input_dir, res, env_vars, server, remote_host)
 
         command = cls._translate_submit(
             res, queue, script.parent, str(script), job_name, depend, env_vars, account

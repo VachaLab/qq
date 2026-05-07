@@ -230,50 +230,6 @@ def test_get_cycle_non_numeric_files_are_ignored_but_numeric_stems_count(temp_di
     assert loop_info.determine_cycle_from_archive() == 10
 
 
-def test_to_command_line_basic():
-    info = LoopInfo(
-        start=1,
-        end=10,
-        archive=Path("/tmp/archive"),
-        archive_format="job%04d",
-    )
-
-    assert info.to_command_line() == [
-        "--loop-start",
-        "1",
-        "--loop-end",
-        "10",
-        "--archive",
-        "archive",
-        "--archive-format",
-        "job%04d",
-        "--archive-mode",
-        "success",
-    ]
-
-
-def test_to_command_line_archive_name_only():
-    info = LoopInfo(
-        start=0,
-        end=5,
-        archive=Path("/very/long/path/to/myarchive"),
-        archive_format="md%03d",
-    )
-
-    assert info.to_command_line() == [
-        "--loop-start",
-        "0",
-        "--loop-end",
-        "5",
-        "--archive",
-        "myarchive",
-        "--archive-format",
-        "md%03d",
-        "--archive-mode",
-        "success",
-    ]
-
-
 @pytest.mark.parametrize(
     "start, end, current, archive_format",
     [

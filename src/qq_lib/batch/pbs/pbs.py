@@ -79,7 +79,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         # account unused
         _ = account
 
-        cls._shared_guard(res, env_vars, server, remote_host)
+        input_dir = script.parent
+        logger.debug(f"Job submission: input directory is '{str(input_dir)}'.")
+
+        cls._shared_guard(input_dir, res, env_vars, server, remote_host)
 
         # set env vars required for Infinity modules
         # this can be removed once Infinity stops being supported
@@ -498,6 +501,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
     @classmethod
     def _shared_guard(
         cls,
+        input_dir: Path,
         res: Resources,
         env_vars: dict[str, str],
         server: str | None,
@@ -506,22 +510,25 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         """
         Ensure correct handling of shared vs. local submission directories.
 
-        If the current working directory is on shared storage, adds the
+        If the job's input directory is on shared storage, adds the
         environment variable `SHARED_SUBMIT` to the list of env vars to propagate to the job.
         This environment variable is later used e.g. to select the appropriate data copying method.
 
         If the job is configured to use the submission directory as a working directory
         (`work-dir=input_dir` or 'job_dir') but that directory is not shared, a `QQError` is raised.
 
-        If the job is to be submitted to a potentially non-local server
-        but the directory is not shared, a `QQError` is raised.
+        If the job is to be submitted to a potentially non-local server,
+        but the input directory is not shared, a `QQError` is raised.
 
-        If the job is to be submitted on a remote host, but the directory is not shared, a `QQError` is raised.
+        If the job is to be submitted on a remote host,
+        but the input directory is not shared, a `QQError` is raised.
 
         Args:
+            input_dir (Path): Path to the input directory of the job.
             res (Resources): The job's resource configuration.
             env_vars (dict[str, str]): Dictionary of environment variables to propagate to the job.
             server (str | None): The target PBS server, or None if submitting to the default server.
+            remote_host (str | None): Host from which the submission is performed, or None if sumitting from the current machine.
 
         Raises:
             QQError: If the job is set to run directly in the submission
@@ -529,7 +536,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             QQError: If the job is set to run on a non-default server while
                 submission is from a non-shared filesystem.
         """
-        if cls.is_shared(Path()):
+        if cls.is_shared(input_dir):
             env_vars[CFG.env_vars.shared_submit] = "true"
         elif not res.uses_scratch():
             # if job directory is used as working directory, it must always be shared

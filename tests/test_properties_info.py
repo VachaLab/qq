@@ -15,8 +15,8 @@ from qq_lib.batch.slurmit4i import SlurmIT4I
 from qq_lib.core.error import QQError
 from qq_lib.properties.info import CFG, Info
 from qq_lib.properties.job_type import JobType
-from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
+from qq_lib.properties.resubmit_host import ExplicitHost, InputHost
 from qq_lib.properties.states import NaiveState
 
 
@@ -53,6 +53,7 @@ def sample_info(sample_resources):
         excluded_files=[Path("ignore.txt")],
         work_dir=Path("/scratch/job_12345.fake.server.com"),
         account="fake-account",
+        resubmit_from=[InputHost(), ExplicitHost("node01.fake.server.com")],
     )
 
 
@@ -61,6 +62,7 @@ def test_to_dict_skips_none(sample_info):
     assert "start_time" not in result
     assert "completion_time" not in result
     assert "job_exit_code" not in result
+    assert "depend" not in result
 
     assert result["job_id"] == "12345.fake.server.com"
     assert result["resources"]["ncpus"] == 8
@@ -89,6 +91,7 @@ def test_to_dict_contains_all_non_none_fields(sample_info):
         "excluded_files",
         "account",
         "transfer_mode",
+        "resubmit_from",
     }
     assert expected_fields.issubset(result.keys())
 
@@ -108,6 +111,7 @@ def test_to_yaml_contains_fields(sample_info):
     assert data["resources"]["ncpus"] == 8
     assert data["account"] == "fake-account"
     assert data["transfer_mode"] == ["success"]
+    assert data["resubmit_from"] == ["input", "node01.fake.server.com"]
 
 
 def test_to_yaml_with_slurm_contains_fields(sample_info):
@@ -121,6 +125,7 @@ def test_to_yaml_with_slurm_contains_fields(sample_info):
     assert data["resources"]["ncpus"] == 8
     assert data["account"] == "fake-account"
     assert data["transfer_mode"] == ["success"]
+    assert data["resubmit_from"] == ["input", "node01.fake.server.com"]
 
 
 def test_to_yaml_skips_none_fields(sample_info):
@@ -130,6 +135,7 @@ def test_to_yaml_skips_none_fields(sample_info):
     assert "start_time" not in data
     assert "completion_time" not in data
     assert "job_exit_code" not in data
+    assert "depend" not in data
 
 
 def test_export_to_file_creates_file(sample_info, tmp_path):
@@ -202,6 +208,7 @@ def test_from_dict_roundtrip(sample_info):
         "stdout_file",
         "stderr_file",
         "transfer_mode",
+        "resubmit_from",
     ]:
         assert getattr(reconstructed, field_name) == getattr(sample_info, field_name)
         assert type(getattr(reconstructed, field_name)) is type(
@@ -301,122 +308,3 @@ def test_from_file_missing_required_field(tmp_path):
 
     with pytest.raises(QQError, match=r"Invalid qq info file"):
         Info.from_file(file)
-
-
-def test_get_command_line_for_resubmit_basic(sample_info):
-    sample_info.resources = Resources()
-    sample_info.account = None
-    sample_info.excluded_files = []
-
-    assert sample_info.get_command_line_for_resubmit() == [
-        "script.sh",
-        "--queue",
-        "default",
-        "--job-type",
-        "standard",
-        "--batch-system",
-        "PBS",
-        "--depend",
-        "afterok=12345.fake.server.com",
-        "--transfer-mode",
-        "success",
-    ]
-
-
-def test_get_command_line_for_resubmit_basic_with_server(sample_info):
-    sample_info.resources = Resources()
-    sample_info.account = None
-    sample_info.excluded_files = []
-    sample_info.server = "fake.server.com"
-
-    assert sample_info.get_command_line_for_resubmit() == [
-        "script.sh",
-        "--queue",
-        "default",
-        "--job-type",
-        "standard",
-        "--batch-system",
-        "PBS",
-        "--depend",
-        "afterok=12345.fake.server.com",
-        "--server",
-        "fake.server.com",
-        "--transfer-mode",
-        "success",
-    ]
-
-
-def test_get_command_line_for_continuous(sample_info):
-    sample_info.job_type = JobType.CONTINUOUS
-    sample_info.excluded_files = [Path("exclude.txt"), Path("inner/exclude2.txt")]
-    sample_info.included_files = [Path("include.txt"), Path("inner/include2.txt")]
-
-    assert sample_info.get_command_line_for_resubmit() == [
-        "script.sh",
-        "--queue",
-        "default",
-        "--job-type",
-        "continuous",
-        "--batch-system",
-        "PBS",
-        "--depend",
-        "afterok=12345.fake.server.com",
-        "--ncpus",
-        "8",
-        "--work-dir",
-        "scratch_local",
-        "--account",
-        "fake-account",
-        "--exclude",
-        "exclude.txt,inner/exclude2.txt",
-        "--include",
-        "include.txt,inner/include2.txt",
-        "--transfer-mode",
-        "success",
-    ]
-
-
-def test_get_command_line_full(sample_info):
-    sample_info.job_type = JobType.LOOP
-    sample_info.excluded_files = [Path("exclude.txt"), Path("inner/exclude2.txt")]
-    sample_info.included_files = [Path("include.txt"), Path("inner/include2.txt")]
-    sample_info.loop_info = LoopInfo(
-        start=3, end=10, archive=Path("inner/inner2/archive"), archive_format="job%3d"
-    )
-    sample_info.server = "fake.server.com"
-
-    assert sample_info.get_command_line_for_resubmit() == [
-        "script.sh",
-        "--queue",
-        "default",
-        "--job-type",
-        "loop",
-        "--batch-system",
-        "PBS",
-        "--depend",
-        "afterok=12345.fake.server.com",
-        "--ncpus",
-        "8",
-        "--work-dir",
-        "scratch_local",
-        "--server",
-        "fake.server.com",
-        "--account",
-        "fake-account",
-        "--exclude",
-        "exclude.txt,inner/exclude2.txt",
-        "--include",
-        "include.txt,inner/include2.txt",
-        "--loop-start",
-        "3",
-        "--loop-end",
-        "10",
-        "--archive",
-        "archive",
-        "--archive-format",
-        "job%3d",
-        "--archive-mode",
-        "success",
-        "--transfer-mode",
-        "success",
-    ]

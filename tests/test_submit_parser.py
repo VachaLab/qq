@@ -15,6 +15,7 @@ from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import Resources
+from qq_lib.properties.resubmit_host import ResubmitHost
 from qq_lib.properties.size import Size
 from qq_lib.properties.transfer_mode import TransferMode
 from qq_lib.submit.cli import submit
@@ -421,6 +422,29 @@ def test_parser_get_interpreter_value():
 
     result = parser.get_interpreter()
     assert result == "/usr/bin/python"
+
+
+def test_parser_get_resubmit_from_empty_list():
+    parser = Parser.__new__(Parser)
+    parser._options = {}
+
+    result = parser.get_resubmit_from()
+    assert result == []
+
+
+def test_parser_get_resubmit_from_calls_multi_from_str():
+    parser = Parser.__new__(Parser)
+    parser._options = {"resubmit_from": "input,working,node01"}
+
+    mock_resubmit_hosts = [MagicMock(), MagicMock(), MagicMock()]
+
+    with patch.object(
+        ResubmitHost, "multi_from_str", return_value=mock_resubmit_hosts
+    ) as mock_multi:
+        result = parser.get_resubmit_from()
+
+    mock_multi.assert_called_once_with("input,working,node01")
+    assert result == mock_resubmit_hosts
 
 
 @pytest.fixture

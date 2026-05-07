@@ -11,6 +11,7 @@ from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
+from qq_lib.properties.resubmit_host import ResubmitHost
 from qq_lib.properties.transfer_mode import TransferMode
 
 from .parser import Parser
@@ -74,6 +75,7 @@ class SubmitterFactory:
             self._get_transfer_mode(),
             server,
             self._get_interpreter(),
+            self._get_resubmit_from(),
         )
 
     def _get_batch_system(self) -> type[BatchInterface]:
@@ -299,3 +301,22 @@ class SubmitterFactory:
             return interpreter
 
         return None
+
+    def _get_resubmit_from(self) -> list[ResubmitHost]:
+        """
+        Determine the list of resubmission hosts to be used
+        to resubmit loop/continuous job.
+
+        Priority:
+            1. Resubmission hosts specified on the command line.
+            2. Resubmission hosts specified inside the submitted script.
+
+        The lists are NOT merged.
+
+        Returns:
+            list[ResubmitHost]: List of resubmission hosts.
+        """
+        return (
+            ResubmitHost.multi_from_str(self._kwargs.get("resubmit_from") or "")
+            or self._parser.get_resubmit_from()
+        )

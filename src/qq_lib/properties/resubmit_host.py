@@ -60,6 +60,15 @@ class ResubmitHost(ABC):
         return [ResubmitHost.from_str(host_str) for host_str in host_strings]
 
     @abstractmethod
+    def to_str(self) -> str:
+        """
+        Convert the resubmission host into its string representation.
+
+        Returns:
+            str: String, unresolved representation of the resubmission host.
+        """
+
+    @abstractmethod
     def resolve(self, input_host: str, working_node: str) -> str:
         """
         Resolves this resubmission host to a concrete hostname.

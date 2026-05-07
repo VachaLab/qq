@@ -737,7 +737,7 @@ def test_slurm_job_submit_success(mock_guard, mock_translate, mock_run):
 
     result = Slurm.job_submit(res, "qgpu", script, "job1", [], {}, "acc")
 
-    mock_guard.assert_called_once_with(res, {}, None, None)
+    mock_guard.assert_called_once_with(script.parent, res, {}, None, None)
     mock_translate.assert_called_once()
     mock_run.assert_called_once()
     assert result == "56789"
@@ -754,7 +754,7 @@ def test_slurm_job_submit_raises_on_error(mock_guard, mock_translate, mock_run):
     with pytest.raises(QQError, match="Failed to submit script"):
         Slurm.job_submit(res, "qgpu", script, "fail_job", [], {}, None)
 
-    mock_guard.assert_called_once_with(res, {}, None, None)
+    mock_guard.assert_called_once_with(script.parent, res, {}, None, None)
     mock_translate.assert_called_once()
     mock_run.assert_called_once()
 

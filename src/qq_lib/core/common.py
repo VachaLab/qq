@@ -747,3 +747,18 @@ def translate_server(raw: str) -> str:
         str: Full name the the batch server.
     """
     return CFG.batch_servers_options.known_servers.get(raw, raw)
+
+
+def default_resubmit_from_hosts() -> str:
+    """
+    Returns the default resubmission hosts as a string.
+
+    Returns:
+            str: A comma-separated list of the default resubmission hosts.
+    """
+    from qq_lib.batch.interface import BatchInterface
+
+    return CFG.resubmitter.default_resubmit_hosts or ",".join(
+        x.to_str()
+        for x in BatchInterface.from_env_var_or_guess().get_default_resubmit_hosts()
+    )
