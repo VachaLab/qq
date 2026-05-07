@@ -4,8 +4,6 @@
 
 from dataclasses import dataclass, field
 
-import pytest
-
 from qq_lib.core.config import Config, _dict_to_dataclass
 
 
@@ -303,12 +301,12 @@ unexpected_error = 150
     assert config.exit_codes.unexpected_error == 150
 
 
-def test_load_with_invalid_toml_raises_error(tmp_path):
+def test_load_with_invalid_toml_falls_back_to_default(tmp_path):
     config_file = tmp_path / "config.toml"
     config_file.write_text("""
 [runner
 retry_tries = 5
 """)  # missing closing bracket
 
-    with pytest.raises(ValueError, match="Could not read qq config"):
-        Config.load(config_file)
+    config = Config.load(config_file)
+    assert config == Config()

@@ -13,7 +13,6 @@ and provides a globally accessible `CFG` instance.
 """
 
 import os
-import sys
 import tomllib
 from dataclasses import dataclass, field, fields, is_dataclass
 from pathlib import Path
@@ -518,7 +517,12 @@ class Config:
                     config_data = tomllib.load(f)
                 return _dict_to_dataclass(cls, config_data)
         except Exception as e:
-            raise ValueError(f"Could not read qq config '{config_path}': {e}.")
+            print(
+                f"[ FATAL CONFIGURATION ERROR ] Could not read qq config '{config_path}': {e}."
+            )
+            print(
+                "[ FATAL CONFIGURATION ERROR ] Falling back to default configuration.\n\n"
+            )
 
         # no config found - use defaults
         return cls()
@@ -571,8 +575,4 @@ def _dict_to_dataclass(cls, data: dict[str, Any]):
 
 
 # Global configuration for qq.
-try:
-    CFG = Config.load()
-except Exception as e:
-    print(f"[ FATAL CONFIGURATION ERROR ] Could not read qq config file: {e}")
-    sys.exit(91)
+CFG = Config.load()
