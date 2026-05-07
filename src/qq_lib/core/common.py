@@ -758,7 +758,11 @@ def default_resubmit_from_hosts() -> str:
     """
     from qq_lib.batch.interface import BatchInterface
 
-    return CFG.resubmitter.default_resubmit_hosts or ",".join(
-        x.to_str()
-        for x in BatchInterface.from_env_var_or_guess().get_default_resubmit_hosts()
-    )
+    try:
+        return CFG.resubmitter.default_resubmit_hosts or ",".join(
+            x.to_str()
+            for x in BatchInterface.from_env_var_or_guess().get_default_resubmit_hosts()
+        )
+    # if no batch system is available
+    except QQError:
+        return "??? (no batch system detected)"
