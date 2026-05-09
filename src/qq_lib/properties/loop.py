@@ -156,26 +156,6 @@ class LoopInfo:
             "archive_mode": [mode.to_str() for mode in self.archive_mode],
         }
 
-    def to_command_line(self) -> list[str]:
-        """
-        Convert loop job settings into a command-line argument list for `qq submit`.
-
-        Returns:
-            list[str]: A list of command-line arguments ready to pass to ``qq submit``.
-        """
-        return [
-            "--loop-start",
-            str(self.start),
-            "--loop-end",
-            str(self.end),
-            "--archive",
-            self.archive.name,
-            "--archive-format",
-            self.archive_format,
-            "--archive-mode",
-            ":".join(mode.to_str() for mode in self.archive_mode),
-        ]
-
     def determine_cycle_from_archive(self) -> int:
         """
         Determine the current cycle number based on files in the archive directory.
