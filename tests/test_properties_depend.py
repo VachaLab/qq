@@ -2,10 +2,14 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 
+from typing import cast
+from unittest.mock import MagicMock
+
 import pytest
 
+from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.core.error import QQError
-from qq_lib.properties.depend import Depend, DependType
+from qq_lib.properties.depend import Depend, DependType, filter_dependencies
 
 
 @pytest.mark.parametrize(
@@ -228,3 +232,112 @@ def test_depend_to_str_all_depend_types():
     for raw, expected in data:
         dep = Depend.from_str(raw)
         assert dep.to_str() == expected
+
+
+@pytest.fixture
+def batch_system() -> AnyBatchClass:
+    return cast("AnyBatchClass", MagicMock())
+
+
+def test_filter_dependencies_keeps_valid_jobs(batch_system):
+    job = MagicMock()
+    job.is_empty.return_value = False
+    batch_system.get_batch_job.return_value = job
+
+    deps = [Depend(type=DependType.AFTER_SUCCESS, jobs=["123"])]
+    result = filter_dependencies(batch_system, deps)
+
+    assert len(result) == 1
+    assert result[0].jobs == ["123"]
+
+
+def test_filter_dependencies_removes_missing_jobs(batch_system):
+    job = MagicMock()
+    job.is_empty.return_value = True
+    batch_system.get_batch_job.return_value = job
+
+    deps = [Depend(type=DependType.AFTER_SUCCESS, jobs=["123"])]
+    result = filter_dependencies(batch_system, deps)
+
+    assert result == []
+
+
+def test_filter_dependencies_removes_missing_jobs_from_multi_job_depend(batch_system):
+    valid_job = MagicMock()
+    valid_job.is_empty.return_value = False
+
+    missing_job = MagicMock()
+    missing_job.is_empty.return_value = True
+
+    batch_system.get_batch_job.side_effect = lambda jid: (
+        valid_job if jid == "123" else missing_job
+    )
+
+    deps = [Depend(type=DependType.AFTER_SUCCESS, jobs=["123", "456", "789"])]
+    result = filter_dependencies(batch_system, deps)
+
+    assert len(result) == 1
+    assert result[0].jobs == ["123"]
+
+
+def test_filter_dependencies_drops_depend_entirely_when_all_jobs_missing(batch_system):
+    job = MagicMock()
+    job.is_empty.return_value = True
+    batch_system.get_batch_job.return_value = job
+
+    deps = [Depend(type=DependType.AFTER_SUCCESS, jobs=["123", "456"])]
+    result = filter_dependencies(batch_system, deps)
+
+    assert result == []
+
+
+def test_filter_dependencies_preserves_depend_type(batch_system):
+    job = MagicMock()
+    job.is_empty.return_value = False
+    job.get_id.return_value = "1"
+    batch_system.get_batch_job.return_value = job
+
+    deps = [
+        Depend(type=DependType.AFTER_START, jobs=["1"]),
+        Depend(type=DependType.AFTER_FAILURE, jobs=["1"]),
+        Depend(type=DependType.AFTER_COMPLETION, jobs=["1"]),
+    ]
+    result = filter_dependencies(batch_system, deps)
+
+    assert [d.type for d in result] == [
+        DependType.AFTER_START,
+        DependType.AFTER_FAILURE,
+        DependType.AFTER_COMPLETION,
+    ]
+
+
+def test_filter_dependencies_handles_multiple_depends(batch_system):
+    valid_job = MagicMock()
+    valid_job.is_empty.return_value = False
+
+    missing_job = MagicMock()
+    missing_job.is_empty.return_value = True
+
+    batch_system.get_batch_job.side_effect = lambda jid: (
+        valid_job if jid == "1" else missing_job
+    )
+
+    deps = [
+        Depend(type=DependType.AFTER_SUCCESS, jobs=["1"]),
+        Depend(type=DependType.AFTER_FAILURE, jobs=["2"]),
+        Depend(type=DependType.AFTER_COMPLETION, jobs=["1", "3"]),
+    ]
+    result = filter_dependencies(batch_system, deps)
+
+    assert len(result) == 2
+    assert result[0].type == DependType.AFTER_SUCCESS
+    assert result[0].jobs == ["1"]
+    assert result[1].type == DependType.AFTER_COMPLETION
+    assert result[1].jobs == ["1"]
+
+
+def test_filter_dependencies_empty_input(batch_system):
+    result = filter_dependencies(batch_system, [])
+
+    assert result == []
+    batch_system.get_batch_job.assert_not_called()

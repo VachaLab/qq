@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Self
 
+from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 
@@ -98,7 +99,7 @@ class DependType(Enum):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Depend:
     """
     Representation of a parsed job dependency.
@@ -174,3 +175,32 @@ class Depend:
                 the colon-separated list of job IDs.
         """
         return f"{self.type.to_str()}={':'.join(self.jobs)}"
+
+
+def filter_dependencies(
+    batch_system: AnyBatchClass, dependencies: list[Depend]
+) -> list[Depend]:
+    """
+    Filter dependencies to only include those that are still present in the batch system.
+
+    Args:
+        batch_system (AnyBatchClass): The batch system to check job presence against.
+        dependencies (list[Depend]): The list of dependencies to filter.
+
+    Returns:
+        list[Depend]: The filtered list of dependencies.
+    """
+    filtered: list[Depend] = []
+    for depend in dependencies:
+        # get jobs that are still present in the batch system
+        valid_jobs = [
+            job_id
+            for job_id in depend.jobs
+            if not (batch_system.get_batch_job(job_id)).is_empty()
+        ]
+
+        if valid_jobs:
+            filtered.append(Depend(type=depend.type, jobs=valid_jobs))
+
+    logger.debug(f"Filtered dependencies: {filtered}.")
+    return filtered

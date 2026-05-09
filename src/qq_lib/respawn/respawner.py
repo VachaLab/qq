@@ -5,15 +5,23 @@ from qq_lib.clear import Clearer
 from qq_lib.core.error import QQError, QQNotSuitableError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.operator import Operator
-from qq_lib.properties.depend import Depend
+from qq_lib.info import Informer
+from qq_lib.properties.depend import filter_dependencies
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.states import RealState
 from qq_lib.submit import Submitter
+from qq_lib.wipe import Wiper
 
 logger = get_logger(__name__)
 
 
 class Respawner(Operator):
+    """
+    Respawns a failed or killed job by cleaning up and resubmitting it with the same parameters.
+
+    For loop jobs, the archive directory is checked for consistency before respawning.
+    """
+
     def ensure_suitable(self) -> None:
         """
         Verify that the job is in a state where it can be respawned.
@@ -27,61 +35,85 @@ class Respawner(Operator):
             )
 
     def respawn(self) -> str:
+        """
+        Respawn the job by cleaning up and submitting a fresh copy.
+
+        Returns:
+            str: The job ID of the newly submitted job.
+
+        Raises:
+            QQError: If the submitter cannot be built or the job cannot be submitted.
+        """
         informer = self.get_informer()
+        submitter = self._build_submitter(informer)
+
         input_dir = self._info_file.parent
 
-        dependencies = self._handle_dependencies(informer.info.depend)
-        if (loop_info := informer.info.loop_info) is not None:
-            self._ensure_archive_consistent(loop_info)
-
-        submitter = Submitter(
-            batch_system=informer.batch_system,
-            queue=informer.info.queue,
-            account=informer.info.account,
-            script=input_dir / informer.info.script_name,
-            job_type=informer.info.job_type,
-            resources=informer.info.resources,
-            loop_info=informer.info.loop_info,
-            exclude=informer.info.excluded_files,
-            include=informer.info.included_files,
-            depend=dependencies,
-            transfer_mode=informer.info.transfer_mode,
-            server=informer.info.server,
-            interpreter=informer.info.interpreter,
-        )
+        # attempt to remove the working directory
+        try:
+            wiper = Wiper.from_informer(informer)
+            wiper.ensure_suitable()
+            wiper.wipe()
+        except QQNotSuitableError:
+            pass
+        except QQError as e:
+            logger.warning(f"Failed to remove working directory: {e}")
 
         # clear files from the input directory
         clearer = Clearer(input_dir)
         clearer.clear()
 
-        # respawn the job
+        # submit a new job
         return submitter.submit()
 
-    def _handle_dependencies(self, dependencies: list[Depend]) -> list[Depend]:
+    def _build_submitter(self, informer: Informer) -> Submitter:
         """
-        Removes jobs from dependencies that are no longer present in the batch system.
+        Construct a Submitter configured for respawning.
 
-        Without removing these jobs, the respawned job would immediately fail.
+        All original job parameters are preserved. Dependencies are filtered
+        to only include jobs still present in the batch system. For loop jobs,
+        the archive directory is checked for consistency before proceeding.
+
+        Args:
+            informer (Informer): The informer instance holding job metadata.
+
+        Returns:
+            Submitter: A configured Submitter ready to submit the job.
+
+        Raises:
+            QQError: If the loop job archive is inconsistent with the current cycle.
         """
-        BatchSystem = self._informer.batch_system
+        if (loop_info := informer.info.loop_info) is not None:
+            self._ensure_archive_consistent(loop_info)
 
-        filtered = []
-        for depend in dependencies:
-            # get jobs that are still present in the batch system
-            valid_jobs = [
-                job.get_id()
-                for job_id in depend.jobs
-                if not (job := BatchSystem.get_batch_job(job_id)).is_empty()
-            ]
-            if valid_jobs:
-                filtered.append(Depend(depend.type, valid_jobs))
+        return Submitter(
+            batch_system=informer.batch_system,
+            queue=informer.info.queue,
+            account=informer.info.account,
+            script=self._info_file.parent / informer.info.script_name,
+            job_type=informer.info.job_type,
+            resources=informer.info.resources,
+            loop_info=loop_info,
+            exclude=informer.info.excluded_files,
+            include=informer.info.included_files,
+            # we need to remove dependencies that are no longer present in the batch system
+            depend=filter_dependencies(informer.batch_system, informer.info.depend),
+            transfer_mode=informer.info.transfer_mode,
+            server=informer.info.server,
+            interpreter=informer.info.interpreter,
+        )
 
-        logger.debug(f"Filtered dependencies: {filtered}.")
-        return filtered
-
-    def _ensure_archive_consistent(self, loop_info: LoopInfo) -> None:
+    @staticmethod
+    def _ensure_archive_consistent(loop_info: LoopInfo) -> None:
         """
-        Ensure that the current loop job cycle matches what we would expect based on the contents of the archive directory.
+        Verify that the current loop cycle matches the archive contents.
+
+        Args:
+            loop_info (LoopInfo): Loop job metadata.
+
+        Raises:
+            QQError: If the cycle determined from the archive does not match
+                the current cycle in the loop metadata.
         """
         if (
             archive_cycle := loop_info.determine_cycle_from_archive()
