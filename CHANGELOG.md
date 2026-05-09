@@ -1,6 +1,13 @@
 ## Version 0.11
 - Updated the installation scripts to more clearly report issues that occured during the install.
 
+### qq respawn
+- Failed or killed jobs can be now easily "respawned" using `qq respawn`. When respawning a job, qq will remove the working directory of the failed job, clear all runtime files, and resubmit the job with the same parameters as before.
+
+### Specifying multiple job IDs
+- `qq info`, `qq kill`, `qq sync`, `qq respawn`, `qq wipe`, and `qq go` now accept multiple job IDs as arguments.
+- All of these commands now also internally resolve the jobs in parallel making them much faster when dealing with a large number of jobs.
+
 ### Better support for non-bash interpreters
 - Interpreters now support additional command-line arguments.
 
