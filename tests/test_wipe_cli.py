@@ -9,7 +9,11 @@ from click.testing import CliRunner
 
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQNotSuitableError
-from qq_lib.wipe.cli import _wipe_work_dir, wipe
+from qq_lib.core.error_handlers import (
+    handle_general_qq_error,
+    handle_not_suitable_error,
+)
+from qq_lib.wipe.cli import _wipe_work_dir, logger, wipe
 
 
 @patch("qq_lib.wipe.cli.logger.info")
@@ -90,85 +94,51 @@ def test_wipe_work_dir_raises_general_error(mock_wiper_from_informer):
         _wipe_work_dir(informer, force=True, yes=True)
 
 
-def test_wipe_invokes_repeater_and_exits_success(tmp_path):
-    dummy_file = tmp_path / "info.qq"
-    dummy_file.write_text("dummy")
-
+def test_wipe_creates_command_runner_and_runs():
     runner = CliRunner()
-    repeater_mock = MagicMock()
-    informer_mock = MagicMock()
 
-    with (
-        patch("qq_lib.wipe.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.wipe.cli.Informer.from_file", return_value=informer_mock),
-        patch("qq_lib.wipe.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.wipe.cli.logger"),
-    ):
-        result = runner.invoke(wipe, [])
+    with patch("qq_lib.wipe.cli.CommandRunner") as mock_cls:
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
+
+        result = runner.invoke(wipe, ["111"])
 
     assert result.exit_code == 0
-    calls = [c[0][0] for c in repeater_mock.on_exception.call_args_list]
-    assert QQNotSuitableError in calls
-    assert QQError in calls
-    repeater_mock.run.assert_called_once()
+    mock_cls.assert_called_once_with(
+        ("111",),
+        _wipe_work_dir,
+        logger,
+        False,
+        False,
+        n_threads=CFG.parallelization_options.job_info_max_threads,
+    )
+    mock_cls.return_value.run.assert_called_once()
 
 
-def test_wipe_invokes_repeater_with_job_id_and_exits_success():
+def test_wipe_passes_force_and_yes_flags():
     runner = CliRunner()
-    repeater_mock = MagicMock()
-    informer_mock = MagicMock()
 
-    with (
-        patch("qq_lib.wipe.cli.Informer.from_job_id", return_value=informer_mock),
-        patch("qq_lib.wipe.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.wipe.cli.logger"),
-    ):
-        result = runner.invoke(wipe, ["123"])
+    with patch("qq_lib.wipe.cli.CommandRunner") as mock_cls:
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
 
-    assert result.exit_code == 0
-    calls = [c[0][0] for c in repeater_mock.on_exception.call_args_list]
-    assert QQNotSuitableError in calls
-    assert QQError in calls
-    repeater_mock.run.assert_called_once()
+        runner.invoke(wipe, ["--force", "--yes", "111"])
+
+    assert mock_cls.call_args[0][3] is True
+    assert mock_cls.call_args[0][4] is True
 
 
-def test_wipe_catches_qqerror_and_exits_91(tmp_path):
-    dummy_file = tmp_path / "info.qq"
-    dummy_file.write_text("dummy")
-
+def test_wipe_registers_exception_handlers():
     runner = CliRunner()
-    informer_mock = MagicMock()
-    repeater_mock = MagicMock()
-    repeater_mock.run.side_effect = QQError("wipe failure")
 
-    with (
-        patch("qq_lib.wipe.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.wipe.cli.Informer.from_file", return_value=informer_mock),
-        patch("qq_lib.wipe.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.wipe.cli.logger") as mock_logger,
-    ):
-        result = runner.invoke(wipe, [])
+    with patch("qq_lib.wipe.cli.CommandRunner") as mock_cls:
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
 
-    assert result.exit_code == CFG.exit_codes.default
-    mock_logger.error.assert_called_once_with(repeater_mock.run.side_effect)
+        runner.invoke(wipe, [])
 
-
-def test_wipe_catches_generic_exception_and_exits_99(tmp_path):
-    dummy_file = tmp_path / "info.qq"
-    dummy_file.write_text("dummy")
-
-    runner = CliRunner()
-    informer_mock = MagicMock()
-    repeater_mock = MagicMock()
-    repeater_mock.run.side_effect = Exception("unexpected wipe crash")
-
-    with (
-        patch("qq_lib.wipe.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.wipe.cli.Informer.from_file", return_value=informer_mock),
-        patch("qq_lib.wipe.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.wipe.cli.logger") as mock_logger,
-    ):
-        result = runner.invoke(wipe, [])
-
-    assert result.exit_code == CFG.exit_codes.unexpected_error
-    mock_logger.critical.assert_called_once()
+    handlers = {
+        c[0][0]: c[0][1] for c in mock_cls.return_value.on_exception.call_args_list
+    }
+    assert handlers[QQNotSuitableError] is handle_not_suitable_error
+    assert handlers[QQError] is handle_general_qq_error

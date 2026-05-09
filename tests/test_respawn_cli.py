@@ -10,8 +10,12 @@ from click.testing import CliRunner
 
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQNotSuitableError
+from qq_lib.core.error_handlers import (
+    handle_general_qq_error,
+    handle_not_suitable_error,
+)
 from qq_lib.properties.states import RealState
-from qq_lib.respawn.cli import respawn, respawn_job
+from qq_lib.respawn.cli import _respawn_job, logger, respawn
 from qq_lib.respawn.respawner import Respawner
 
 
@@ -32,7 +36,7 @@ def test_respawn_job_succeeds_when_failed(informer_for_respawn):
         patch.object(Respawner, "print_info"),
         patch("qq_lib.respawn.cli.logger") as mock_logger,
     ):
-        respawn_job(informer_for_respawn)
+        _respawn_job(informer_for_respawn)
 
     mock_logger.info.assert_any_call("Job '111' successfully respawned as '222'.")
 
@@ -45,7 +49,7 @@ def test_respawn_job_succeeds_when_killed(informer_for_respawn):
         patch.object(Respawner, "print_info"),
         patch("qq_lib.respawn.cli.logger") as mock_logger,
     ):
-        respawn_job(informer_for_respawn)
+        _respawn_job(informer_for_respawn)
 
     mock_logger.info.assert_any_call("Job '111' successfully respawned as '222'.")
 
@@ -61,7 +65,7 @@ def test_respawn_job_raises_when_not_suitable(informer_for_respawn, state):
         patch.object(Respawner, "print_info"),
         pytest.raises(QQNotSuitableError, match="cannot be respawned"),
     ):
-        respawn_job(informer_for_respawn)
+        _respawn_job(informer_for_respawn)
 
 
 @pytest.mark.parametrize(
@@ -76,7 +80,7 @@ def test_respawn_job_does_not_respawn_when_not_suitable(informer_for_respawn, st
         patch.object(Respawner, "print_info"),
         pytest.raises(QQNotSuitableError),
     ):
-        respawn_job(informer_for_respawn)
+        _respawn_job(informer_for_respawn)
 
     mock_respawn.assert_not_called()
 
@@ -95,7 +99,7 @@ def test_respawn_job_prints_info_before_respawning(informer_for_respawn):
             side_effect=lambda: (call_order.append("respawn"), "222")[1],
         ),
     ):
-        respawn_job(informer_for_respawn)
+        _respawn_job(informer_for_respawn)
 
     assert call_order == ["print", "respawn"]
 
@@ -108,79 +112,39 @@ def test_respawn_job_propagates_respawn_error(informer_for_respawn):
         patch.object(Respawner, "respawn", side_effect=QQError("submission failed")),
         pytest.raises(QQError, match="submission failed"),
     ):
-        respawn_job(informer_for_respawn)
+        _respawn_job(informer_for_respawn)
 
 
-def test_respawn_invokes_repeater_and_exits_success(tmp_path):
-    dummy_file = tmp_path / "info.qq"
-    dummy_file.write_text("dummy")
-
+def test_respawn_creates_command_runner_and_runs():
     runner = CliRunner()
-    repeater_mock = MagicMock()
-    informer_mock = MagicMock()
 
-    with (
-        patch("qq_lib.respawn.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.respawn.cli.Informer.from_file", return_value=informer_mock),
-        patch("qq_lib.respawn.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.respawn.cli.logger"),
-    ):
-        result = runner.invoke(respawn, [])
+    with patch("qq_lib.respawn.cli.CommandRunner") as mock_cls:
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
+
+        result = runner.invoke(respawn, ["111"])
 
     assert result.exit_code == 0
+    mock_cls.assert_called_once_with(
+        ("111",),
+        _respawn_job,
+        logger,
+        n_threads=CFG.parallelization_options.job_info_max_threads,
+    )
+    mock_cls.return_value.run.assert_called_once()
 
-    calls = [c[0][0] for c in repeater_mock.on_exception.call_args_list]
-    assert QQNotSuitableError in calls
-    assert QQError in calls
 
-    repeater_mock.run.assert_called_once()
-
-
-def test_respawn_with_job_id_invokes_repeater():
+def test_respawn_registers_exception_handlers():
     runner = CliRunner()
-    repeater_mock = MagicMock()
-    informer_mock = MagicMock()
 
-    with (
-        patch("qq_lib.respawn.cli.Informer.from_job_id", return_value=informer_mock),
-        patch("qq_lib.respawn.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.respawn.cli.logger"),
-    ):
-        result = runner.invoke(respawn, ["12345"])
+    with patch("qq_lib.respawn.cli.CommandRunner") as mock_cls:
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
 
-    assert result.exit_code == 0
-    repeater_mock.run.assert_called_once()
+        runner.invoke(respawn, [])
 
-
-def test_respawn_catches_qqerror_and_exits_with_default_code():
-    runner = CliRunner()
-    repeater_mock = MagicMock()
-    repeater_mock.run.side_effect = QQError("error occurred")
-    informer_mock = MagicMock()
-
-    with (
-        patch("qq_lib.respawn.cli.Informer.from_job_id", return_value=informer_mock),
-        patch("qq_lib.respawn.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.respawn.cli.logger") as mock_logger,
-    ):
-        result = runner.invoke(respawn, ["12345"])
-
-    assert result.exit_code == CFG.exit_codes.default
-    mock_logger.error.assert_called_once_with(repeater_mock.run.side_effect)
-
-
-def test_respawn_catches_generic_exception_and_exits_with_unexpected_error_code():
-    runner = CliRunner()
-    repeater_mock = MagicMock()
-    repeater_mock.run.side_effect = Exception("critical error")
-    informer_mock = MagicMock()
-
-    with (
-        patch("qq_lib.respawn.cli.Informer.from_job_id", return_value=informer_mock),
-        patch("qq_lib.respawn.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.respawn.cli.logger") as mock_logger,
-    ):
-        result = runner.invoke(respawn, ["12345"])
-
-    assert result.exit_code == CFG.exit_codes.unexpected_error
-    mock_logger.critical.assert_called_once()
+    handlers = {
+        c[0][0]: c[0][1] for c in mock_cls.return_value.on_exception.call_args_list
+    }
+    assert handlers[QQNotSuitableError] is handle_not_suitable_error
+    assert handlers[QQError] is handle_general_qq_error

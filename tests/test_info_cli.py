@@ -8,7 +8,8 @@ from click.testing import CliRunner
 
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
-from qq_lib.info.cli import _info_for_job, info
+from qq_lib.core.error_handlers import handle_general_qq_error
+from qq_lib.info.cli import _info_for_job, info, logger
 
 
 def test_info_for_job_short_prints_short_info():
@@ -53,83 +54,48 @@ def test_info_for_job_full_prints_full_info_panel():
         console_instance.print.assert_called_once_with(panel_mock)
 
 
-def test_info_invokes_repeater_and_exits_success(tmp_path):
-    dummy_file = tmp_path / "job.qqinfo"
-    dummy_file.write_text("dummy")
-
-    repeater_mock = MagicMock()
-    informer_mock = MagicMock()
-
+def test_info_creates_command_runner_and_runs():
     runner = CliRunner()
 
-    with (
-        patch("qq_lib.info.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.info.cli.Informer.from_file", return_value=informer_mock),
-        patch("qq_lib.info.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.info.cli.logger"),
-    ):
-        result = runner.invoke(info, [])
+    with patch("qq_lib.info.cli.CommandRunner") as mock_cls:
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
+
+        result = runner.invoke(info, ["111"])
 
     assert result.exit_code == 0
-    repeater_mock.run.assert_called_once()
+    mock_cls.assert_called_once_with(
+        ("111",),
+        _info_for_job,
+        logger,
+        False,
+        n_threads=CFG.parallelization_options.job_info_max_threads,
+    )
+    mock_cls.return_value.run.assert_called_once()
 
 
-def test_info_catches_qqerror_and_exits_91(tmp_path):
-    dummy_file = tmp_path / "job.qqinfo"
-    dummy_file.write_text("dummy")
-
-    repeater_mock = MagicMock()
-    informer_mock = MagicMock()
-    repeater_mock.run.side_effect = QQError("error occurred")
-
+def test_info_passes_short_flag():
     runner = CliRunner()
 
-    with (
-        patch("qq_lib.info.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.info.cli.Informer.from_file", return_value=informer_mock),
-        patch("qq_lib.info.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.info.cli.logger") as mock_logger,
-    ):
-        result = runner.invoke(info, [])
+    with patch("qq_lib.info.cli.CommandRunner") as mock_cls:
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
 
-    assert result.exit_code == CFG.exit_codes.default
-    mock_logger.error.assert_called_once_with(repeater_mock.run.side_effect)
+        runner.invoke(info, ["--short", "111"])
+
+    assert mock_cls.call_args[0][3] is True
 
 
-def test_info_catches_generic_exception_and_exits_99(tmp_path):
-    dummy_file = tmp_path / "job.qqinfo"
-    dummy_file.write_text("dummy")
-
-    repeater_mock = MagicMock()
-    informer_mock = MagicMock()
-    repeater_mock.run.side_effect = Exception("fatal error")
-
+def test_info_registers_exception_handlers():
     runner = CliRunner()
 
-    with (
-        patch("qq_lib.info.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.info.cli.Informer.from_file", return_value=informer_mock),
-        patch("qq_lib.info.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.info.cli.logger") as mock_logger,
-    ):
-        result = runner.invoke(info, [])
+    with patch("qq_lib.info.cli.CommandRunner") as mock_cls:
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
 
-    assert result.exit_code == CFG.exit_codes.unexpected_error
-    mock_logger.critical.assert_called_once()
+        runner.invoke(info, [])
 
-
-def test_info_invokes_repeater_with_job_id_and_exits_success():
-    repeater_mock = MagicMock()
-    informer_mock = MagicMock()
-
-    runner = CliRunner()
-
-    with (
-        patch("qq_lib.info.cli.Informer.from_job_id", return_value=informer_mock),
-        patch("qq_lib.info.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.info.cli.logger"),
-    ):
-        result = runner.invoke(info, ["12345"])
-
-    assert result.exit_code == 0
-    repeater_mock.run.assert_called_once()
+    handlers = {
+        c[0][0]: c[0][1] for c in mock_cls.return_value.on_exception.call_args_list
+    }
+    assert handlers[QQError] is handle_general_qq_error

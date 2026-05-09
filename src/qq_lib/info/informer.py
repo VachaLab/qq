@@ -219,6 +219,13 @@ class Informer:
             return main_node, work_dir
         return None
 
+    def load_batch_info(self) -> None:
+        """
+        Load the batch job information from the batch system if it's not already loaded.
+        """
+        if self._batch_info is None:
+            self._batch_info = self.batch_system.get_batch_job(self.info.job_id)
+
     def get_batch_state(self) -> BatchState:
         """
         Return the job's state as reported by the batch system.

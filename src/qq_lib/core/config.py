@@ -464,6 +464,14 @@ class BatchServersOptions:
 
 
 @dataclass(frozen=True)
+class ParallelizationOptions:
+    """Options associated with multithreaded execution."""
+
+    # Maximal number of threads used to collect job information.
+    job_info_max_threads: int = 8
+
+
+@dataclass(frozen=True)
 class Config:
     """Main configuration for qq."""
 
@@ -496,6 +504,9 @@ class Config:
     )
     batch_servers_options: BatchServersOptions = field(
         default_factory=BatchServersOptions
+    )
+    parallelization_options: ParallelizationOptions = field(
+        default_factory=ParallelizationOptions
     )
 
     # Name of the qq binary.

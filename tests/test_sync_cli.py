@@ -8,7 +8,11 @@ from click.testing import CliRunner
 
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQNotSuitableError
-from qq_lib.sync.cli import _split_files, _sync_job, sync
+from qq_lib.core.error_handlers import (
+    handle_general_qq_error,
+    handle_not_suitable_error,
+)
+from qq_lib.sync.cli import _split_files, _sync_job, logger, sync
 
 
 def test_sync_job_calls_sync():
@@ -59,85 +63,59 @@ def test_split_files_splits_correctly(input_str, expected):
     assert _split_files(input_str) == expected
 
 
-def test_sync_invokes_repeater_and_exits_success(tmp_path):
-    dummy_file = tmp_path / "job.qqinfo"
-    dummy_file.write_text("dummy")
-
+def test_sync_creates_command_runner_and_runs():
     runner = CliRunner()
-    repeater_mock = MagicMock()
-    informer_mock = MagicMock()
 
     with (
-        patch("qq_lib.sync.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.sync.cli.Informer.from_file", return_value=informer_mock),
-        patch("qq_lib.sync.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.sync.cli.logger"),
+        patch("qq_lib.sync.cli.CommandRunner") as mock_cls,
+        patch("qq_lib.sync.cli._split_files", return_value=["a.txt", "b.txt"]),
     ):
-        result = runner.invoke(sync, [])
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
+
+        result = runner.invoke(sync, ["111", "--files", "a.txt:b.txt"])
 
     assert result.exit_code == 0
-    calls = [c[0][0] for c in repeater_mock.on_exception.call_args_list]
-    assert QQNotSuitableError in calls
-    assert QQError in calls
-    repeater_mock.run.assert_called_once()
+    mock_cls.assert_called_once_with(
+        ("111",),
+        _sync_job,
+        logger,
+        ["a.txt", "b.txt"],
+        n_threads=CFG.parallelization_options.job_info_max_threads,
+    )
+    mock_cls.return_value.run.assert_called_once()
 
 
-def test_sync_invokes_repeater_with_job_id_and_exits_success():
+def test_sync_without_files_passes_none():
     runner = CliRunner()
-    repeater_mock = MagicMock()
-    informer_mock = MagicMock()
 
     with (
-        patch("qq_lib.sync.cli.Informer.from_job_id", return_value=informer_mock),
-        patch("qq_lib.sync.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.sync.cli.logger"),
+        patch("qq_lib.sync.cli.CommandRunner") as mock_cls,
+        patch("qq_lib.sync.cli._split_files", return_value=None) as mock_split,
     ):
-        result = runner.invoke(sync, ["123"])
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
 
-    assert result.exit_code == 0
-    calls = [c[0][0] for c in repeater_mock.on_exception.call_args_list]
-    assert QQNotSuitableError in calls
-    assert QQError in calls
-    repeater_mock.run.assert_called_once()
+        runner.invoke(sync, ["111"])
+
+    mock_split.assert_called_once_with(None)
+    assert mock_cls.call_args[0][3] is None
 
 
-def test_sync_catches_qqerror_and_exits_91(tmp_path):
-    dummy_file = tmp_path / "job.qqinfo"
-    dummy_file.write_text("dummy")
-
+def test_sync_registers_exception_handlers():
     runner = CliRunner()
-    informer_mock = MagicMock()
-    repeater_mock = MagicMock()
-    repeater_mock.run.side_effect = QQError("error occurred")
 
     with (
-        patch("qq_lib.sync.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.sync.cli.Informer.from_file", return_value=informer_mock),
-        patch("qq_lib.sync.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.sync.cli.logger") as mock_logger,
+        patch("qq_lib.sync.cli.CommandRunner") as mock_cls,
+        patch("qq_lib.sync.cli._split_files", return_value=None),
     ):
-        result = runner.invoke(sync, [])
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
 
-    assert result.exit_code == CFG.exit_codes.default
-    mock_logger.error.assert_called_once_with(repeater_mock.run.side_effect)
+        runner.invoke(sync, [])
 
-
-def test_sync_catches_generic_exception_and_exits_99(tmp_path):
-    dummy_file = tmp_path / "job.qqinfo"
-    dummy_file.write_text("dummy")
-
-    runner = CliRunner()
-    informer_mock = MagicMock()
-    repeater_mock = MagicMock()
-    repeater_mock.run.side_effect = Exception("fatal error")
-
-    with (
-        patch("qq_lib.sync.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.sync.cli.Informer.from_file", return_value=informer_mock),
-        patch("qq_lib.sync.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.sync.cli.logger") as mock_logger,
-    ):
-        result = runner.invoke(sync, [])
-
-    assert result.exit_code == CFG.exit_codes.unexpected_error
-    mock_logger.critical.assert_called_once()
+    handlers = {
+        c[0][0]: c[0][1] for c in mock_cls.return_value.on_exception.call_args_list
+    }
+    assert handlers[QQNotSuitableError] is handle_not_suitable_error
+    assert handlers[QQError] is handle_general_qq_error

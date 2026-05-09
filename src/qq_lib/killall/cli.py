@@ -73,6 +73,7 @@ def killall(
                 f"You have {len(informers)} active qq job{'s' if len(informers) > 1 else ''}. Do you want to kill {'them' if len(informers) > 1 else 'it'}?"
             )
         ):
+            # TODO: this should be done in parallel
             repeater = Repeater(
                 informers,
                 kill_job,
@@ -86,7 +87,6 @@ def killall(
             logger.info("Operation aborted.")
 
         sys.exit(0)
-    # QQErrors should be caught by Repeater
     except QQError as e:
         logger.error(e)
         sys.exit(CFG.exit_codes.default)

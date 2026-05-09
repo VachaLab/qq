@@ -1,21 +1,17 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-import sys
-from pathlib import Path
 from typing import NoReturn
 
 import click
 from rich.console import Console
 
 from qq_lib.core.click_format import GNUHelpColorsCommand
-from qq_lib.core.common import (
-    get_info_files,
-)
+from qq_lib.core.command_runner import CommandRunner
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
+from qq_lib.core.error_handlers import handle_general_qq_error
 from qq_lib.core.logger import get_logger
-from qq_lib.core.repeater import Repeater
 from qq_lib.info.informer import Informer
 from qq_lib.info.presenter import Presenter
 
@@ -24,48 +20,35 @@ logger = get_logger(__name__)
 
 @click.command(
     short_help="Display information about a job.",
-    help=f"""Display information about the state and properties of the specified qq job,
+    help=f"""Display information about the state and properties of the specified qq jobs,
 or of qq jobs found in the current directory.
 
-{click.style("JOB_ID", fg="green")}   The identifier of the job to display information for. Optional.
+{click.style("JOB_ID", fg="green")}   One or more IDs of jobs to display information for. Optional.
 
-If JOB_ID is not specified, `{CFG.binary_name} info` searches for qq jobs in the current directory.""",
+If no JOB_ID is specified, `{CFG.binary_name} info` searches for qq jobs in the current directory.""",
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
 )
 @click.argument(
-    "job",
+    "jobs",
     type=str,
     metavar=click.style("JOB_ID", fg="green"),
-    required=False,
-    default=None,
+    nargs=-1,
 )
 @click.option(
     "-s", "--short", is_flag=True, help="Display only the job ID and current state."
 )
-def info(job: str | None, short: bool) -> NoReturn:
+def info(jobs: tuple[str, ...], short: bool) -> NoReturn:
     """
-    Get information about the specified qq job or qq job(s) submitted from this directory.
+    Get information about the specified qq jobs or qq jobs submitted from this directory.
     """
-    try:
-        if job:
-            informers = [Informer.from_job_id(job)]
-        else:
-            if not (
-                informers := [
-                    Informer.from_file(info) for info in get_info_files(Path.cwd())
-                ]
-            ):
-                raise QQError("No qq job info file found.")
-
-        Repeater(informers, _info_for_job, short).run()
-        sys.exit(0)
-    except QQError as e:
-        logger.error(e)
-        sys.exit(CFG.exit_codes.default)
-    except Exception as e:
-        logger.critical(e, exc_info=True, stack_info=True)
-        sys.exit(CFG.exit_codes.unexpected_error)
+    CommandRunner(
+        jobs,
+        _info_for_job,
+        logger,
+        short,
+        n_threads=CFG.parallelization_options.job_info_max_threads,
+    ).on_exception(QQError, handle_general_qq_error).run()
 
 
 def _info_for_job(informer: Informer, short: bool) -> None:

@@ -8,7 +8,11 @@ from click.testing import CliRunner
 
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQNotSuitableError
-from qq_lib.go.cli import _go_to_job, go
+from qq_lib.core.error_handlers import (
+    handle_general_qq_error,
+    handle_not_suitable_error,
+)
+from qq_lib.go.cli import _go_to_job, go, logger
 
 
 def test_go_to_job_calls_printinfo_ensure_suitable_and_go():
@@ -26,85 +30,48 @@ def test_go_to_job_calls_printinfo_ensure_suitable_and_go():
     goer_mock.go.assert_called_once()
 
 
-def test_go_invokes_repeater_and_exits_success(tmp_path):
-    dummy_file = tmp_path / "job.qqinfo"
-    dummy_file.write_text("dummy")
-
+def test_go_creates_command_runner_and_runs():
     runner = CliRunner()
-    repeater_mock = MagicMock()
-    informer_mock = MagicMock()
 
-    with (
-        patch("qq_lib.go.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.go.cli.Informer.from_file", return_value=informer_mock),
-        patch("qq_lib.go.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.go.cli.logger"),
-    ):
-        result = runner.invoke(go, [])
+    with patch("qq_lib.go.cli.CommandRunner") as mock_cls:
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
+
+        result = runner.invoke(go, ["111", "222"])
 
     assert result.exit_code == 0
-    calls = [call_args[0][0] for call_args in repeater_mock.on_exception.call_args_list]
-    assert QQNotSuitableError in calls
-    assert QQError in calls
-    repeater_mock.run.assert_called_once()
+    mock_cls.assert_called_once_with(
+        ("111", "222"),
+        _go_to_job,
+        logger,
+        n_threads=CFG.parallelization_options.job_info_max_threads,
+    )
+    mock_cls.return_value.run.assert_called_once()
 
 
-def test_go_invokes_repeater_and_exits_success_with_job_id():
+def test_go_registers_exception_handlers():
     runner = CliRunner()
-    repeater_mock = MagicMock()
-    informer_mock = MagicMock()
 
-    with (
-        patch("qq_lib.go.cli.Informer.from_job_id", return_value=informer_mock),
-        patch("qq_lib.go.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.go.cli.logger"),
-    ):
-        result = runner.invoke(go, ["12345"])
+    with patch("qq_lib.go.cli.CommandRunner") as mock_cls:
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
 
-    assert result.exit_code == 0
-    calls = [call_args[0][0] for call_args in repeater_mock.on_exception.call_args_list]
-    assert QQNotSuitableError in calls
-    assert QQError in calls
-    repeater_mock.run.assert_called_once()
+        runner.invoke(go, [])
+
+    handlers = {
+        c[0][0]: c[0][1] for c in mock_cls.return_value.on_exception.call_args_list
+    }
+    assert handlers[QQNotSuitableError] is handle_not_suitable_error
+    assert handlers[QQError] is handle_general_qq_error
 
 
-def test_go_catches_qqerror_and_exits_91(tmp_path):
-    dummy_file = tmp_path / "job.qqinfo"
-    dummy_file.write_text("dummy")
-
+def test_go_without_args_passes_empty_tuple():
     runner = CliRunner()
-    repeater_mock = MagicMock()
-    repeater_mock.run.side_effect = QQError("error occurred")
-    informer_mock = MagicMock()
 
-    with (
-        patch("qq_lib.go.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.go.cli.Informer.from_file", return_value=informer_mock),
-        patch("qq_lib.go.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.go.cli.logger") as mock_logger,
-    ):
-        result = runner.invoke(go, [])
+    with patch("qq_lib.go.cli.CommandRunner") as mock_cls:
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
 
-    assert result.exit_code == CFG.exit_codes.default
-    mock_logger.error.assert_called_once_with(repeater_mock.run.side_effect)
+        runner.invoke(go, [])
 
-
-def test_go_catches_generic_exception_and_exits_99(tmp_path):
-    dummy_file = tmp_path / "job.qqinfo"
-    dummy_file.write_text("dummy")
-
-    runner = CliRunner()
-    repeater_mock = MagicMock()
-    repeater_mock.run.side_effect = Exception("fatal error")
-    informer_mock = MagicMock()
-
-    with (
-        patch("qq_lib.go.cli.get_info_files", return_value=[dummy_file]),
-        patch("qq_lib.go.cli.Informer.from_file", return_value=informer_mock),
-        patch("qq_lib.go.cli.Repeater", return_value=repeater_mock),
-        patch("qq_lib.go.cli.logger") as mock_logger,
-    ):
-        result = runner.invoke(go, [])
-
-    assert result.exit_code == CFG.exit_codes.unexpected_error
-    mock_logger.critical.assert_called_once()
+    assert mock_cls.call_args[0][0] == ()
