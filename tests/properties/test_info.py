@@ -13,8 +13,8 @@ from qq_lib.batch.interface.interface import _BatchMeta
 from qq_lib.batch.pbs import PBS
 from qq_lib.batch.slurmit4i import SlurmIT4I
 from qq_lib.core.error import QQError
-from qq_lib.core.interpreter import Interpreter
 from qq_lib.properties.info import CFG, Info
+from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import Resources
 from qq_lib.properties.resubmit_host import ExplicitHost, InputHost

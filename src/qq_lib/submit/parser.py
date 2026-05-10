@@ -11,9 +11,9 @@ from click_option_group import GroupedOption
 from qq_lib.batch.interface import BatchInterface
 from qq_lib.core.common import split_files_list, to_snake_case
 from qq_lib.core.error import QQError
-from qq_lib.core.interpreter import Interpreter
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
+from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import Resources
 from qq_lib.properties.resubmit_host import ResubmitHost

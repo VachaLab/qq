@@ -10,11 +10,11 @@ import pytest
 
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
-from qq_lib.core.interpreter import Interpreter
+from qq_lib.properties.interpreter import Interpreter
 
 
 def test_interpreter_default_executable_only():
-    with patch("qq_lib.core.interpreter.CFG") as mock_cfg:
+    with patch("qq_lib.properties.interpreter.CFG") as mock_cfg:
         mock_cfg.runner.default_interpreter = "bash"
         interp = Interpreter()
 
@@ -23,7 +23,7 @@ def test_interpreter_default_executable_only():
 
 
 def test_interpreter_default_with_arguments():
-    with patch("qq_lib.core.interpreter.CFG") as mock_cfg:
+    with patch("qq_lib.properties.interpreter.CFG") as mock_cfg:
         mock_cfg.runner.default_interpreter = "python3 -u -O"
         interp = Interpreter()
 

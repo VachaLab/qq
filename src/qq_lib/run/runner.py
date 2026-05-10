@@ -24,11 +24,11 @@ from qq_lib.core.error import (
     QQRunCommunicationError,
     QQRunFatalError,
 )
-from qq_lib.core.interpreter import Interpreter
 from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.core.retryer import Retryer
 from qq_lib.info.informer import Informer
+from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.states import NaiveState
 from qq_lib.resubmit.resubmitter import Resubmitter

@@ -9,8 +9,8 @@ import pytest
 from qq_lib.batch.interface.interface import BatchInterface
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
-from qq_lib.core.interpreter import Interpreter
 from qq_lib.properties.depend import Depend
+from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources

@@ -16,7 +16,7 @@ from qq_lib.core.error import (
     QQRunCommunicationError,
     QQRunFatalError,
 )
-from qq_lib.core.interpreter import Interpreter
+from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.states import NaiveState
 from qq_lib.run.runner import CFG, Runner, log_fatal_error_and_exit

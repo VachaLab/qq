@@ -26,9 +26,9 @@ from qq_lib.batch.interface import AnyBatchClass, BatchInterface
 from qq_lib.core.common import load_yaml_dumper, load_yaml_loader
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
-from qq_lib.core.interpreter import Interpreter
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
+from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.resubmit_host import ResubmitHost
 from qq_lib.properties.transfer_mode import Success, TransferMode
 
