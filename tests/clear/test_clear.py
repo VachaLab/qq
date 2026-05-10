@@ -185,45 +185,80 @@ def test_clearer_clear_logs_info_when_no_files(tmp_path):
         assert any("Nothing to clear" in msg for msg in messages)
 
 
-def test_clear_command_runs_successfully():
+def test_clear_runs_successfully():
     runner = CliRunner()
-    dummy_clear = patch.object(Clearer, "clear")
 
-    with dummy_clear as mock_clear:
+    with patch("qq_lib.clear.cli.Clearer") as mock_cls:
         result = runner.invoke(clear, [])
-        assert result.exit_code == 0
-        mock_clear.assert_called_once_with(False)
+
+    assert result.exit_code == 0
+    mock_cls.assert_called_once_with(Path())
+    mock_cls.return_value.clear.assert_called_once_with(False)
 
 
-def test_clear_command_with_force_flag():
+def test_clear_uses_current_directory_by_default():
     runner = CliRunner()
-    dummy_clear = patch.object(Clearer, "clear")
 
-    with dummy_clear as mock_clear:
+    with patch("qq_lib.clear.cli.Clearer") as mock_cls:
+        runner.invoke(clear, [])
+
+    mock_cls.assert_called_once_with(Path())
+
+
+def test_clear_with_dir_flag():
+    runner = CliRunner()
+
+    with patch("qq_lib.clear.cli.Clearer") as mock_cls:
+        result = runner.invoke(clear, ["-d", "/tmp/my_jobs"])
+
+    assert result.exit_code == 0
+    mock_cls.assert_called_once_with(Path("/tmp/my_jobs"))
+
+
+def test_clear_with_force_flag():
+    runner = CliRunner()
+
+    with patch("qq_lib.clear.cli.Clearer") as mock_cls:
         result = runner.invoke(clear, ["--force"])
-        assert result.exit_code == 0
-        mock_clear.assert_called_once_with(True)
+
+    assert result.exit_code == 0
+    mock_cls.return_value.clear.assert_called_once_with(True)
 
 
-def test_clear_command_qqerror_triggers_exit_91():
+def test_clear_with_dir_and_force():
     runner = CliRunner()
 
-    def raise_qqerror(force):
-        _ = force
-        raise QQError("some error")
+    with patch("qq_lib.clear.cli.Clearer") as mock_cls:
+        result = runner.invoke(clear, ["-d", "/tmp/my_jobs", "--force"])
 
-    with patch.object(Clearer, "clear", side_effect=raise_qqerror):
-        result = runner.invoke(clear, [])
-        assert result.exit_code == CFG.exit_codes.default
+    assert result.exit_code == 0
+    mock_cls.assert_called_once_with(Path("/tmp/my_jobs"))
+    mock_cls.return_value.clear.assert_called_once_with(True)
 
 
-def test_clear_command_unexpected_exception_triggers_exit_99():
+def test_clear_qqerror_exits_with_default_code():
     runner = CliRunner()
 
-    def raise_exception(force):
-        _ = force
-        raise RuntimeError("unexpected")
-
-    with patch.object(Clearer, "clear", side_effect=raise_exception):
+    with (
+        patch("qq_lib.clear.cli.Clearer") as mock_cls,
+        patch("qq_lib.clear.cli.logger") as mock_logger,
+    ):
+        mock_cls.return_value.clear.side_effect = QQError("some error")
         result = runner.invoke(clear, [])
-        assert result.exit_code == CFG.exit_codes.unexpected_error
+
+    assert result.exit_code == CFG.exit_codes.default
+    mock_logger.error.assert_called_once()
+
+
+def test_clear_unexpected_exception_exits_with_unexpected_code():
+    runner = CliRunner()
+
+    with (
+        patch("qq_lib.clear.cli.Clearer") as mock_cls,
+        patch("qq_lib.clear.cli.logger") as mock_logger,
+    ):
+        mock_cls.return_value.clear.side_effect = RuntimeError("unexpected")
+        result = runner.invoke(clear, [])
+
+    assert result.exit_code == CFG.exit_codes.unexpected_error
+    mock_logger.critical.assert_called_once()

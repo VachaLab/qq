@@ -18,8 +18,10 @@ logger = get_logger(__name__)
 
 
 @click.command(
-    short_help="Delete qq runtime files from the current directory.",
-    help=f"""Delete qq runtime files from the current directory.
+    short_help="Delete qq runtime files from a directory.",
+    help=f"""Delete qq runtime files from the current or specified directory.
+
+By default, `{CFG.binary_name} clear` clears runtime files from the current directory. Use `--dir` to specify a different directory.
 
 By default, `{CFG.binary_name} clear` removes only those files that do not correspond to an active or successfully completed job.
 To force deletion of all qq files regardless of job status, use the `--force` flag.""",
@@ -27,21 +29,28 @@ To force deletion of all qq files regardless of job status, use the `--force` fl
     help_options_color="bright_blue",
 )
 @click.option(
+    "-d",
+    "--dir",
+    type=str,
+    help="Directory from which to clear qq runtime files.",
+    default=None,
+)
+@click.option(
     "--force",
     is_flag=True,
     help="Force deletion of all qq runtime files, even if jobs are active or successfully completed.",
     default=False,
 )
-def clear(force: bool) -> NoReturn:
+def clear(dir: str | None, force: bool) -> NoReturn:
     """
-    Delete qq runtime files in the current directory.
+    Delete qq runtime files in a specified directory or the current directory.
 
     Only runtime files that do **not** correspond to
     an active or successfully completed job are deleted,
     unless the `force` option is used.
     """
     try:
-        clearer = Clearer(Path())
+        clearer = Clearer(Path(dir) if dir else Path())
         clearer.clear(force)
         sys.exit(0)
     except QQError as e:

@@ -8,6 +8,9 @@
 - `qq info`, `qq kill`, `qq sync`, `qq respawn`, `qq wipe`, and `qq go` now accept multiple job IDs as arguments.
 - All of these commands now also internally resolve the jobs in parallel making them much faster when dealing with a large number of jobs.
 
+### Clearing runtime files in a specified directory
+- `qq clear` now supports clearing runtime files in a directory other than the current one via the `-d`/`--dir` flag.
+
 ### Better support for non-bash interpreters
 - Interpreters now support additional command-line arguments.
 
