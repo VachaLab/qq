@@ -154,7 +154,8 @@ using qq directives of this format: `# qq <option> <value>`.
     "--interpreter",
     type=str,
     default=None,
-    help=f"Executable name or absolute path of the interpreter used to run the submitted script. Defaults to {click.style(CFG.runner.default_interpreter, bold=True)}. The interpreter must be available on the computing node.",
+    help=f"Executable name or absolute path of the interpreter used to run the submitted script, including options for the interpreter.\n"
+    f"The interpreter must be available on the computing node. Defaults to {click.style(CFG.runner.default_interpreter, bold=True)}.",
 )
 @optgroup.option(
     "--batch-system",
