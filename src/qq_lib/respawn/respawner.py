@@ -101,6 +101,7 @@ class Respawner(Operator):
             transfer_mode=informer.info.transfer_mode,
             server=informer.info.server,
             interpreter=informer.info.interpreter,
+            resubmit_from=informer.info.resubmit_from,
         )
 
     @staticmethod

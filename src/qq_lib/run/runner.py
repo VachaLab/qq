@@ -31,7 +31,7 @@ from qq_lib.core.retryer import Retryer
 from qq_lib.info.informer import Informer
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.states import NaiveState
-from qq_lib.run.resubmitter import Resubmitter
+from qq_lib.resubmit.resubmitter import Resubmitter
 
 logger = get_logger(__name__, show_time=True)
 

@@ -18,7 +18,7 @@ from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
-from qq_lib.properties.resubmit_host import ExplicitHost, WorkHost
+from qq_lib.properties.resubmit_host import ExplicitHost, InputHost, WorkHost
 from qq_lib.properties.states import NaiveState
 from qq_lib.properties.transfer_mode import Always, Success
 from qq_lib.submit.submitter import CFG, Submitter
@@ -42,6 +42,9 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
             exclude=[Path("exclude")],
             include=[Path("include"), Path("/tmp/include")],
             transfer_mode=[Always()],
+            server="pbs-m1.metacentrum.cz",
+            interpreter=Interpreter(executable="bash"),
+            resubmit_from=[InputHost(), WorkHost()],
         )
 
         assert submitter._batch_system == PBS
@@ -58,8 +61,9 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
         assert submitter._include == [tmp_path / "include", Path("/tmp/include")]
         assert submitter._depend == []
         assert isinstance(submitter._transfer_mode[0], Always)
-        assert submitter._server is None
-        assert submitter._resubmit_from == []
+        assert submitter._server == "pbs-m1.metacentrum.cz"
+        assert submitter._interpreter == Interpreter(executable="bash")
+        assert submitter._resubmit_from == [InputHost(), WorkHost()]
 
 
 def test_submitter_init_raises_error_if_script_does_not_exist(tmp_path):

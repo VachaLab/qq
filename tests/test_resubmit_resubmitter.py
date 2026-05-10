@@ -15,7 +15,7 @@ from qq_lib.properties.resubmit_host import (
     ResubmitHost,
     WorkHost,
 )
-from qq_lib.run.resubmitter import Resubmitter
+from qq_lib.resubmit.resubmitter import Resubmitter
 
 
 def test_resubmitter_advance_loop_cycle_increments_when_loop_info_exists():
@@ -41,7 +41,7 @@ def test_resubmitter_build_submitter_creates_submitter_with_correct_params():
     informer.info.job_id = "12345"
     input_dir = Path("/tmp/input")
 
-    with patch("qq_lib.run.resubmitter.Submitter") as mock_submitter_cls:
+    with patch("qq_lib.resubmit.resubmitter.Submitter") as mock_submitter_cls:
         Resubmitter._build_submitter(informer, input_dir)
 
     mock_submitter_cls.assert_called_once_with(
@@ -67,7 +67,7 @@ def test_resubmitter_build_submitter_depends_on_current_job():
     informer.info.job_id = "99999"
     input_dir = Path("/tmp/input")
 
-    with patch("qq_lib.run.resubmitter.Submitter") as mock_submitter_cls:
+    with patch("qq_lib.resubmit.resubmitter.Submitter") as mock_submitter_cls:
         Resubmitter._build_submitter(informer, input_dir)
 
     call_kwargs = mock_submitter_cls.call_args.kwargs
@@ -81,45 +81,11 @@ def test_resubmitter_build_submitter_constructs_script_path():
     informer.info.script_name = "run.sh"
     input_dir = Path("/home/user/jobs")
 
-    with patch("qq_lib.run.resubmitter.Submitter") as mock_submitter_cls:
+    with patch("qq_lib.resubmit.resubmitter.Submitter") as mock_submitter_cls:
         Resubmitter._build_submitter(informer, input_dir)
 
     call_kwargs = mock_submitter_cls.call_args.kwargs
     assert call_kwargs["script"] == Path("/home/user/jobs/run.sh")
-
-
-def test_resubmitter_resolve_resubmit_hosts_uses_job_metadata_when_available():
-    informer = MagicMock()
-    informer.info.resubmit_from = [InputHost(), WorkHost()]
-
-    result = Resubmitter._resolve_resubmit_hosts(informer)
-
-    assert result == [InputHost(), WorkHost()]
-
-
-def test_resubmitter_resolve_resubmit_hosts_falls_back_to_config():
-    informer = MagicMock()
-    informer.info.resubmit_from = []
-
-    with patch("qq_lib.run.resubmitter.CFG") as mock_cfg:
-        mock_cfg.resubmitter.default_resubmit_hosts = "input:working"
-        result = Resubmitter._resolve_resubmit_hosts(informer)
-
-    assert result == [InputHost(), WorkHost()]
-
-
-def test_resubmitter_resolve_resubmit_hosts_falls_back_to_batch_system():
-    informer = MagicMock()
-    informer.info.resubmit_from = []
-    default_hosts = [InputHost(), WorkHost()]
-    informer.batch_system.get_default_resubmit_hosts.return_value = default_hosts
-
-    with patch("qq_lib.run.resubmitter.CFG") as mock_cfg:
-        mock_cfg.resubmitter.default_resubmit_hosts = ""
-        result = Resubmitter._resolve_resubmit_hosts(informer)
-
-    assert result is default_hosts
-    informer.batch_system.get_default_resubmit_hosts.assert_called_once()
 
 
 def test_resubmitter_try_resubmit_returns_job_id_on_success():
@@ -129,7 +95,7 @@ def test_resubmitter_try_resubmit_returns_job_id_on_success():
     informer.info.input_machine = "submit-node"
     hosts: list[ResubmitHost] = [InputHost()]
 
-    with patch("qq_lib.run.resubmitter.Retryer") as mock_retryer_cls:
+    with patch("qq_lib.resubmit.resubmitter.Retryer") as mock_retryer_cls:
         mock_retryer_cls.return_value.run.return_value = "67890"
         result = Resubmitter._try_resubmit(submitter, informer, hosts)
 
@@ -142,7 +108,17 @@ def test_resubmitter_try_resubmit_raises_when_main_node_not_defined():
     informer.info.main_node = ""
     hosts: list[ResubmitHost] = [InputHost()]
 
-    with pytest.raises(QQError, match="main_node"):
+    with pytest.raises(QQError, match="The 'main_node' of the job is not defined"):
+        Resubmitter._try_resubmit(submitter, informer, hosts)
+
+
+def test_resubmitter_try_resubmit_raises_when_hosts_empty():
+    submitter = MagicMock()
+    informer = MagicMock()
+    informer.info.main_node = "node01"
+    hosts: list[ResubmitHost] = []
+
+    with pytest.raises(QQError, match="No resubmission hosts defined"):
         Resubmitter._try_resubmit(submitter, informer, hosts)
 
 
@@ -153,7 +129,7 @@ def test_resubmitter_try_resubmit_tries_next_host_on_failure():
     informer.info.input_machine = "submit-node"
     hosts: list[ResubmitHost] = [InputHost(), ExplicitHost("fallback-node")]
 
-    with patch("qq_lib.run.resubmitter.Retryer") as mock_retryer_cls:
+    with patch("qq_lib.resubmit.resubmitter.Retryer") as mock_retryer_cls:
         mock_retryer_cls.return_value.run.side_effect = [
             RuntimeError("connection refused"),
             "99999",
@@ -172,7 +148,7 @@ def test_resubmitter_try_resubmit_raises_when_all_hosts_fail():
     hosts: list[ResubmitHost] = [InputHost(), WorkHost()]
 
     with (
-        patch("qq_lib.run.resubmitter.Retryer") as mock_retryer_cls,
+        patch("qq_lib.resubmit.resubmitter.Retryer") as mock_retryer_cls,
         pytest.raises(QQError, match="Could not resubmit the job"),
     ):
         mock_retryer_cls.return_value.run.side_effect = RuntimeError("failed")
@@ -186,7 +162,7 @@ def test_resubmitter_try_resubmit_resolves_hostnames_correctly():
     informer.info.input_machine = "login-01"
     hosts: list[ResubmitHost] = [InputHost(), WorkHost(), ExplicitHost("explicit-01")]
 
-    with patch("qq_lib.run.resubmitter.Retryer") as mock_retryer_cls:
+    with patch("qq_lib.resubmit.resubmitter.Retryer") as mock_retryer_cls:
         mock_retryer_cls.return_value.run.side_effect = [
             RuntimeError("fail"),
             RuntimeError("fail"),
@@ -208,8 +184,8 @@ def test_resubmitter_try_resubmit_uses_configured_retry_params():
     hosts: list[ResubmitHost] = [InputHost()]
 
     with (
-        patch("qq_lib.run.resubmitter.Retryer") as mock_retryer_cls,
-        patch("qq_lib.run.resubmitter.CFG") as mock_cfg,
+        patch("qq_lib.resubmit.resubmitter.Retryer") as mock_retryer_cls,
+        patch("qq_lib.resubmit.resubmitter.CFG") as mock_cfg,
     ):
         mock_cfg.resubmitter.retry_tries = 5
         mock_cfg.resubmitter.retry_wait = 30
@@ -232,7 +208,7 @@ def test_try_resubmit_returns_on_first_success():
     informer.info.input_machine = "submit-node"
     hosts: list[ResubmitHost] = [InputHost(), WorkHost(), ExplicitHost("node-03")]
 
-    with patch("qq_lib.run.resubmitter.Retryer") as mock_retryer_cls:
+    with patch("qq_lib.resubmit.resubmitter.Retryer") as mock_retryer_cls:
         mock_retryer_cls.return_value.run.return_value = "11111"
         result = Resubmitter._try_resubmit(submitter, informer, hosts)
 
@@ -245,12 +221,12 @@ def test_resubmit_calls_methods_in_order():
     resubmitter._info_file = Path("/tmp/input/job.info")
 
     informer = MagicMock()
+    informer.info.resubmit_from = [InputHost()]
     resubmitter.get_informer = MagicMock(return_value=informer)
 
     with (
         patch.object(Resubmitter, "_advance_loop_cycle") as mock_advance,
         patch.object(Resubmitter, "_build_submitter") as mock_build,
-        patch.object(Resubmitter, "_resolve_resubmit_hosts") as mock_resolve,
         patch.object(Resubmitter, "_try_resubmit", return_value="12345") as mock_try,
     ):
         result = resubmitter.resubmit()
@@ -258,7 +234,4 @@ def test_resubmit_calls_methods_in_order():
     assert result == "12345"
     mock_advance.assert_called_once_with(informer)
     mock_build.assert_called_once_with(informer, Path("/tmp/input"))
-    mock_resolve.assert_called_once_with(informer)
-    mock_try.assert_called_once_with(
-        mock_build.return_value, informer, mock_resolve.return_value
-    )
+    mock_try.assert_called_once_with(mock_build.return_value, informer, [InputHost()])

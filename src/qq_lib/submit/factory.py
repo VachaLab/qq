@@ -4,7 +4,7 @@
 from dataclasses import fields
 from pathlib import Path
 
-from qq_lib.batch.interface import BatchInterface
+from qq_lib.batch.interface import AnyBatchClass, BatchInterface
 from qq_lib.core.common import split_files_list, translate_server
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -64,20 +64,22 @@ class SubmitterFactory:
         server = self._get_server()
 
         return Submitter(
-            BatchSystem,
-            queue,
-            self._get_account(),
-            self._script,
-            job_type,
-            self._get_resources(BatchSystem, queue, server),
-            loop_info,
-            self._get_exclude(),
-            self._get_include(),
-            self._get_depend(),
-            self._get_transfer_mode(),
-            server,
-            self._get_interpreter(),
-            self._get_resubmit_from(),
+            batch_system=BatchSystem,
+            queue=queue,
+            account=self._get_account(),
+            script=self._script,
+            job_type=job_type,
+            resources=self._get_resources(BatchSystem, queue, server),
+            loop_info=loop_info,
+            exclude=self._get_exclude(),
+            include=self._get_include(),
+            depend=self._get_depend(),
+            transfer_mode=self._get_transfer_mode(),
+            server=server,
+            interpreter=self._get_interpreter(),
+            resubmit_from=self._get_resubmit_from(BatchSystem)
+            if job_type in {JobType.LOOP, JobType.CONTINUOUS}
+            else None,
         )
 
     def _get_batch_system(self) -> type[BatchInterface]:
@@ -306,16 +308,20 @@ class SubmitterFactory:
 
         return self._parser.get_interpreter()
 
-    def _get_resubmit_from(self) -> list[ResubmitHost]:
+    def _get_resubmit_from(self, BatchSystem: AnyBatchClass) -> list[ResubmitHost]:
         """
-        Determine the list of resubmission hosts to be used
-        to resubmit loop/continuous job.
+        Determine the list of resubmission hosts to be used to resubmit loop/continuous job.
 
         Priority:
             1. Resubmission hosts specified on the command line.
             2. Resubmission hosts specified inside the submitted script.
+            3. Resubmission hosts specified in the configuration file.
+            4. Default resubmission hosts provided by the batch system.
 
         The lists are NOT merged.
+
+        Args:
+            BatchSystem (AnyBatchClass): The batch system used for job submission.
 
         Returns:
             list[ResubmitHost]: List of resubmission hosts.
@@ -323,4 +329,6 @@ class SubmitterFactory:
         return (
             ResubmitHost.multi_from_str(self._kwargs.get("resubmit_from") or "")
             or self._parser.get_resubmit_from()
+            or ResubmitHost.multi_from_str(CFG.resubmitter.default_resubmit_hosts or "")
+            or BatchSystem.get_default_resubmit_hosts()
         )

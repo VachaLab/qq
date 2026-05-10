@@ -41,7 +41,12 @@ class Resubmitter(Operator):
         self._advance_loop_cycle(informer)
 
         submitter = self._build_submitter(informer, input_dir)
-        hosts = self._resolve_resubmit_hosts(informer)
+        hosts = (
+            informer.info.resubmit_from
+            # fall back to batch system default
+            # this is only needed to accomodate transition from loop jobs submitted using previous versions of qq
+            or informer.batch_system.get_default_resubmit_hosts()
+        )
 
         return self._try_resubmit(submitter, informer, hosts)
 
@@ -86,33 +91,11 @@ class Resubmitter(Operator):
             transfer_mode=informer.info.transfer_mode,
             server=informer.info.server,
             interpreter=informer.info.interpreter,
-            resubmit_from=informer.info.resubmit_from,
+            resubmit_from=informer.info.resubmit_from
+            # fall back to batch system default
+            # this is only needed to accommodate transition from loop jobs submitted using previous versions of qq
+            or informer.batch_system.get_default_resubmit_hosts(),
         )
-
-    @staticmethod
-    def _resolve_resubmit_hosts(informer: Informer) -> list[ResubmitHost]:
-        """
-        Determine the list of hosts to attempt resubmission from.
-
-        Hosts are resolved using a three-tier fallback:
-            1. Hosts explicitly specified in the job metadata.
-            2. Default hosts from the configuration file.
-            3. Default hosts for the batch system.
-
-        Args:
-            informer (Informer): The informer instance holding job metadata.
-
-        Returns:
-            list[ResubmitHost]: Ordered list of candidate resubmission hosts.
-        """
-        hosts = informer.info.resubmit_from
-        if not hosts:
-            if raw_hosts := CFG.resubmitter.default_resubmit_hosts:
-                hosts = ResubmitHost.multi_from_str(raw_hosts)
-            else:
-                hosts = informer.batch_system.get_default_resubmit_hosts()
-
-        return hosts
 
     @staticmethod
     def _try_resubmit(
@@ -133,6 +116,7 @@ class Resubmitter(Operator):
 
         Raises:
             QQError: If the main node is not defined in the job metadata.
+            QQError: If the list of resubmission hosts is empty.
             QQError: If resubmission fails on all candidate hosts.
         """
         # get the main node for host resolution
@@ -141,6 +125,11 @@ class Resubmitter(Operator):
         if not main_node:
             raise QQError(
                 "Job cannot be resubmitted. The 'main_node' of the job is not defined."
+            )
+
+        if not hosts:
+            raise QQError(
+                "Job cannot be resubmitted. No resubmission hosts defined. This is a bug."
             )
 
         for host in hosts:

@@ -14,7 +14,11 @@ from qq_lib.properties.depend import Depend
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
-from qq_lib.properties.resubmit_host import InputHost, ResubmitHost, WorkHost
+from qq_lib.properties.resubmit_host import (
+    ExplicitHost,
+    InputHost,
+    WorkHost,
+)
 from qq_lib.properties.size import Size
 from qq_lib.properties.transfer_mode import (
     Always,
@@ -601,37 +605,111 @@ def test_submitter_factory_get_interpreter_returns_none_if_no_cli_no_parser():
     assert result is None
 
 
-def test_submitter_factory_get_resubmit_from_from_command_line():
+@pytest.mark.parametrize(
+    "kwargs, parser_hosts, config_hosts, batch_hosts, expected",
+    [
+        # command line overrides all
+        (
+            {"resubmit_from": "node99"},
+            [WorkHost()],
+            "input",
+            [InputHost()],
+            [ExplicitHost("node99")],
+        ),
+        # parser overrides config and batch
+        (
+            {},
+            [WorkHost(), ExplicitHost("node02")],
+            "input",
+            [InputHost()],
+            [WorkHost(), ExplicitHost("node02")],
+        ),
+        # config overrides batch
+        (
+            {},
+            [],
+            "working:node03",
+            [InputHost()],
+            [WorkHost(), ExplicitHost("node03")],
+        ),
+        # falls back to batch system
+        (
+            {},
+            [],
+            "",
+            [InputHost()],
+            [InputHost()],
+        ),
+        # empty command line falls through to parser
+        (
+            {"resubmit_from": ""},
+            [InputHost()],
+            "working",
+            [WorkHost()],
+            [InputHost()],
+        ),
+        # None config falls through to batch system
+        (
+            {},
+            [],
+            None,
+            [WorkHost()],
+            [WorkHost()],
+        ),
+        # command line, no parser, empty config
+        (
+            {"resubmit_from": "node99:input"},
+            [],
+            "",
+            [InputHost()],
+            [ExplicitHost("node99"), InputHost()],
+        ),
+        # command line, parser, empty config
+        (
+            {"resubmit_from": "node99:input"},
+            [WorkHost()],
+            "",
+            [InputHost()],
+            [ExplicitHost("node99"), InputHost()],
+        ),
+        # parser, empty config
+        (
+            {},
+            [InputHost()],
+            "",
+            [WorkHost()],
+            [InputHost()],
+        ),
+    ],
+    ids=[
+        "command_line_overrides_all",
+        "parser_overrides_config_and_batch",
+        "config_overrides_batch",
+        "falls_back_to_batch_system",
+        "empty_command_line_falls_through",
+        "none_config_falls_through",
+        "command_line_no_parser_empty_config",
+        "command_line_parser_empty_config",
+        "parser_empty_config",
+    ],
+)
+def test_submitter_factory_get_resubmit_from_priority(
+    kwargs, parser_hosts, config_hosts, batch_hosts, expected
+):
     mock_parser = MagicMock()
-    parser_resubmit_from = [MagicMock(), MagicMock()]
-    mock_parser.get_resubmit_from.return_value = parser_resubmit_from
+    mock_parser.get_resubmit_from.return_value = parser_hosts
+    mock_batch_system = MagicMock()
+    mock_batch_system.get_default_resubmit_hosts.return_value = batch_hosts
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
-    factory._kwargs = {"resubmit_from": "input,node01"}
+    factory._kwargs = kwargs
 
-    cli_resubmit_from = [MagicMock(), MagicMock()]
+    with patch("qq_lib.submit.factory.CFG") as mock_cfg:
+        mock_cfg.resubmitter.default_resubmit_hosts = config_hosts
+        result = factory._get_resubmit_from(mock_batch_system)
 
-    with patch.object(
-        ResubmitHost, "multi_from_str", return_value=cli_resubmit_from
-    ) as mock_multi:
-        result = factory._get_resubmit_from()
-
-    mock_multi.assert_called_once_with("input,node01")
-    assert result == cli_resubmit_from
-
-
-def test_submitter_factory_get_resubmit_from_from_parser():
-    mock_parser = MagicMock()
-    parser_resubmit_from = [MagicMock(), MagicMock()]
-    mock_parser.get_resubmit_from.return_value = parser_resubmit_from
-
-    factory = SubmitterFactory.__new__(SubmitterFactory)
-    factory._parser = mock_parser
-    factory._kwargs = {}
-
-    result = factory._get_resubmit_from()
-    assert result == parser_resubmit_from
+    assert result == expected
 
 
 @pytest.mark.parametrize("server", [None, "fake.server.org"])
@@ -696,23 +774,23 @@ def test_submitter_factory_make_submitter_standard_job(server):
     mock_get_acct.assert_called_once()
     mock_get_transfer.assert_called_once()
     mock_get_interpreter.assert_called_once()
-    mock_resubmit_from.assert_called_once()
+    mock_resubmit_from.assert_not_called()
 
     mock_submitter_class.assert_called_once_with(
-        BatchSystem,
-        queue,
-        account,
-        factory._script,
-        JobType.STANDARD,
-        resources,
-        None,  # loop_info is None for STANDARD job
-        excludes,
-        includes,
-        depends,
-        transfer,
-        server,
-        interpreter,
-        resubmit_from,
+        batch_system=BatchSystem,
+        queue=queue,
+        account=account,
+        script=factory._script,
+        job_type=JobType.STANDARD,
+        resources=resources,
+        loop_info=None,  # loop_info is None for STANDARD job
+        exclude=excludes,
+        include=includes,
+        depend=depends,
+        transfer_mode=transfer,
+        server=server,
+        interpreter=interpreter,
+        resubmit_from=None,
     )
     assert result == mock_submit_instance
 
@@ -785,19 +863,19 @@ def test_submitter_factory_make_submitter_loop_job(server):
     mock_resubmit_from.assert_called_once()
 
     mock_submitter_class.assert_called_once_with(
-        BatchSystem,
-        queue,
-        account,
-        factory._script,
-        JobType.LOOP,
-        resources,
-        loop_info,
-        excludes,
-        includes,
-        depends,
-        transfer,
-        server,
-        interpreter,
-        resubmit_from,
+        batch_system=BatchSystem,
+        queue=queue,
+        account=account,
+        script=factory._script,
+        job_type=JobType.LOOP,
+        resources=resources,
+        loop_info=loop_info,
+        exclude=excludes,
+        include=includes,
+        depend=depends,
+        transfer_mode=transfer,
+        server=server,
+        interpreter=interpreter,
+        resubmit_from=resubmit_from,
     )
     assert result == mock_submit_instance

@@ -89,7 +89,7 @@ class Submitter:
             intepreter (Interpreter | None): Optional interpreter specification to use to execute the script.
                 If not specified, the config default is used.
             resubmit_from (list[ResubmitHost] | None): List of hosts from which a loop/continuous job should be resubmitted.
-                If not specified, the config or batch system default is used.
+                Must only be specified for loop/continuous jobs!
 
         Raises:
             QQError: If the script does not exist or has an invalid shebang line.
@@ -171,7 +171,7 @@ class Submitter:
                 script_name=self._script_name,
                 queue=self._queue,
                 job_type=self._job_type,
-                input_machine=remote or socket.getfqdn(),
+                input_machine=socket.getfqdn(remote or ""),
                 input_dir=self._input_dir,
                 job_state=NaiveState.QUEUED,
                 submission_time=datetime.now(),
