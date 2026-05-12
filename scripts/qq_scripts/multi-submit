@@ -5,7 +5,7 @@
 
 """
 Submit qq jobs from multiple directories.
-Version qq 0.10.1.
+Version qq 0.11.0.
 Requires `uv`: https://docs.astral.sh/uv
 """
 
@@ -16,11 +16,12 @@ Requires `uv`: https://docs.astral.sh/uv
 # ]
 #
 # [tool.uv.sources]
-# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.10.1" }
+# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.11.0" }
 # ///
 
 import argparse
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import suppress
 from pathlib import Path
 
@@ -58,6 +59,7 @@ def submit_job(base_submitter: Submitter, directory: str) -> bool:
         base_submitter.get_transfer_mode(),
         base_submitter.get_server(),
         base_submitter.get_interpreter(),
+        base_submitter.get_resubmit_from(),
     )
 
     with suppress(QQError):
@@ -145,6 +147,13 @@ def main():
     parser.add_argument(
         "directories", nargs="+", help="Directories containing qq info files."
     )
+    parser.add_argument(
+        "-t",
+        "--threads",
+        type=int,
+        default=16,
+        help="Number of worker threads (default: 16)",
+    )
     # parse only known arguments
     args, passthrough = parser.parse_known_args()
     console.print()
@@ -179,22 +188,26 @@ def main():
         expand=False,
     )
 
-    # submit the jobs
-    # we are not using multithreading because submitting a job in qq is not thread-safe
-    # (working directory is temporarily changed during the submission)
+    # submit the jobs using multithreading
     submitted = set()
     not_submitted = set()
-
     with progress:
         task = progress.add_task("submit", total=len(args.directories))
 
-        for dir in args.directories:
-            if submit_job(base_submitter, dir):
-                submitted.add(dir)
-            else:
-                not_submitted.add(dir)
+        with ThreadPoolExecutor(max_workers=args.threads) as executor:
+            futures = {
+                executor.submit(submit_job, base_submitter, dir): dir
+                for dir in args.directories
+            }
 
-            progress.update(task, advance=1)
+            for future in as_completed(futures):
+                dir = futures[future]
+                if future.result():
+                    submitted.add(dir)
+                else:
+                    not_submitted.add(dir)
+
+                progress.update(task, advance=1)
 
     # print the submission statistics
     if not submitted and not not_submitted:
