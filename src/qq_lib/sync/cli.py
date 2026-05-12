@@ -2,15 +2,13 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 import re
-import sys
-from pathlib import Path
 from typing import NoReturn
 
 import click
 from rich.console import Console
 
 from qq_lib.core.click_format import GNUHelpColorsCommand
-from qq_lib.core.common import get_info_files
+from qq_lib.core.command_runner import CommandRunner
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
@@ -21,7 +19,6 @@ from qq_lib.core.error_handlers import (
     handle_not_suitable_error,
 )
 from qq_lib.core.logger import get_logger
-from qq_lib.core.repeater import Repeater
 from qq_lib.info.informer import Informer
 
 from .syncer import Syncer
@@ -35,10 +32,10 @@ console = Console()
     help=f"""Fetch files from the working directory of the specified qq job, or from the
 working directory of the job submitted from the current directory.
 
-{click.style("JOB_ID", fg="green")}   The identifier of the job whose working directory files should be fetched. Optional.
+{click.style("JOB_ID", fg="green")}   One or more IDs of jobs whose working directory files should be fetched. Optional.
 
-If JOB_ID is not specified, `{CFG.binary_name} sync` searches for qq jobs in the current directory.
-If multiple suitable jobs are found, `{CFG.binary_name} sync` fetches files from each job in turn.
+If no JOB_ID is specified, `{CFG.binary_name} sync` searches for qq jobs in the current directory.
+If multiple suitable jobs are provided or found, `{CFG.binary_name} sync` fetches files from each job in turn.
 Files fetched from later jobs may overwrite files from earlier jobs in the input directory.
 
 Files are copied from the job's working directory to its input directory, not to the current directory.
@@ -47,11 +44,12 @@ Files are copied from the job's working directory to its input directory, not to
     help_options_color="bright_blue",
 )
 @click.argument(
-    "job",
+    "jobs",
     type=str,
     metavar=click.style("JOB_ID", fg="green"),
     required=False,
     default=None,
+    nargs=-1,
 )
 @click.option(
     "-f",
@@ -61,35 +59,20 @@ Files are copied from the job's working directory to its input directory, not to
     help="""A colon-, comma-, or space-separated list of files or directories to fetch.
 If not specified, the entire content of the working directory is fetched.""",
 )
-def sync(job: str | None, files: str | None) -> NoReturn:
+def sync(jobs: tuple[str, ...], files: str | None) -> NoReturn:
     """
-    Fetch files from the working directory of the specified qq job or
-    working directory (directories) of qq job(s) submitted from this directory.
+    Fetch files from the working directory (directories) of the specified qq job(s)
+    or of qq job(s) submitted from this directory.
     """
-    try:
-        if job:
-            informers = [Informer.from_job_id(job)]
-        else:
-            if not (
-                informers := [
-                    Informer.from_file(info) for info in get_info_files(Path.cwd())
-                ]
-            ):
-                raise QQError("No qq job info file found.")
-
-        repeater = Repeater(informers, _sync_job, _split_files(files))
-        repeater.on_exception(QQNotSuitableError, handle_not_suitable_error)
-        repeater.on_exception(QQError, handle_general_qq_error)
-        repeater.run()
-        print()
-        sys.exit(0)
-    # QQErrors should be caught by Repeater
-    except QQError as e:
-        logger.error(e)
-        sys.exit(CFG.exit_codes.default)
-    except Exception as e:
-        logger.critical(e, exc_info=True, stack_info=True)
-        sys.exit(CFG.exit_codes.unexpected_error)
+    CommandRunner(
+        jobs,
+        _sync_job,
+        logger,
+        _split_files(files),
+        n_threads=CFG.parallelization_options.job_info_max_threads,
+    ).on_exception(QQNotSuitableError, handle_not_suitable_error).on_exception(
+        QQError, handle_general_qq_error
+    ).run()
 
 
 def _split_files(files: str | None) -> list[str] | None:

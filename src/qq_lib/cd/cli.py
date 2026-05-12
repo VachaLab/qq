@@ -7,7 +7,7 @@ from typing import NoReturn
 
 import click
 
-from qq_lib.batch.interface import BatchMeta
+from qq_lib.batch.interface import BatchInterface
 from qq_lib.cd.cder import Cder
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.config import CFG
@@ -40,7 +40,7 @@ def cd(job: str) -> NoReturn:
     which then cds to this directory in the parent shell.
     """
     try:
-        cder = Cder(BatchMeta.from_env_var_or_guess(), job)
+        cder = Cder(BatchInterface.from_env_var_or_guess(), job)
         print(cder.cd())
         sys.exit(0)
     except QQError as e:

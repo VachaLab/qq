@@ -29,6 +29,8 @@ __all__ = [
     "nodes",
     "properties",
     "queues",
+    "respawn",
+    "resubmit",
     "run",
     "submit",
     "sync",

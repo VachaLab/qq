@@ -8,13 +8,15 @@ from pathlib import Path
 from click import Parameter
 from click_option_group import GroupedOption
 
-from qq_lib.batch.interface import BatchInterface, BatchMeta
+from qq_lib.batch.interface import BatchInterface
 from qq_lib.core.common import split_files_list, to_snake_case
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
+from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import Resources
+from qq_lib.properties.resubmit_host import ResubmitHost
 from qq_lib.properties.transfer_mode import TransferMode
 
 logger = get_logger(__name__)
@@ -118,7 +120,7 @@ class Parser:
             type[BatchInterface] | None: The batch system class if specified, otherwise None.
         """
         if (batch_system := self._options.get("batch_system")) is not None:
-            return BatchMeta.from_str(str(batch_system))
+            return BatchInterface.from_str(str(batch_system))
 
         return None
 
@@ -290,17 +292,29 @@ class Parser:
 
         return None
 
-    def get_interpreter(self) -> str | None:
+    def get_interpreter(self) -> Interpreter | None:
         """
         Get the interpreter that should be used to run the script.
 
         Returns:
-            str | None: The interpreter or `None` if not specified.
+            Interpreter | None: The interpreter or `None` if not specified.
         """
-        if (interpreter := self._options.get("interpreter")) is not None:
-            return str(interpreter)
+        if (raw := self._options.get("interpreter")) is not None:
+            return Interpreter.from_str(str(raw))
 
         return None
+
+    def get_resubmit_from(self) -> list[ResubmitHost]:
+        """
+        Return the list of resubmission hosts.
+
+        Returns:
+            list[ResubmitHost]: List of job dependencies.
+        """
+        if (raw := self._options.get("resubmit_from")) is not None:
+            return ResubmitHost.multi_from_str(str(raw))
+
+        return []
 
     @staticmethod
     def _strip_and_split(string: str) -> list[str]:

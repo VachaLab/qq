@@ -4,7 +4,13 @@
 
 from pathlib import Path
 
-from qq_lib.batch.interface import BatchInterface, BatchJobInterface
+from qq_lib.batch.interface import (
+    AnyBatchClass,
+    BatchInterface,
+    BatchJobInterface,
+    BatchNodeInterface,
+    BatchQueueInterface,
+)
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 
@@ -16,12 +22,16 @@ class Cder:
     Retrieve and provide the input directory for a specific job in the configured batch system.
     """
 
-    def __init__(self, BatchSystem: type[BatchInterface], job_id: str):
+    def __init__(
+        self,
+        BatchSystem: AnyBatchClass,
+        job_id: str,
+    ):
         """
         Initialize the Cder instance with a batch system interface and job ID.
 
         Args:
-            BatchSystem (type[BatchInterface]): The batch system which manages the job.
+            BatchSystem (AnyBatchClass): The batch system which manages the job.
             job_id (str): Identifier of the job to query.
         """
         self._job_id = job_id
@@ -42,9 +52,14 @@ class Cder:
         return str(path)
 
     @staticmethod
-    def _get_input_dir_from_job_id(
-        BatchSystem: type[BatchInterface], job_id: str
-    ) -> Path:
+    def _get_input_dir_from_job_id[
+        TBatchJob: BatchJobInterface,
+        TBatchQueue: BatchQueueInterface,
+        TBatchNode: BatchNodeInterface,
+    ](
+        BatchSystem: type[BatchInterface[TBatchJob, TBatchQueue, TBatchNode]],
+        job_id: str,
+    ) -> Path | None:
         """
         Query the batch system for the input directory of a job.
 
@@ -63,4 +78,7 @@ class Cder:
         if job_info.is_empty():
             raise QQError(f"Job '{job_id}' does not exist.")
 
-        return job_info.get_input_dir()
+        if not (input_dir := job_info.get_input_dir()):
+            raise QQError(f"Job '{job_id}' has an unknown input directory.")
+
+        return input_dir

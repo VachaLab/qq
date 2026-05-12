@@ -218,36 +218,6 @@ class Resources(HasCouplingMethods):
 
         return Resources(**merged_data)
 
-    def to_command_line(self) -> list[str]:
-        """
-        Convert resource settings into a command-line argument list for `qq submit`.
-
-        Returns:
-            list[str]: A list of command-line arguments ready to pass to ``qq submit``.
-        """
-        command_line: list[str] = []
-        for f in fields(Resources):
-            field_name = f.name.replace("_", "-")
-            value = getattr(self, f.name)
-            if value is None:
-                continue
-
-            if isinstance(value, Size):
-                command_line.extend([f"--{field_name}", value.to_str_exact()])
-            elif isinstance(value, int):
-                command_line.extend([f"--{field_name}", str(value)])
-            elif isinstance(value, dict):
-                if value := self._props_to_value():
-                    command_line.extend([f"--{field_name}", value])
-            elif isinstance(value, str):
-                command_line.extend([f"--{field_name}", value])
-            else:
-                raise QQError(
-                    f"Unknown value type detected: {field_name}={value} of type {type(value)} when converting Resources to command line options. This is a bug, please report this."
-                )
-
-        return command_line
-
     @staticmethod
     def _parse_size(value: object) -> Size | None:
         """

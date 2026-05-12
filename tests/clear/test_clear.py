@@ -1,0 +1,264 @@
+# Released under MIT License.
+# Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
+
+
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+from click.testing import CliRunner
+
+from qq_lib.clear.clearer import CFG
+from qq_lib.clear.cli import Clearer, clear
+from qq_lib.core.error import QQError
+from qq_lib.info.informer import Informer
+from qq_lib.properties.states import RealState
+
+
+def test_clearer_init_sets_directory():
+    dummy_path = Path("/fake/path")
+    clearer = Clearer(dummy_path)
+    assert clearer._directory == dummy_path
+
+
+def test_clearer_delete_files_deletes_all_files():
+    mock_file1 = Mock(spec=Path)
+    mock_file2 = Mock(spec=Path)
+
+    Clearer._delete_files([mock_file1, mock_file2])
+
+    mock_file1.unlink.assert_called_once()
+    mock_file2.unlink.assert_called_once()
+
+
+def test_clearer_collect_runtime_files_returns_files_from_helper(tmp_path):
+    clearer = Clearer(tmp_path)
+    expected_files = [
+        tmp_path / f"a{CFG.suffixes.qq_info}",
+        tmp_path / f"b{CFG.suffixes.qq_out}",
+    ]
+
+    with patch(
+        "qq_lib.clear.clearer.get_runtime_files", return_value=expected_files
+    ) as mock_get:
+        result = clearer._collect_runtime_files()
+
+        mock_get.assert_called_once_with(tmp_path)
+        assert result == set(expected_files)
+
+
+@pytest.mark.parametrize("state", list(RealState))
+def test_clearer_collect_excluded_files(tmp_path, state):
+    clearer = Clearer(tmp_path)
+    dummy_info_file = tmp_path / f"job{CFG.suffixes.qq_info}"
+    dummy_info_file.touch()
+
+    dummy_stdout = f"stdout{CFG.suffixes.stdout}"
+    dummy_stderr = f"stderr{CFG.suffixes.stderr}"
+    dummy_job_name = "job"
+
+    mock_informer = MagicMock()
+    mock_informer.get_real_state.return_value = state
+    mock_informer.info.stdout_file = dummy_stdout
+    mock_informer.info.stderr_file = dummy_stderr
+    mock_informer.info.job_name = dummy_job_name
+
+    with (
+        patch("qq_lib.core.common.get_info_files", return_value=[dummy_info_file]),
+        patch("qq_lib.info.informer.Informer.from_file", return_value=mock_informer),
+    ):
+        result = clearer._collect_excluded_files()
+
+    if state in [
+        RealState.KILLED,
+        RealState.FAILED,
+        RealState.IN_AN_INCONSISTENT_STATE,
+    ]:
+        assert dummy_info_file not in result
+        assert tmp_path / dummy_stdout
+        assert (tmp_path / dummy_job_name).with_suffix(CFG.suffixes.qq_out)
+    else:
+        expected_files = {
+            dummy_info_file,
+            tmp_path / dummy_stdout,
+            tmp_path / dummy_stderr,
+            (tmp_path / dummy_job_name).with_suffix(CFG.suffixes.qq_out),
+        }
+        assert result == expected_files
+
+
+def test_clearer_collect_excluded_files_ignores_files_that_raise_qqerror(tmp_path):
+    clearer = Clearer(tmp_path)
+    dummy_info_file = tmp_path / f"bad{CFG.suffixes.qq_info}"
+    dummy_info_file.touch()
+
+    with (
+        patch("qq_lib.core.common.get_info_files", return_value=[dummy_info_file]),
+        patch.object(Informer, "from_file", side_effect=QQError("cannot read file")),
+    ):
+        result = clearer._collect_excluded_files()
+
+    assert result == set()
+
+
+def test_clearer_clear_deletes_only_safe_files(tmp_path):
+    clearer = Clearer(tmp_path)
+
+    safe_file = tmp_path / f"safe{CFG.suffixes.qq_out}"
+    excluded_file = tmp_path / f"excluded{CFG.suffixes.qq_out}"
+
+    with (
+        patch.object(
+            Clearer, "_collect_runtime_files", return_value={safe_file, excluded_file}
+        ),
+        patch.object(Clearer, "_collect_excluded_files", return_value={excluded_file}),
+        patch.object(Clearer, "_delete_files") as mock_delete,
+        patch("qq_lib.clear.clearer.logger.info") as mock_info,
+    ):
+        clearer.clear()
+
+        mock_delete.assert_called_once_with({safe_file})
+
+        messages = [call.args[0] for call in mock_info.call_args_list]
+        assert any("Removed" in msg and "qq file" in msg for msg in messages)
+        assert any("could not be safely cleared" in msg for msg in messages)
+
+
+def test_clearer_clear_deletes_no_files_are_safe(tmp_path):
+    clearer = Clearer(tmp_path)
+
+    excluded1 = tmp_path / f"excluded1{CFG.suffixes.qq_out}"
+    excluded2 = tmp_path / f"excluded2{CFG.suffixes.qq_out}"
+
+    with (
+        patch.object(
+            Clearer, "_collect_runtime_files", return_value={excluded1, excluded2}
+        ),
+        patch.object(
+            Clearer, "_collect_excluded_files", return_value={excluded1, excluded2}
+        ),
+        patch.object(Clearer, "_delete_files") as mock_delete,
+        patch("qq_lib.clear.clearer.logger.info") as mock_info,
+    ):
+        clearer.clear()
+
+        mock_delete.assert_not_called()
+
+        messages = [call.args[0] for call in mock_info.call_args_list]
+        assert any("No qq files could be safely cleared" in msg for msg in messages)
+
+
+def test_clearer_clear_force_deletes_all_files(tmp_path):
+    clearer = Clearer(tmp_path)
+
+    file1 = tmp_path / f"file1{CFG.suffixes.qq_out}"
+    file2 = tmp_path / f"file2{CFG.suffixes.qq_out}"
+
+    with (
+        patch.object(Clearer, "_collect_runtime_files", return_value={file1, file2}),
+        patch.object(Clearer, "_collect_excluded_files") as mock_excluded,
+        patch.object(Clearer, "_delete_files") as mock_delete,
+        patch("qq_lib.clear.clearer.logger.info") as mock_info,
+    ):
+        clearer.clear(force=True)
+
+        mock_excluded.assert_not_called()
+        mock_delete.assert_called_once_with({file1, file2})
+
+        messages = [call.args[0] for call in mock_info.call_args_list]
+        assert any("Removed" in msg and "qq file" in msg for msg in messages)
+
+
+def test_clearer_clear_logs_info_when_no_files(tmp_path):
+    clearer = Clearer(tmp_path)
+
+    with (
+        patch.object(Clearer, "_collect_runtime_files", return_value=set()),
+        patch.object(Clearer, "_delete_files") as mock_delete,
+        patch("qq_lib.clear.clearer.logger.info") as mock_info,
+    ):
+        clearer.clear()
+
+        mock_delete.assert_not_called()
+
+        messages = [call.args[0] for call in mock_info.call_args_list]
+        assert any("Nothing to clear" in msg for msg in messages)
+
+
+def test_clear_runs_successfully():
+    runner = CliRunner()
+
+    with patch("qq_lib.clear.cli.Clearer") as mock_cls:
+        result = runner.invoke(clear, [])
+
+    assert result.exit_code == 0
+    mock_cls.assert_called_once_with(Path())
+    mock_cls.return_value.clear.assert_called_once_with(False)
+
+
+def test_clear_uses_current_directory_by_default():
+    runner = CliRunner()
+
+    with patch("qq_lib.clear.cli.Clearer") as mock_cls:
+        runner.invoke(clear, [])
+
+    mock_cls.assert_called_once_with(Path())
+
+
+def test_clear_with_dir_flag():
+    runner = CliRunner()
+
+    with patch("qq_lib.clear.cli.Clearer") as mock_cls:
+        result = runner.invoke(clear, ["-d", "/tmp/my_jobs"])
+
+    assert result.exit_code == 0
+    mock_cls.assert_called_once_with(Path("/tmp/my_jobs"))
+
+
+def test_clear_with_force_flag():
+    runner = CliRunner()
+
+    with patch("qq_lib.clear.cli.Clearer") as mock_cls:
+        result = runner.invoke(clear, ["--force"])
+
+    assert result.exit_code == 0
+    mock_cls.return_value.clear.assert_called_once_with(True)
+
+
+def test_clear_with_dir_and_force():
+    runner = CliRunner()
+
+    with patch("qq_lib.clear.cli.Clearer") as mock_cls:
+        result = runner.invoke(clear, ["-d", "/tmp/my_jobs", "--force"])
+
+    assert result.exit_code == 0
+    mock_cls.assert_called_once_with(Path("/tmp/my_jobs"))
+    mock_cls.return_value.clear.assert_called_once_with(True)
+
+
+def test_clear_qqerror_exits_with_default_code():
+    runner = CliRunner()
+
+    with (
+        patch("qq_lib.clear.cli.Clearer") as mock_cls,
+        patch("qq_lib.clear.cli.logger") as mock_logger,
+    ):
+        mock_cls.return_value.clear.side_effect = QQError("some error")
+        result = runner.invoke(clear, [])
+
+    assert result.exit_code == CFG.exit_codes.default
+    mock_logger.error.assert_called_once()
+
+
+def test_clear_unexpected_exception_exits_with_unexpected_code():
+    runner = CliRunner()
+
+    with (
+        patch("qq_lib.clear.cli.Clearer") as mock_cls,
+        patch("qq_lib.clear.cli.logger") as mock_logger,
+    ):
+        mock_cls.return_value.clear.side_effect = RuntimeError("unexpected")
+        result = runner.invoke(clear, [])
+
+    assert result.exit_code == CFG.exit_codes.unexpected_error
+    mock_logger.critical.assert_called_once()

@@ -9,8 +9,8 @@ from typing import NoReturn
 
 import click
 
+from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.interface.job import BatchJobInterface
-from qq_lib.batch.interface.meta import BatchMeta
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import translate_server, yes_or_no_prompt
 from qq_lib.core.config import CFG
@@ -49,7 +49,7 @@ def killall(
     yes: bool = False, force: bool = False, server: str | None = None
 ) -> NoReturn:
     try:
-        BatchSystem = BatchMeta.from_env_var_or_guess()
+        BatchSystem = BatchInterface.from_env_var_or_guess()
 
         if server:
             server = translate_server(server)
@@ -73,6 +73,7 @@ def killall(
                 f"You have {len(informers)} active qq job{'s' if len(informers) > 1 else ''}. Do you want to kill {'them' if len(informers) > 1 else 'it'}?"
             )
         ):
+            # TODO: this should be done in parallel
             repeater = Repeater(
                 informers,
                 kill_job,
@@ -86,7 +87,6 @@ def killall(
             logger.info("Operation aborted.")
 
         sys.exit(0)
-    # QQErrors should be caught by Repeater
     except QQError as e:
         logger.error(e)
         sys.exit(CFG.exit_codes.default)

@@ -10,8 +10,7 @@ from rich.table import Table
 from rich.text import Text
 from tabulate import Line, TableFormat, tabulate
 
-from qq_lib.batch.interface import BatchJobInterface
-from qq_lib.batch.interface.interface import BatchInterface
+from qq_lib.batch.interface import AnyBatchClass, BatchJobInterface
 from qq_lib.core.common import (
     format_duration_wdhhmmss,
     get_panel_width,
@@ -73,7 +72,7 @@ class JobsPresenter:
 
     def __init__(
         self,
-        batch_system: type[BatchInterface],
+        batch_system: AnyBatchClass,
         jobs: list[BatchJobInterface],
         extra: bool,
         all: bool,

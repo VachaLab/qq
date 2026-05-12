@@ -1,32 +1,139 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
+from __future__ import annotations
 
+import inspect
+import os
 import socket
 import subprocess
-from abc import ABC
+from abc import ABC, ABCMeta
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
 
 from qq_lib.core.common import convert_absolute_to_relative
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
-from qq_lib.properties.depend import Depend
-from qq_lib.properties.resources import Resources
+from qq_lib.properties.resubmit_host import InputHost, ResubmitHost
 
 from .job import BatchJobInterface
 from .node import BatchNodeInterface
 from .queue import BatchQueueInterface
 
+if TYPE_CHECKING:
+    from qq_lib.properties.depend import Depend
+    from qq_lib.properties.resources import Resources
+
 logger = get_logger(__name__)
+
+"""
+Type alias for a batch system class.
+"""
+type AnyBatchClass = type[BatchInterface[Any, Any, Any]]
+
+
+class _BatchMeta(ABCMeta):
+    """
+    Metaclass for batch system classes.
+
+    Provides automatic registration of concrete subclasses and lookup
+    methods that are callable directly on BatchInterface (or any class
+    using this metaclass).
+
+    Examples:
+        BatchSystem = BatchInterface.from_env_var_or_guess()
+        BatchSystem = BatchInterface.from_str("PBS")
+    """
+
+    _registry: dict[str, AnyBatchClass] = {}
+
+    def __init__(cls, name: str, bases: tuple[type, ...], namespace: dict) -> None:
+        super().__init__(name, bases, namespace)
+        # register every concrete (non-abstract) subclass automatically
+        if any(isinstance(b, _BatchMeta) for b in bases) and not inspect.isabstract(
+            cls
+        ):
+            batch_cls = cast("type[BatchInterface]", cls)
+            _BatchMeta._registry[batch_cls.env_name()] = batch_cls
+
+    def __str__(cls: type[BatchInterface]) -> str:
+        """
+        Get the string representation of the batch system class.
+        """
+        return cls.env_name()
+
+    def from_str(cls, name: str) -> type[BatchInterface]:
+        """
+        Return the batch system class registered under the given name.
+
+        Raises:
+            QQError: If no class is registered for the given name.
+        """
+        try:
+            return _BatchMeta._registry[name]
+        except KeyError as e:
+            raise QQError(f"No batch system registered as '{name}'.") from e
+
+    def guess(cls) -> type[BatchInterface]:
+        """
+        Return the first registered batch system that reports itself
+        as available.
+
+        Raises:
+            QQError: If no available batch system is found.
+        """
+        for BatchSystem in _BatchMeta._registry.values():
+            if BatchSystem.is_available():
+                logger.debug(f"Guessed batch system: {BatchSystem}.")
+                return BatchSystem
+
+        raise QQError(
+            "Could not guess a batch system. No registered batch system available."
+        )
+
+    def from_env_var_or_guess(cls) -> type[BatchInterface]:
+        """
+        Select a batch system from the `QQ_BATCH_SYSTEM` environment
+        variable, falling back to `guess` when the variable is unset.
+
+        Raises:
+            QQError: If the variable names an unknown system, or if no
+                     available system can be guessed.
+        """
+        name = os.environ.get(CFG.env_vars.batch_system)
+        if name:
+            logger.debug(
+                f"Using batch system name from an environment variable: {name}."
+            )
+            return cls.from_str(name)
+
+        return cls.guess()
+
+    def obtain(cls, name: str | None) -> type[BatchInterface]:
+        """
+        Obtain a batch system class by explicit name, environment
+        variable, or automatic detection - in that priority order.
+
+        Args:
+            name: Optional batch system name.  When `None`, delegates
+                  to `from_env_var_or_guess`.
+
+        Raises:
+            QQError: If the name is unknown or no system can be resolved.
+        """
+        if name:
+            return cls.from_str(name)
+
+        return cls.from_env_var_or_guess()
 
 
 class BatchInterface[
-    TBatchJob: BatchJobInterface,
-    TBatchQueue: BatchQueueInterface,
-    TBatchNode: BatchNodeInterface,
-](ABC):
+    TBatchJob: BatchJobInterface = BatchJobInterface,
+    TBatchQueue: BatchQueueInterface = BatchQueueInterface,
+    TBatchNode: BatchNodeInterface = BatchNodeInterface,
+](ABC, metaclass=_BatchMeta):
     """
     Abstract base class for batch system integrations.
 
@@ -111,11 +218,14 @@ class BatchInterface[
         env_vars: dict[str, str],
         account: str | None = None,
         server: str | None = None,
+        remote_host: str | None = None,
     ) -> str:
         """
         Submit a job to the batch system.
 
         Can also perform additional validation of the job's resources.
+
+        This method is NOT guaranteed to be thread-safe.
 
         Args:
             res (Resources): Resources required for the job.
@@ -126,6 +236,7 @@ class BatchInterface[
             env_vars (dict[str, str]): Dictionary of environment variables to propagate to the job.
             account (str | None): Optional account name to use for the job.
             server (str | None): Optional name of the server to submit the job to.
+            remote_host (str | None): Optional name of the machine to submit the job from.
 
         Returns:
             str: Unique ID of the submitted job.
@@ -179,7 +290,7 @@ class BatchInterface[
             job_id (str): Identifier of the job.
 
         Returns:
-            TBatchJob: Object containing the job's metadata and state.
+            BatchJobInterface: Object containing the job's metadata and state.
         """
         raise NotImplementedError(
             f"get_batch_job method is not implemented for {cls.__name__}"
@@ -200,7 +311,7 @@ class BatchInterface[
             server (str | None): Optional name of the batch server to get jobs from.
 
         Returns:
-            list[TBatchJob]: A list of job info objects representing the user's uncompleted jobs.
+            list[BatchJobInterface]: A list of job info objects representing the user's uncompleted jobs.
         """
         raise NotImplementedError(
             f"get_unfinished_batch_jobs method is not implemented for {cls.__name__}"
@@ -219,7 +330,7 @@ class BatchInterface[
             server (str | None): Optional name of the batch server to get jobs from.
 
         Returns:
-            list[TBatchJob]: A list of job info objects representing all jobs of the user.
+            list[BatchJobInterface]: A list of job info objects representing all jobs of the user.
         """
         raise NotImplementedError(
             f"get_batch_jobs method is not implemented for {cls.__name__}"
@@ -238,7 +349,7 @@ class BatchInterface[
             server (str | None): Optional name of the batch server to get jobs from.
 
         Returns:
-            list[TBatchJob]: A list of job info objects representing uncompleted jobs of all users.
+            list[BatchJobInterface]: A list of job info objects representing uncompleted jobs of all users.
         """
         raise NotImplementedError(
             f"get_all_unfinished_batch_jobs method is not implemented for {cls.__name__}"
@@ -255,7 +366,7 @@ class BatchInterface[
             server (str | None): Optional name of the batch server to get jobs from.
 
         Returns:
-            list[TBatchJob]: A list of job info objects representing all jobs of all users.
+            list[BatchJobInterface]: A list of job info objects representing all jobs of all users.
         """
         raise NotImplementedError(
             f"get_all_batch_jobs method is not implemented for {cls.__name__}"
@@ -270,7 +381,7 @@ class BatchInterface[
             server (str | None): Optional name of the batch server to get queues from.
 
         Returns:
-            list[TBatchQueue]: A list of queue objects existing in the batch system.
+            list[BatchQueueInterface]: A list of queue objects existing in the batch system.
         """
         raise NotImplementedError(
             f"get_queues method is not implemented for {cls.__name__}"
@@ -285,7 +396,7 @@ class BatchInterface[
             server (str | None): Optional name of the batch server to get nodes from.
 
         Returns:
-            list[TBatchNode]: A list of node objects existing in the batch system.
+            list[BatchNodeInterface]: A list of node objects existing in the batch system.
         """
         raise NotImplementedError(
             f"get_nodes method is not implemented for {cls.__name__}"
@@ -741,51 +852,16 @@ class BatchInterface[
         return result.returncode != 0
 
     @classmethod
-    def resubmit(
-        cls, input_machine: str, input_dir: Path, command_line: list[str]
-    ) -> None:
+    def get_default_resubmit_hosts(cls) -> list[ResubmitHost]:
         """
-        Resubmit a job to the batch system.
+        Get the default job resubmission hosts for this batch system.
 
-        The default implementation connects via SSH to the specified machine,
-        changes into the job directory, and re-executes the original job
-        submission command (`qq submit ...`).
+        In the default implementation, resubmission from the input machine is attempted.
 
-        If the resubmission fails, a QQError is raised.
-
-        Args:
-            input_machine (str): Name of the host from which the job is to be submitted.
-            input_dir (Path): Path to the job's input directory.
-            command_line (list[str]): Options and arguments to use for submitting.
-
-        Raises:
-            QQError: If the resubmission fails (non-zero return code from the
-            SSH command).
+        Returns:
+            list[ResubmitHost]: A list of resubmission hosts.
         """
-        qq_submit_command = f"{CFG.binary_name} submit {' '.join(command_line)}"
-
-        logger.debug(
-            f"Navigating to '{input_machine}:{str(input_dir)}' to execute '{qq_submit_command}'."
-        )
-        result = subprocess.run(
-            [
-                "ssh",
-                "-o PasswordAuthentication=no",
-                "-o GSSAPIAuthentication=yes",
-                "-o StrictHostKeyChecking=no",  # allow unknown hosts
-                f"-o ConnectTimeout={CFG.timeouts.ssh}",
-                "-q",  # suppress some SSH messages
-                input_machine,
-                f"cd {str(input_dir)} && {qq_submit_command}",
-            ],
-            capture_output=True,
-            text=True,
-        )
-
-        if result.returncode != 0:
-            raise QQError(
-                f"Could not resubmit the job on '{input_machine}': {result.stderr.strip()}."
-            )
+        return [InputHost()]
 
     @classmethod
     def sort_jobs(cls, jobs: list[TBatchJob]) -> None:
@@ -797,7 +873,7 @@ class BatchInterface[
         implement custom sorting logic.
 
         Args:
-            jobs (list[TBatchJob]): A list of batch job objects to be sorted
+            jobs (list[BatchJobInterface]): A list of batch job objects to be sorted
                 in-place.
         """
         jobs.sort(key=lambda job: job.get_id())

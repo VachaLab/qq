@@ -9,7 +9,7 @@ from typing import NoReturn
 import click
 from rich.console import Console
 
-from qq_lib.batch.interface import BatchMeta
+from qq_lib.batch.interface import BatchInterface
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import translate_server
 from qq_lib.core.config import CFG
@@ -54,7 +54,7 @@ logger = get_logger(__name__)
 @click.option("--yaml", is_flag=True, help="Output job metadata in YAML format.")
 def jobs(user: str, extra: bool, all: bool, server: str | None, yaml: bool) -> NoReturn:
     try:
-        batch_system = BatchMeta.from_env_var_or_guess()
+        BatchSystem = BatchInterface.from_env_var_or_guess()
         if not user:
             # use the current user, if `--user` is not specified
             user = getpass.getuser()
@@ -63,16 +63,16 @@ def jobs(user: str, extra: bool, all: bool, server: str | None, yaml: bool) -> N
             server = translate_server(server)
 
         if all:
-            jobs = batch_system.get_batch_jobs(user, server)
+            jobs = BatchSystem.get_batch_jobs(user, server)
         else:
-            jobs = batch_system.get_unfinished_batch_jobs(user, server)
+            jobs = BatchSystem.get_unfinished_batch_jobs(user, server)
 
         if not jobs:
             logger.info("No jobs found.")
             sys.exit(0)
 
-        batch_system.sort_jobs(jobs)
-        presenter = JobsPresenter(batch_system, jobs, extra, all, server)
+        BatchSystem.sort_jobs(jobs)
+        presenter = JobsPresenter(BatchSystem, jobs, extra, all, server)
         if yaml:
             presenter.dump_yaml()
         else:

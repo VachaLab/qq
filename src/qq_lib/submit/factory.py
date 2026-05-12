@@ -4,13 +4,16 @@
 from dataclasses import fields
 from pathlib import Path
 
-from qq_lib.batch.interface import BatchInterface, BatchMeta
+from qq_lib.batch.interface import AnyBatchClass, BatchInterface
 from qq_lib.core.common import split_files_list, translate_server
+from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend
+from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
+from qq_lib.properties.resubmit_host import ResubmitHost
 from qq_lib.properties.transfer_mode import TransferMode
 
 from .parser import Parser
@@ -61,19 +64,22 @@ class SubmitterFactory:
         server = self._get_server()
 
         return Submitter(
-            BatchSystem,
-            queue,
-            self._get_account(),
-            self._script,
-            job_type,
-            self._get_resources(BatchSystem, queue, server),
-            loop_info,
-            self._get_exclude(),
-            self._get_include(),
-            self._get_depend(),
-            self._get_transfer_mode(),
-            server,
-            self._get_interpreter(),
+            batch_system=BatchSystem,
+            queue=queue,
+            account=self._get_account(),
+            script=self._script,
+            job_type=job_type,
+            resources=self._get_resources(BatchSystem, queue, server),
+            loop_info=loop_info,
+            exclude=self._get_exclude(),
+            include=self._get_include(),
+            depend=self._get_depend(),
+            transfer_mode=self._get_transfer_mode(),
+            server=server,
+            interpreter=self._get_interpreter(),
+            resubmit_from=self._get_resubmit_from(BatchSystem)
+            if job_type in {JobType.LOOP, JobType.CONTINUOUS}
+            else None,
         )
 
     def _get_batch_system(self) -> type[BatchInterface]:
@@ -90,8 +96,8 @@ class SubmitterFactory:
             type[BatchInterface]: The selected batch system class.
         """
         if batch_system := self._kwargs.get("batch_system"):
-            return BatchMeta.from_str(batch_system)
-        return self._parser.get_batch_system() or BatchMeta.from_env_var_or_guess()
+            return BatchInterface.from_str(batch_system)
+        return self._parser.get_batch_system() or BatchInterface.from_env_var_or_guess()
 
     def _get_job_type(self) -> JobType:
         """
@@ -171,10 +177,14 @@ class SubmitterFactory:
             self._kwargs.get("loop_start") or self._parser.get_loop_start() or 1,
             self._kwargs.get("loop_end") or self._parser.get_loop_end(),
             self._input_dir
-            / (self._kwargs.get("archive") or self._parser.get_archive() or "storage"),
+            / (
+                self._kwargs.get("archive")
+                or self._parser.get_archive()
+                or CFG.loop_jobs.archive_dir
+            ),
             self._kwargs.get("archive_format")
             or self._parser.get_archive_format()
-            or "job%04d",
+            or CFG.loop_jobs.archive_format,
             input_dir=self._input_dir,
             archive_mode=TransferMode.multi_from_str(
                 self._kwargs.get("archive_mode") or ""
@@ -280,7 +290,7 @@ class SubmitterFactory:
 
         return None
 
-    def _get_interpreter(self) -> str | None:
+    def _get_interpreter(self) -> Interpreter | None:
         """
         Determine the interpreter to use for running the script.
 
@@ -290,12 +300,35 @@ class SubmitterFactory:
             3. None - the default intepreter
 
         Returns:
-            str | None: The interpreter to use for running the script
+            Interpreter | None: The interpreter to use for running the script
                 or `None` to use the default intepreter.
         """
-        if interpreter := (
-            self._kwargs.get("interpreter") or self._parser.get_interpreter()
-        ):
-            return interpreter
+        if (raw := self._kwargs.get("interpreter")) is not None:
+            return Interpreter.from_str(raw)
 
-        return None
+        return self._parser.get_interpreter()
+
+    def _get_resubmit_from(self, BatchSystem: AnyBatchClass) -> list[ResubmitHost]:
+        """
+        Determine the list of resubmission hosts to be used to resubmit loop/continuous job.
+
+        Priority:
+            1. Resubmission hosts specified on the command line.
+            2. Resubmission hosts specified inside the submitted script.
+            3. Resubmission hosts specified in the configuration file.
+            4. Default resubmission hosts provided by the batch system.
+
+        The lists are NOT merged.
+
+        Args:
+            BatchSystem (AnyBatchClass): The batch system used for job submission.
+
+        Returns:
+            list[ResubmitHost]: List of resubmission hosts.
+        """
+        return (
+            ResubmitHost.multi_from_str(self._kwargs.get("resubmit_from") or "")
+            or self._parser.get_resubmit_from()
+            or ResubmitHost.multi_from_str(CFG.resubmitter.default_resubmit_hosts or "")
+            or BatchSystem.get_default_resubmit_hosts()
+        )

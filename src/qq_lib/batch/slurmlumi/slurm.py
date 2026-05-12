@@ -7,7 +7,6 @@ import shutil
 from pathlib import Path
 from typing import cast
 
-from qq_lib.batch.interface.meta import BatchMeta, batch_system
 from qq_lib.batch.slurm import Slurm
 from qq_lib.batch.slurmit4i import SlurmIT4I
 from qq_lib.batch.slurmlumi.node import SlurmLumiNode
@@ -20,8 +19,7 @@ from qq_lib.properties.resources import Resources
 logger = get_logger(__name__)
 
 
-@batch_system
-class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
+class SlurmLumi(SlurmIT4I):
     """
     Implementation of BatchInterface for Slurm on the LUMI supercomputer.
     """
@@ -48,6 +46,7 @@ class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
         env_vars: dict[str, str],
         account: str | None = None,
         server: str | None = None,
+        remote_host: str | None = None,
     ) -> str:
         # set the 'lumi_scratch_type' env var to be able to decide in get_scratch_dir
         # whether to create a scratch directory on /scratch or on /flash
@@ -56,7 +55,7 @@ class SlurmLumi(SlurmIT4I, metaclass=BatchMeta):
             env_vars[CFG.env_vars.lumi_scratch_type] = res.work_dir
 
         return super().job_submit(
-            res, queue, script, job_name, depend, env_vars, account, server
+            res, queue, script, job_name, depend, env_vars, account, server, remote_host
         )
 
     @classmethod

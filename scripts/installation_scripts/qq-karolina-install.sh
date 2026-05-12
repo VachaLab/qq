@@ -1,6 +1,6 @@
 #!/bin/bash
 # Installs qq on IT4Innovations' Karolina.
-# Script version: 0.3.0
+# Script version: 0.4.0
 
 set -euo pipefail
 
@@ -32,6 +32,8 @@ chmod +x "$TMP_INSTALLER"
 
 echo "INFO    [qq karolina installer] Installing qq ${QQ_VERSION} from ${RELEASE_URL}"
 
+MISSING_HOMES=()
+
 for HOME_DIR in "${TARGET_HOMES[@]}"; do
     echo "--------------------------------------------"
     echo "INFO    [qq karolina installer] Installing qq into $HOME_DIR ..."
@@ -39,12 +41,24 @@ for HOME_DIR in "${TARGET_HOMES[@]}"; do
         "$TMP_INSTALLER" "$HOME_DIR" "$RELEASE_URL"
     else
         echo "WARN    [qq karolina installer] Skipping $HOME_DIR (directory not found)"
+        MISSING_HOMES+=("$HOME_DIR")
     fi
 done
 
 echo "--------------------------------------------"
-echo "INFO    [qq karolina installer] qq installation completed for all target home directories."
-echo "INFO    [qq karolina installer] Run 'source ${HOME}/.bashrc' to make qq available on the current machine."
+
+if [ ${#MISSING_HOMES[@]} -gt 0 ]; then
+    echo "WARN    [qq karolina installer] qq installation failed for the following home directories:"
+    for MISSING in "${MISSING_HOMES[@]}"; do
+        echo "WARN    [qq karolina installer]   - $MISSING"
+    done
+else
+    echo "INFO    [qq karolina installer] qq installation completed for all target home directories."
+fi
+
+if [[ ! " ${MISSING_HOMES[*]} " == *" ${HOME} "* ]]; then
+    echo "INFO    [qq karolina installer] Run 'source ${HOME}/.bashrc' to make qq available on the current machine."
+fi
 
 # Cleanup
 rm -f "$TMP_INSTALLER"

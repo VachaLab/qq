@@ -9,8 +9,7 @@ import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
-from qq_lib.batch.interface import BatchInterface, BatchMeta
-from qq_lib.batch.interface.meta import batch_system
+from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
 from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.batch.pbs.queue import PBSQueue
@@ -27,8 +26,7 @@ from .job import PBSJob
 logger = get_logger(__name__)
 
 
-@batch_system
-class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
+class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
     """
     Implementation of BatchInterface for PBS Pro batch system.
     """
@@ -76,11 +74,15 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         env_vars: dict[str, str],
         account: str | None = None,
         server: str | None = None,
+        remote_host: str | None = None,
     ) -> str:
         # account unused
         _ = account
 
-        cls._shared_guard(res, env_vars, server)
+        input_dir = script.parent
+        logger.debug(f"Job submission: input directory is '{str(input_dir)}'.")
+
+        cls._shared_guard(input_dir, res, env_vars, server, remote_host)
 
         # set env vars required for Infinity modules
         # this can be removed once Infinity stops being supported
@@ -104,15 +106,35 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
         )
         logger.debug(command)
 
-        # submit the script
-        result = subprocess.run(
-            ["bash"],
-            input=command,
-            text=True,
-            check=False,
-            capture_output=True,
-            errors="replace",
-        )
+        if not remote_host:
+            # submit the script from the current host
+            result = subprocess.run(
+                ["bash"],
+                input=command,
+                text=True,
+                check=False,
+                capture_output=True,
+                errors="replace",
+            )
+        else:
+            # submit the script from the remote host
+            logger.debug(
+                f"Navigating to '{remote_host}' to execute the submission command '{command}'."
+            )
+            result = subprocess.run(
+                [
+                    "ssh",
+                    "-o PasswordAuthentication=no",
+                    "-o GSSAPIAuthentication=yes",
+                    "-o StrictHostKeyChecking=no",  # allow unknown hosts
+                    f"-o ConnectTimeout={CFG.timeouts.ssh}",
+                    "-q",  # suppress some SSH messages
+                    remote_host,
+                    command,
+                ],
+                capture_output=True,
+                text=True,
+            )
 
         if result.returncode != 0:
             raise QQError(
@@ -478,25 +500,35 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
 
     @classmethod
     def _shared_guard(
-        cls, res: Resources, env_vars: dict[str, str], server: str | None
+        cls,
+        input_dir: Path,
+        res: Resources,
+        env_vars: dict[str, str],
+        server: str | None,
+        remote_host: str | None,
     ) -> None:
         """
         Ensure correct handling of shared vs. local submission directories.
 
-        If the current working directory is on shared storage, adds the
+        If the job's input directory is on shared storage, adds the
         environment variable `SHARED_SUBMIT` to the list of env vars to propagate to the job.
         This environment variable is later used e.g. to select the appropriate data copying method.
 
         If the job is configured to use the submission directory as a working directory
         (`work-dir=input_dir` or 'job_dir') but that directory is not shared, a `QQError` is raised.
 
-        If the job is to be submitted to a potentially non-local server
-        but the directory is not shared, a `QQError` is raised.
+        If the job is to be submitted to a potentially non-local server,
+        but the input directory is not shared, a `QQError` is raised.
+
+        If the job is to be submitted on a remote host,
+        but the input directory is not shared, a `QQError` is raised.
 
         Args:
+            input_dir (Path): Path to the input directory of the job.
             res (Resources): The job's resource configuration.
             env_vars (dict[str, str]): Dictionary of environment variables to propagate to the job.
             server (str | None): The target PBS server, or None if submitting to the default server.
+            remote_host (str | None): Host from which the submission is performed, or None if sumitting from the current machine.
 
         Raises:
             QQError: If the job is set to run directly in the submission
@@ -504,7 +536,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
             QQError: If the job is set to run on a non-default server while
                 submission is from a non-shared filesystem.
         """
-        if cls.is_shared(Path()):
+        if cls.is_shared(input_dir):
             env_vars[CFG.env_vars.shared_submit] = "true"
         elif not res.uses_scratch():
             # if job directory is used as working directory, it must always be shared
@@ -515,6 +547,13 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
             # if we are submitting to a different server
             raise QQError(
                 f"Job was requested to be submitted to server '{server}' which is potentially non-local, but the submission is done from a local filesystem."
+            )
+        elif (
+            remote_host is not None and socket.getfqdn(remote_host) != socket.getfqdn()
+        ):
+            # if we are submitting from a different host than the current one
+            raise QQError(
+                f"Job was requested to be submitted from host '{remote_host}', but the submission is done from a local filesystem."
             )
 
     @classmethod
@@ -581,7 +620,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode], metaclass=BatchMeta):
             command += f"-W depend={converted_depend} "
 
         # add script
-        command += script
+        command += str(input_dir / script)
 
         return command
 

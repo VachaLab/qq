@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, Self
 
 
-@dataclass
+@dataclass(frozen=True)
 class FileSuffixes:
     """File suffixes used by qq."""
 
@@ -38,7 +38,7 @@ class FileSuffixes:
         return [self.qq_info, self.qq_out, self.stdout, self.stderr]
 
 
-@dataclass
+@dataclass(frozen=True)
 class EnvironmentVariables:
     """Environment variable names used by qq."""
 
@@ -82,7 +82,7 @@ class EnvironmentVariables:
     walltime: str = "QQ_WALLTIME"
 
 
-@dataclass
+@dataclass(frozen=True)
 class TimeoutSettings:
     """Timeout settings in seconds."""
 
@@ -92,7 +92,7 @@ class TimeoutSettings:
     rsync: int = 600
 
 
-@dataclass
+@dataclass(frozen=True)
 class RunnerSettings:
     """Settings for Runner operations."""
 
@@ -108,7 +108,20 @@ class RunnerSettings:
     default_interpreter: str = "bash"
 
 
-@dataclass
+@dataclass(frozen=True)
+class ResubmitterSettings:
+    """Settings for Resubmitter operations."""
+
+    # Maximum number of attempts when retrying an operation.
+    retry_tries: int = 3
+    # Wait time (in seconds) between retry attempts.
+    retry_wait: int = 300
+    # List of hosts from which job resubmission should be attempted.
+    # If empty, the batch system defaults are used.
+    default_resubmit_hosts: str = ""
+
+
+@dataclass(frozen=True)
 class ArchiverSettings:
     """Settings for Archiver operations."""
 
@@ -118,7 +131,7 @@ class ArchiverSettings:
     retry_wait: int = 300
 
 
-@dataclass
+@dataclass(frozen=True)
 class GoerSettings:
     """Settings for Goer operations."""
 
@@ -127,15 +140,19 @@ class GoerSettings:
     wait_time: int = 5
 
 
-@dataclass
+@dataclass(frozen=True)
 class LoopJobSettings:
     """Settings for qq loop jobs."""
 
     # Pattern used for naming loop jobs.
     pattern: str = "+%04d"
+    # Pattern used for names of archived files.
+    archive_format: str = "job%04d"
+    # Default name of the archive directory.
+    archive_dir: str = "storage"
 
 
-@dataclass
+@dataclass(frozen=True)
 class JobStatusPanelSettings:
     """Settings for creating a job status panel."""
 
@@ -149,7 +166,7 @@ class JobStatusPanelSettings:
     title_style: str = "white bold"
 
 
-@dataclass
+@dataclass(frozen=True)
 class FullInfoPanelSettings:
     """Settings for creating a full info panel."""
 
@@ -165,7 +182,7 @@ class FullInfoPanelSettings:
     rule_style: str = "white"
 
 
-@dataclass
+@dataclass(frozen=True)
 class PresenterSettings:
     """Settings for Presenter."""
 
@@ -187,7 +204,7 @@ class PresenterSettings:
     notes_style: str = "grey50"
 
 
-@dataclass
+@dataclass(frozen=True)
 class JobsPresenterSettings:
     """Settings for JobsPresenter."""
 
@@ -225,7 +242,7 @@ class JobsPresenterSettings:
     sum_jobs_code: str = "Σ"
 
 
-@dataclass
+@dataclass(frozen=True)
 class QueuesPresenterSettings:
     """Settings for QueuesPresenter."""
 
@@ -265,7 +282,7 @@ class QueuesPresenterSettings:
     sum_jobs_code: str = "Σ"
 
 
-@dataclass
+@dataclass(frozen=True)
 class NodesPresenterSettings:
     """Settings for NodesPresenter."""
 
@@ -307,7 +324,7 @@ class NodesPresenterSettings:
     unavailable_node_style = "bright_red"
 
 
-@dataclass
+@dataclass(frozen=True)
 class DateFormats:
     """Date and time format strings."""
 
@@ -319,7 +336,7 @@ class DateFormats:
     slurm: str = "%Y-%m-%dT%H:%M:%S"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ExitCodes:
     """Exit codes used for various errors."""
 
@@ -337,7 +354,7 @@ class ExitCodes:
     unexpected_error: int = 99
 
 
-@dataclass
+@dataclass(frozen=True)
 class StateColors:
     """Color scheme for RealState display."""
 
@@ -371,7 +388,7 @@ class StateColors:
     other: str = "grey70"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SizeOptions:
     """Options associated with the Size dataclass."""
 
@@ -379,7 +396,7 @@ class SizeOptions:
     max_rounding_error: float = 0.1
 
 
-@dataclass
+@dataclass(frozen=True)
 class PBSOptions:
     """Options associated with PBS."""
 
@@ -387,7 +404,7 @@ class PBSOptions:
     scratch_dir_inner: str = "main"
 
 
-@dataclass
+@dataclass(frozen=True)
 class SlurmOptions:
     """Options associated with Slurm."""
 
@@ -395,7 +412,7 @@ class SlurmOptions:
     jobs_scontrol_nthreads: int = 8
 
 
-@dataclass
+@dataclass(frozen=True)
 class SlurmIT4IOptions:
     """Options associated with Slurm on IT4I clusters."""
 
@@ -403,7 +420,7 @@ class SlurmIT4IOptions:
     scratch_dir_attempts: int = 3
 
 
-@dataclass
+@dataclass(frozen=True)
 class SlurmLumiOptions:
     """Options associated with Slurm on LUMI."""
 
@@ -411,7 +428,7 @@ class SlurmLumiOptions:
     scratch_dir_attempts: int = 3
 
 
-@dataclass
+@dataclass(frozen=True)
 class TransferFilesOptions:
     """Options associated with transferring and archiving files."""
 
@@ -422,7 +439,7 @@ class TransferFilesOptions:
     default_transfer_mode: str = "success"
 
 
-@dataclass
+@dataclass(frozen=True)
 class BatchServersOptions:
     """Options associated with selecting and specifying batch servers."""
 
@@ -446,7 +463,15 @@ class BatchServersOptions:
     )
 
 
-@dataclass
+@dataclass(frozen=True)
+class ParallelizationOptions:
+    """Options associated with multithreaded execution."""
+
+    # Maximal number of threads used to collect job information.
+    job_info_max_threads: int = 8
+
+
+@dataclass(frozen=True)
 class Config:
     """Main configuration for qq."""
 
@@ -454,6 +479,7 @@ class Config:
     env_vars: EnvironmentVariables = field(default_factory=EnvironmentVariables)
     timeouts: TimeoutSettings = field(default_factory=TimeoutSettings)
     runner: RunnerSettings = field(default_factory=RunnerSettings)
+    resubmitter: ResubmitterSettings = field(default_factory=ResubmitterSettings)
     archiver: ArchiverSettings = field(default_factory=ArchiverSettings)
     goer: GoerSettings = field(default_factory=GoerSettings)
     presenter: PresenterSettings = field(default_factory=PresenterSettings)
@@ -479,6 +505,9 @@ class Config:
     batch_servers_options: BatchServersOptions = field(
         default_factory=BatchServersOptions
     )
+    parallelization_options: ParallelizationOptions = field(
+        default_factory=ParallelizationOptions
+    )
 
     # Name of the qq binary.
     binary_name: str = "qq"
@@ -503,7 +532,12 @@ class Config:
                     config_data = tomllib.load(f)
                 return _dict_to_dataclass(cls, config_data)
         except Exception as e:
-            raise ValueError(f"Could not read qq config '{config_path}': {e}.")
+            print(
+                f"[ FATAL CONFIGURATION ERROR ] Could not read qq config '{config_path}': {e}."
+            )
+            print(
+                "[ FATAL CONFIGURATION ERROR ] Falling back to default configuration.\n\n"
+            )
 
         # no config found - use defaults
         return cls()

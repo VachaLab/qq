@@ -10,13 +10,13 @@ Requires `uv`: https://docs.astral.sh/uv
 """
 
 # /// script
-# requires-python = ">=3.12"
+# requires-python = ">=3.13"
 # dependencies = [
 #     "qq",
 # ]
 #
 # [tool.uv.sources]
-# qq = { git = "https://github.com/Ladme/qq.git", tag = "v0.10.1" }
+# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.10.1" }
 # ///
 
 import argparse
@@ -27,7 +27,7 @@ from pathlib import Path
 
 from rich import print
 
-from qq_lib.batch.interface import BatchInterface, BatchMeta
+from qq_lib.batch.interface import BatchInterface
 from qq_lib.core.common import format_duration_wdhhmmss, get_info_files
 from qq_lib.core.navigator import Navigator
 from qq_lib.info import Informer
@@ -113,7 +113,7 @@ def main():
     args = parser.parse_args()
 
     # detect batch system to use
-    BatchSystem = BatchMeta.from_env_var_or_guess()
+    BatchSystem = BatchInterface.from_env_var_or_guess()
 
     if args.all:
         # get informers for all unfinished jobs of the user
@@ -142,7 +142,7 @@ def main():
         # extract ETA from the content
         try:
             eta = get_eta_from_content(content)
-            if eta and datetime.now() <= eta:
+            if datetime.now() <= eta:
                 print(
                     f"{job_id_name}: Simulation will finish in [bright_blue bold]{format_duration_wdhhmmss(eta - datetime.now())}[/bright_blue bold]."
                 )

@@ -15,7 +15,7 @@ from typing import NoReturn
 
 import qq_lib
 from qq_lib.archive.archiver import Archiver
-from qq_lib.batch.interface.meta import BatchMeta
+from qq_lib.batch.interface import BatchInterface
 from qq_lib.core.common import construct_loop_job_name
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
@@ -28,8 +28,10 @@ from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.core.retryer import Retryer
 from qq_lib.info.informer import Informer
+from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.states import NaiveState
+from qq_lib.resubmit.resubmitter import Resubmitter
 
 logger = get_logger(__name__, show_time=True)
 
@@ -71,7 +73,7 @@ class Runner:
         # load the info file or raise a fatal qq error if this fails
         try:
             # get the batch system from the environment variable (or guess it)
-            self._batch_system = BatchMeta.from_env_var_or_guess()
+            self._batch_system = BatchInterface.from_env_var_or_guess()
             logger.debug(f"Batch system: {str(self._batch_system)}.")
 
             # get the id of the job from the batch system
@@ -196,10 +198,17 @@ class Runner:
 
         logger.info(f"Executing script '{script}'.")
 
+        # get intepreter if configured, otherwise use the default
+        interpreter = self._informer.info.interpreter or Interpreter()
+
+        # get the command to execute
+        command_list = [*interpreter.to_command_list(), str(script)]
+        logger.debug(f"Command executed using subprocess.Popen: {command_list}")
+
         try:
             with Path(stdout_log).open("w") as out, Path(stderr_log).open("w") as err:
                 self._process = subprocess.Popen(
-                    [self._get_interpreter(), str(script)],
+                    command_list,
                     stdout=out,
                     stderr=err,
                     text=True,
@@ -414,29 +423,6 @@ class Runner:
             max_tries=CFG.runner.retry_tries,
             wait_seconds=CFG.runner.retry_wait,
         ).run()
-
-    def _get_interpreter(self) -> str:
-        """
-        Resolve the fully qualified path to the job's interpreter.
-
-        Uses the interpreter specified in the job's info if set, otherwise falls
-        back to the configured default interpreter. The interpreter is resolved
-        via `shutil.which`, ensuring the returned path is absolute and
-        executable on the current node.
-
-        Returns:
-            str: The fully qualified path to the interpreter binary.
-
-        Raises:
-            QQError: If the interpreter cannot be found on the current node.
-        """
-        interpreter = self._informer.info.interpreter or CFG.runner.default_interpreter
-        if not (full := shutil.which(interpreter)):
-            raise QQError(
-                f"Interpreter '{interpreter}' is not available on node '{socket.getfqdn()}'."
-            )
-
-        return full
 
     def _update_info_running(self) -> None:
         """
@@ -716,20 +702,10 @@ class Runner:
                 return
 
         logger.info("Resubmitting the job.")
-        logger.debug(
-            f"Resubmitting using the batch system '{str(self._batch_system)}'."
-        )
+        resubmitter = Resubmitter.from_informer(self._informer)
+        job_id = resubmitter.resubmit()
 
-        Retryer(
-            self._batch_system.resubmit,
-            input_machine=self._informer.info.input_machine,
-            input_dir=self._informer.info.input_dir,
-            command_line=self._informer.info.get_command_line_for_resubmit(),
-            max_tries=CFG.runner.retry_tries,
-            wait_seconds=CFG.runner.retry_wait,
-        ).run()
-
-        logger.info("Job successfully resubmitted.")
+        logger.info(f"Job resubmitted successfully as '{job_id}'.")
 
     def _get_explicitly_included_files_in_work_dir(self) -> list[Path]:
         """

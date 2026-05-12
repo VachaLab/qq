@@ -1,16 +1,14 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-import sys
-from pathlib import Path
 from typing import NoReturn
 
 import click
 from rich.console import Console
 
 from qq_lib.core.click_format import GNUHelpColorsCommand
+from qq_lib.core.command_runner import CommandRunner
 from qq_lib.core.common import (
-    get_info_files,
     yes_or_no_prompt,
 )
 from qq_lib.core.config import CFG
@@ -23,7 +21,6 @@ from qq_lib.core.error_handlers import (
     handle_not_suitable_error,
 )
 from qq_lib.core.logger import get_logger
-from qq_lib.core.repeater import Repeater
 from qq_lib.info.informer import Informer
 from qq_lib.kill.killer import Killer
 
@@ -33,11 +30,11 @@ console = Console()
 
 @click.command(
     short_help="Terminate a job.",
-    help=f"""Terminate the specified qq job, or all qq jobs in the current directory.
+    help=f"""Terminate the specified qq jobs, or all qq jobs in the current directory.
 
-{click.style("JOB_ID", fg="green")}   The identifier of the job to terminate. Optional.
+{click.style("JOB_ID", fg="green")}   One or more IDs of jobs to terminate. Optional.
 
-If JOB_ID is not specified, `{CFG.binary_name} kill` searches for qq jobs in the current directory.
+If no JOB_ID is specified, `{CFG.binary_name} kill` searches for qq jobs in the current directory.
 
 By default, `{CFG.binary_name} kill` prompts for confirmation before terminating a job.
 
@@ -50,11 +47,12 @@ This can be useful for removing lingering or stuck jobs.""",
     help_options_color="bright_blue",
 )
 @click.argument(
-    "job",
+    "jobs",
     type=str,
     metavar=click.style("JOB_ID", fg="green"),
     required=False,
     default=None,
+    nargs=-1,
 )
 @click.option(
     "-y", "--yes", is_flag=True, help="Terminate the job without confirmation."
@@ -64,9 +62,9 @@ This can be useful for removing lingering or stuck jobs.""",
     is_flag=True,
     help="Terminate the job forcibly, ignoring its current state and without confirmation.",
 )
-def kill(job: str | None, yes: bool = False, force: bool = False) -> NoReturn:
+def kill(jobs: tuple[str, ...], yes: bool = False, force: bool = False) -> NoReturn:
     """
-    Terminate the specified qq job or qq job(s) submitted from the current directory.
+    Terminate the specified qq job(s) or qq job(s) submitted from the current directory.
 
     Details
         Killing a job sets its state to "killed". This is handled either by `qq kill` or
@@ -88,30 +86,16 @@ def kill(job: str | None, yes: bool = False, force: bool = False) -> NoReturn:
         - Normal (non-forced) termination: `qq run` is responsible for
             updating the job state in the info file once the job is terminated.
     """
-    try:
-        if job:
-            informers = [Informer.from_job_id(job)]
-        else:
-            if not (
-                informers := [
-                    Informer.from_file(info) for info in get_info_files(Path.cwd())
-                ]
-            ):
-                raise QQError("No qq job info file found.")
-
-        repeater = Repeater(informers, kill_job, force, yes)
-        repeater.on_exception(QQNotSuitableError, handle_not_suitable_error)
-        repeater.on_exception(QQError, handle_general_qq_error)
-        repeater.run()
-        print()
-        sys.exit(0)
-    # QQErrors should be caught by Repeater
-    except QQError as e:
-        logger.error(e)
-        sys.exit(CFG.exit_codes.default)
-    except Exception as e:
-        logger.critical(e, exc_info=True, stack_info=True)
-        sys.exit(CFG.exit_codes.unexpected_error)
+    CommandRunner(
+        jobs,
+        kill_job,
+        logger,
+        force,
+        yes,
+        n_threads=CFG.parallelization_options.job_info_max_threads,
+    ).on_exception(QQNotSuitableError, handle_not_suitable_error).on_exception(
+        QQError, handle_general_qq_error
+    ).run()
 
 
 def kill_job(informer: Informer, force: bool, yes: bool) -> None:
