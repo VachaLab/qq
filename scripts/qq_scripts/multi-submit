@@ -31,6 +31,7 @@ from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
 from qq_lib.clear import Clearer
 from qq_lib.core.common import get_runtime_files
 from qq_lib.core.error import QQError
+from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.submit import Submitter, SubmitterFactory
 
 console = Console()
@@ -42,14 +43,14 @@ def submit_job(base_submitter: Submitter, directory: str) -> bool:
     """Return True if job submitted else return False."""
     # we have to modify the archive directory to redirect it into a new input dir
     if loop_info := base_submitter.get_loop_info():
-        loop_info.archive = Path(directory).resolve() / loop_info.archive.name
+        loop_info.archive = logical_resolve(Path(directory)) / loop_info.archive.name
 
     # create the submitter for the specific directory
     submitter = Submitter(
         base_submitter.get_batch_system(),
         base_submitter.get_queue(),
         base_submitter.get_account(),
-        (Path(directory).resolve() / base_submitter.get_script().name),
+        (logical_resolve(Path(directory)) / base_submitter.get_script().name),
         base_submitter.get_job_type(),
         base_submitter.get_resources(),
         loop_info,
