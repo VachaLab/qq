@@ -1,12 +1,10 @@
 ## Version 0.11
-- Updated the installation scripts to more clearly report issues that occured during the install.
-
 ### qq respawn
-- Failed or killed jobs can be now easily "respawned" using `qq respawn`. When respawning a job, qq will remove the working directory of the failed job, clear all runtime files, and resubmit the job with the same parameters as before.
+- Failed or killed jobs can now be easily "respawned" using `qq respawn`. When respawning a job, qq will remove the working directory of the failed job, clear all runtime files, and resubmit the job with the same parameters as before.
 
 ### Specifying multiple job IDs
 - `qq info`, `qq kill`, `qq sync`, `qq respawn`, `qq wipe`, and `qq go` now accept multiple job IDs as arguments.
-- All of these commands now also internally resolve the jobs in parallel making them much faster when dealing with a large number of jobs.
+- All of these commands now also internally resolve the jobs in parallel, making them much faster when dealing with a large number of jobs.
 
 ### Clearing runtime files in a specified directory
 - `qq clear` now supports clearing runtime files in a directory other than the current one via the `-d`/`--dir` flag.
@@ -15,19 +13,21 @@
 - Interpreters now support additional command-line arguments.
 
 ### Resubmitting with fallback hosts
-- Resubmission of loop and continuous jobs now supports multiple fallback hosts. Previously, jobs were resubmitted from a single machine (the input machine or the working node, depending on the batch system). A list of hosts can now be specified via `--resubmit-from` or in the config file; they are tried in order until one succeeds, making resubmission more resilient to individual machine failures.
+- Resubmission of loop and continuous jobs now supports multiple fallback hosts. Previously, jobs were resubmitted from a single machine (the input machine or the working node, depending on the batch system). A list of hosts can now be specified via `--resubmit-from` or in the config file; they are tried in order until one succeeds, making resubmission more resilient to individual machine failures. See [the manual](https://vachalab.github.io/qq-manual/resubmit_hosts.html) for more information.
+
+### Other changes
+- Updated the installation scripts to more clearly report issues that occurred during the install.
 
 ### Internal changes
 - qq now uses Python 3.13 for better generics support.
 - Fixed type errors in qq scripts.
 - Refactored BatchMeta.
-- Jobs can be now submitted from a remote machine.
+- Jobs can now be submitted from a remote machine (only via Python API).
 - Submitting jobs using `Submitter.submit` is now thread-safe.
-- Handling exceptions that occur when reading a configuration file.
-- When reading configuration file fails, an exception is no longer raised, instead an error is reported and a default configuration is used.
+- When reading a configuration file fails, an exception is no longer raised; instead, an error is reported and a default configuration is used.
 - `CFG` is now a frozen dataclass.
 - Default archive directory and archive format are now configurable.
-- Changed internal representation of the interpreter specified to execute the script.
+- Changed the internal representation of the interpreter specified to execute the script.
 
 ***
 
