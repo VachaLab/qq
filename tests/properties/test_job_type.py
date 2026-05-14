@@ -12,6 +12,9 @@ def test_str_method():
     assert str(JobType.STANDARD) == "standard"
     assert str(JobType.LOOP) == "loop"
     assert str(JobType.CONTINUOUS) == "continuous"
+    assert str(JobType.ARRAY) == "array"
+    assert str(JobType.LOOP_ARRAY) == "loop array"
+    assert str(JobType.CONTINUOUS_ARRAY) == "continuous array"
 
 
 @pytest.mark.parametrize(
@@ -26,6 +29,15 @@ def test_str_method():
         ("continuous", JobType.CONTINUOUS),
         ("CONTINUOUS", JobType.CONTINUOUS),
         ("ConTiNUOus", JobType.CONTINUOUS),
+        ("array", JobType.ARRAY),
+        ("ARRAY", JobType.ARRAY),
+        ("aRrAy", JobType.ARRAY),
+        ("loop array", JobType.LOOP_ARRAY),
+        ("LOOP-ARRAY", JobType.LOOP_ARRAY),
+        ("LoOp_Array", JobType.LOOP_ARRAY),
+        ("continuous_array", JobType.CONTINUOUS_ARRAY),
+        ("CONTINUOUS ARRAY", JobType.CONTINUOUS_ARRAY),
+        ("ConTiNUOus-aRrAy", JobType.CONTINUOUS_ARRAY),
     ],
 )
 def test_from_str_valid(input_str, expected):

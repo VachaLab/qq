@@ -228,8 +228,6 @@ class BatchInterface[
 
         Can also perform additional validation of the job's resources.
 
-        This method is NOT guaranteed to be thread-safe.
-
         Args:
             res (Resources): Resources required for the job.
             queue (str): Target queue for the job submission.

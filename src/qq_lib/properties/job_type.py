@@ -4,8 +4,8 @@
 """
 Enumeration of supported qq job types.
 
-This module defines `JobType`, an enum distinguishing between standard
-(single-run) qq jobs and loop jobs.
+This module defines `JobType`, an enum distinguishing between
+standard jobs, loop jobs, array jobs and their combinations.
 """
 
 from enum import Enum
@@ -22,9 +22,12 @@ class JobType(Enum):
     STANDARD = 1
     LOOP = 2
     CONTINUOUS = 3
+    ARRAY = 4
+    LOOP_ARRAY = 5
+    CONTINUOUS_ARRAY = 6
 
     def __str__(self):
-        return self.name.lower()
+        return self.name.lower().replace("_", " ")
 
     @classmethod
     def from_str(cls, s: str) -> Self:
@@ -41,6 +44,6 @@ class JobType(Enum):
             QQError if the string corresponds to no JobType.
         """
         try:
-            return cls[s.upper()]
+            return cls[s.upper().replace("-", "_").replace(" ", "_")]
         except KeyError:
             raise QQError(f"Could not recognize a job type '{s}'.")

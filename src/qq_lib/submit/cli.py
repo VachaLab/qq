@@ -257,7 +257,7 @@ using qq directives of this format: `# qq <option> <value>`.
 )
 @optgroup.group(
     f"{click.style('Settings for loop and continuous jobs', fg='yellow')}",
-    help=f"Only used when job-type is {click.style('loop', bold=True)} or {click.style('continuous', bold=True)}.",
+    help=f"Only used when job-type is {click.style('loop', bold=True)}, {click.style('continuous', bold=True)}, {click.style('loop array', bold=True)}, or {click.style('continuous array', bold=True)}.",
 )
 @optgroup.option(
     "--resubmit-from",
@@ -275,7 +275,7 @@ using qq directives of this format: `# qq <option> <value>`.
 )
 @optgroup.group(
     f"{click.style('Settings for loop jobs', fg='yellow')}",
-    help=f"Only used when job-type is {click.style('loop', bold=True)}.",
+    help=f"Only used when job-type is {click.style('loop', bold=True)} or {click.style('loop array', bold=True)}.",
 )
 @optgroup.option(
     "--loop-start",
@@ -306,6 +306,17 @@ using qq directives of this format: `# qq <option> <value>`.
         f"Colon-, comma-, or space-separated list of archive modes controlling when working directory files are archived upon job completion.\n"
         f"Supports the same modes as {click.style('--transfer-mode', bold=True)}. Defaults to {click.style(CFG.transfer_files_options.default_archive_mode, bold=True)}."
     ),
+)
+@optgroup.group(
+    f"{click.style('Settings for array jobs', fg='yellow')}",
+    help=f"Only used when job-type is {click.style('array', bold=True)}, {click.style('loop array', bold=True)}, or {click.style('continuous array', bold=True)}.",
+)
+@optgroup.option(
+    "--array-dirs",
+    type=str,
+    default=None,
+    help="Colon-, comma-, or space-separated list of directories for array job tasks. Each item may contain glob patterns.\n"
+    "One task is spawned for each matched directory. The submitted script is run in each task's working directory.",
 )
 def submit(script: str, **kwargs) -> NoReturn:
     """
