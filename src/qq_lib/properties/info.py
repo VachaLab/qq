@@ -27,6 +27,7 @@ from qq_lib.core.common import load_yaml_dumper, load_yaml_loader
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+from qq_lib.properties.array import ArrayInfo
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.resubmit_host import ResubmitHost
@@ -112,6 +113,9 @@ class Info:
 
     # Loop job-associated information.
     loop_info: LoopInfo | None = None
+
+    # Array job-associated information.
+    array_info: ArrayInfo | None = None
 
     # Account associated with the job
     account: str | None = None
@@ -266,8 +270,12 @@ class Info:
             # convert job type
             if f.type == JobType:
                 result[f.name] = str(value)
-            # convert resources
-            elif f.type == Resources or f.type == LoopInfo | None:
+            # convert resources, loop info, and array info
+            elif (
+                f.type == Resources
+                or f.type == LoopInfo | None
+                or f.type == ArrayInfo | None
+            ):
                 result[f.name] = value.to_dict()
             # convert the state and the batch system
             elif (
@@ -327,6 +335,9 @@ class Info:
             # convert optional loop job info
             elif f.type == LoopInfo | None and isinstance(value, dict):
                 init_kwargs[name] = LoopInfo.from_dict(value)  # ty: ignore[invalid-argument-type]
+            # convert optional array job info
+            elif f.type == ArrayInfo | None and isinstance(value, dict):
+                init_kwargs[name] = ArrayInfo.from_dict(value)  # ty: ignore[invalid-argument-type]
             # convert resources
             elif f.type == Resources:
                 init_kwargs[name] = Resources(**value)  # ty: ignore[invalid-argument-type]

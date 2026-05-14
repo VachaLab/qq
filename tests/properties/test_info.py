@@ -65,6 +65,7 @@ def test_to_dict_skips_none(sample_info):
     assert "completion_time" not in result
     assert "job_exit_code" not in result
     assert "depend" not in result
+    assert "array_info" not in result
 
     assert result["job_id"] == "12345.fake.server.com"
     assert result["resources"]["ncpus"] == 8
