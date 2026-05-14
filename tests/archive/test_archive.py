@@ -141,44 +141,52 @@ HOSTS = [None, "fake_host", socket.getfqdn()]
 
 
 @pytest.mark.parametrize("host", HOSTS)
-def test_get_files_printf_pattern_with_cycle(monkeypatch, archiver, input_dir, host):
+def test_get_files_matching_pattern_printf_pattern_with_cycle(
+    monkeypatch, archiver, input_dir, host
+):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     filenames = ["job0001.dat", "job0002.dat", "job0001.qqout", "job0001.err"]
     touch_files(input_dir, filenames)
 
-    result = archiver._get_files(input_dir, host=host, pattern="job%04d", cycle=1)
+    result = archiver.get_files_matching_pattern(
+        input_dir, host=host, pattern="job%04d", cycle=1
+    )
     expected = [input_dir / "job0001.dat"]
     assert set(result) == {f.resolve() for f in expected}
 
 
 @pytest.mark.parametrize("host", HOSTS)
-def test_get_files_printf_pattern_with_cycle_partial_match(
+def test_get_files_matching_pattern_printf_pattern_with_cycle_partial_match(
     monkeypatch, archiver, input_dir, host
 ):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     filenames = ["job0001_px.dat", "job0002.dat", "job0001.qqout", "job0001.err"]
     touch_files(input_dir, filenames)
 
-    result = archiver._get_files(input_dir, host=host, pattern="job%04d", cycle=1)
+    result = archiver.get_files_matching_pattern(
+        input_dir, host=host, pattern="job%04d", cycle=1
+    )
     expected = [input_dir / "job0001_px.dat"]
     assert set(result) == {f.resolve() for f in expected}
 
 
 @pytest.mark.parametrize("host", HOSTS)
-def test_get_files_include_qq_files(monkeypatch, archiver, input_dir, host):
+def test_get_files_matching_pattern_include_qq_files(
+    monkeypatch, archiver, input_dir, host
+):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     filenames = ["job0001.dat"] + [f"job0001{ext}" for ext in CFG.suffixes.all_suffixes]
     touch_files(input_dir, filenames)
 
     # include_qq_files=False: QQ_SUFFIXES filtered out
-    result = archiver._get_files(
+    result = archiver.get_files_matching_pattern(
         input_dir, host=host, pattern="job%04d", cycle=1, include_qq_files=False
     )
     expected = [input_dir / "job0001.dat"]
     assert set(result) == {f.resolve() for f in expected}
 
     # include_qq_files=True: QQ_SUFFIXES included
-    result2 = archiver._get_files(
+    result2 = archiver.get_files_matching_pattern(
         input_dir, host=host, pattern="job%04d", cycle=1, include_qq_files=True
     )
     expected2 = [input_dir / f for f in filenames]
@@ -186,63 +194,81 @@ def test_get_files_include_qq_files(monkeypatch, archiver, input_dir, host):
 
 
 @pytest.mark.parametrize("host", HOSTS)
-def test_get_files_cycle_not_matching(monkeypatch, archiver, input_dir, host):
+def test_get_files_matching_pattern_cycle_not_matching(
+    monkeypatch, archiver, input_dir, host
+):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     filenames = ["job0001.dat", "job0002.dat"]
     touch_files(input_dir, filenames)
 
-    result = archiver._get_files(input_dir, host=host, pattern="job%04d", cycle=3)
+    result = archiver.get_files_matching_pattern(
+        input_dir, host=host, pattern="job%04d", cycle=3
+    )
     assert result == []
 
 
 @pytest.mark.parametrize("host", HOSTS)
-def test_get_files_regex_pattern(monkeypatch, archiver, input_dir, host):
+def test_get_files_matching_pattern_regex_pattern(
+    monkeypatch, archiver, input_dir, host
+):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     filenames = ["data_01.txt", "data_02.txt", "job0001.dat"]
     touch_files(input_dir, filenames)
 
-    result = archiver._get_files(input_dir, host=host, pattern=r"data_\d\d")
+    result = archiver.get_files_matching_pattern(
+        input_dir, host=host, pattern=r"data_\d\d"
+    )
     expected = [input_dir / "data_01.txt", input_dir / "data_02.txt"]
     assert set(result) == {f.resolve() for f in expected}
 
 
 @pytest.mark.parametrize("host", HOSTS)
-def test_get_files_regex_pattern_with_cycle(monkeypatch, archiver, input_dir, host):
+def testget_files_matching_pattern_regex_pattern_with_cycle(
+    monkeypatch, archiver, input_dir, host
+):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     filenames = ["data_01.txt", "data_02.txt", "job0001.dat"]
     touch_files(input_dir, filenames)
 
-    result = archiver._get_files(input_dir, host=host, pattern=r"data_\d\d", cycle=2)
+    result = archiver.get_files_matching_pattern(
+        input_dir, host=host, pattern=r"data_\d\d", cycle=2
+    )
     expected = [input_dir / "data_01.txt", input_dir / "data_02.txt"]
     assert set(result) == {f.resolve() for f in expected}
 
 
 @pytest.mark.parametrize("host", HOSTS)
-def test_get_files_regex_pattern_with_cycle_partial_match(
+def test_get_files_matching_pattern_regex_pattern_with_cycle_partial_match(
     monkeypatch, archiver, input_dir, host
 ):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     filenames = ["data_01.txt", "data_02_px.txt", "job0001.dat"]
     touch_files(input_dir, filenames)
 
-    result = archiver._get_files(input_dir, host=host, pattern=r"data_\d\d", cycle=2)
+    result = archiver.get_files_matching_pattern(
+        input_dir, host=host, pattern=r"data_\d\d", cycle=2
+    )
     expected = [input_dir / "data_01.txt", input_dir / "data_02_px.txt"]
     assert set(result) == {f.resolve() for f in expected}
 
 
 @pytest.mark.parametrize("host", HOSTS)
-def test_get_files_printf_pattern_without_cycle(monkeypatch, archiver, input_dir, host):
+def test_get_files_matching_pattern_printf_pattern_without_cycle(
+    monkeypatch, archiver, input_dir, host
+):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
     filenames = ["job0001.dat", "job0002.dat", "job0003.qqout", "job4.dat"]
     for f in filenames:
         (input_dir / f).touch()
 
-    result = archiver._get_files(input_dir, host=host, pattern="job%04d", cycle=None)
+    result = archiver.get_files_matching_pattern(
+        input_dir, host=host, pattern="job%04d", cycle=None
+    )
     expected = [input_dir / "job0001.dat", input_dir / "job0002.dat"]
     assert set(result) == {f.resolve() for f in expected}
 
-    result = archiver._get_files(
+    result = archiver.get_files_matching_pattern(
         input_dir, host=host, pattern="job%04d", cycle=None, include_qq_files=True
     )
     expected = [
@@ -254,7 +280,7 @@ def test_get_files_printf_pattern_without_cycle(monkeypatch, archiver, input_dir
 
 
 @pytest.mark.parametrize("host", HOSTS)
-def test_get_files_printf_pattern_without_cycle_partial_match(
+def test_get_files_matching_pattern_printf_pattern_without_cycle_partial_match(
     monkeypatch, archiver, input_dir, host
 ):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
@@ -263,11 +289,13 @@ def test_get_files_printf_pattern_without_cycle_partial_match(
     for f in filenames:
         (input_dir / f).touch()
 
-    result = archiver._get_files(input_dir, host=host, pattern="job%04d", cycle=None)
+    result = archiver.get_files_matching_pattern(
+        input_dir, host=host, pattern="job%04d", cycle=None
+    )
     expected = [input_dir / "job0001.dat", input_dir / "job0002_px.dat"]
     assert set(result) == {f.resolve() for f in expected}
 
-    result = archiver._get_files(
+    result = archiver.get_files_matching_pattern(
         input_dir, host=host, pattern="job%04d", cycle=None, include_qq_files=True
     )
     expected = [
@@ -477,3 +505,48 @@ def test_archive_runtime_files_nothing_to_archive(
     assert not (archive_dir / "other.txt").exists()
     assert not (archive_dir / "script+0006.qqinfo").exists()
     assert not (archive_dir / "script+0004.qqout").exists()
+
+
+def test_create_init_file_creates_file_for_given_cycle(tmp_path: Path):
+    archive_format = str(tmp_path / "job%04d")
+    archiver = Archiver(
+        archive=tmp_path,
+        archive_format=archive_format,
+        input_machine="localhost",
+        input_dir=tmp_path,
+        batch_system=PBS,
+    )
+
+    archiver.create_init_file(cycle=1)
+
+    assert (tmp_path / "job0001.init").exists()
+
+
+def test_create_init_file_creates_empty_file(tmp_path: Path):
+    archive_format = str(tmp_path / "job%04d")
+    archiver = Archiver(
+        archive=tmp_path,
+        archive_format=archive_format,
+        input_machine="localhost",
+        input_dir=tmp_path,
+        batch_system=PBS,
+    )
+
+    archiver.create_init_file(cycle=1)
+
+    assert (tmp_path / "job0001.init").stat().st_size == 0
+
+
+def test_create_init_file_uses_correct_cycle_number(tmp_path: Path):
+    archive_format = str(tmp_path / "md%03d")
+    archiver = Archiver(
+        archive=tmp_path,
+        archive_format=archive_format,
+        input_machine="localhost",
+        input_dir=tmp_path,
+        batch_system=PBS,
+    )
+
+    archiver.create_init_file(cycle=42)
+
+    assert (tmp_path / "md042.init").exists()

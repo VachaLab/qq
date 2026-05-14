@@ -74,7 +74,7 @@ class Archiver:
             QQError: If file transfer fails.
         """
         if not (
-            files := self._get_files(
+            files := self.get_files_matching_pattern(
                 self._archive, self._input_machine, self._archive_format, cycle, False
             )
         ):
@@ -108,7 +108,11 @@ class Archiver:
         Raises:
             QQError: If file transfer or removal fails.
         """
-        if not (files := self._get_files(dir, None, self._archive_format, None, False)):
+        if not (
+            files := self.get_files_matching_pattern(
+                dir, None, self._archive_format, None, False
+            )
+        ):
             logger.debug("Nothing to archive.")
             return
 
@@ -153,7 +157,7 @@ class Archiver:
             QQError: If moving the runtime files fails.
         """
         if not (
-            files := self._get_files(
+            files := self.get_files_matching_pattern(
                 self._input_dir,
                 self._input_machine,
                 # only use the stem of the job name, the extension will not be matched
@@ -183,7 +187,19 @@ class Archiver:
             wait_seconds=CFG.archiver.retry_wait,
         ).run()
 
-    def _get_files(
+    def create_init_file(self, cycle: int) -> None:
+        """
+        Create an empty init file for the given cycle.
+
+        Used as a fallback when no valid archive file is produced, ensuring
+        the next iteration of the loop job can proceed normally.
+
+        Args:
+            cycle (int): The index of the next cycle of the loop job.
+        """
+        Path(f"{self._archive_format % cycle}.init").touch()
+
+    def get_files_matching_pattern(
         self,
         directory: Path,
         host: str | None,
@@ -205,7 +221,7 @@ class Archiver:
             include_qq_files (bool): Whether to include qq runtime files. Defaults to False.
 
         Returns:
-            list[Path]: A list of absolute paths to matching files.
+            list[Path]: A list of absolute (logical) paths to matching files.
         """
         if cycle and is_printf_pattern(pattern):
             try:
