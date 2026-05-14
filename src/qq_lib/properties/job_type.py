@@ -47,3 +47,43 @@ class JobType(Enum):
             return cls[s.upper().replace("-", "_").replace(" ", "_")]
         except KeyError:
             raise QQError(f"Could not recognize a job type '{s}'.")
+
+    def is_standard(self) -> bool:
+        """
+        Returns:
+            True if the job type is a standard job.
+        """
+        return self == JobType.STANDARD
+
+    def is_loop(self) -> bool:
+        """
+        Returns:
+            True if the job type is a loop job or loop array job.
+        """
+        return self in [JobType.LOOP, JobType.LOOP_ARRAY]
+
+    def is_continuous(self) -> bool:
+        """
+        Returns:
+            True if the job type is a continuous job or continuous array job.
+        """
+        return self in [JobType.CONTINUOUS, JobType.CONTINUOUS_ARRAY]
+
+    def is_loop_or_continuous(self) -> bool:
+        """
+        Returns:
+            True if the job type is a loop job, continuous job, loop array job, or continuous array job.
+        """
+        return self in [
+            JobType.LOOP,
+            JobType.CONTINUOUS,
+            JobType.LOOP_ARRAY,
+            JobType.CONTINUOUS_ARRAY,
+        ]
+
+    def is_array(self) -> bool:
+        """
+        Returns:
+            True if the job type is an array job, loop array job or a continuous array job.
+        """
+        return self in [JobType.ARRAY, JobType.LOOP_ARRAY, JobType.CONTINUOUS_ARRAY]

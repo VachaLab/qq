@@ -60,3 +60,78 @@ def test_from_str_invalid_raises(invalid_str):
     with pytest.raises(QQError) as excinfo:
         JobType.from_str(invalid_str)
     assert invalid_str in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    "job_type,expected",
+    [
+        (JobType.STANDARD, True),
+        (JobType.LOOP, False),
+        (JobType.CONTINUOUS, False),
+        (JobType.ARRAY, False),
+        (JobType.LOOP_ARRAY, False),
+        (JobType.CONTINUOUS_ARRAY, False),
+    ],
+)
+def test_is_standard(job_type, expected):
+    assert job_type.is_standard() == expected
+
+
+@pytest.mark.parametrize(
+    "job_type,expected",
+    [
+        (JobType.STANDARD, False),
+        (JobType.LOOP, True),
+        (JobType.CONTINUOUS, False),
+        (JobType.ARRAY, False),
+        (JobType.LOOP_ARRAY, True),
+        (JobType.CONTINUOUS_ARRAY, False),
+    ],
+)
+def test_is_loop(job_type, expected):
+    assert job_type.is_loop() == expected
+
+
+@pytest.mark.parametrize(
+    "job_type,expected",
+    [
+        (JobType.STANDARD, False),
+        (JobType.LOOP, False),
+        (JobType.CONTINUOUS, True),
+        (JobType.ARRAY, False),
+        (JobType.LOOP_ARRAY, False),
+        (JobType.CONTINUOUS_ARRAY, True),
+    ],
+)
+def test_is_continuous(job_type, expected):
+    assert job_type.is_continuous() == expected
+
+
+@pytest.mark.parametrize(
+    "job_type,expected",
+    [
+        (JobType.STANDARD, False),
+        (JobType.LOOP, True),
+        (JobType.CONTINUOUS, True),
+        (JobType.ARRAY, False),
+        (JobType.LOOP_ARRAY, True),
+        (JobType.CONTINUOUS_ARRAY, True),
+    ],
+)
+def test_is_loop_or_continuous(job_type, expected):
+    assert job_type.is_loop_or_continuous() == expected
+
+
+@pytest.mark.parametrize(
+    "job_type,expected",
+    [
+        (JobType.STANDARD, False),
+        (JobType.LOOP, False),
+        (JobType.CONTINUOUS, False),
+        (JobType.ARRAY, True),
+        (JobType.LOOP_ARRAY, True),
+        (JobType.CONTINUOUS_ARRAY, True),
+    ],
+)
+def test_is_array(job_type, expected):
+    assert job_type.is_array() == expected
