@@ -11,6 +11,7 @@ from abc import ABC, ABCMeta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+from qq_lib.batch.interface._arfe import _AtomicRemoteFileEditor
 from qq_lib.core.common import convert_absolute_to_relative
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -23,6 +24,8 @@ from .node import BatchNodeInterface
 from .queue import BatchQueueInterface
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from qq_lib.properties.depend import Depend
     from qq_lib.properties.resources import Resources
 
@@ -544,6 +547,34 @@ class BatchInterface[
             raise QQError(
                 f"Could not write to remote file '{file}' on '{host}': {result.stderr.strip()}."
             )
+
+    @classmethod
+    def modify_remote_file_with_lock(
+        cls, host: str, file: Path, modify_fn: Callable[[str], str]
+    ) -> None:
+        """
+        Atomically read-modify-write a remote file.
+
+        The default implementation uses `_AtomicRemoteFileEditor` to manipulate the data
+        via SSH using flock for atomicity. This approach may be inefficient on shared
+        storage or high-latency networks.
+
+        Note that the timeout for the SSH connection is set to `CFG.timeouts.ssh` seconds
+        and the timeout for flock is set to `CFG.timeouts.flock` seconds.
+
+        Subclasses should override this method to provide a more efficient implementation
+        if possible.
+
+        Args:
+            host (str): The hostname of the remote machine where the file resides.
+            file (Path): The path to the file on the remote host.
+            modify_fn (Callable[[str], str]): A function that takes the current file content
+                as a string and returns the new content.
+
+        Raises:
+            QQError: If the SSH connection, lock acquisition, or write-back fails.
+        """
+        _AtomicRemoteFileEditor(host, file).modify(modify_fn)
 
     @classmethod
     def make_remote_dir(cls, host: str, directory: Path) -> None:

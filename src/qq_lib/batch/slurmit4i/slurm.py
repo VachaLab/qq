@@ -4,9 +4,11 @@
 import getpass
 import os
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 
 from qq_lib.batch.interface import BatchInterface
+from qq_lib.batch.pbs import PBS
 from qq_lib.batch.slurm import Slurm
 from qq_lib.batch.slurm.queue import SlurmQueue
 from qq_lib.core.common import equals_normalized
@@ -97,6 +99,18 @@ class SlurmIT4I(Slurm):
             file.write_text(content)
         except Exception as e:
             raise QQError(f"Could not write file '{file}': {e}.") from e
+
+    @classmethod
+    def modify_remote_file_with_lock(
+        cls, host: str, file: Path, modify_fn: Callable[[str], str]
+    ) -> None:
+        # file is always on shared storage
+        _ = host
+        try:
+            # intentionally using PBS
+            PBS._modify_local_file_with_lock(file, modify_fn)
+        except Exception as e:
+            raise QQError(f"Could not modify a file '{file}': {e}.") from e
 
     @classmethod
     def make_remote_dir(cls, host: str, directory: Path) -> None:

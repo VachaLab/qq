@@ -3,9 +3,13 @@
 
 # ruff: noqa: W291
 
+import fcntl
+import multiprocessing
 import os
 import shutil
 import socket
+import time
+from multiprocessing.dummy import Event
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -419,6 +423,37 @@ def test_write_remote_file_remote():
     with patch.object(BatchInterface, "write_remote_file") as mock_write:
         PBS.write_remote_file("remotehost", file_path, content)
         mock_write.assert_called_once_with("remotehost", file_path, content)
+
+
+def test_modify_remote_file_with_lock_shared_storage(tmp_path, monkeypatch):
+    file_path = tmp_path / "data.txt"
+    file_path.write_text("hello")
+
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+
+    PBS.modify_remote_file_with_lock("remotehost", file_path, lambda c: c + " world")
+    assert file_path.read_text() == "hello world"
+
+
+def test_modify_remote_file_with_lock_shared_storage_exception(tmp_path, monkeypatch):
+    dir_path = tmp_path / "dir"
+    dir_path.mkdir()
+
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+
+    with pytest.raises(QQError, match="Could not modify a file"):
+        PBS.modify_remote_file_with_lock("remotehost", dir_path, lambda c: c)
+
+
+def test_modify_remote_file_with_lock_remote():
+    file_path = Path("/remote/data.txt")
+
+    def modify_fn(c: str) -> str:
+        return c
+
+    with patch.object(BatchInterface, "modify_remote_file_with_lock") as mock_modify:
+        PBS.modify_remote_file_with_lock("remotehost", file_path, modify_fn)
+        mock_modify.assert_called_once_with("remotehost", file_path, modify_fn)
 
 
 def test_make_remote_dir_shared_storage(tmp_path, monkeypatch):
@@ -1874,3 +1909,95 @@ def test_translate_output_server_warns_when_no_output_host():
         assert server in mock_warning.call_args[0][0]
 
         assert result == "-j eo -e /mnt/shared/home/alice/jobs/myjob.qqout"
+
+
+def test_modify_local_file_with_lock_modifies_existing_file(tmp_path: Path):
+    target = tmp_path / "data.txt"
+    target.write_text("hello")
+
+    PBS._modify_local_file_with_lock(target, lambda content: content + " world")
+
+    assert target.read_text() == "hello world"
+
+
+def test_modify_local_file_with_lock_handles_nonexistent_file(tmp_path: Path):
+    target = tmp_path / "new.txt"
+
+    PBS._modify_local_file_with_lock(target, lambda _: "created")
+
+    assert target.read_text() == "created"
+
+
+def test_modify_local_file_with_lock_passes_empty_string_when_file_missing(
+    tmp_path: Path,
+):
+    target = tmp_path / "missing.txt"
+    received = []
+
+    def capture(content: str) -> str:
+        received.append(content)
+        return "done"
+
+    PBS._modify_local_file_with_lock(target, capture)
+
+    assert received == [""]
+    assert target.read_text() == "done"
+
+
+def test_modify_local_file_with_lock_creates_lockfile(tmp_path: Path):
+    target = tmp_path / "data.txt"
+    target.write_text("")
+
+    PBS._modify_local_file_with_lock(target, lambda c: c)
+
+    lockfile = tmp_path / ".data.txt.lock"
+    assert lockfile.exists()
+
+
+def test_modify_local_file_with_lock_writes_modify_fn_return_value(tmp_path: Path):
+    target = tmp_path / "data.txt"
+    target.write_text("abc")
+
+    PBS._modify_local_file_with_lock(target, lambda _: "completely replaced")
+
+    assert target.read_text() == "completely replaced"
+
+
+def _hold_lock(lockfile_path: Path, ready: Event, duration: float) -> None:
+    with lockfile_path.open("w") as fd:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        ready.set()
+        time.sleep(duration)
+
+
+def _increment(content: str) -> str:
+    return str(int(content) + 1)
+
+
+def _run_increments(target_path: str, iterations: int) -> None:
+    target = Path(target_path)
+    for _ in range(iterations):
+        PBS._modify_local_file_with_lock(target, _increment)
+
+
+def test_modify_local_file_with_lock_concurrent_modifications_are_serialized(
+    tmp_path: Path,
+):
+    target = tmp_path / "counter.txt"
+    target.write_text("0")
+    n_workers = 5
+    iterations = 10
+
+    processes = [
+        multiprocessing.Process(target=_run_increments, args=(str(target), iterations))
+        for _ in range(n_workers)
+    ]
+    for p in processes:
+        p.start()
+    for p in processes:
+        p.join(timeout=CFG.timeouts.flock + 5)
+
+    assert all(p.exitcode == 0 for p in processes), (
+        f"Some workers failed: {[p.exitcode for p in processes]}"
+    )
+    assert target.read_text() == str(iterations * n_workers)

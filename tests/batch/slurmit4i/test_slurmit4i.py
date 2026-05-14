@@ -256,6 +256,24 @@ def test_slurmit4i_write_remote_file_raises_on_readonly_dir(tmp_path):
         SlurmIT4I.write_remote_file("host", file, "cannot write")
 
 
+def test_slurmit4i_modify_remote_file_with_lock_modifies_local_file(tmp_path):
+    file_path = tmp_path / "data.txt"
+    file_path.write_text("hello")
+
+    SlurmIT4I.modify_remote_file_with_lock(
+        "remotehost", file_path, lambda c: c + " world"
+    )
+    assert file_path.read_text() == "hello world"
+
+
+def test_slurmit4i_modify_remote_file_with_lock_exception(tmp_path):
+    dir_path = tmp_path / "dir"
+    dir_path.mkdir()
+
+    with pytest.raises(QQError, match="Could not modify a file"):
+        SlurmIT4I.modify_remote_file_with_lock("remotehost", dir_path, lambda c: c)
+
+
 def test_slurmit4i_make_remote_dir_creates_successfully(tmp_path):
     directory = tmp_path / "newdir"
     SlurmIT4I.make_remote_dir("host", directory)

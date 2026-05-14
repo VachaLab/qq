@@ -90,6 +90,8 @@ class TimeoutSettings:
     ssh: int = 60
     # Timeout for rsync in seconds.
     rsync: int = 600
+    # Timeout for flock in seconds.
+    flock: int = 30
 
 
 @dataclass(frozen=True)

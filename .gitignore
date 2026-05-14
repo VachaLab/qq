@@ -19,3 +19,6 @@ docs/
 
 # Version
 src/qq_lib/_version.py
+
+# Playground
+src/_playground.py

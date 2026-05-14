@@ -2,10 +2,12 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 
+import fcntl
 import os
 import shutil
 import socket
 import subprocess
+import time
 from collections.abc import Callable
 from pathlib import Path
 
@@ -312,6 +314,23 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             # otherwise, we fall back to the default implementation
             logger.debug(f"Writing a remote file '{file}' on '{host}'.")
             super().write_remote_file(host, file, content)
+
+    @classmethod
+    def modify_remote_file_with_lock(
+        cls, host: str, file: Path, modify_fn: Callable[[str], str]
+    ) -> None:
+        if os.environ.get(CFG.env_vars.shared_submit):
+            # file should be written to shared storage
+            # this assumes that the method is only used to write files into input_dir
+            logger.debug(f"Modifying a file '{file}' on shared storage.")
+            try:
+                cls._modify_local_file_with_lock(file, modify_fn)
+            except Exception as e:
+                raise QQError(f"Could not modify a file '{file}': {e}") from e
+        else:
+            # otherwise we fall back to the default implementation
+            logger.debug(f"Modifying a remote file '{file}' on '{host}' with lock.")
+            super().modify_remote_file_with_lock(host, file, modify_fn)
 
     @classmethod
     def make_remote_dir(cls, host: str, directory: Path) -> None:
@@ -1053,3 +1072,37 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             jobs.append(job)
 
         return jobs
+
+    @staticmethod
+    def _modify_local_file_with_lock(
+        file: Path, modify_fn: Callable[[str], str]
+    ) -> None:
+        """
+        Atomically read-modify-write a local file under flock.
+
+        Args:
+            file (Path): Path to the target file.
+            modify_fn (Callable[[str], str]): A function that takes the current file content
+                as a string and returns the new content.
+
+        Raises:
+            QQError: If the lock cannot be acquired within the timeout.
+        """
+        lockfile = file.parent / f".{file.name}.lock"
+        timeout = CFG.timeouts.flock
+        deadline = time.monotonic() + timeout
+
+        with lockfile.open("w") as fd:
+            while True:
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except OSError:
+                    if time.monotonic() >= deadline:
+                        raise QQError(
+                            f"Could not acquire lock on {file} within {timeout} seconds."
+                        )
+                    time.sleep(0.1)
+
+            content = file.read_text() if file.exists() else ""
+            file.write_text(modify_fn(content))
