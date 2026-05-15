@@ -10,25 +10,30 @@ from qq_lib.core.error import QQError
 
 
 @dataclass
-class ArrayInfo:
+class TaskInfo:
     """
-    Dataclass containing information about a qq array job.
+    Dataclass containing information about a task of a qq array job.
     """
 
+    # Path to the master array file
     array_file: Path
+
+    # Task number within the array
     task_number: int
+
+    # Total number of tasks in the array
     total_tasks: int
 
     @classmethod
     def from_dict(cls, data: dict[str, object]) -> Self:
         """
-        Reconstruct an ArrayInfo instance from a dictionary produced by to_dict.
+        Reconstruct a TaskInfo instance from a dictionary produced by to_dict.
 
         Args:
             data (dict[str, object]): A dictionary as returned by `to_dict()`.
 
         Returns:
-            ArrayInfo: A new instance with fields populated from the dictionary.
+            TaskInfo: A new instance with fields populated from the dictionary.
         """
         array_file = data.get("array_file")
         task_number = data.get("task_number")

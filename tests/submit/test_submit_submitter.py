@@ -604,6 +604,7 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
     submitter._server = None
     submitter._interpreter = Interpreter.from_str("python3")
     submitter._resubmit_from = []
+    submitter._array_dirs = None
     env_vars = {CFG.env_vars.guard: "true"}
 
     with (
@@ -659,6 +660,7 @@ def test_submitter_submit(tmp_path):
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
     submitter._interpreter = None
     submitter._resubmit_from = [WorkHost()]
+    submitter._array_dirs = None
     env_vars = {CFG.env_vars.guard: "true"}
 
     with (

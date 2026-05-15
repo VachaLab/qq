@@ -18,19 +18,16 @@ implemented in `Informer` and related components.
 from dataclasses import dataclass, field, fields
 from datetime import datetime
 from pathlib import Path
-from typing import Self
-
-import yaml
+from typing import ClassVar, Self
 
 from qq_lib.batch.interface import AnyBatchClass, BatchInterface
-from qq_lib.core.common import load_yaml_dumper, load_yaml_loader
+from qq_lib.core._yaml_serializable import _YAMLSerializable
 from qq_lib.core.config import CFG
-from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.properties.array import ArrayInfo
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.resubmit_host import ResubmitHost
+from qq_lib.properties.task_info import TaskInfo
 from qq_lib.properties.transfer_mode import Success, TransferMode
 
 from .job_type import JobType
@@ -40,12 +37,9 @@ from .states import NaiveState
 
 logger = get_logger(__name__)
 
-SafeLoader: type[yaml.SafeLoader] = load_yaml_loader()
-Dumper: type[yaml.Dumper] = load_yaml_dumper()
-
 
 @dataclass
-class Info:
+class Info(_YAMLSerializable):
     """
     Dataclass storing information about a qq job.
 
@@ -53,6 +47,14 @@ class Info:
     More complex operations, such as transforming or combining the data
     should be implemented in Informer.
     """
+
+    # Label used in error messages
+    _file_label: ClassVar[str] = "qq info"
+
+    # Comment used in the YAML header
+    _file_comment: ClassVar[str] = (
+        "this file contains information about a qq job; do not remove it manually"
+    )
 
     # The batch system class used
     batch_system: AnyBatchClass
@@ -114,8 +116,8 @@ class Info:
     # Loop job-associated information.
     loop_info: LoopInfo | None = None
 
-    # Array job-associated information.
-    array_info: ArrayInfo | None = None
+    # Array job task-associated information.
+    task_info: TaskInfo | None = None
 
     # Account associated with the job
     account: str | None = None
@@ -149,103 +151,6 @@ class Info:
     # Exit code of qq run
     job_exit_code: int | None = None
 
-    @classmethod
-    def from_file(cls, file: Path, host: str | None = None) -> Self:
-        """
-        Load an Info instance from a YAML file, either locally or on a remote host.
-
-        If `host` is provided, the file will be read from the remote host using
-        the batch system's `read_remote_file` method. Otherwise, the file is read locally.
-
-        Args:
-            file (Path): Path to the YAML qq info file.
-            host (str | None): Optional hostname of the remote machine where the file resides.
-                If None, the file is assumed to be local.
-
-        Returns:
-            Info: Instance constructed from the file.
-
-        Raises:
-            QQError: If the file does not exist, cannot be reached, cannot be parsed,
-                    or does not contain all mandatory information.
-        """
-        try:
-            if host:
-                # remote file
-                logger.debug(f"Loading qq info from '{file}' on '{host}'.")
-
-                BatchSystem = BatchInterface.from_env_var_or_guess()
-                data: dict[str, object] = yaml.load(
-                    BatchSystem.read_remote_file(host, file),
-                    Loader=SafeLoader,
-                )
-            else:
-                # local file
-                logger.debug(f"Loading qq info from '{file}'.")
-
-                try:
-                    with file.open("r") as input:
-                        data: dict[str, object] = yaml.load(input, Loader=SafeLoader)
-                except FileNotFoundError:
-                    raise QQError(f"qq info file '{file}' does not exist.")
-                except PermissionError:
-                    raise QQError(
-                        f"No permission to read file '{file}' or access its parent directory."
-                    )
-                except IsADirectoryError:
-                    raise QQError(f"Expected a file but path is a directory: {file}.")
-                except UnicodeDecodeError as e:
-                    raise QQError(f"File is not valid UTF-8 text: {file}.") from e
-                except yaml.YAMLError as e:
-                    raise QQError(f"Failed to parse YAML in {file}: {e}.") from e
-
-            return cls._from_dict(data)
-        except yaml.YAMLError as e:
-            raise QQError(f"Could not parse the qq info file '{file}': {e}.") from e
-        except TypeError as e:
-            raise QQError(f"Invalid qq info file '{file}': {e}.") from e
-
-    def to_file(self, file: Path, host: str | None = None) -> None:
-        """
-        Export this Info instance to a YAML file, either locally or on a remote host.
-
-        If `host` is provided, the file will be written to the remote host using
-        the batch system's `write_remote_file` method. Otherwise, the file is written locally.
-
-        Args:
-            file (Path): Path to write the YAML file.
-            host (str | None): Optional hostname of the remote machine where the file should be written.
-                If None, the file is written locally.
-
-        Raises:
-            QQError: If the file cannot be created, reached, or written to.
-        """
-        try:
-            content = "# qq job info file\n" + self._to_yaml() + "\n"
-
-            if host:
-                # remote file
-                logger.debug(f"Exporting qq info into '{file}' on '{host}'.")
-                self.batch_system.write_remote_file(host, file, content)
-            else:
-                # local file
-                logger.debug(f"Exporting qq info into '{file}'.")
-                with file.open("w") as output:
-                    output.write(content)
-        except Exception as e:
-            raise QQError(f"Cannot create or write to file '{file}': {e}") from e
-
-    def _to_yaml(self) -> str:
-        """
-        Serialize the Info instance to a YAML string.
-
-        Returns:
-            str: YAML representation of the Info object.
-        """
-        return yaml.dump(
-            self._to_dict(), default_flow_style=False, sort_keys=False, Dumper=Dumper
-        )
-
     def _to_dict(self) -> dict[str, object]:
         """
         Convert the Info instance into a dictionary of string-object pairs.
@@ -274,7 +179,7 @@ class Info:
             elif (
                 f.type == Resources
                 or f.type == LoopInfo | None
-                or f.type == ArrayInfo | None
+                or f.type == TaskInfo | None
             ):
                 result[f.name] = value.to_dict()
             # convert the state and the batch system
@@ -335,9 +240,9 @@ class Info:
             # convert optional loop job info
             elif f.type == LoopInfo | None and isinstance(value, dict):
                 init_kwargs[name] = LoopInfo.from_dict(value)  # ty: ignore[invalid-argument-type]
-            # convert optional array job info
-            elif f.type == ArrayInfo | None and isinstance(value, dict):
-                init_kwargs[name] = ArrayInfo.from_dict(value)  # ty: ignore[invalid-argument-type]
+            # convert optional task job info
+            elif f.type == TaskInfo | None and isinstance(value, dict):
+                init_kwargs[name] = TaskInfo.from_dict(value)  # ty: ignore[invalid-argument-type]
             # convert resources
             elif f.type == Resources:
                 init_kwargs[name] = Resources(**value)  # ty: ignore[invalid-argument-type]

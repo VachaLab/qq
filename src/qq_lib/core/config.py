@@ -31,11 +31,22 @@ class FileSuffixes:
     stdout: str = ".out"
     # Suffix for captured stderr.
     stderr: str = ".err"
+    # Suffix for array job master files.
+    qq_array: str = ".qqarray"
+    # Suffix for qq lock files.
+    qq_lock: str = ".qqlock"
 
     @property
     def all_suffixes(self) -> list[str]:
         """List of all file suffixes."""
-        return [self.qq_info, self.qq_out, self.stdout, self.stderr]
+        return [
+            self.qq_info,
+            self.qq_out,
+            self.stdout,
+            self.stderr,
+            self.qq_array,
+            self.qq_lock,
+        ]
 
 
 @dataclass(frozen=True)

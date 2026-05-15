@@ -866,6 +866,8 @@ def test_get_runtime_files(tmp_path):
         tmp_path / f"f2{CFG.suffixes.qq_out}",
         tmp_path / f"f3{CFG.suffixes.stdout}",
         tmp_path / f"f4{CFG.suffixes.stderr}",
+        tmp_path / f"f5{CFG.suffixes.qq_array}",
+        tmp_path / f"f6{CFG.suffixes.qq_lock}",
     ]
 
     def mock_get_files_with_suffix(directory, suffix):

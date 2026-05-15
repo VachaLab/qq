@@ -20,7 +20,7 @@ def test_atomic_remote_file_editor_init_sets_attributes():
 
     assert editor._host == "node01"
     assert editor._file == Path("/data/jobs.txt")
-    assert editor._lockfile == Path("/data/.jobs.txt.lock")
+    assert editor._lockfile == Path(f"/data/.jobs.txt{CFG.suffixes.qq_lock}")
     assert editor._timeout == CFG.timeouts.flock
 
 
@@ -31,7 +31,7 @@ def test_build_script_contains_key_elements():
     assert "flock" in script
     assert str(CFG.timeouts.flock) in script
     assert "/data/jobs.txt" in script
-    assert "/data/.jobs.txt.lock" in script
+    assert f"/data/.jobs.txt{CFG.suffixes.qq_lock}" in script
 
     assert "---READY---" in script
     assert "---DONE---" in script

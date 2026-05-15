@@ -30,7 +30,7 @@ class _AtomicRemoteFileEditor:
         self._file = file
         # we lock a separate file so we can freely
         # read/write the data file while holding the lock
-        self._lockfile = file.parent / f".{file.name}.lock"
+        self._lockfile = file.parent / f".{file.name}{CFG.suffixes.qq_lock}"
         self._timeout = CFG.timeouts.flock
 
     def modify(self, modify_fn: Callable[[str], str]) -> None:

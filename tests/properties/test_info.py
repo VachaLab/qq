@@ -75,6 +75,15 @@ def test_to_dict_skips_none(sample_info):
     assert result["interpreter"] == {"executable": "python", "arguments": ["-u"]}
 
 
+def test_to_dict_skips_class_vars(sample_info):
+    result = sample_info._to_dict()
+    assert "_file_label" not in result
+    assert "file_label" not in result
+
+    assert "_file_comment" not in result
+    assert "file_comment" not in result
+
+
 def test_to_dict_contains_all_non_none_fields(sample_info):
     result = sample_info._to_dict()
     expected_fields = {
@@ -143,7 +152,7 @@ def test_to_yaml_skips_none_fields(sample_info):
     assert "depend" not in data
 
 
-def test_export_to_file_creates_file(sample_info, tmp_path):
+def test_to_file_creates_file(sample_info, tmp_path):
     file_path = tmp_path / "qqinfo.yaml"
     sample_info.to_file(file_path)
 
@@ -151,13 +160,15 @@ def test_export_to_file_creates_file(sample_info, tmp_path):
     assert file_path.is_file()
 
 
-def test_export_to_file_contains_yaml(sample_info, tmp_path):
+def test_to_file_contains_yaml(sample_info, tmp_path):
     file_path = tmp_path / "qqinfo.yaml"
     sample_info.to_file(file_path)
 
     content = file_path.read_text()
 
-    assert content.startswith("# qq job info file")
+    assert content.startswith(
+        "# this file contains information about a qq job; do not remove it manually"
+    )
 
     data: dict[str, str] = yaml.safe_load(content)
 
@@ -172,7 +183,7 @@ def test_export_to_file_contains_yaml(sample_info, tmp_path):
     assert data["excluded_files"] == [str(p) for p in sample_info.excluded_files]
 
 
-def test_export_to_file_skips_none_fields(sample_info, tmp_path):
+def test_to_file_skips_none_fields(sample_info, tmp_path):
     file_path = tmp_path / "qqinfo.yaml"
     sample_info.to_file(file_path)
 
@@ -185,7 +196,7 @@ def test_export_to_file_skips_none_fields(sample_info, tmp_path):
     assert "job_exit_code" not in data
 
 
-def test_export_to_file_invalid_path(sample_info):
+def test_to_file_invalid_path(sample_info):
     invalid_file = Path("/this/path/does/not/exist/qqinfo.yaml")
 
     with pytest.raises(QQError, match="Cannot create or write to file"):

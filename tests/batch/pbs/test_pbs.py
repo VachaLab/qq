@@ -2054,7 +2054,8 @@ def test_modify_local_file_with_lock_creates_lockfile(tmp_path: Path):
 
     PBS._modify_local_file_with_lock(target, lambda c: c)
 
-    lockfile = tmp_path / ".data.txt.lock"
+    lockfile = tmp_path / f".data.txt{CFG.suffixes.qq_lock}"
+    print(lockfile)
     assert lockfile.exists()
 
 

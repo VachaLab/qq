@@ -1119,7 +1119,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Raises:
             QQError: If the lock cannot be acquired within the timeout.
         """
-        lockfile = file.parent / f".{file.name}.lock"
+        lockfile = file.parent / f".{file.name}{CFG.suffixes.qq_lock}"
         timeout = CFG.timeouts.flock
         deadline = time.monotonic() + timeout
 

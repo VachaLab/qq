@@ -9,6 +9,7 @@ from pathlib import Path
 
 import qq_lib
 from qq_lib.batch.interface import AnyBatchClass
+from qq_lib.core.array_spec import ArraySpec
 from qq_lib.core.common import (
     construct_info_file_path,
     construct_loop_job_name,
@@ -63,6 +64,7 @@ class Submitter:
         server: str | None = None,
         interpreter: Interpreter | None = None,
         resubmit_from: list[ResubmitHost] | None = None,
+        array_dirs: dict[int, Path] | None = None,
     ):
         """
         Initialize a Submitter instance.
@@ -90,6 +92,8 @@ class Submitter:
                 If not specified, the config default is used.
             resubmit_from (list[ResubmitHost] | None): List of hosts from which a loop/continuous job should be resubmitted.
                 Must only be specified for loop/continuous jobs!
+            array_dirs (dict[int, Path] | None): Optional dictionary of directories to spawn tasks of an array job in.
+                Keys are task indices, and values are the directories to spawn tasks in. If `None`, no job array is created.
 
         Raises:
             QQError: If the script does not exist or has an invalid shebang line.
@@ -118,6 +122,7 @@ class Submitter:
         )
         self._interpreter = interpreter
         self._resubmit_from = resubmit_from or []
+        self._array_dirs = array_dirs
 
         # script must exist
         if not self._script.is_file():
@@ -156,7 +161,7 @@ class Submitter:
             depend=self._depend,
             env_vars=self._create_env_vars_dict(),
             account=self._account,
-            array=None,
+            array=self._create_array_spec(),
             server=self._server,
             remote_host=remote,
         )
@@ -420,3 +425,14 @@ class Submitter:
 
         # for loop jobs, use script_name with cycle number
         return construct_loop_job_name(self._script_name, self._loop_info.current)
+
+    def _create_array_spec(self) -> ArraySpec | None:
+        """
+        Construct the array specification for an array job.
+
+        Returns:
+            ArraySpec | None: The constructed array specification, or `None` if no array is to be created.
+        """
+        if not self._array_dirs:
+            return None
+        return ArraySpec(list(self._array_dirs.keys()))
