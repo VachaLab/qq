@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import cast
 
 from qq_lib.batch.slurm import Slurm
-from qq_lib.batch.slurm.array_spec import SlurmArraySpec
 from qq_lib.batch.slurmit4i import SlurmIT4I
 from qq_lib.batch.slurmlumi.node import SlurmLumiNode
+from qq_lib.core.array_spec import ArraySpec
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -46,7 +46,7 @@ class SlurmLumi(SlurmIT4I):
         depend: list[Depend],
         env_vars: dict[str, str],
         account: str | None = None,
-        array: SlurmArraySpec | None = None,
+        array: ArraySpec | None = None,
         server: str | None = None,
         remote_host: str | None = None,
     ) -> str:

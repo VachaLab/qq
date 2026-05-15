@@ -149,14 +149,15 @@ class Submitter:
             QQError: If job submission fails.
         """
         job_id = self._batch_system.job_submit(
-            self._resources,
-            self._queue,
-            self._script,
-            self._job_name,
-            self._depend,
-            self._create_env_vars_dict(),
-            self._account,
-            self._server,
+            res=self._resources,
+            queue=self._queue,
+            script=self._script,
+            job_name=self._job_name,
+            depend=self._depend,
+            env_vars=self._create_env_vars_dict(),
+            account=self._account,
+            array=None,
+            server=self._server,
             remote_host=remote,
         )
 

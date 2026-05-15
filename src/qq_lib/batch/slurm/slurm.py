@@ -9,7 +9,7 @@ from pathlib import Path
 
 from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.pbs.pbs import PBS
-from qq_lib.batch.slurm.array_spec import SlurmArraySpec
+from qq_lib.core.array_spec import ArraySpec
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -28,7 +28,7 @@ from .queue import SlurmQueue
 logger = get_logger(__name__)
 
 
-class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode, SlurmArraySpec]):
+class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
     """
     Implementation of BatchInterface for Slurm batch system.
     """
@@ -59,7 +59,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode, SlurmArraySpec]):
         depend: list[Depend],
         env_vars: dict[str, str],
         account: str | None = None,
-        array: SlurmArraySpec | None = None,
+        array: ArraySpec | None = None,
         server: str | None = None,
         remote_host: str | None = None,
     ) -> str:
@@ -411,7 +411,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode, SlurmArraySpec]):
         depend: list[Depend],
         env_vars: dict[str, str],
         account: str | None,
-        array: SlurmArraySpec | None,
+        array: ArraySpec | None,
     ) -> str:
         """
         Generate the Slurm submission command for a job.
@@ -425,7 +425,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode, SlurmArraySpec]):
             depend (list[Depend]): List of dependencies of the job.
             env_vars (dict[str, str]): Dictionary of environment variables and their values to propagate to the job's environment.
             account (str | None): Optional name of the account to use for the job.
-            array (SlurmArraySpec | None): Optional array job specification.
+            array (ArraySpec | None): Optional array job specification.
 
         Returns:
             str: The fully constructed sbatch command string.
@@ -434,7 +434,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode, SlurmArraySpec]):
         command = f"sbatch -J {job_name} -p {queue} -e {qq_output} -o {qq_output} "
 
         if array:
-            command += f"--array={array.translate()} "
+            command += f"--array={cls._translate_array(array)} "
 
         if account:
             command += f"--account {account} "
@@ -581,6 +581,20 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode, SlurmArraySpec]):
             return None
 
         return ",".join(Depend.to_str(x).replace("=", ":") for x in depend)
+
+    @classmethod
+    def _translate_array(cls, array: ArraySpec) -> str:
+        """
+        Translate an `ArraySpec` object into a Slurm-compatible array job specification string.
+
+        Args:
+            array (ArraySpec): The array job specification to translate.
+
+        Returns:
+            str: The translated Slurm array job specification string.
+        """
+        # Slurm array syntax is the same as PBS syntax
+        return PBS._translate_array(array)
 
     @classmethod
     def _get_default_server_resources(cls) -> Resources:

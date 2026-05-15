@@ -7,14 +7,16 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qq_lib.batch.slurm.array_spec import SlurmArraySpec
 from qq_lib.batch.slurm.job import SlurmJob
 from qq_lib.batch.slurm.node import SlurmNode
 from qq_lib.batch.slurm.slurm import Slurm
+from qq_lib.core.array_spec import ArraySpec
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.resources import Resources
 from qq_lib.properties.size import Size
+
+type ArrayElement = int | tuple[int, int] | tuple[int, int, int]
 
 
 def test_slurm_env_name_returns_slurm():
@@ -517,7 +519,7 @@ def test_slurm_translate_submit_with_array():
     depend = []
     env_vars = {}
     account = None
-    array = SlurmArraySpec([(0, 5), (7, 12)])
+    array = ArraySpec([(1, 5), (7, 12)])
 
     command = Slurm._translate_submit(
         res, queue, input_dir, script, job_name, depend, env_vars, account, array
@@ -535,7 +537,7 @@ def test_slurm_translate_submit_with_array():
     assert f"--gpus-per-node={res.ngpus // res.nnodes}" in command
     assert f"--time={res.walltime}" in command
     assert f"--chdir={input_dir}" in command
-    assert f"--array={array.translate()}" in command
+    assert "--array=1-5,7-12" in command
     assert command.endswith(str(input_dir / script))
 
 
@@ -927,3 +929,31 @@ def test_slurm_get_nodes_failure_raises_qqerror(mock_run):
 def test_slurm_delete_remote_dir_delegates(mock_make):
     Slurm.delete_remote_dir("host3", Path("/tmp/dir"))
     mock_make.assert_called_once_with("host3", Path("/tmp/dir"))
+
+
+@pytest.mark.parametrize(
+    ("elements", "expected"),
+    [
+        pytest.param([0], "0", id="single_index"),
+        pytest.param([1, 3, 5], "1,3,5", id="multiple_indices"),
+        pytest.param([(0, 10)], "0-10", id="range"),
+        pytest.param([(0, 10, 2)], "0-10:2", id="strided_range"),
+        pytest.param([(5, 5)], "5", id="range_start_equals_stop"),
+        pytest.param([(0, 10, 1)], "0-10", id="step_of_one"),
+        pytest.param(
+            [1, (10, 20), (30, 50, 5)],
+            "1,10-20,30-50:5",
+            id="mixed_elements",
+        ),
+        pytest.param(
+            [(0, 4), 7, (10, 20, 3)],
+            "0-4,7,10-20:3",
+            id="mixed_range_first",
+        ),
+    ],
+)
+def test_translate_array(
+    elements: list[ArrayElement],
+    expected: str,
+) -> None:
+    assert Slurm._translate_array(ArraySpec(elements)) == expected

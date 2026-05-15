@@ -12,10 +12,10 @@ from collections.abc import Callable
 from pathlib import Path
 
 from qq_lib.batch.interface import BatchInterface
-from qq_lib.batch.pbs.array_spec import PBSArraySpec
 from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
 from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.batch.pbs.queue import PBSQueue
+from qq_lib.core.array_spec import ArraySpec
 from qq_lib.core.common import equals_normalized
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -29,7 +29,7 @@ from .job import PBSJob
 logger = get_logger(__name__)
 
 
-class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode, PBSArraySpec]):
+class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
     """
     Implementation of BatchInterface for PBS Pro batch system.
     """
@@ -76,7 +76,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode, PBSArraySpec]):
         depend: list[Depend],
         env_vars: dict[str, str],
         account: str | None = None,
-        array: PBSArraySpec | None = None,
+        array: ArraySpec | None = None,
         server: str | None = None,
         remote_host: str | None = None,
     ) -> str:
@@ -589,7 +589,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode, PBSArraySpec]):
         job_name: str,
         depend: list[Depend],
         env_vars: dict[str, str],
-        array: PBSArraySpec | None,
+        array: ArraySpec | None,
     ) -> str:
         """
         Generate the PBS submission command for a job.
@@ -603,7 +603,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode, PBSArraySpec]):
             job_name (str): Name of the job.
             depend (list[Depend]): List of dependencies of the job.
             env_vars (dict[str, str]): Dictionary of environment variables to set.
-            array (PBSArraySpec | None): Optional array job specification.
+            array (ArraySpec | None): Optional array job specification.
 
         Returns:
             str: The fully constructed qsub command string.
@@ -612,7 +612,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode, PBSArraySpec]):
 
         # translate array specification
         if array:
-            command += f"-J {array.translate()} "
+            command += f"-J {cls._translate_array(array)} "
 
         # translate environment variables
         if env_vars:
@@ -864,6 +864,28 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode, PBSArraySpec]):
             return None
 
         return ",".join(Depend.to_str(x).replace("=", ":") for x in depend)
+
+    @classmethod
+    def _translate_array(cls, array: ArraySpec) -> str:
+        """
+        Translate an `ArraySpec` object into a PBS-compatible array job specification string.
+
+        Args:
+            array (ArraySpec): The array job specification to translate.
+
+        Returns:
+            str: The translated PBS array job specification string.
+        """
+        parts: list[str] = []
+        for elem in array.elements:
+            match elem:
+                case int(index):
+                    parts.append(str(index))
+                case (int(start), int(stop)):
+                    parts.append(f"{start}-{stop}")
+                case (int(start), int(stop), int(step)):
+                    parts.append(f"{start}-{stop}:{step}")
+        return ",".join(parts)
 
     @classmethod
     def _collect_ams_env_vars(cls) -> dict[str, str]:

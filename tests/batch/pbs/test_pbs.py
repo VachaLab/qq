@@ -17,12 +17,14 @@ import pytest
 
 from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.pbs import PBS, PBSJob
-from qq_lib.batch.pbs.array_spec import PBSArraySpec
 from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.batch.pbs.pbs import CFG
+from qq_lib.core.array_spec import ArraySpec
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.resources import Resources
+
+type ArrayElement = int | tuple[int, int] | tuple[int, int, int]
 
 
 @pytest.fixture
@@ -1099,7 +1101,7 @@ def test_translate_submit_array_range():
             "job",
             [],
             {},
-            PBSArraySpec([(1, 32)]),
+            ArraySpec([(1, 32)]),
         )
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -J 1-32 -l ncpus=1,mpiprocs=1,mem=1048576kb tmp/script.sh"
     )
@@ -1117,7 +1119,7 @@ def test_translate_submit_array_indices():
             "job",
             [],
             {},
-            PBSArraySpec([1, 5, 12]),
+            ArraySpec([1, 5, 12]),
         )
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -J 1,5,12 -l ncpus=1,mpiprocs=1,mem=1048576kb tmp/script.sh"
     )
@@ -1135,7 +1137,7 @@ def test_translate_submit_array_complex():
             "job",
             [],
             {},
-            PBSArraySpec([(1, 3, 1), 5, 12, (10, 20, 3)]),
+            ArraySpec([(1, 3, 1), 5, 12, (10, 20, 3)]),
         )
         == f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -J 1-3,5,10-20:3,12 -l ncpus=1,mpiprocs=1,mem=1048576kb tmp/script.sh"
     )
@@ -1165,7 +1167,7 @@ def test_translate_submit_complex_case():
             CFG.env_vars.input_dir: "/path/to/job/",
             CFG.env_vars.guard: "true",
         },
-        PBSArraySpec([(1, 5), (7, 12)]),
+        ArraySpec([(1, 5), (7, 12)]),
     ) == (
         f"qsub -N job -q gpu -j eo -e tmp/job{CFG.suffixes.qq_out} -J 1-5,7-12 "
         f"-v \"{CFG.env_vars.info_file}='/path/to/job/job.qqinfo'\",\"{CFG.env_vars.input_dir}='/path/to/job/'\",\"{CFG.env_vars.guard}='true'\" "
@@ -2103,3 +2105,31 @@ def test_modify_local_file_with_lock_concurrent_modifications_are_serialized(
         f"Some workers failed: {[p.exitcode for p in processes]}"
     )
     assert target.read_text() == str(iterations * n_workers)
+
+
+@pytest.mark.parametrize(
+    ("elements", "expected"),
+    [
+        pytest.param([0], "0", id="single_index"),
+        pytest.param([1, 3, 5], "1,3,5", id="multiple_indices"),
+        pytest.param([(0, 10)], "0-10", id="range"),
+        pytest.param([(0, 10, 2)], "0-10:2", id="strided_range"),
+        pytest.param([(5, 5)], "5", id="range_start_equals_stop"),
+        pytest.param([(0, 10, 1)], "0-10", id="step_of_one"),
+        pytest.param(
+            [1, (10, 20), (30, 50, 5)],
+            "1,10-20,30-50:5",
+            id="mixed_elements",
+        ),
+        pytest.param(
+            [(0, 4), 7, (10, 20, 3)],
+            "0-4,7,10-20:3",
+            id="mixed_range_first",
+        ),
+    ],
+)
+def test_translate_array(
+    elements: list[ArrayElement],
+    expected: str,
+) -> None:
+    assert PBS._translate_array(ArraySpec(elements)) == expected

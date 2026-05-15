@@ -623,14 +623,15 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
 
     mock_set_env.assert_called_once()
     mock_job_submit.assert_called_once_with(
-        submitter._resources,
-        submitter._queue,
-        submitter._script,
-        submitter._job_name,
-        submitter._depend,
-        env_vars,
-        submitter._account,
-        submitter._server,
+        res=submitter._resources,
+        queue=submitter._queue,
+        script=submitter._script,
+        job_name=submitter._job_name,
+        depend=submitter._depend,
+        env_vars=env_vars,
+        account=submitter._account,
+        array=None,
+        server=submitter._server,
         remote_host=None,
     )
     mock_informer_class.assert_called_once()
@@ -681,14 +682,15 @@ def test_submitter_submit(tmp_path):
 
     mock_set_env.assert_called_once()
     mock_job_submit.assert_called_once_with(
-        submitter._resources,
-        submitter._queue,
-        submitter._script,
-        submitter._job_name,
-        submitter._depend,
-        env_vars,
-        submitter._account,
-        submitter._server,
+        res=submitter._resources,
+        queue=submitter._queue,
+        script=submitter._script,
+        job_name=submitter._job_name,
+        depend=submitter._depend,
+        env_vars=env_vars,
+        account=submitter._account,
+        array=None,
+        server=submitter._server,
         remote_host=None,
     )
     mock_informer_class.assert_called_once()

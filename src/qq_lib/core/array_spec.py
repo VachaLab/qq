@@ -1,19 +1,14 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-from abc import ABC, abstractmethod
-
 from qq_lib.core.error import QQError
 
 type ArrayElement = int | tuple[int, int] | tuple[int, int, int]
 
 
-class ArraySpec(ABC):
+class ArraySpec:
     """
-    Abstract specification for job-array task indices.
-
-    Each scheduler backend provides a concrete subclass that knows how
-    to translate index specifications into the syntax that particular scheduler expects.
+    Specification for job-array task indices.
 
     Args:
         elements (list[ArrayElement]): Non-empty list of indices and ranges.
@@ -24,17 +19,7 @@ class ArraySpec(ABC):
 
     def __init__(self, elements: list[ArrayElement]):
         _validate_elements(elements)
-        self._elements = _merge_elements(elements)
-
-    @abstractmethod
-    def translate(self) -> str:
-        """
-        Translate this specification into the scheduler's native syntax.
-
-        Returns:
-            str: A string suitable for passing to the scheduler's array flag
-            (e.g. `--array=` for Slurm, `-J` for PBS).
-        """
+        self.elements = _merge_elements(elements)
 
 
 def _validate_elements(elements: list[ArrayElement]) -> None:

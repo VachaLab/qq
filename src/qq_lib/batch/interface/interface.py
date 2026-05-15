@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from qq_lib.batch.interface._arfe import _AtomicRemoteFileEditor
-from qq_lib.batch.interface.array_spec import ArraySpec
 from qq_lib.core.common import convert_absolute_to_relative
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -27,6 +26,7 @@ from .queue import BatchQueueInterface
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from qq_lib.core.array_spec import ArraySpec
     from qq_lib.properties.depend import Depend
     from qq_lib.properties.resources import Resources
 
@@ -35,7 +35,7 @@ logger = get_logger(__name__)
 """
 Type alias for a batch system class.
 """
-type AnyBatchClass = type[BatchInterface[Any, Any, Any, Any]]
+type AnyBatchClass = type[BatchInterface[Any, Any, Any]]
 
 
 class _BatchMeta(ABCMeta):
@@ -137,7 +137,6 @@ class BatchInterface[
     TBatchJob: BatchJobInterface = BatchJobInterface,
     TBatchQueue: BatchQueueInterface = BatchQueueInterface,
     TBatchNode: BatchNodeInterface = BatchNodeInterface,
-    TArraySpec: ArraySpec = ArraySpec,
 ](ABC, metaclass=_BatchMeta):
     """
     Abstract base class for batch system integrations.
@@ -222,7 +221,7 @@ class BatchInterface[
         depend: list[Depend],
         env_vars: dict[str, str],
         account: str | None = None,
-        array: TArraySpec | None = None,
+        array: ArraySpec | None = None,
         server: str | None = None,
         remote_host: str | None = None,
     ) -> str:
@@ -239,7 +238,7 @@ class BatchInterface[
             depend (list[Depend]): List of job dependencies.
             env_vars (dict[str, str]): Dictionary of environment variables to propagate to the job.
             account (str | None): Optional account name to use for the job.
-            array (TArraySpec | None): Optional array job specification.
+            array (ArraySpec | None): Optional array job specification.
             server (str | None): Optional name of the server to submit the job to.
             remote_host (str | None): Optional name of the machine to submit the job from.
 
