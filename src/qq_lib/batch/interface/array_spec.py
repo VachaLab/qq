@@ -50,7 +50,7 @@ def _validate_elements(elements: list[ArrayElement]) -> None:
             constraints (negative index, start > stop, step < 1).
     """
     if not elements:
-        raise QQError("Invalid array specification: elements must not be empty.")
+        raise QQError("Invalid array specification: no elements provided.")
 
     for element in elements:
         match element:

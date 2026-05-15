@@ -59,7 +59,7 @@ def test_array_spec_zero_index() -> None:
 
 
 def test_array_spec_empty_list_raises() -> None:
-    with pytest.raises(QQError, match="elements must not be empty"):
+    with pytest.raises(QQError, match="no elements provided"):
         _ConcreteArraySpec([])
 
 
