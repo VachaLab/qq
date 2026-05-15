@@ -274,6 +274,16 @@ def test_slurmit4i_modify_remote_file_with_lock_exception(tmp_path):
         SlurmIT4I.modify_remote_file_with_lock("remotehost", dir_path, lambda c: c)
 
 
+def test_slurmit4i_modify_remote_file_with_lock_returns_new_content(tmp_path):
+    file_path = tmp_path / "data.txt"
+    file_path.write_text("hello")
+
+    new_content = SlurmIT4I.modify_remote_file_with_lock(
+        "remotehost", file_path, lambda c: c + " world"
+    )
+    assert file_path.read_text() == new_content
+
+
 def test_slurmit4i_make_remote_dir_creates_successfully(tmp_path):
     directory = tmp_path / "newdir"
     SlurmIT4I.make_remote_dir("host", directory)

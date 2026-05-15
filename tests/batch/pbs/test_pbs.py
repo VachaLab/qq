@@ -459,6 +459,34 @@ def test_modify_remote_file_with_lock_remote():
         mock_modify.assert_called_once_with("remotehost", file_path, modify_fn)
 
 
+def test_modify_remote_file_with_lock_shared_storage_returns_new_content(
+    tmp_path, monkeypatch
+):
+    file_path = tmp_path / "data.txt"
+    file_path.write_text("hello")
+
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+
+    new = PBS.modify_remote_file_with_lock(
+        "remotehost", file_path, lambda c: c + " world"
+    )
+    assert file_path.read_text() == new
+
+
+def test_modify_remote_file_with_lock_remote_returns_new_content():
+    file_path = Path("/remote/data.txt")
+
+    def modify_fn(c: str) -> str:
+        return c
+
+    with patch.object(
+        BatchInterface, "modify_remote_file_with_lock", return_value="new content"
+    ) as mock_modify:
+        new = PBS.modify_remote_file_with_lock("remotehost", file_path, modify_fn)
+        mock_modify.assert_called_once_with("remotehost", file_path, modify_fn)
+        assert new == "new content"
+
+
 def test_make_remote_dir_shared_storage(tmp_path, monkeypatch):
     dir_path = tmp_path / "newdir"
 
@@ -2066,6 +2094,17 @@ def test_modify_local_file_with_lock_writes_modify_fn_return_value(tmp_path: Pat
     PBS._modify_local_file_with_lock(target, lambda _: "completely replaced")
 
     assert target.read_text() == "completely replaced"
+
+
+def test_modify_local_file_with_lock_returns_new_content(tmp_path: Path):
+    target = tmp_path / "data.txt"
+    target.write_text("hello")
+
+    new_content = PBS._modify_local_file_with_lock(
+        target, lambda content: content + " world"
+    )
+
+    assert target.read_text() == new_content
 
 
 def _hold_lock(lockfile_path: Path, ready: Event, duration: float) -> None:

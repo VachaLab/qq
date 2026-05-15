@@ -103,12 +103,12 @@ class SlurmIT4I(Slurm):
     @classmethod
     def modify_remote_file_with_lock(
         cls, host: str, file: Path, modify_fn: Callable[[str], str]
-    ) -> None:
+    ) -> str:
         # file is always on shared storage
         _ = host
         try:
             # intentionally using PBS
-            PBS._modify_local_file_with_lock(file, modify_fn)
+            return PBS._modify_local_file_with_lock(file, modify_fn)
         except Exception as e:
             raise QQError(f"Could not modify a file '{file}': {e}.") from e
 

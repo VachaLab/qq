@@ -2,6 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar, Self
@@ -97,17 +98,36 @@ class ArrayInfo(_YAMLSerializable):
         }
 
     @classmethod
-    def atomically_increase_n_finished_tasks(
-        cls, _file: Path, _host: str | None = None
-    ) -> int:
+    def atomically_increment_n_finished_tasks(cls, file: Path, host: str) -> int:
         """
-        Atomically increase the n_finished_tasks field in the qq array file.
+        Atomically increment the n_finished_tasks field in the qq array file on a remote host.
 
         Args:
             path (Path): The path to the qq array file.
 
         Returns:
             int: The updated n_finished_tasks value.
+
+        Raises:
+            QQError: If the field is missing, the lock/write fails, a batch system cannot be determined,
+                or the SSH connection fails (if the file is not available locally).
         """
-        _BatchSystem = BatchInterface.from_env_var_or_guess()
-        raise NotImplementedError()
+        # regex to find the n_finished_tasks field
+        N_FINISHED_RE = re.compile(r"(n_finished_tasks:\s*)(\d+)")
+
+        BatchSystem = BatchInterface.from_env_var_or_guess()
+
+        new_value: int = 0
+
+        def _increment(content: str) -> str:
+            nonlocal new_value
+            # we intentionally do not parse the entire yaml
+            # but instead use regex to find the n_finished_tasks field
+            match = N_FINISHED_RE.search(content)
+            if match is None:
+                raise QQError(f"Field 'n_finished_tasks' not found in '{file}'.")
+            new_value = int(match.group(2)) + 1
+            return content[: match.start(2)] + str(new_value) + content[match.end(2) :]
+
+        BatchSystem.modify_remote_file_with_lock(host, file, _increment)
+        return new_value

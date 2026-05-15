@@ -321,19 +321,19 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
     @classmethod
     def modify_remote_file_with_lock(
         cls, host: str, file: Path, modify_fn: Callable[[str], str]
-    ) -> None:
+    ) -> str:
         if os.environ.get(CFG.env_vars.shared_submit):
             # file should be written to shared storage
             # this assumes that the method is only used to write files into input_dir
             logger.debug(f"Modifying a file '{file}' on shared storage.")
             try:
-                cls._modify_local_file_with_lock(file, modify_fn)
+                return cls._modify_local_file_with_lock(file, modify_fn)
             except Exception as e:
                 raise QQError(f"Could not modify a file '{file}': {e}") from e
         else:
             # otherwise we fall back to the default implementation
             logger.debug(f"Modifying a remote file '{file}' on '{host}' with lock.")
-            super().modify_remote_file_with_lock(host, file, modify_fn)
+            return super().modify_remote_file_with_lock(host, file, modify_fn)
 
     @classmethod
     def make_remote_dir(cls, host: str, directory: Path) -> None:
@@ -1107,7 +1107,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
     @staticmethod
     def _modify_local_file_with_lock(
         file: Path, modify_fn: Callable[[str], str]
-    ) -> None:
+    ) -> str:
         """
         Atomically read-modify-write a local file under flock.
 
@@ -1115,6 +1115,9 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             file (Path): Path to the target file.
             modify_fn (Callable[[str], str]): A function that takes the current file content
                 as a string and returns the new content.
+
+        Returns:
+            str: The new content of the file.
 
         Raises:
             QQError: If the lock cannot be acquired within the timeout.
@@ -1137,4 +1140,6 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
                     time.sleep(0.1)
 
             content = file.read_text() if file.exists() else ""
-            file.write_text(modify_fn(content))
+            new = modify_fn(content)
+            file.write_text(new)
+            return new

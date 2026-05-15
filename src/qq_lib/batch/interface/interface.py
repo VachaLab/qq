@@ -552,7 +552,7 @@ class BatchInterface[
     @classmethod
     def modify_remote_file_with_lock(
         cls, host: str, file: Path, modify_fn: Callable[[str], str]
-    ) -> None:
+    ) -> str:
         """
         Atomically read-modify-write a remote file.
 
@@ -572,10 +572,13 @@ class BatchInterface[
             modify_fn (Callable[[str], str]): A function that takes the current file content
                 as a string and returns the new content.
 
+        Returns:
+            str: The new content of the file.
+
         Raises:
             QQError: If the SSH connection, lock acquisition, or write-back fails.
         """
-        _AtomicRemoteFileEditor(host, file).modify(modify_fn)
+        return _AtomicRemoteFileEditor(host, file).modify(modify_fn)
 
     @classmethod
     def make_remote_dir(cls, host: str, directory: Path) -> None:
