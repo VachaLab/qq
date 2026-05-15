@@ -104,6 +104,7 @@ class ArrayInfo(_YAMLSerializable):
 
         Args:
             path (Path): The path to the qq array file.
+            host (str): The host where the file is located.
 
         Returns:
             int: The updated n_finished_tasks value.
