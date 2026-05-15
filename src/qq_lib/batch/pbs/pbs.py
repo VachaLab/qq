@@ -1123,6 +1123,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         timeout = CFG.timeouts.flock
         deadline = time.monotonic() + timeout
 
+        logger.debug(f"Atomically modifying local file '{file}'.")
         with lockfile.open("w") as fd:
             while True:
                 try:
@@ -1131,7 +1132,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
                 except OSError:
                     if time.monotonic() >= deadline:
                         raise QQError(
-                            f"Could not acquire lock on {file} within {timeout} seconds."
+                            f"Could not acquire lock on '{file}' within {timeout} seconds."
                         )
                     time.sleep(0.1)
 

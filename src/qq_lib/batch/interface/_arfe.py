@@ -14,6 +14,9 @@ from typing import IO
 
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
+from qq_lib.core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class _AtomicRemoteFileEditor:
@@ -44,6 +47,9 @@ class _AtomicRemoteFileEditor:
         Raises:
             QQError: If the SSH connection, lock acquisition, or write-back fails.
         """
+        logger.debug(
+            f"Atomically modifying remote file '{self._file}' on host '{self._host}'."
+        )
         script = self._build_script()
         proc = self._start_ssh(script)
 
