@@ -204,3 +204,27 @@ def test_modify_handles_nonexistent_remote_file(mock_popen):
     assert received == [""]
     written_b64 = fake_stdin.getvalue().strip()
     assert base64.b64decode(written_b64).decode("utf-8") == "new"
+
+
+@patch("qq_lib.batch.pbs.pbs.subprocess.Popen")
+def test_modify_returns_new_content(mock_popen):
+    original = "count=1"
+    encoded_original = base64.b64encode(original.encode("utf-8")).decode("ascii")
+
+    fake_stdout = io.StringIO(f"{encoded_original}\n---READY---\n---DONE---\n")
+    fake_stdin = io.StringIO()
+    # prevent close() from discarding StringIO buffer
+    fake_stdin.close = lambda: None  # type: ignore
+
+    mock_proc = MagicMock(
+        stdout=fake_stdout,
+        stdin=fake_stdin,
+        returncode=0,
+    )
+    mock_popen.return_value = mock_proc
+
+    editor = _AtomicRemoteFileEditor("node01", Path("/data/jobs.txt"))
+    new_content = editor.modify(lambda c: c.replace("1", "2"))
+
+    written_b64 = fake_stdin.getvalue().strip()
+    assert base64.b64decode(written_b64).decode("utf-8") == new_content

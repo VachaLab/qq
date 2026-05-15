@@ -36,13 +36,16 @@ class _AtomicRemoteFileEditor:
         self._lockfile = file.parent / f".{file.name}{CFG.suffixes.qq_lock}"
         self._timeout = CFG.timeouts.flock
 
-    def modify(self, modify_fn: Callable[[str], str]) -> None:
+    def modify(self, modify_fn: Callable[[str], str]) -> str:
         """
         Apply a transformation to the remote file under flock.
 
         Args:
             modify_fn (Callable[[str], str]): A function that takes
                 the current file content as a string and returns the new content.
+
+        Returns:
+            str: The new file content after transformation.
 
         Raises:
             QQError: If the SSH connection, lock acquisition, or write-back fails.
@@ -60,6 +63,8 @@ class _AtomicRemoteFileEditor:
         new_content = modify_fn(current_content)
         self._write_new_content(proc.stdin, new_content)
         self._wait_for_confirmation(proc.stdout, proc)
+
+        return new_content
 
     def _build_script(self) -> str:
         """Return the bash script that will be executed on the remote host."""
