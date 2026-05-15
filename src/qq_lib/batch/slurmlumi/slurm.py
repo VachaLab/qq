@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import cast
 
 from qq_lib.batch.slurm import Slurm
+from qq_lib.batch.slurm.array_spec import SlurmArraySpec
 from qq_lib.batch.slurmit4i import SlurmIT4I
 from qq_lib.batch.slurmlumi.node import SlurmLumiNode
 from qq_lib.core.config import CFG
@@ -45,6 +46,7 @@ class SlurmLumi(SlurmIT4I):
         depend: list[Depend],
         env_vars: dict[str, str],
         account: str | None = None,
+        array: SlurmArraySpec | None = None,
         server: str | None = None,
         remote_host: str | None = None,
     ) -> str:
@@ -55,7 +57,16 @@ class SlurmLumi(SlurmIT4I):
             env_vars[CFG.env_vars.lumi_scratch_type] = res.work_dir
 
         return super().job_submit(
-            res, queue, script, job_name, depend, env_vars, account, server, remote_host
+            res,
+            queue,
+            script,
+            job_name,
+            depend,
+            env_vars,
+            account,
+            array,
+            server,
+            remote_host,
         )
 
     @classmethod

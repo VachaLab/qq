@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from qq_lib.batch.slurm.array_spec import SlurmArraySpec
 from qq_lib.batch.slurm.job import SlurmJob
 from qq_lib.batch.slurm.node import SlurmNode
 from qq_lib.batch.slurm.slurm import Slurm
@@ -374,7 +375,7 @@ def test_slurm_translate_submit_basic_command():
     account = None
 
     command = Slurm._translate_submit(
-        res, queue, input_dir, script, job_name, depend, env_vars, account
+        res, queue, input_dir, script, job_name, depend, env_vars, account, None
     )
 
     assert command.startswith("sbatch")
@@ -410,7 +411,7 @@ def test_slurm_translate_submit_basic_command_with_per_node_properties():
     account = None
 
     command = Slurm._translate_submit(
-        res, queue, input_dir, script, job_name, depend, env_vars, account
+        res, queue, input_dir, script, job_name, depend, env_vars, account, None
     )
 
     assert command.startswith("sbatch")
@@ -445,7 +446,7 @@ def test_slurm_translate_submit_with_account_and_env_vars():
     account = "project123"
 
     command = Slurm._translate_submit(
-        res, queue, input_dir, script, job_name, depend, env_vars, account
+        res, queue, input_dir, script, job_name, depend, env_vars, account, None
     )
 
     assert "--account project123" in command
@@ -469,7 +470,7 @@ def test_slurm_translate_submit_with_dependencies():
     account = None
 
     command = Slurm._translate_submit(
-        res, queue, input_dir, script, job_name, depend, env_vars, account
+        res, queue, input_dir, script, job_name, depend, env_vars, account, None
     )
 
     assert "--dependency=afterok:111:222" in command
@@ -492,11 +493,49 @@ def test_slurm_translate_submit_with_props_true_only():
     account = None
 
     command = Slurm._translate_submit(
-        res, queue, input_dir, script, job_name, depend, env_vars, account
+        res, queue, input_dir, script, job_name, depend, env_vars, account, None
     )
 
     assert '--constraint="gpu&ssd"' in command
     assert f"--chdir={input_dir}" in command
+    assert command.endswith(str(input_dir / script))
+
+
+def test_slurm_translate_submit_with_array():
+    res = Resources()
+    res.nnodes = 2
+    res.ncpus = 8
+    res.mem = Size(32, "gb")
+    res.ngpus = 4
+    res.props = {}
+    res.walltime = "2-00:00:00"
+
+    queue = "gpu"
+    input_dir = Path("/tmp")
+    script = "run.sh"
+    job_name = "job1"
+    depend = []
+    env_vars = {}
+    account = None
+    array = SlurmArraySpec([(0, 5), (7, 12)])
+
+    command = Slurm._translate_submit(
+        res, queue, input_dir, script, job_name, depend, env_vars, account, array
+    )
+
+    assert command.startswith("sbatch")
+    assert f"-J {job_name}" in command
+    assert f"-p {queue}" in command
+    assert f"-e {input_dir / (job_name + '.qqout')}" in command
+    assert f"-o {input_dir / (job_name + '.qqout')}" in command
+    assert f"--nodes {res.nnodes}" in command
+    assert "--ntasks-per-node=1" in command
+    assert f"--cpus-per-task={res.ncpus // res.nnodes}" in command
+    assert f"--mem={(res.mem // res.nnodes).to_str_exact_slurm()}" in command
+    assert f"--gpus-per-node={res.ngpus // res.nnodes}" in command
+    assert f"--time={res.walltime}" in command
+    assert f"--chdir={input_dir}" in command
+    assert f"--array={array.translate()}" in command
     assert command.endswith(str(input_dir / script))
 
 
@@ -518,7 +557,7 @@ def test_slurm_translate_submit_raises_on_invalid_prop_value():
         QQError, match="Slurm only supports properties with a value of 'true'"
     ):
         Slurm._translate_submit(
-            res, queue, input_dir, script, job_name, depend, env_vars, account
+            res, queue, input_dir, script, job_name, depend, env_vars, account, None
         )
 
 

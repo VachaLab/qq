@@ -9,6 +9,7 @@ from pathlib import Path
 
 from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.pbs.pbs import PBS
+from qq_lib.batch.slurm.array_spec import SlurmArraySpec
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -27,7 +28,7 @@ from .queue import SlurmQueue
 logger = get_logger(__name__)
 
 
-class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
+class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode, SlurmArraySpec]):
     """
     Implementation of BatchInterface for Slurm batch system.
     """
@@ -58,6 +59,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         depend: list[Depend],
         env_vars: dict[str, str],
         account: str | None = None,
+        array: SlurmArraySpec | None = None,
         server: str | None = None,
         remote_host: str | None = None,
     ) -> str:
@@ -72,7 +74,15 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         PBS._shared_guard(input_dir, res, env_vars, server, remote_host)
 
         command = cls._translate_submit(
-            res, queue, script.parent, str(script), job_name, depend, env_vars, account
+            res,
+            queue,
+            script.parent,
+            str(script),
+            job_name,
+            depend,
+            env_vars,
+            account,
+            array,
         )
 
         if not remote_host:
@@ -401,6 +411,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         depend: list[Depend],
         env_vars: dict[str, str],
         account: str | None,
+        array: SlurmArraySpec | None,
     ) -> str:
         """
         Generate the Slurm submission command for a job.
@@ -414,12 +425,16 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
             depend (list[Depend]): List of dependencies of the job.
             env_vars (dict[str, str]): Dictionary of environment variables and their values to propagate to the job's environment.
             account (str | None): Optional name of the account to use for the job.
+            array (SlurmArraySpec | None): Optional array job specification.
 
         Returns:
             str: The fully constructed sbatch command string.
         """
         qq_output = str((input_dir / job_name).with_suffix(CFG.suffixes.qq_out))
         command = f"sbatch -J {job_name} -p {queue} -e {qq_output} -o {qq_output} "
+
+        if array:
+            command += f"--array={array.translate()} "
 
         if account:
             command += f"--account {account} "

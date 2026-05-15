@@ -12,6 +12,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from qq_lib.batch.interface import BatchInterface
+from qq_lib.batch.pbs.array_spec import PBSArraySpec
 from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
 from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.batch.pbs.queue import PBSQueue
@@ -28,7 +29,7 @@ from .job import PBSJob
 logger = get_logger(__name__)
 
 
-class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
+class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode, PBSArraySpec]):
     """
     Implementation of BatchInterface for PBS Pro batch system.
     """
@@ -75,6 +76,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         depend: list[Depend],
         env_vars: dict[str, str],
         account: str | None = None,
+        array: PBSArraySpec | None = None,
         server: str | None = None,
         remote_host: str | None = None,
     ) -> str:
@@ -105,6 +107,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             job_name,
             depend,
             env_vars,
+            array,
         )
         logger.debug(command)
 
@@ -586,6 +589,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         job_name: str,
         depend: list[Depend],
         env_vars: dict[str, str],
+        array: PBSArraySpec | None,
     ) -> str:
         """
         Generate the PBS submission command for a job.
@@ -599,11 +603,16 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             job_name (str): Name of the job.
             depend (list[Depend]): List of dependencies of the job.
             env_vars (dict[str, str]): Dictionary of environment variables to set.
+            array (PBSArraySpec | None): Optional array job specification.
 
         Returns:
             str: The fully constructed qsub command string.
         """
         command = f"qsub -N {job_name} {cls._translate_queue_server(queue, server)} {cls._translate_output_server(input_dir, job_name, server)} "
+
+        # translate array specification
+        if array:
+            command += f"-J {array.translate()} "
 
         # translate environment variables
         if env_vars:
