@@ -1,3 +1,8 @@
+## Version 0.12.0
+- If a loop job does not create any archive files for the next cycle of the loop job, qq creates an empty `.init` file fulfilling the loop job's requirements.
+
+***
+
 ## Version 0.11
 ### qq respawn
 - Failed or killed jobs can now be easily "respawned" using `qq respawn`. When respawning a job, qq will remove the working directory of the failed job, clear all runtime files, and resubmit the job with the same parameters as before.

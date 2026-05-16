@@ -220,7 +220,7 @@ class CommandRunner:
                         self._execute(result)
                     else:
                         raise ValueError(
-                            f"Unexpected result type: {type(result)}. This is a bug, please repport it."
+                            f"Unexpected result type: {type(result)}. This is a bug, please report it."
                         )
 
     def _execute(self, informer: Informer) -> None:

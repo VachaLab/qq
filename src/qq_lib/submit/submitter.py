@@ -275,6 +275,10 @@ class Submitter:
         """Get the batch system used for submiting."""
         return self._batch_system
 
+    def get_job_name(self) -> str:
+        """Get the name of the job."""
+        return self._job_name
+
     def get_queue(self) -> str:
         """Get the submission queue."""
         return self._queue
@@ -284,7 +288,7 @@ class Submitter:
         return self._account
 
     def get_script(self) -> Path:
-        """Get path to the submitted script."""
+        """Get absolute (logical) path to the submitted script."""
         return self._script
 
     def get_job_type(self) -> JobType:
@@ -299,15 +303,15 @@ class Submitter:
         """Get loop job information."""
         return self._loop_info
 
-    def get_exclude(self) -> list[Path] | None:
+    def get_exclude(self) -> list[Path]:
         """Get a list of excluded files."""
         return self._exclude
 
-    def get_include(self) -> list[Path] | None:
+    def get_include(self) -> list[Path]:
         """Get a list of included files."""
         return self._include
 
-    def get_depend(self) -> list[Depend] | None:
+    def get_depend(self) -> list[Depend]:
         """Get the list of dependencies."""
         return self._depend
 
