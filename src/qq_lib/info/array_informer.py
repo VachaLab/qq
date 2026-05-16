@@ -40,6 +40,16 @@ class ArrayInformer:
         """
         return self.array_info.batch_system
 
+    @property
+    def tasks(self) -> list[Informer | None]:
+        """
+        Return the list of Informers for the tasks in this array.
+
+        Returns:
+            list[Informer | None]: The list of Informers for the tasks in this array.
+        """
+        return self._tasks
+
     @classmethod
     def from_file(cls, file: Path, host: str | None = None) -> Self:
         """
@@ -179,13 +189,18 @@ class ArrayInformer:
         if not self._batch_info_loaded:
             self.load_batch_info()
 
-        return all(informer.get_real_state() in states for informer in self._tasks)
+        return all(
+            informer is not None and informer.get_real_state() in states
+            for informer in self._tasks
+        )
 
     @staticmethod
-    def _get_informers_for_tasks(array_info: ArrayInfo) -> list[Informer]:
+    def _get_informers_for_tasks(array_info: ArrayInfo) -> list[Informer | None]:
         """
         Create informers for each task in the array job.
+
         The informers are returned in the order corresponding to the directory order.
+        If an informer cannot be created for a task, it is replaced with `None`,
 
         Batch job info is NOT automatically loaded for the informers.
 
@@ -199,7 +214,10 @@ class ArrayInformer:
         informers = []
         for dir in array_info.task_dirs:
             info_path = construct_info_file_path(dir, array_info.job_name)
-            informers.append(Informer.from_file(info_path))
+            try:
+                informers.append(Informer.from_file(info_path))
+            except QQError:
+                informers.append(None)
         return informers
 
     def _get_batch_tasks(self) -> list[BatchJobInterface]:
@@ -272,6 +290,10 @@ class ArrayInformer:
         Match batch tasks to informers based on task numbers.
         """
         for informer in self._tasks:
+            # skip directories for which informers are missing
+            if informer is None:
+                continue
+
             # get task number from the informer to match it with the batch system info
             if (task_info := informer.info.task_info) is None:
                 raise QQError(

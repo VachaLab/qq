@@ -15,7 +15,6 @@ from qq_lib.core.common import (
     available_job_types,
     available_work_dirs,
     default_resubmit_from_hosts,
-    get_runtime_files,
 )
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -331,14 +330,7 @@ def submit(script: str, **kwargs) -> NoReturn:
         submitter = factory.make_submitter()
 
         # guard against multiple submissions from the same directory
-        if (
-            get_runtime_files(submitter.get_input_dir())
-            and not submitter.continues_loop()
-        ):
-            raise QQError(
-                "Detected qq runtime files in the submission directory. Submission aborted."
-            )
-
+        submitter.ensure_suitable()
         job_id = submitter.submit()
         logger.info(f"Job '{job_id}' submitted successfully.")
         sys.exit(0)

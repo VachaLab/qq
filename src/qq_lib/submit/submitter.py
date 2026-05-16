@@ -9,15 +9,15 @@ from pathlib import Path
 
 import qq_lib
 from qq_lib.batch.interface import AnyBatchClass
-from qq_lib.core.array_spec import ArraySpec
 from qq_lib.core.common import (
     construct_info_file_path,
     construct_loop_job_name,
     get_info_file,
+    get_runtime_files,
     hhmmss_to_duration,
 )
 from qq_lib.core.config import CFG
-from qq_lib.core.error import QQError
+from qq_lib.core.error import QQError, QQNotSuitableError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.info.informer import Informer
@@ -30,6 +30,7 @@ from qq_lib.properties.resources import Resources
 from qq_lib.properties.resubmit_host import ResubmitHost
 from qq_lib.properties.states import NaiveState
 from qq_lib.properties.transfer_mode import TransferMode
+from qq_lib.submit._array import _ArraySubmitterHelper
 
 logger = get_logger(__name__)
 
@@ -64,7 +65,7 @@ class Submitter:
         server: str | None = None,
         interpreter: Interpreter | None = None,
         resubmit_from: list[ResubmitHost] | None = None,
-        array_dirs: dict[int, Path] | None = None,
+        array_dirs: list[Path] | None = None,
     ):
         """
         Initialize a Submitter instance.
@@ -92,8 +93,7 @@ class Submitter:
                 If not specified, the config default is used.
             resubmit_from (list[ResubmitHost] | None): List of hosts from which a loop/continuous job should be resubmitted.
                 Must only be specified for loop/continuous jobs!
-            array_dirs (dict[int, Path] | None): Optional dictionary of directories to spawn tasks of an array job in.
-                Keys are task indices, and values are the directories to spawn tasks in. If `None`, no job array is created.
+            array_dirs (list[Path] | None): Optional list of directories to spawn tasks of an array job in.
 
         Raises:
             QQError: If the script does not exist or has an invalid shebang line.
@@ -123,6 +123,7 @@ class Submitter:
         self._interpreter = interpreter
         self._resubmit_from = resubmit_from or []
         self._array_dirs = array_dirs
+        self._array_helper = _ArraySubmitterHelper(self)
 
         # script must exist
         if not self._script.is_file():
@@ -133,6 +134,26 @@ class Submitter:
             raise QQError(
                 f"Script '{self._script}' has an invalid shebang. The first line of the script should be '#!/usr/bin/env -S {CFG.binary_name} run'."
             )
+
+    def ensure_suitable(self) -> None:
+        """
+        Verify that the job can be submitted.
+        Guards primarily against multiple submissions from the same directory.
+
+        Raises:
+            QQNotSuitableError: If the submission directory contains runtime files
+                and the job is not a loop continuation or array respawn.
+        """
+        if self._job_type.is_array():
+            if self._array_helper.is_submission_valid():
+                raise QQNotSuitableError(
+                    "Detected qq runtime files in the submission directory and/or in the task directories of the array job. Submission aborted."
+                )
+        else:
+            if get_runtime_files(self._input_dir) and not self._continues_loop():
+                raise QQNotSuitableError(
+                    "Detected qq runtime files in the submission directory. Submission aborted."
+                )
 
     def submit(self, remote: str | None = None) -> str:
         """
@@ -161,7 +182,7 @@ class Submitter:
             depend=self._depend,
             env_vars=self._create_env_vars_dict(),
             account=self._account,
-            array=self._create_array_spec(),
+            array=None,
             server=self._server,
             remote_host=remote,
         )
@@ -203,7 +224,7 @@ class Submitter:
         informer.to_file(self._info_file)
         return job_id
 
-    def continues_loop(self) -> bool:
+    def _continues_loop(self) -> bool:
         """
         Determine whether the submitted job is a continuation of a loop/continuous job.
 
@@ -271,11 +292,12 @@ class Submitter:
     def get_input_dir(self) -> Path:
         """
         Get path to the job's input directory.
-
-        Returns:
-            Path: Path to the job's input directory.
         """
         return self._input_dir
+
+    def get_info_file(self) -> Path:
+        """Get the path to the job's info file."""
+        return self._info_file
 
     def get_batch_system(self) -> AnyBatchClass:
         """Get the batch system used for submiting."""
@@ -290,12 +312,16 @@ class Submitter:
         return self._account
 
     def get_script(self) -> Path:
-        """Get path to the submitted script."""
+        """Get absolute (logical) path to the submitted script."""
         return self._script
 
     def get_job_type(self) -> JobType:
         """Get type of the job."""
         return self._job_type
+
+    def get_job_name(self) -> str:
+        """Get the name of the job."""
+        return self._job_name
 
     def get_resources(self) -> Resources:
         """Get resources requested for the job."""
@@ -305,15 +331,15 @@ class Submitter:
         """Get loop job information."""
         return self._loop_info
 
-    def get_exclude(self) -> list[Path] | None:
+    def get_exclude(self) -> list[Path]:
         """Get a list of excluded files."""
         return self._exclude
 
-    def get_include(self) -> list[Path] | None:
+    def get_include(self) -> list[Path]:
         """Get a list of included files."""
         return self._include
 
-    def get_depend(self) -> list[Depend] | None:
+    def get_depend(self) -> list[Depend]:
         """Get the list of dependencies."""
         return self._depend
 
@@ -329,9 +355,13 @@ class Submitter:
         """Get the interpreter to use for running the script."""
         return self._interpreter
 
-    def get_resubmit_from(self) -> list[ResubmitHost] | None:
+    def get_resubmit_from(self) -> list[ResubmitHost]:
         """Get the list of hosts to resubmit the job from."""
         return self._resubmit_from
+
+    def get_array_dirs(self) -> list[Path] | None:
+        """Get the list of directories to spawn tasks of an array job in."""
+        return self._array_dirs
 
     def _create_env_vars_dict(self) -> dict[str, str]:
         """
@@ -425,14 +455,3 @@ class Submitter:
 
         # for loop jobs, use script_name with cycle number
         return construct_loop_job_name(self._script_name, self._loop_info.current)
-
-    def _create_array_spec(self) -> ArraySpec | None:
-        """
-        Construct the array specification for an array job.
-
-        Returns:
-            ArraySpec | None: The constructed array specification, or `None` if no array is to be created.
-        """
-        if not self._array_dirs:
-            return None
-        return ArraySpec(list(self._array_dirs.keys()))

@@ -9,6 +9,7 @@ YAML I/O, string normalization, user prompts, path manipulation, and job-name co
 """
 
 import re
+from collections.abc import Sequence
 from datetime import timedelta
 from functools import lru_cache
 from pathlib import Path
@@ -99,7 +100,7 @@ def get_info_file(directory: Path) -> Path:
     """
     Locate the qq job info file in a directory.
 
-    This function searches for files matching the `QQ_INFO_SUFFIX` in the
+    This function searches for files with suffix `CFG.suffixes.qq_info` in the
     provided directory. It raises an error if none or multiple info files are found.
 
     Args:
@@ -124,7 +125,7 @@ def get_info_files(directory: Path) -> list[Path]:
     """
     Retrieve all qq job info files in a directory.
 
-    This function searches for files matching the `QQ_INFO_SUFFIX` in the
+    This function searches for files with suffix `CFG.suffixes.qq_info` in the
     provided directory. The files are sorted by their last modification time
     (with the newest modified file being last in the list).
 
@@ -138,6 +139,51 @@ def get_info_files(directory: Path) -> list[Path]:
     logger.debug(f"Detected the following qq info files: {info_files}.")
 
     return sorted(info_files, key=lambda f: f.stat().st_mtime)
+
+
+def get_array_file(directory: Path) -> Path:
+    """
+    Located the qq array file in a directory.
+
+    This function searches for files with suffix `CFG.suffixes.qq_array` in the
+    provided directory. It raises an error if none or multiple array files are found.
+
+    Args:
+        directory (Path): The directory to search in.
+
+    Returns:
+        Path: The Path object of the detected qq array file.
+
+    Raises:
+        QQError: If no array file is found or multiple array files are detected.
+    """
+    array_files = get_array_files(directory)
+    if len(array_files) == 0:
+        raise QQError("No qq array file found.")
+    if len(array_files) > 1:
+        raise QQError("Multiple qq array files found.")
+
+    return array_files[0]
+
+
+def get_array_files(directory: Path) -> list[Path]:
+    """
+    Retrieve all qq array files in a directory.
+
+    This function searches for files with suffix `CFG.suffixes.qq_array` in the
+    provided directory. The files are sorted by their last modification time
+    (with the newest modified file being last in the list).
+
+    Args:
+        directory (Path): The directory to search in.
+
+    Returns:
+        list[Path]: A list of Path objects representing the detected qq array files.
+    """
+    array_files = get_files_with_suffix(directory, CFG.suffixes.qq_array)
+    logger.debug(f"Detected the following qq array files: {array_files}.")
+
+    return sorted(array_files, key=lambda f: f.stat().st_mtime)
 
 
 def get_info_file_from_job_id(job_id: str) -> Path:
@@ -766,3 +812,30 @@ def default_resubmit_from_hosts() -> str:
     # if no batch system is available
     except QQError:
         return "??? (no batch system detected)"
+
+
+def subset_indices(a: Sequence[str | Path], b: Sequence[str | Path]) -> list[int]:
+    """
+    Return indices in *a* corresponding to each element of *b*.
+
+    *b* must be a subset of *a*; both lists are assumed to contain no
+    duplicates.
+
+    Args:
+        a (Sequence[str | Path]): The reference sequence of strings or Paths.
+        b (Sequence[str | Path]): The query list whose elements must all appear in *a*.
+
+    Returns:
+        list[int]: A list of the same length as *b* where the i-th entry is
+            the index of `b[i]` in *a*.
+
+    Raises:
+        QQError: If *b* contains elements not present in *a*.
+    """
+    index_of: dict[str | Path, int] = {value: idx for idx, value in enumerate(a)}
+
+    missing: list[str | Path] = [item for item in b if item not in index_of]
+    if missing:
+        raise QQError(f"b is not a subset of a. Missing elements: {missing}.")
+
+    return [index_of[item] for item in b]

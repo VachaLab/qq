@@ -1,6 +1,8 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
+from collections.abc import Iterator, Sequence
+
 from qq_lib.core.error import QQError
 
 type ArrayElement = int | tuple[int, int] | tuple[int, int, int]
@@ -11,23 +13,36 @@ class ArraySpec:
     Specification for job-array task indices.
 
     Args:
-        elements (list[ArrayElement]): Non-empty list of indices and ranges.
+        elements (Sequence[ArrayElement]): Non-empty list of indices and ranges.
 
     Raises:
         QQError: If the list is empty or any element violates constraints.
     """
 
-    def __init__(self, elements: list[ArrayElement]):
+    def __init__(self, elements: Sequence[ArrayElement]):
         _validate_elements(elements)
         self.elements = _merge_elements(elements)
 
+    def __iter__(self) -> Iterator[int]:
+        """
+        Yields individual task indices from the array specification.
+        """
+        for element in self.elements:
+            match element:
+                case int(value):
+                    yield value
+                case (int(start), int(stop)):
+                    yield from range(start, stop + 1)
+                case (int(start), int(stop), int(step)):
+                    yield from range(start, stop + 1, step)
 
-def _validate_elements(elements: list[ArrayElement]) -> None:
+
+def _validate_elements(elements: Sequence[ArrayElement]) -> None:
     """
     Validate a list of array elements.
 
     Args:
-        elements (list[ArrayElement]): Non-empty list of indices and ranges.
+        elements (Sequence[ArrayElement]): Non-empty sequence of indices and ranges.
 
     Raises:
         QQError: If an element has an unsupported type.
@@ -72,7 +87,7 @@ def _validate_elements(elements: list[ArrayElement]) -> None:
                 )
 
 
-def _merge_elements(elements: list[ArrayElement]) -> list[ArrayElement]:
+def _merge_elements(elements: Sequence[ArrayElement]) -> list[ArrayElement]:
     """
     Merge array elements into a shorter equivalent list.
 
@@ -82,7 +97,7 @@ def _merge_elements(elements: list[ArrayElement]) -> list[ArrayElement]:
     will not be collapsed into `(1, 5, 2)`.
 
     Args:
-        elements (list[ArrayElement]): Non-empty list of indices and ranges.
+        elements (Sequence[ArrayElement]): Non-empty sequence of indices and ranges.
 
     Returns:
         list[ArrayElement]: Equivalent list with overlapping and adjacent

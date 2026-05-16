@@ -38,6 +38,7 @@ from qq_lib.core.common import (
     load_yaml_loader,
     printf_to_regex,
     split_files_list,
+    subset_indices,
     to_snake_case,
     translate_server,
     wdhms_to_hhmmss,
@@ -1114,3 +1115,47 @@ def test_translate_server_returns_unknown_value_unchanged():
     assert (
         translate_server("unknown-server.example.com") == "unknown-server.example.com"
     )
+
+
+def test_subset_indices_basic_ordering() -> None:
+    a = ["x", "y", "z"]
+    b = ["z", "x"]
+    assert subset_indices(a, b) == [2, 0]
+
+
+def test_subset_indices_full_match() -> None:
+    a = ["a", "b", "c"]
+    b = ["a", "b", "c"]
+    assert subset_indices(a, b) == [0, 1, 2]
+
+
+def test_subset_indices_empty_b() -> None:
+    a = ["a", "b"]
+    b: list[str] = []
+    assert subset_indices(a, b) == []
+
+
+def test_subset_indices_both_empty() -> None:
+    assert subset_indices([], []) == []
+
+
+def test_subset_indices_single_element() -> None:
+    assert subset_indices(["only"], ["only"]) == [0]
+
+
+def test_subset_indices_raises_on_missing_elements() -> None:
+    a = ["a", "b"]
+    b = ["a", "c", "d"]
+    with pytest.raises(QQError, match="Missing elements"):
+        subset_indices(a, b)
+
+
+def test_subset_indices_raises_on_empty_a_nonempty_b() -> None:
+    with pytest.raises(QQError, match="Missing elements"):
+        subset_indices([], ["x"])
+
+
+def test_subset_indices_preserves_b_order() -> None:
+    a = ["d", "c", "b", "a"]
+    b = ["a", "b", "c", "d"]
+    assert subset_indices(a, b) == [3, 2, 1, 0]
