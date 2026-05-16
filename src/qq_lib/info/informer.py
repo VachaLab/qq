@@ -226,6 +226,12 @@ class Informer:
         if self._batch_info is None:
             self._batch_info = self.batch_system.get_batch_job(self.info.job_id)
 
+    def set_batch_info(self, batch_info: BatchJobInterface) -> None:
+        """
+        Set the batch job information for this informer.
+        """
+        self._batch_info = batch_info
+
     def get_batch_state(self) -> BatchState:
         """
         Return the job's state as reported by the batch system.

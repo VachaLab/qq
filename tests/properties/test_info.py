@@ -167,7 +167,7 @@ def test_to_file_contains_yaml(sample_info, tmp_path):
     content = file_path.read_text()
 
     assert content.startswith(
-        "# this file contains information about a qq job; do not remove it manually"
+        "# this file contains information about a qq job; do not remove or modify it manually"
     )
 
     data: dict[str, str] = yaml.safe_load(content)

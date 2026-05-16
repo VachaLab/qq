@@ -163,6 +163,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         return SlurmJob(job_id)
 
     @classmethod
+    def get_empty_batch_job(cls, job_id: str) -> SlurmJob:
+        return SlurmJob.from_dict(job_id, {})
+
+    @classmethod
     def get_unfinished_batch_jobs(
         cls, user: str, server: str | None = None
     ) -> list[SlurmJob]:

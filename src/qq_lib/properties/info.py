@@ -53,7 +53,7 @@ class Info(_YAMLSerializable):
 
     # Comment used in the YAML header
     _file_comment: ClassVar[str] = (
-        "this file contains information about a qq job; do not remove it manually"
+        "this file contains information about a qq job; do not remove or modify it manually"
     )
 
     # The batch system class used

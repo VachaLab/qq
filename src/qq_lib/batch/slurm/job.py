@@ -347,6 +347,19 @@ class SlurmJob(BatchJobInterface):
     def is_array_job(self) -> bool:
         return False
 
+    def is_task(self) -> bool:
+        raise NotImplementedError("Array jobs are not yet implemented for Slurm")
+
+    def get_tasks(self) -> Sequence[Self]:
+        raise NotImplementedError("Array jobs are not yet implemented for Slurm")
+
+    def get_task_number(self) -> int | None:
+        raise NotImplementedError("Array jobs are not yet implemented for Slurm")
+
+    def get_id_int(self) -> int | None:
+        match = re.match(r"\d+", self.get_id())
+        return int(match.group()) if match else None
+
     @classmethod
     def from_dict(cls, job_id: str, info: dict[str, str]) -> Self:
         """

@@ -332,6 +332,45 @@ class BatchJobInterface(ABC):
             bool: `True` if the job is a top-level array job, else `False`.
         """
 
+    @abstractmethod
+    def is_task(self) -> bool:
+        """
+        Return `True` if the job is a task within an array job.
+
+        Returns:
+            bool: `True` if the job is a task, else `False`.
+        """
+
+    @abstractmethod
+    def get_tasks(self) -> Sequence[Self]:
+        """
+        Return a list of tasks associated with this array job.
+
+        If the job is not an array job, returns an empty list.
+
+        Returns:
+            Sequence[Self]: List of batch job objects corresponding to the tasks of this array job.
+        """
+
+    @abstractmethod
+    def get_task_number(self) -> int | None:
+        """
+        Return the task number of this job within the array job.
+
+        Returns:
+            int | None: Task number or `None` if this is not a task within an array job.
+        """
+
+    @abstractmethod
+    def get_id_int(self) -> int | None:
+        """
+        Extract the leading numeric portion of the job ID and return it as an integer.
+
+        Returns:
+            int | None: The integer value of the leading digits in the job ID,
+            or `None` if no valid digits are found or conversion fails.
+        """
+
     def is_completed(self) -> bool:
         """
         Return `True` if the job is completed according to the batch system.

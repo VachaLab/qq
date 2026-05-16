@@ -301,6 +301,21 @@ class BatchInterface[
         )
 
     @classmethod
+    def get_empty_batch_job(cls, job_id: str) -> TBatchJob:
+        """
+        Returns an empty batch job object with the given `job_id`.
+
+        Args:
+            job_id (str): (Fictional) identifier of the job.
+
+        Returns:
+            BatchJobInterface: An empty batch job object.
+        """
+        raise NotImplementedError(
+            f"get_empty_batch_job method is not implemented for {cls.__name__}"
+        )
+
+    @classmethod
     def get_unfinished_batch_jobs(
         cls, user: str, server: str | None = None
     ) -> list[TBatchJob]:

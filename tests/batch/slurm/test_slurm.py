@@ -957,3 +957,11 @@ def test_translate_array(
     expected: str,
 ) -> None:
     assert Slurm._translate_array(ArraySpec(elements)) == expected
+
+
+def test_get_empty_batch_job() -> None:
+    result = Slurm.get_empty_batch_job("100")
+
+    assert isinstance(result, SlurmJob)
+    assert result.get_id() == "100"
+    assert result.is_empty() is True

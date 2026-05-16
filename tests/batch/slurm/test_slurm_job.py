@@ -969,3 +969,35 @@ def test_slurm_job_step_from_sacct_string_raises_on_invalid_field_count():
         QQError, match="Number of items in a sacct string for a slurm step"
     ):
         SlurmJob._step_from_sacct_string(s)
+
+
+@pytest.mark.parametrize(
+    "job_id,expected",
+    [
+        ("1234.server", 1234),
+        ("0007.host", 7),
+        ("9", 9),
+        ("42abc", 42),
+        ("12345678_6", 12345678),
+        ("12345678_[1-7]", 12345678),
+        ("12345678_[1-14:2]", 12345678),
+    ],
+)
+def test_slurm_job_get_id_int(job_id, expected):
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = job_id
+    assert job.get_id_int() == expected
+
+
+@pytest.mark.parametrize("job_id", ["abc123", "", "!@#"])
+def test_slurm_job_get_id_int_returns_none_for_invalid(job_id):
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = job_id
+    assert job.get_id_int() is None
+
+
+def test_slurm_job_get_id_int_returns_none_on_conversion_failure():
+    job = SlurmJob.__new__(SlurmJob)
+    job._job_id = "123x"
+    with patch("qq_lib.batch.slurm.job.re.match", return_value=None):
+        assert job.get_id_int() is None

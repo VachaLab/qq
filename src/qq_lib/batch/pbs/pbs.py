@@ -189,6 +189,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         return PBSJob(job_id)
 
     @classmethod
+    def get_empty_batch_job(cls, job_id: str) -> PBSJob:
+        return PBSJob.from_dict(job_id, {})
+
+    @classmethod
     def get_unfinished_batch_jobs(
         cls, user: str, server: str | None = None
     ) -> list[PBSJob]:

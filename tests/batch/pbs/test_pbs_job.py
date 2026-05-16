@@ -6,7 +6,7 @@
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -741,3 +741,125 @@ def test_pbs_job_get_id_int_returns_none_on_conversion_failure():
     job._job_id = "123x"
     with patch("qq_lib.batch.pbs.job.re.match", return_value=None):
         assert job.get_id_int() is None
+
+
+def test_pbs_job_is_task_true() -> None:
+    job = PBSJob.from_dict("100[0]", {"array_index": "0"})
+
+    assert job.is_task() is True
+
+
+def test_pbs_job_is_task_false() -> None:
+    job = PBSJob.from_dict("100", {})
+
+    assert job.is_task() is False
+
+
+def test_pbs_job_get_task_number_valid() -> None:
+    job = PBSJob.from_dict("100[5]", {"array_index": "5"})
+
+    assert job.get_task_number() == 5
+
+
+def test_pbs_job_get_task_number_missing() -> None:
+    job = PBSJob.from_dict("100", {})
+
+    assert job.get_task_number() is None
+
+
+def test_pbs_job_get_task_number_non_numeric() -> None:
+    job = PBSJob.from_dict("100[x]", {"array_index": "x"})
+
+    assert job.get_task_number() is None
+
+
+def test_pbs_job_get_tasks_not_array_job() -> None:
+    job = PBSJob.from_dict("100", {})
+
+    with patch("qq_lib.batch.pbs.job.subprocess.run") as mock_run:
+        result = job.get_tasks()
+
+    assert result == []
+    mock_run.assert_not_called()
+
+
+def test_pbs_job_get_tasks_qstat_failure() -> None:
+    job = PBSJob.from_dict("100[]", {"array": "True"})
+
+    with patch(
+        "subprocess.run",
+        return_value=MagicMock(returncode=1, stderr="qstat: Unknown Job Id"),
+    ):
+        result = job.get_tasks()
+
+    assert result == []
+
+
+def test_pbs_job_get_tasks_returns_tasks_only() -> None:
+    job = PBSJob.from_dict("100[]", {"array": "True"})
+
+    parsed = [
+        ({"array": "True"}, "100[]"),  # main job - should be skipped
+        ({"array_index": "0"}, "100[0]"),  # task
+        ({"array_index": "1"}, "100[1]"),  # task
+    ]
+
+    with (
+        patch(
+            "subprocess.run",
+            return_value=MagicMock(returncode=0, stdout="raw qstat output"),
+        ),
+        patch(
+            "qq_lib.batch.pbs.job.parse_multi_pbs_dump_to_dictionaries",
+            return_value=parsed,
+        ),
+    ):
+        result = job.get_tasks()
+
+    assert len(result) == 2
+    assert result[0].get_id() == "100[0]"
+    assert result[1].get_id() == "100[1]"
+    assert result[0].get_task_number() == 0
+    assert result[1].get_task_number() == 1
+
+
+def test_get_tasks_passes_correct_command() -> None:
+    job = PBSJob.from_dict("100[]", {"array": "True"})
+
+    with (
+        patch(
+            "subprocess.run", return_value=MagicMock(returncode=0, stdout="")
+        ) as mock_run,
+        patch(
+            "qq_lib.batch.pbs.job.parse_multi_pbs_dump_to_dictionaries",
+            return_value=[],
+        ),
+    ):
+        job.get_tasks()
+
+    call_kwargs = mock_run.call_args
+    assert "qstat -fxwt 100[]" in call_kwargs.kwargs.get(
+        "input", call_kwargs[1].get("input", "")
+    )
+
+
+def test_get_tasks_empty_after_filtering() -> None:
+    job = PBSJob.from_dict("100[]", {"array": "True"})
+
+    parsed = [
+        ({"array": "True"}, "100[]"),
+    ]
+
+    with (
+        patch(
+            "subprocess.run",
+            return_value=MagicMock(returncode=0, stdout="raw"),
+        ),
+        patch(
+            "qq_lib.batch.pbs.job.parse_multi_pbs_dump_to_dictionaries",
+            return_value=parsed,
+        ),
+    ):
+        result = job.get_tasks()
+
+    assert result == []

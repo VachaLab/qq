@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from qq_lib.batch.pbs import PBSJob
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQJobMismatchError
 from qq_lib.info.informer import Informer
@@ -475,6 +476,15 @@ def test_informer_get_info_file_returns_expected_path():
     )
 
     assert informer.get_info_file() == expected
+
+
+def test_informer_set_batch_info_sets_batch_info():
+    info = MagicMock()
+    informer = Informer(info)
+    batch_info = MagicMock(spec=PBSJob)
+
+    informer.set_batch_info(batch_info)
+    assert informer._batch_info is batch_info
 
 
 def test_informer_from_job_id_raises_when_empty():

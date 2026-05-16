@@ -1,17 +1,19 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
+from __future__ import annotations
+
 import re
 import subprocess
-from collections.abc import Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 import yaml
 
 from qq_lib.batch.interface import BatchJobInterface
 from qq_lib.batch.pbs.common import (
+    parse_multi_pbs_dump_to_dictionaries,
     parse_pbs_dump_to_dictionary,
 )
 from qq_lib.core.common import hhmmss_to_duration, load_yaml_dumper
@@ -21,6 +23,9 @@ from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 logger = get_logger(__name__)
 
@@ -315,6 +320,51 @@ class PBSJob(BatchJobInterface):
             array := self._info.get("array")
         ) is not None and array.lower() == "true"
 
+    def is_task(self) -> bool:
+        return self._info.get("array_index") is not None
+
+    def get_tasks(self) -> Sequence[Self]:
+        if not self.is_array_job():
+            return []
+
+        command = f"qstat -fxwt {self._job_id}"
+
+        result = subprocess.run(
+            ["bash"],
+            input=command,
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
+        )
+
+        if result.returncode != 0:
+            # if qstat fails, return an empty list
+            logger.debug(
+                f"qstat failed: no information about array job '{self._job_id}' is available: {result.stderr.strip()}"
+            )
+            return []
+
+        tasks = []
+        for data, job_id in parse_multi_pbs_dump_to_dictionaries(
+            result.stdout.strip(), "Job Id"
+        ):
+            # the main array job is also present in the output, so we skip it
+            task = PBSJob.from_dict(job_id, data)
+            if task.is_array_job():
+                continue
+
+            tasks.append(task)
+
+        return tasks
+
+    def get_task_number(self) -> int | None:
+        return self._get_int_property("array_index", "task number")
+
+    def get_id_int(self) -> int | None:
+        match = re.match(r"\d+", self.get_id())
+        return int(match.group()) if match else None
+
     @classmethod
     def from_dict(cls, job_id: str, info: dict[str, str]) -> Self:
         """
@@ -338,17 +388,6 @@ class PBSJob(BatchJobInterface):
         job_info._info = info
 
         return job_info
-
-    def get_id_int(self) -> int | None:
-        """
-        Extract the leading numeric portion of the job ID and return it as an integer.
-
-        Returns:
-            int | None: The integer value of the leading digits in the job ID,
-            or `None` if no valid digits are found or conversion fails.
-        """
-        match = re.match(r"\d+", self.get_id())
-        return int(match.group()) if match else None
 
     def _get_env_vars(self) -> dict[str, str] | None:
         """

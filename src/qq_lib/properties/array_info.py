@@ -9,7 +9,7 @@ from typing import ClassVar, Self
 
 import yaml
 
-from qq_lib.batch.interface import BatchInterface
+from qq_lib.batch.interface import AnyBatchClass, BatchInterface
 from qq_lib.core._yaml_serializable import _YAMLSerializable
 from qq_lib.core.common import load_yaml_dumper, load_yaml_loader
 from qq_lib.core.error import QQError
@@ -32,8 +32,14 @@ class ArrayInfo(_YAMLSerializable):
 
     # Comment used in the YAML header
     _file_comment: ClassVar[str] = (
-        "this file contains information about a qq array job; do not remove it manually"
+        "this file contains information about a qq array job; do not remove or modify it manually"
     )
+
+    # The batch system class used
+    batch_system: AnyBatchClass
+
+    # Name of the array job
+    job_name: str
 
     # IDs of all jobs forming this qq array
     job_ids: list[str]
@@ -55,10 +61,20 @@ class ArrayInfo(_YAMLSerializable):
         Returns:
             ArrayInfo: A new instance with fields populated from the dictionary.
         """
+        batch_system = data.get("batch_system")
+        job_name = data.get("job_name")
         raw_ids = data.get("job_ids")
         raw_dirs = data.get("task_dirs")
         n_finished_tasks = data.get("n_finished_tasks")
 
+        if not isinstance(batch_system, str):
+            raise QQError(
+                f"Field 'batch_system' must be a str, got {type(batch_system).__name__}."
+            )
+        if not isinstance(job_name, str):
+            raise QQError(
+                f"Field 'job_name' must be a str, got {type(job_name).__name__}."
+            )
         if not isinstance(raw_ids, list):
             raise QQError(
                 f"Field 'job_ids' must be a list, got {type(raw_ids).__name__}."
@@ -87,13 +103,21 @@ class ArrayInfo(_YAMLSerializable):
                 )
             task_dirs.append(Path(item))
 
-        return cls(job_ids, task_dirs, n_finished_tasks)
+        return cls(
+            BatchInterface.from_str(batch_system),
+            job_name,
+            job_ids,
+            task_dirs,
+            n_finished_tasks,
+        )
 
     def _to_dict(self) -> dict[str, object]:
         """Return all fields as a dict."""
         return {
+            "batch_system": str(self.batch_system),
+            "job_name": self.job_name,
             "job_ids": self.job_ids,
-            "task_dirs": self.task_dirs,
+            "task_dirs": [str(dir) for dir in self.task_dirs],
             "n_finished_tasks": self.n_finished_tasks,
         }
 
