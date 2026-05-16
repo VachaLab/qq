@@ -613,11 +613,11 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
         patch.object(
             submitter._batch_system, "job_submit", return_value="jobid123"
         ) as mock_job_submit,
-        patch("qq_lib.submit.submitter.Informer") as mock_informer_class,
+        patch("qq_lib.submit.submitter.Info") as mock_info_class,
         patch("qq_lib.__version__", "1.0"),
     ):
-        mock_informer_instance = MagicMock()
-        mock_informer_class.return_value = mock_informer_instance
+        mock_info_instance = MagicMock()
+        mock_info_class.return_value = mock_info_instance
 
         result = submitter.submit()
 
@@ -633,8 +633,8 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
         submitter._server,
         remote_host=None,
     )
-    mock_informer_class.assert_called_once()
-    mock_informer_instance.to_file.assert_called_once_with(submitter._info_file)
+    mock_info_class.assert_called_once()
+    mock_info_instance.to_file.assert_called_once_with(submitter._info_file)
     assert result == "jobid123"
 
 
@@ -667,15 +667,15 @@ def test_submitter_submit(tmp_path):
         patch.object(
             submitter._batch_system, "job_submit", return_value="jobid123"
         ) as mock_job_submit,
-        patch("qq_lib.submit.submitter.Informer") as mock_informer_class,
+        patch("qq_lib.submit.submitter.Info") as mock_info_class,
         patch("qq_lib.__version__", "1.0"),
         patch("getpass.getuser", return_value="testuser"),
         patch("socket.getfqdn", return_value="host123"),
         patch("qq_lib.submit.submitter.datetime") as mock_datetime,
     ):
         mock_datetime.now.return_value = datetime(2025, 10, 14, 12, 0, 0)
-        mock_informer_instance = MagicMock()
-        mock_informer_class.return_value = mock_informer_instance
+        mock_info_instance = MagicMock()
+        mock_info_class.return_value = mock_info_instance
 
         result = submitter.submit()
 
@@ -691,38 +691,31 @@ def test_submitter_submit(tmp_path):
         submitter._server,
         remote_host=None,
     )
-    mock_informer_class.assert_called_once()
-    mock_informer_instance.to_file.assert_called_once_with(submitter._info_file)
+    mock_info_class.assert_called_once_with(
+        batch_system=submitter._batch_system,
+        qq_version="1.0",
+        username="testuser",
+        job_id="jobid123",
+        job_name=submitter._job_name,
+        script_name=submitter._script_name,
+        queue=submitter._queue,
+        account=submitter._account,
+        job_type=submitter._job_type,
+        input_machine="host123",
+        input_dir=submitter._input_dir,
+        job_state=NaiveState.QUEUED,
+        submission_time=datetime(2025, 10, 14, 12, 0, 0),
+        stdout_file=str(Path(submitter._job_name).with_suffix(CFG.suffixes.stdout)),
+        stderr_file=str(Path(submitter._job_name).with_suffix(CFG.suffixes.stderr)),
+        resources=submitter._resources,
+        loop_info=submitter._loop_info,
+        excluded_files=submitter._exclude,
+        included_files=submitter._include,
+        depend=submitter._depend,
+        transfer_mode=[Always()],
+        server=submitter._server,
+        interpreter=None,
+        resubmit_from=[WorkHost()],
+    )
+    mock_info_instance.to_file.assert_called_once_with(submitter._info_file)
     assert result == "jobid123"
-
-    # capture the Info passed to Informer
-    info_arg = mock_informer_class.call_args[0][0]
-
-    assert info_arg.batch_system == submitter._batch_system
-    assert info_arg.qq_version == "1.0"
-    assert info_arg.username == "testuser"
-    assert info_arg.job_id == "jobid123"
-    assert info_arg.job_name == submitter._job_name
-    assert info_arg.script_name == submitter._script_name
-    assert info_arg.queue == submitter._queue
-    assert info_arg.account == submitter._account
-    assert info_arg.job_type == submitter._job_type
-    assert info_arg.input_machine == "host123"
-    assert info_arg.input_dir == submitter._input_dir
-    assert info_arg.job_state == NaiveState.QUEUED
-    assert info_arg.submission_time == datetime(2025, 10, 14, 12, 0, 0)
-    assert info_arg.stdout_file == str(
-        Path(submitter._job_name).with_suffix(CFG.suffixes.stdout)
-    )
-    assert info_arg.stderr_file == str(
-        Path(submitter._job_name).with_suffix(CFG.suffixes.stderr)
-    )
-    assert info_arg.resources == submitter._resources
-    assert info_arg.loop_info == submitter._loop_info
-    assert info_arg.excluded_files == submitter._exclude
-    assert info_arg.included_files == submitter._include
-    assert info_arg.depend == submitter._depend
-    assert info_arg.transfer_mode == [Always()]
-    assert info_arg.server == submitter._server
-    assert info_arg.interpreter is None
-    assert info_arg.resubmit_from == [WorkHost()]
