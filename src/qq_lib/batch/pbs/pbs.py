@@ -184,6 +184,14 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         return PBSJob(job_id)
 
     @classmethod
+    def get_batch_jobs_from_ids(cls, job_ids: list[str]) -> list[PBSJob]:
+        command = f"qstat -fxw {' '.join(job_ids)}"
+        logger.debug(command)
+        return cls._get_batch_jobs_using_command(
+            command, include_completed=True, include_top_level_array=True
+        )
+
+    @classmethod
     def get_unfinished_batch_jobs(
         cls, user: str, server: str | None = None
     ) -> list[PBSJob]:
@@ -191,7 +199,9 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         if server:
             command += f" @{server}"
         logger.debug(command)
-        return cls._get_batch_jobs_using_command(command, include_completed=False)
+        return cls._get_batch_jobs_using_command(
+            command, include_completed=False, include_top_level_array=True
+        )
 
     @classmethod
     def get_batch_jobs(cls, user: str, server: str | None = None) -> list[PBSJob]:
@@ -199,7 +209,9 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         if server:
             command += f" @{server}"
         logger.debug(command)
-        return cls._get_batch_jobs_using_command(command, include_completed=True)
+        return cls._get_batch_jobs_using_command(
+            command, include_completed=True, include_top_level_array=True
+        )
 
     @classmethod
     def get_all_unfinished_batch_jobs(cls, server: str | None = None) -> list[PBSJob]:
@@ -207,7 +219,9 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         if server:
             command += f" @{server}"
         logger.debug(command)
-        return cls._get_batch_jobs_using_command(command, include_completed=False)
+        return cls._get_batch_jobs_using_command(
+            command, include_completed=False, include_top_level_array=True
+        )
 
     @classmethod
     def get_all_batch_jobs(cls, server: str | None = None) -> list[PBSJob]:
@@ -215,7 +229,9 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         if server:
             command += f" @{server}"
         logger.debug(command)
-        return cls._get_batch_jobs_using_command(command, include_completed=True)
+        return cls._get_batch_jobs_using_command(
+            command, include_completed=True, include_top_level_array=True
+        )
 
     @classmethod
     def get_queues(cls, server: str | None = None) -> list[PBSQueue]:
@@ -1000,7 +1016,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
 
     @classmethod
     def _get_batch_jobs_using_command(
-        cls, command: str, include_completed: bool
+        cls, command: str, include_completed: bool, include_top_level_array: bool
     ) -> list[PBSJob]:
         """
         Execute a shell command to retrieve information about PBS jobs and parse it.
@@ -1009,6 +1025,8 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             command (str): The shell command to execute, typically a PBS query command.
             include_completed (bool): Include both completed and uncompleted jobs.
                 If `False`, completed jobs are filtered out from the output.
+            include_top_level_array (bool): Include top-level array jobs in the output.
+                If `False`, top-level array jobs are filtered out from the output.
 
         Returns:
             list[PBSJob]: A list of `PBSJob` instances corresponding to the jobs
@@ -1039,8 +1057,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         ):
             job = PBSJob.from_dict(job_id, data)
 
-            # ignore top-level array jobs
-            if job.is_array_job():
+            if not include_top_level_array and job.is_array_job():
                 continue
 
             # unless all jobs are to be shown, filter out completed jobs

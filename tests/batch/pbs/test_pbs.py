@@ -1337,13 +1337,13 @@ Job Id: 123458.fake-cluster.example.com
 """
 
 
-def test_get_jobs_info_using_command_success(sample_multi_dump_file):
+def test_get_batch_jobs_using_command_success(sample_multi_dump_file):
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(
             returncode=0, stdout=sample_multi_dump_file, stderr=""
         )
 
-        jobs = PBS._get_batch_jobs_using_command("fake command - unused", False)
+        jobs = PBS._get_batch_jobs_using_command("fake command - unused", False, True)
 
         assert len(jobs) == 3
         assert all(isinstance(job, PBSJob) for job in jobs)
@@ -1376,7 +1376,182 @@ def test_get_jobs_info_using_command_success(sample_multi_dump_file):
         )
 
 
-def test_get_jobs_info_using_command_nonzero_returncode():
+@pytest.fixture
+def sample_multi_dump_file_with_completed_job():
+    return """Job Id: 123456.fake-cluster.example.com
+    Job_Name = example_job_1
+    Job_Owner = user@EXAMPLE
+    resources_used.cpupercent = 50
+    resources_used.ncpus = 4
+    job_state = R
+    queue = gpu
+
+Job Id: 123457.fake-cluster.example.com
+    Job_Name = example_job_2
+    Job_Owner = user@EXAMPLE
+    resources_used.cpupercent = 75
+    resources_used.ncpus = 8
+    job_state = F
+    Exit_status = 0
+    queue = cpu
+
+Job Id: 123458.fake-cluster.example.com
+    Job_Name = example_job_3
+    Job_Owner = user@EXAMPLE
+    resources_used.cpupercent = 100
+    resources_used.ncpus = 16
+    job_state = H
+    queue = gpu
+"""
+
+
+def test_get_batch_jobs_using_command_filter_out_completed_jobs(
+    sample_multi_dump_file_with_completed_job,
+):
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            returncode=0, stdout=sample_multi_dump_file_with_completed_job, stderr=""
+        )
+
+        jobs = PBS._get_batch_jobs_using_command("fake command - unused", False, True)
+
+        assert len(jobs) == 2
+        assert all(isinstance(job, PBSJob) for job in jobs)
+
+        expected_ids = [
+            "123456.fake-cluster.example.com",
+            "123458.fake-cluster.example.com",
+        ]
+        assert [job._job_id for job in jobs] == expected_ids
+
+        assert [job._info["Job_Name"] for job in jobs] == [
+            "example_job_1",
+            "example_job_3",
+        ]
+        assert [job._info["job_state"] for job in jobs] == [
+            "R",
+            "H",
+        ]
+
+        mock_run.assert_called_once_with(
+            ["bash"],
+            input="fake command - unused",
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
+        )
+
+
+@pytest.fixture
+def sample_multi_dump_file_with_array_job():
+    return """Job Id: 123456.fake-cluster.example.com
+    Job_Name = example_job_1
+    Job_Owner = user@EXAMPLE
+    resources_used.cpupercent = 50
+    resources_used.ncpus = 4
+    job_state = R
+    queue = gpu
+
+Job Id: 123457[].fake-cluster.example.com
+    Job_Name = example_job_2
+    Job_Owner = user@EXAMPLE
+    resources_used.cpupercent = 75
+    resources_used.ncpus = 8
+    job_state = Q
+    array = True
+    queue = cpu
+
+Job Id: 123458.fake-cluster.example.com
+    Job_Name = example_job_3
+    Job_Owner = user@EXAMPLE
+    resources_used.cpupercent = 100
+    resources_used.ncpus = 16
+    job_state = H
+    queue = gpu
+"""
+
+
+def test_get_batch_jobs_using_command_filter_out_top_level_array_jobs(
+    sample_multi_dump_file_with_array_job,
+):
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            returncode=0, stdout=sample_multi_dump_file_with_array_job, stderr=""
+        )
+
+        jobs = PBS._get_batch_jobs_using_command("fake command - unused", False, False)
+
+        assert len(jobs) == 2
+        assert all(isinstance(job, PBSJob) for job in jobs)
+
+        expected_ids = [
+            "123456.fake-cluster.example.com",
+            "123458.fake-cluster.example.com",
+        ]
+        assert [job._job_id for job in jobs] == expected_ids
+
+        assert [job._info["Job_Name"] for job in jobs] == [
+            "example_job_1",
+            "example_job_3",
+        ]
+        assert [job._info["job_state"] for job in jobs] == [
+            "R",
+            "H",
+        ]
+
+        mock_run.assert_called_once_with(
+            ["bash"],
+            input="fake command - unused",
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
+        )
+
+
+def test_get_batch_jobs_using_command_keep_top_level_array_jobs(
+    sample_multi_dump_file_with_array_job,
+):
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            returncode=0, stdout=sample_multi_dump_file_with_array_job, stderr=""
+        )
+
+        jobs = PBS._get_batch_jobs_using_command("fake command - unused", False, True)
+
+        assert len(jobs) == 3
+        assert all(isinstance(job, PBSJob) for job in jobs)
+
+        expected_ids = [
+            "123456.fake-cluster.example.com",
+            "123457[].fake-cluster.example.com",
+            "123458.fake-cluster.example.com",
+        ]
+        assert [job._job_id for job in jobs] == expected_ids
+
+        assert [job._info["Job_Name"] for job in jobs] == [
+            "example_job_1",
+            "example_job_2",
+            "example_job_3",
+        ]
+        assert [job._info["job_state"] for job in jobs] == [
+            "R",
+            "Q",
+            "H",
+        ]
+
+        mock_run.assert_called_once_with(
+            ["bash"],
+            input="fake command - unused",
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
+        )
+
+
+def test_get_batch_jobs_using_command_nonzero_returncode():
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(
             returncode=1, stdout="", stderr="Some error occurred"
@@ -1385,7 +1560,7 @@ def test_get_jobs_info_using_command_nonzero_returncode():
             QQError,
             match="Could not retrieve information about jobs: Some error occurred",
         ):
-            PBS._get_batch_jobs_using_command("will not be used", True)
+            PBS._get_batch_jobs_using_command("will not be used", True, True)
 
 
 @pytest.mark.parametrize(

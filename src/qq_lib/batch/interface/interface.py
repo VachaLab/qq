@@ -297,6 +297,29 @@ class BatchInterface[
         )
 
     @classmethod
+    def get_batch_jobs_from_ids(cls, job_ids: list[str]) -> list[TBatchJob]:
+        """
+        Retrieve information about multiple jobs from the batch system.
+
+        Batch jobs should be returned in the same order as they appear in `job_ids`.
+        A TBatchJob object should be returned for each job id, even if the job
+        no longer exists or its information is unavailable.
+
+        Array jobs should NOT be expanded into their individual tasks.
+
+        The default implementation is to call `get_batch_job` for each job id.
+        This implementation may be inefficient for large numbers of job ids and
+        should be overriden by subclasses.
+
+        Args:
+            job_ids (list[str]): List of job identifiers.
+
+        Returns:
+            list[TBatchJob]: List of TBatchJob objects, one for each job id.
+        """
+        return [cls.get_batch_job(id) for id in job_ids]
+
+    @classmethod
     def get_unfinished_batch_jobs(
         cls, user: str, server: str | None = None
     ) -> list[TBatchJob]:
