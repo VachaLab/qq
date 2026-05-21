@@ -8,6 +8,7 @@ from qq_lib.batch.interface import AnyBatchClass, BatchInterface
 from qq_lib.core.common import split_files_list, translate_server
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
+from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
@@ -18,6 +19,8 @@ from qq_lib.properties.transfer_mode import TransferMode
 
 from .parser import Parser
 from .submitter import Submitter
+
+logger = get_logger(__name__)
 
 
 class SubmitterFactory:
@@ -59,7 +62,15 @@ class SubmitterFactory:
         if (job_type := self._get_job_type()) == JobType.LOOP:
             loop_info = self._get_loop_info()
         else:
+            # tell the user that any loop job-specific options will be ignored
+            # because the job is not a loop job
+            self._print_warning_if_loop_info_defined(job_type)
             loop_info = None
+
+        if job_type not in (JobType.LOOP, JobType.CONTINUOUS):
+            # tell the user that 'resubmit_from' will be ignored if the
+            # job type is not 'loop' or 'continuous'
+            self._print_warning_if_resubmit_from_defined(job_type)
 
         server = self._get_server()
 
@@ -191,6 +202,36 @@ class SubmitterFactory:
             )
             or self._parser.get_archive_mode(),
         )
+
+    def _print_warning_if_loop_info_defined(self, job_type: JobType) -> None:
+        """
+        Print warning(s) if any of the loop-job specific options
+        are defined either on the command line or in the script itself.
+        This should only be used if the job is not a loop job.
+        """
+        for option, parser_func in zip(
+            ["loop_start", "loop_end", "archive", "archive_format", "archive_mode"],
+            [
+                self._parser.get_loop_start,
+                self._parser.get_loop_end,
+                self._parser.get_archive,
+                self._parser.get_archive_format,
+                self._parser.get_archive_mode,
+            ],
+        ):
+            if self._kwargs.get(option) or parser_func():
+                logger.warning(
+                    f"Option '{option}' is specified but job type is '{str(job_type)}', not 'loop' - '{option}' will be ignored."
+                )
+
+    def _print_warning_if_resubmit_from_defined(self, job_type: JobType) -> None:
+        """
+        Print a warning if the 'resubmit_from' option is defined but the job type is not 'loop' or 'continuous'.
+        """
+        if self._kwargs.get("resubmit_from") or self._parser.get_resubmit_from():
+            logger.warning(
+                f"Option 'resubmit_from' is specified but job type is '{str(job_type)}', not 'loop' or 'continuous' - 'resubmit_from' will be ignored."
+            )
 
     def _get_exclude(self) -> list[Path]:
         """

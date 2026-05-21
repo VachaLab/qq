@@ -1,5 +1,6 @@
 ## Version 0.12.0
 - If a loop job does not create any archive files for the next cycle of the loop job, qq creates an empty `.init` file fulfilling the loop job's requirements.
+- If a loop job-specific or continuous job-specific option is used either on the command line or inside the submitted script, a warning is printed so that the user knows that the option will be ignored.
 
 ***
 

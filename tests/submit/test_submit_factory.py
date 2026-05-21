@@ -27,6 +27,7 @@ from qq_lib.properties.transfer_mode import (
     Success,
     TransferMode,
 )
+from qq_lib.submit import Parser
 from qq_lib.submit.factory import SubmitterFactory
 
 
@@ -756,6 +757,12 @@ def test_submitter_factory_make_submitter_standard_job(server):
             factory, "_get_resubmit_from", return_value=resubmit_from
         ) as mock_resubmit_from,
         patch("qq_lib.submit.factory.Submitter") as mock_submitter_class,
+        patch.object(
+            factory, "_print_warning_if_loop_info_defined"
+        ) as mock_print_warning_loop,
+        patch.object(
+            factory, "_print_warning_if_resubmit_from_defined"
+        ) as mock_print_warning_resubmit,
     ):
         mock_submit_instance = MagicMock()
         mock_submitter_class.return_value = mock_submit_instance
@@ -775,6 +782,8 @@ def test_submitter_factory_make_submitter_standard_job(server):
     mock_get_transfer.assert_called_once()
     mock_get_interpreter.assert_called_once()
     mock_resubmit_from.assert_not_called()
+    mock_print_warning_loop.assert_called_once()
+    mock_print_warning_resubmit.assert_called_once()
 
     mock_submitter_class.assert_called_once_with(
         batch_system=BatchSystem,
@@ -842,6 +851,12 @@ def test_submitter_factory_make_submitter_loop_job(server):
         ) as mock_resubmit_from,
         patch.object(factory, "_get_server", return_value=server) as mock_get_server,
         patch("qq_lib.submit.factory.Submitter") as mock_submitter_class,
+        patch.object(
+            factory, "_print_warning_if_loop_info_defined"
+        ) as mock_print_warning_loop,
+        patch.object(
+            factory, "_print_warning_if_resubmit_from_defined"
+        ) as mock_print_warning_resubmit,
     ):
         mock_submit_instance = MagicMock()
         mock_submitter_class.return_value = mock_submit_instance
@@ -861,6 +876,8 @@ def test_submitter_factory_make_submitter_loop_job(server):
     mock_get_transfer.assert_called_once()
     mock_get_interpreter.assert_called_once()
     mock_resubmit_from.assert_called_once()
+    mock_print_warning_loop.assert_not_called()
+    mock_print_warning_resubmit.assert_not_called()
 
     mock_submitter_class.assert_called_once_with(
         batch_system=BatchSystem,
@@ -879,3 +896,185 @@ def test_submitter_factory_make_submitter_loop_job(server):
         resubmit_from=resubmit_from,
     )
     assert result == mock_submit_instance
+
+
+@pytest.mark.parametrize("server", [None, "fake.server.org"])
+def test_submitter_factory_make_submitter_continuous_job(server):
+    mock_parser = MagicMock()
+    mock_parser.parse = MagicMock()
+    mock_parser.get_job_type.return_value = JobType.CONTINUOUS
+    resources = Resources()
+    excludes = [Path("/tmp/file1")]
+    includes = [Path("included_file")]
+    depends = []
+    account = None
+    transfer = [Always()]
+    interpreter = "python3"
+    resubmit_from = [WorkHost(), InputHost()]
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._parser = mock_parser
+    factory._script = Path("/tmp/script.sh")
+    factory._kwargs = {"queue": "default", "job_type": "continuous"}
+
+    BatchSystem = MagicMock()
+    queue = "default"
+    loop_info = MagicMock()
+
+    with (
+        patch.object(
+            factory, "_get_batch_system", return_value=BatchSystem
+        ) as mock_get_batch,
+        patch.object(factory, "_get_queue", return_value=queue) as mock_get_queue,
+        patch.object(
+            factory, "_get_loop_info", return_value=loop_info
+        ) as mock_get_loop,
+        patch.object(factory, "_get_resources", return_value=resources) as mock_get_res,
+        patch.object(factory, "_get_exclude", return_value=excludes) as mock_get_excl,
+        patch.object(factory, "_get_include", return_value=includes) as mock_get_incl,
+        patch.object(factory, "_get_depend", return_value=depends) as mock_get_dep,
+        patch.object(factory, "_get_account", return_value=account) as mock_get_acct,
+        patch.object(
+            factory, "_get_interpreter", return_value=interpreter
+        ) as mock_get_interpreter,
+        patch.object(
+            factory, "_get_transfer_mode", return_value=transfer
+        ) as mock_get_transfer,
+        patch.object(
+            factory, "_get_resubmit_from", return_value=resubmit_from
+        ) as mock_resubmit_from,
+        patch.object(factory, "_get_server", return_value=server) as mock_get_server,
+        patch("qq_lib.submit.factory.Submitter") as mock_submitter_class,
+        patch.object(
+            factory, "_print_warning_if_loop_info_defined"
+        ) as mock_print_warning_loop,
+        patch.object(
+            factory, "_print_warning_if_resubmit_from_defined"
+        ) as mock_print_warning_resubmit,
+    ):
+        mock_submit_instance = MagicMock()
+        mock_submitter_class.return_value = mock_submit_instance
+
+        result = factory.make_submitter()
+
+    mock_parser.parse.assert_called_once()
+    mock_get_batch.assert_called_once()
+    mock_get_server.assert_called_once()
+    mock_get_queue.assert_called_once()
+    mock_get_loop.assert_not_called()
+    mock_get_res.assert_called_once_with(BatchSystem, queue, server)
+    mock_get_excl.assert_called_once()
+    mock_get_incl.assert_called_once()
+    mock_get_dep.assert_called_once()
+    mock_get_acct.assert_called_once()
+    mock_get_transfer.assert_called_once()
+    mock_get_interpreter.assert_called_once()
+    mock_resubmit_from.assert_called_once()
+    mock_print_warning_loop.assert_called_once()
+    mock_print_warning_resubmit.assert_not_called()
+
+    mock_submitter_class.assert_called_once_with(
+        batch_system=BatchSystem,
+        queue=queue,
+        account=account,
+        script=factory._script,
+        job_type=JobType.CONTINUOUS,
+        resources=resources,
+        loop_info=None,
+        exclude=excludes,
+        include=includes,
+        depend=depends,
+        transfer_mode=transfer,
+        server=server,
+        interpreter=interpreter,
+        resubmit_from=resubmit_from,
+    )
+    assert result == mock_submit_instance
+
+
+LOOP_OPTIONS = [
+    ("loop_start", 1),
+    ("loop_end", 100),
+    ("archive", "archive"),
+    ("archive_format", "md%04d"),
+    ("archive_mode", "always"),
+]
+
+
+def _make_factory(
+    kwargs: dict[str, object] | None = None,
+    parsed: dict[str, object] | None = None,
+) -> SubmitterFactory:
+    parser = pytest.Parser.__new__(Parser)
+    parser._options = dict(parsed) if parsed else {}
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._parser = parser
+    factory._kwargs = dict(kwargs) if kwargs else {}
+    return factory
+
+
+@pytest.mark.parametrize(("option", "value"), LOOP_OPTIONS)
+@patch("qq_lib.submit.factory.logger")
+def test_submitter_factory_print_warning_if_loop_info_defined_warns_from_kwargs(
+    mock_logger, option, value
+):
+    factory = _make_factory(kwargs={option: value})
+
+    factory._print_warning_if_loop_info_defined(JobType.STANDARD)
+
+    assert any(option in str(call) for call in mock_logger.warning.call_args_list)
+
+
+@pytest.mark.parametrize(("option", "value"), LOOP_OPTIONS)
+@patch("qq_lib.submit.factory.logger")
+def test_submitter_factory_print_warning_if_loop_info_defined_warns_from_parser(
+    mock_logger, option, value
+):
+    factory = _make_factory(parsed={option: value})
+
+    factory._print_warning_if_loop_info_defined(JobType.STANDARD)
+
+    assert any(option in str(call) for call in mock_logger.warning.call_args_list)
+
+
+@patch("qq_lib.submit.factory.logger")
+def test_submitter_factory_print_warning_if_loop_info_defined_silent(mock_logger):
+    factory = _make_factory()
+
+    factory._print_warning_if_loop_info_defined(JobType.STANDARD)
+
+    mock_logger.warning.assert_not_called()
+
+
+@patch("qq_lib.submit.factory.logger")
+def test_submitter_factory_print_warning_if_resubmit_from_defined_warns_from_kwargs(
+    mock_logger,
+):
+    factory = _make_factory(kwargs={"resubmit_from": "host1"})
+
+    factory._print_warning_if_resubmit_from_defined(JobType.STANDARD)
+
+    mock_logger.warning.assert_called_once()
+    assert "resubmit_from" in str(mock_logger.warning.call_args)
+
+
+@patch("qq_lib.submit.factory.logger")
+def test_submitter_factory_print_warning_if_resubmit_from_defined_warns_from_parser(
+    mock_logger,
+):
+    factory = _make_factory(parsed={"resubmit_from": "host1"})
+
+    factory._print_warning_if_resubmit_from_defined(JobType.STANDARD)
+
+    mock_logger.warning.assert_called_once()
+    assert "resubmit_from" in str(mock_logger.warning.call_args)
+
+
+@patch("qq_lib.submit.factory.logger")
+def test_submitter_factory_print_warning_if_resubmit_from_defined_silent(mock_logger):
+    factory = _make_factory()
+
+    factory._print_warning_if_resubmit_from_defined(JobType.STANDARD)
+
+    mock_logger.warning.assert_not_called()
