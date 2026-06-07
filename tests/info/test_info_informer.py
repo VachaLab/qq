@@ -702,3 +702,82 @@ def test_informer_should_archive_files_with_transfer_modes_list():
     assert informer.should_archive_files(1) is True
     assert informer.should_archive_files(42) is True
     assert informer.should_archive_files(0) is False
+
+
+def make_mock_informer(job_id: str = "111") -> MagicMock:
+    """Create a mock Informer with a given job ID and a mock batch system."""
+    informer = MagicMock(spec=Informer)
+    informer.info = MagicMock()
+    informer.info.job_id = job_id
+    informer.batch_system = MagicMock()
+    return informer
+
+
+def test_informer_set_batch_info_in_bulk_does_not_query_batch_system_for_empty_list():
+    mock_batch_system = MagicMock()
+    Informer.set_batch_info_in_bulk([])
+    mock_batch_system.get_batch_jobs_from_ids.assert_not_called()
+
+
+def test_informer_set_batch_info_in_bulk_queries_correct_job_ids():
+    informers = [make_mock_informer("111"), make_mock_informer("222")]
+    mock_batch_jobs = [MagicMock(), MagicMock()]
+    informers[0].batch_system.get_batch_jobs_from_ids.return_value = mock_batch_jobs
+
+    Informer.set_batch_info_in_bulk(informers)  # type: ignore
+
+    informers[0].batch_system.get_batch_jobs_from_ids.assert_called_once_with(
+        ["111", "222"]
+    )
+
+
+def test_informer_set_batch_info_in_bulk_uses_first_informers_batch_system():
+    informers = [make_mock_informer("111"), make_mock_informer("222")]
+    mock_batch_jobs = [MagicMock(), MagicMock()]
+    informers[0].batch_system.get_batch_jobs_from_ids.return_value = mock_batch_jobs
+
+    Informer.set_batch_info_in_bulk(informers)  # type: ignore
+
+    informers[0].batch_system.get_batch_jobs_from_ids.assert_called_once()
+    informers[1].batch_system.get_batch_jobs_from_ids.assert_not_called()
+
+
+def test_informer_set_batch_info_in_bulk_sets_batch_info_on_each_informer():
+    informers = [make_mock_informer("111"), make_mock_informer("222")]
+    batch_job_1 = MagicMock()
+    batch_job_2 = MagicMock()
+    informers[0].batch_system.get_batch_jobs_from_ids.return_value = [
+        batch_job_1,
+        batch_job_2,
+    ]
+
+    Informer.set_batch_info_in_bulk(informers)  # type: ignore
+
+    assert informers[0]._batch_info is batch_job_1
+    assert informers[1]._batch_info is batch_job_2
+
+
+def test_informer_set_batch_info_in_bulk_preserves_order():
+    informers = [
+        make_mock_informer("111"),
+        make_mock_informer("222"),
+        make_mock_informer("333"),
+    ]
+    batch_jobs = [MagicMock(), MagicMock(), MagicMock()]
+    informers[0].batch_system.get_batch_jobs_from_ids.return_value = batch_jobs
+
+    Informer.set_batch_info_in_bulk(informers)  # type: ignore
+
+    for informer, batch_job in zip(informers, batch_jobs):
+        assert informer._batch_info is batch_job
+
+
+def test_informer_set_batch_info_in_bulk_single_informer():
+    informer = make_mock_informer("111")
+    batch_job = MagicMock()
+    informer.batch_system.get_batch_jobs_from_ids.return_value = [batch_job]
+
+    Informer.set_batch_info_in_bulk([informer])
+
+    informer.batch_system.get_batch_jobs_from_ids.assert_called_once_with(["111"])
+    assert informer._batch_info is batch_job

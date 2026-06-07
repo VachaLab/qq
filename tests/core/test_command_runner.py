@@ -1,8 +1,9 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-
-from typing import TYPE_CHECKING, Any
+import time
+from collections.abc import Callable
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,31 +14,74 @@ from qq_lib.core.error import QQError, QQNotSuitableError
 from qq_lib.core.error_handlers import handle_not_suitable_error
 from qq_lib.info import Informer
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
+
+def make_runner(
+    job_ids: tuple[str, ...] = (),
+    directories: tuple[Path, ...] = (),
+    all_jobs: bool = False,
+    server: str | None = None,
+    callback: Callable | None = None,
+    n_threads: int = 1,
+) -> CommandRunner:
+    """Construct a CommandRunner with a patched batch system."""
+    return CommandRunner(
+        job_ids=job_ids,
+        directories=directories,
+        all=all_jobs,
+        server=server,
+        callback=callback or MagicMock(),
+        logger=MagicMock(),
+        n_threads=n_threads,
+    )
 
 
-def test_command_runner_build_targets_from_job_ids():
-    runner = CommandRunner(("111", "222"), lambda _: None, MagicMock(), n_threads=1)
+def make_mock_batch_job(job_id: str = "111") -> MagicMock:
+    """Create a mock BatchJobInterface with a given job ID."""
+    batch_job = MagicMock()
+    batch_job.get_id.return_value = job_id
+    return batch_job
 
-    with patch("qq_lib.core.command_runner.Informer") as mock_informer:
-        mock_informer.from_job_id.side_effect = lambda j: MagicMock(
-            name=f"informer_{j}"
-        )
+
+def make_informer(job_id: str = "111") -> MagicMock:
+    """Create a mock Informer."""
+    informer = MagicMock(spec=Informer)
+    informer.job_id = job_id
+    return informer
+
+
+def test_command_runner_build_targets_from_job_ids_returns_correct_count():
+    with patch("qq_lib.core.command_runner.BatchInterface") as mock_bi:
+        batch_jobs = [make_mock_batch_job("111"), make_mock_batch_job("222")]
+        mock_bi.from_env_var_or_guess.return_value.get_batch_jobs_from_ids.return_value = batch_jobs
+        runner = make_runner(job_ids=("111", "222"))
         targets = runner._build_targets()
 
     assert len(targets) == 2
 
 
-def test_command_runner_build_targets_from_info_files(tmp_path):
+def test_command_runner_build_targets_from_job_ids_uses_from_batch_job():
+    with patch("qq_lib.core.command_runner.BatchInterface") as mock_bi:
+        batch_job = make_mock_batch_job("111")
+        mock_bi.from_env_var_or_guess.return_value.get_batch_jobs_from_ids.return_value = [
+            batch_job
+        ]
+        runner = make_runner(job_ids=("111",))
+
+        with patch("qq_lib.core.command_runner.Informer") as mock_informer:
+            targets = runner._build_targets()
+            targets[0]()
+
+        mock_informer.from_batch_job.assert_called_once_with(batch_job)
+
+
+def test_command_runner_build_targets_from_files_returns_correct_count(tmp_path):
     info1 = tmp_path / "job1.qqinfo"
     info2 = tmp_path / "job2.qqinfo"
     info1.touch()
     info2.touch()
 
-    runner = CommandRunner(
-        (), lambda _: None, MagicMock(), n_threads=1, directory=tmp_path
-    )
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(directories=(tmp_path,))
 
     with (
         patch("qq_lib.core.command_runner.get_info_files", return_value=[info1, info2]),
@@ -48,8 +92,127 @@ def test_command_runner_build_targets_from_info_files(tmp_path):
     assert len(targets) == 2
 
 
+def test_command_runner_build_targets_from_files_calls_from_file(tmp_path):
+    info_file = tmp_path / "job.qqinfo"
+    info_file.touch()
+
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(directories=(tmp_path,))
+
+    with (
+        patch("qq_lib.core.command_runner.get_info_files", return_value=[info_file]),
+        patch("qq_lib.core.command_runner.Informer") as mock_informer,
+    ):
+        mock_informer.from_file.return_value = MagicMock()
+        targets = runner._build_targets()
+        targets[0]()
+
+    mock_informer.from_file.assert_called_once_with(info_file)
+
+
+def test_command_runner_build_targets_from_files_calls_load_batch_info(tmp_path):
+    info_file = tmp_path / "job.qqinfo"
+    info_file.touch()
+
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(directories=(tmp_path,))
+
+    with (
+        patch("qq_lib.core.command_runner.get_info_files", return_value=[info_file]),
+        patch("qq_lib.core.command_runner.Informer") as mock_informer,
+    ):
+        informer = MagicMock()
+        mock_informer.from_file.return_value = informer
+        targets = runner._build_targets()
+        targets[0]()
+
+    informer.load_batch_info.assert_called_once()
+
+
+def test_command_runner_build_targets_uses_cwd_when_no_jobs_or_directories():
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner()
+
+    with (
+        patch("qq_lib.core.command_runner.get_info_files", return_value=[]) as mock_get,
+        pytest.raises(QQError),
+    ):
+        runner._build_targets()
+
+    mock_get.assert_called_once_with(Path.cwd())
+
+
+def test_command_runner_build_targets_uses_specified_directories(tmp_path):
+    dir1 = tmp_path / "a"
+    dir2 = tmp_path / "b"
+    dir1.mkdir()
+    dir2.mkdir()
+
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(directories=(dir1, dir2))
+
+    with (
+        patch("qq_lib.core.command_runner.get_info_files", return_value=[]) as mock_get,
+        pytest.raises(QQError),
+    ):
+        runner._build_targets()
+
+    assert mock_get.call_count == 2
+    mock_get.assert_any_call(dir1)
+    mock_get.assert_any_call(dir2)
+
+
+def test_command_runner_build_targets_all_queries_unfinished_jobs():
+    with patch("qq_lib.core.command_runner.BatchInterface") as mock_bi:
+        batch_jobs = [make_mock_batch_job("111"), make_mock_batch_job("222")]
+        mock_bi.from_env_var_or_guess.return_value.get_unfinished_batch_jobs.return_value = batch_jobs
+        mock_bi.from_env_var_or_guess.return_value.get_batch_jobs_from_ids.return_value = []
+        runner = make_runner(all_jobs=True)
+
+        with patch("qq_lib.core.command_runner.Informer"):
+            targets = runner._build_targets()
+
+    assert len(targets) == 2
+
+
+def test_command_runner_build_targets_all_and_job_ids_combined():
+    with patch("qq_lib.core.command_runner.BatchInterface") as mock_bi:
+        id_jobs = [make_mock_batch_job("111")]
+        all_jobs = [make_mock_batch_job("222"), make_mock_batch_job("333")]
+        mock_bi.from_env_var_or_guess.return_value.get_batch_jobs_from_ids.return_value = id_jobs
+        mock_bi.from_env_var_or_guess.return_value.get_unfinished_batch_jobs.return_value = all_jobs
+        runner = make_runner(job_ids=("111",), all_jobs=True)
+
+        with patch("qq_lib.core.command_runner.Informer"):
+            targets = runner._build_targets()
+
+    assert len(targets) == 3
+
+
+def test_command_runner_build_targets_all_and_directories_combined(tmp_path):
+    info_file = tmp_path / "job.qqinfo"
+    info_file.touch()
+
+    with patch("qq_lib.core.command_runner.BatchInterface") as mock_bi:
+        all_jobs = [make_mock_batch_job("111")]
+        mock_bi.from_env_var_or_guess.return_value.get_batch_jobs_from_ids.return_value = []
+        mock_bi.from_env_var_or_guess.return_value.get_unfinished_batch_jobs.return_value = all_jobs
+        runner = make_runner(all_jobs=True, directories=(tmp_path,))
+
+        with (
+            patch(
+                "qq_lib.core.command_runner.get_info_files", return_value=[info_file]
+            ),
+            patch("qq_lib.core.command_runner.Informer"),
+        ):
+            targets = runner._build_targets()
+
+    assert len(targets) == 2
+
+
 def test_command_runner_build_targets_raises_when_no_info_files():
-    runner = CommandRunner((), lambda _: None, MagicMock(), n_threads=1)
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner()
 
     with (
         patch("qq_lib.core.command_runner.get_info_files", return_value=[]),
@@ -58,91 +221,86 @@ def test_command_runner_build_targets_raises_when_no_info_files():
         runner._build_targets()
 
 
-def test_command_runner_build_targets_resolves_informer_from_job_id():
-    runner = CommandRunner(("12345",), lambda _: None, MagicMock(), n_threads=1)
+def test_command_runner_build_targets_raises_when_no_jobs_found():
+    with patch("qq_lib.core.command_runner.BatchInterface") as mock_bi:
+        mock_bi.from_env_var_or_guess.return_value.get_batch_jobs_from_ids.return_value = []
+        runner = make_runner(job_ids=("111",))
 
-    with patch("qq_lib.core.command_runner.Informer") as mock_informer:
-        mock_informer.from_job_id.return_value = MagicMock()
-        mock_informer.from_job_id.return_value.load_batch_info = MagicMock()
-        targets = runner._build_targets()
-        targets[0]()
-
-    mock_informer.from_job_id.assert_called_once_with("12345")
+        with pytest.raises(QQError, match="No jobs found"):
+            runner._build_targets()
 
 
-def test_command_runner_build_targets_resolves_informer_from_file(tmp_path):
-    info_file = tmp_path / "job.qqinfo"
-    info_file.touch()
+def test_command_runner_build_targets_server_ignored_without_all_logs_warning():
+    with patch("qq_lib.core.command_runner.BatchInterface") as mock_bi:
+        mock_bi.from_env_var_or_guess.return_value.get_batch_jobs_from_ids.return_value = [
+            make_mock_batch_job("111")
+        ]
+        mock_logger = MagicMock()
+        runner = CommandRunner(
+            job_ids=("111",),
+            directories=(),
+            all=False,
+            server="server",
+            callback=MagicMock(),
+            logger=mock_logger,
+            n_threads=1,
+        )
 
-    runner = CommandRunner(
-        (), lambda _: None, MagicMock(), n_threads=1, directory=tmp_path
-    )
+        with patch("qq_lib.core.command_runner.Informer"):
+            runner._build_targets()
 
-    with (
-        patch("qq_lib.core.command_runner.get_info_files", return_value=[info_file]),
-        patch("qq_lib.core.command_runner.Informer") as mock_informer,
-    ):
-        mock_informer.from_file.return_value = MagicMock()
-        mock_informer.from_file.return_value.load_batch_info = MagicMock()
-        targets = runner._build_targets()
-        targets[0]()
-
-    mock_informer.from_file.assert_called_once_with(info_file)
-
-
-def test_command_runner_build_targets_calls_load_batch_info():
-    runner = CommandRunner(("111",), lambda _: None, MagicMock(), n_threads=1)
-
-    with patch("qq_lib.core.command_runner.Informer") as mock_informer:
-        informer = MagicMock()
-        mock_informer.from_job_id.return_value = informer
-        targets = runner._build_targets()
-        targets[0]()
-
-    informer.load_batch_info.assert_called_once()
-
-
-def test_command_runner_build_targets_uses_specified_directory(tmp_path):
-    runner = CommandRunner(
-        (), lambda _: None, MagicMock(), n_threads=1, directory=tmp_path
-    )
-
-    with (
-        patch("qq_lib.core.command_runner.get_info_files", return_value=[]) as mock_get,
-        pytest.raises(QQError),
-    ):
-        runner._build_targets()
-
-    mock_get.assert_called_once_with(tmp_path)
+    mock_logger.warning.assert_called_once()
 
 
 def test_command_runner_execute_calls_callback_with_args():
-    callback = MagicMock()
-    runner = CommandRunner(
-        ("111",), callback, MagicMock(), "arg1", "arg2", n_threads=1, kw="val"
-    )
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        callback = MagicMock()
+        runner = make_runner(callback=callback)
 
-    informer = MagicMock()
+    informer = make_informer()
+    runner._execute(informer)
+
+    callback.assert_called_once_with(informer)
+
+
+def test_command_runner_execute_calls_callback_with_extra_args():
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        callback = MagicMock()
+        runner = CommandRunner(
+            (),
+            (),
+            False,
+            None,
+            callback,
+            MagicMock(),
+            "arg1",
+            "arg2",
+            n_threads=1,
+            kw="val",
+        )
+
+    informer = make_informer()
     runner._execute(informer)
 
     callback.assert_called_once_with(informer, "arg1", "arg2", kw="val")
 
 
-def test_command_runner_execute_passes_unregistered_exception():
-    callback = MagicMock(side_effect=RuntimeError("boom"))
-    runner = CommandRunner(("111",), callback, MagicMock(), n_threads=1)
+def test_command_runner_execute_reraises_unregistered_exception():
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(callback=MagicMock(side_effect=RuntimeError("boom")))
 
     with pytest.raises(RuntimeError, match="boom"):
-        runner._execute(MagicMock())
+        runner._execute(make_informer())
 
 
 def test_command_runner_execute_handles_registered_exception():
-    callback = MagicMock(side_effect=QQError("fail"))
-    handler = MagicMock()
-    runner = CommandRunner(("111",), callback, MagicMock(), n_threads=1)
-    runner.on_exception(QQError, handler)
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        callback = MagicMock(side_effect=QQError("fail"))
+        handler = MagicMock()
+        runner = make_runner(callback=callback)
+        runner.on_exception(QQError, handler)
 
-    runner._execute(MagicMock())
+    runner._execute(make_informer())
 
     handler.assert_called_once()
     assert isinstance(handler.call_args[0][0], QQError)
@@ -150,10 +308,11 @@ def test_command_runner_execute_handles_registered_exception():
 
 
 def test_command_runner_handle_error_records_in_encountered_errors():
-    runner = CommandRunner(("111",), lambda _: None, MagicMock(), n_threads=1)
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner()
+
     runner.current_iteration = 3
     error = QQError("fail")
-
     runner.on_exception(QQError, MagicMock())
     runner._handle_error(error)
 
@@ -161,18 +320,21 @@ def test_command_runner_handle_error_records_in_encountered_errors():
 
 
 def test_command_runner_handle_error_calls_registered_handler():
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner()
+
     handler = MagicMock()
-    runner = CommandRunner(("111",), lambda _: None, MagicMock(), n_threads=1)
     runner.on_exception(QQError, handler)
     error = QQError("fail")
-
     runner._handle_error(error)
 
     handler.assert_called_once_with(error, runner)
 
 
 def test_command_runner_handle_error_reraises_unregistered_exception():
-    runner = CommandRunner(("111",), lambda _: None, MagicMock(), n_threads=1)
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner()
+
     error = RuntimeError("unexpected")
 
     with pytest.raises(RuntimeError, match="unexpected"):
@@ -182,7 +344,8 @@ def test_command_runner_handle_error_reraises_unregistered_exception():
 
 
 def test_command_runner_on_exception_returns_self_for_chaining():
-    runner = CommandRunner(("111",), lambda _: None, MagicMock(), n_threads=1)
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner()
 
     result = runner.on_exception(QQError, MagicMock())
 
@@ -190,10 +353,11 @@ def test_command_runner_on_exception_returns_self_for_chaining():
 
 
 def test_command_runner_on_exception_registers_multiple_handlers():
-    runner = CommandRunner(("111",), lambda _: None, MagicMock(), n_threads=1)
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner()
+
     handler1 = MagicMock()
     handler2 = MagicMock()
-
     runner.on_exception(QQError, handler1).on_exception(QQNotSuitableError, handler2)
 
     runner.current_iteration = 0
@@ -207,42 +371,37 @@ def test_command_runner_on_exception_registers_multiple_handlers():
 def test_command_runner_run_pipeline_executes_callback_for_each_target():
     results = []
 
-    def callback(i, *a: Any, **kw: Any):
-        _ = a, kw
-        return results.append(i)
+    def callback(informer, *args, **kwargs):
+        _ = args, kwargs
+        results.append(informer)
 
-    runner = CommandRunner(("111", "222"), callback, MagicMock(), n_threads=1)
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(callback=callback)
 
-    informer1 = MagicMock(spec=Informer)
-    informer2 = MagicMock(spec=Informer)
-    targets: list[Callable[[], Informer]] = [lambda: informer1, lambda: informer2]
-
-    runner._run_pipeline(targets)
+    informer1 = make_informer("111")
+    informer2 = make_informer("222")
+    runner._run_pipeline([lambda: informer1, lambda: informer2])
 
     assert results == [informer1, informer2]
 
 
 def test_command_runner_run_pipeline_preserves_order_with_multiple_threads():
-    import time
-
     execution_order = []
 
     def slow_target():
         time.sleep(0.2)
-        informer = MagicMock(spec=Informer)
-        informer.name = "slow"
-        return informer
+        return make_informer("slow")
 
     def fast_target():
-        informer = MagicMock(spec=Informer)
-        informer.name = "fast"
-        return informer
+        return make_informer("fast")
 
-    def callback(i, *a: Any, **kw: Any):
-        _ = a, kw
-        return execution_order.append(i.name)
+    def callback(informer, *args, **kwargs):
+        _ = args, kwargs
+        execution_order.append(informer.job_id)
 
-    runner = CommandRunner(("111", "222"), callback, MagicMock(), n_threads=2)
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(callback=callback, n_threads=2)
+
     runner._run_pipeline([slow_target, fast_target])
 
     assert execution_order == ["slow", "fast"]
@@ -251,7 +410,10 @@ def test_command_runner_run_pipeline_preserves_order_with_multiple_threads():
 def test_command_runner_run_pipeline_handles_preparation_failure():
     handler = MagicMock()
     callback = MagicMock()
-    runner = CommandRunner(("111",), callback, MagicMock(), n_threads=1)
+
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(callback=callback)
+
     runner.on_exception(QQError, handler)
 
     def failing_target():
@@ -267,14 +429,15 @@ def test_command_runner_run_pipeline_continues_after_preparation_failure():
     results = []
     handler = MagicMock()
 
-    def callback(i, *a, **kw):
-        _ = a, kw
-        return results.append(i)
+    def callback(informer, *args, **kwargs):
+        _ = args, kwargs
+        results.append(informer)
 
-    runner = CommandRunner(("111", "222"), callback, MagicMock(), n_threads=1)
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(callback=callback)
+
     runner.on_exception(QQError, handler)
-
-    informer = MagicMock(spec=Informer)
+    informer = make_informer()
 
     def failing_target():
         raise QQError("resolve failed")
@@ -288,7 +451,7 @@ def test_command_runner_run_pipeline_continues_after_preparation_failure():
 def test_command_runner_run_pipeline_continues_after_callback_failure():
     call_count = 0
 
-    def callback(informer: Informer, *args: Any, **kwargs: Any):
+    def callback(informer, *args, **kwargs):
         _ = informer, args, kwargs
         nonlocal call_count
         call_count += 1
@@ -296,12 +459,11 @@ def test_command_runner_run_pipeline_continues_after_callback_failure():
             raise QQError("callback failed")
 
     handler = MagicMock()
-    runner = CommandRunner(("111", "222"), callback, MagicMock(), n_threads=1)
+
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(callback=callback)
+
     runner.on_exception(QQError, handler)
-
-    def make_informer():
-        return MagicMock(spec=Informer)
-
     runner._run_pipeline([make_informer, make_informer])
 
     handler.assert_called_once()
@@ -309,10 +471,9 @@ def test_command_runner_run_pipeline_continues_after_callback_failure():
 
 
 def test_command_runner_run_pipeline_sets_n_jobs():
-    def make_informer():
-        return MagicMock(spec=Informer)
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner()
 
-    runner = CommandRunner(("1", "2", "3"), lambda _: None, MagicMock(), n_threads=1)
     runner._run_pipeline([make_informer, make_informer, make_informer])
 
     assert runner.n_jobs == 3
@@ -321,15 +482,14 @@ def test_command_runner_run_pipeline_sets_n_jobs():
 def test_command_runner_run_pipeline_tracks_current_iteration():
     iterations = []
 
-    def handler(e: Exception, r: CommandRunner):
+    def handler(e, r):
         _ = e
-        return iterations.append(r.current_iteration)
+        iterations.append(r.current_iteration)
 
-    runner = CommandRunner(("1", "2", "3"), lambda _: None, MagicMock(), n_threads=1)
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner()
+
     runner.on_exception(QQError, handler)
-
-    def make_informer():
-        return MagicMock(spec=Informer)
 
     def fail():
         raise QQError("fail")
@@ -341,11 +501,11 @@ def test_command_runner_run_pipeline_tracks_current_iteration():
 
 def test_command_runner_run_pipeline_records_all_errors():
     handler = MagicMock()
-    runner = CommandRunner(("1", "2", "3"), lambda _: None, MagicMock(), n_threads=1)
-    runner.on_exception(QQError, handler)
 
-    def make_informer():
-        return MagicMock(spec=Informer)
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner()
+
+    runner.on_exception(QQError, handler)
 
     def fail():
         raise QQError("fail")
@@ -358,7 +518,8 @@ def test_command_runner_run_pipeline_records_all_errors():
 
 
 def test_command_runner_run_pipeline_reraises_unhandled_preparation_error():
-    runner = CommandRunner(("111",), lambda _: None, MagicMock(), n_threads=1)
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner()
 
     def failing_target():
         raise RuntimeError("unexpected")
@@ -368,103 +529,114 @@ def test_command_runner_run_pipeline_reraises_unhandled_preparation_error():
 
 
 def test_command_runner_run_exits_zero_on_success():
-    def make_informer():
-        return MagicMock(spec=Informer)
-
-    runner = CommandRunner(("111",), lambda _: None, MagicMock(), n_threads=1)
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner()
 
     with (
         patch.object(runner, "_build_targets", return_value=[make_informer]),
         patch.object(runner, "_run_pipeline"),
+        pytest.raises(SystemExit) as exc_info,
     ):
-        try:
-            runner.run()
-            assert False, "Expected SystemExit"
-        except SystemExit as e:
-            assert e.code == 0
+        runner.run()
+
+    assert exc_info.value.code == 0
 
 
 def test_command_runner_run_exits_default_on_qq_error():
     mock_logger = MagicMock()
-    runner = CommandRunner(("111",), lambda _: None, mock_logger, n_threads=1)
 
-    with patch.object(runner, "_build_targets", side_effect=QQError("fail")):
-        try:
-            runner.run()
-            assert False, "Expected SystemExit"
-        except SystemExit as e:
-            assert e.code == CFG.exit_codes.default
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = CommandRunner(
+            job_ids=(),
+            directories=(),
+            all=False,
+            server=None,
+            callback=MagicMock(),
+            logger=mock_logger,
+            n_threads=1,
+        )
 
+    with (
+        patch.object(runner, "_build_targets", side_effect=QQError("fail")),
+        pytest.raises(SystemExit) as exc_info,
+    ):
+        runner.run()
+
+    assert exc_info.value.code == CFG.exit_codes.default
     mock_logger.error.assert_called_once()
 
 
 def test_command_runner_run_exits_unexpected_on_generic_exception():
     mock_logger = MagicMock()
-    runner = CommandRunner(("111",), lambda _: None, mock_logger, n_threads=1)
 
-    with patch.object(runner, "_build_targets", side_effect=RuntimeError("boom")):
-        try:
-            runner.run()
-            assert False, "Expected SystemExit"
-        except SystemExit as e:
-            assert e.code == CFG.exit_codes.unexpected_error
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = CommandRunner(
+            job_ids=(),
+            directories=(),
+            all=False,
+            server=None,
+            callback=MagicMock(),
+            logger=mock_logger,
+            n_threads=1,
+        )
 
+    with (
+        patch.object(runner, "_build_targets", side_effect=RuntimeError("boom")),
+        pytest.raises(SystemExit) as exc_info,
+    ):
+        runner.run()
+
+    assert exc_info.value.code == CFG.exit_codes.unexpected_error
     mock_logger.critical.assert_called_once()
 
 
-def test_command_runnerrun_with_not_suitable_handler_single_job():
+def test_command_runner_run_with_not_suitable_handler_single_job():
     callback = MagicMock(side_effect=QQNotSuitableError("not suitable"))
-    mock_logger = MagicMock()
 
-    def make_informer():
-        return MagicMock(spec=Informer)
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(callback=callback)
 
-    runner = CommandRunner(("111",), callback, mock_logger, n_threads=1)
     runner.on_exception(QQNotSuitableError, handle_not_suitable_error)
 
     with (
         patch.object(runner, "_build_targets", return_value=[make_informer]),
+        pytest.raises(SystemExit) as exc_info,
     ):
-        try:
-            runner.run()
-            assert False, "Expected SystemExit"
-        except SystemExit as e:
-            assert e.code == CFG.exit_codes.default
+        runner.run()
+
+    assert exc_info.value.code == CFG.exit_codes.default
 
 
 def test_command_runner_run_preserves_order_end_to_end():
-    import time
-
     execution_order = []
 
     def callback(informer, *args, **kwargs):
         _ = args, kwargs
         execution_order.append(informer.job_id)
 
-    runner = CommandRunner(("111", "222", "333"), callback, MagicMock(), n_threads=3)
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(callback=callback, n_threads=3)
 
     def make_target(job_id, delay):
         def target():
             time.sleep(delay)
-            informer = MagicMock(spec=Informer)
-            informer.job_id = job_id
-            return informer
+            return make_informer(job_id)
 
         return target
 
-    with patch.object(
-        runner,
-        "_build_targets",
-        return_value=[
-            make_target("111", 0.2),
-            make_target("222", 0.1),
-            make_target("333", 0.0),
-        ],
+    with (
+        patch.object(
+            runner,
+            "_build_targets",
+            return_value=[
+                make_target("111", 0.2),
+                make_target("222", 0.1),
+                make_target("333", 0.0),
+            ],
+        ),
+        pytest.raises(SystemExit) as exc_info,
     ):
-        try:
-            runner.run()
-            assert False, "Expected SystemExit"
-        except SystemExit as e:
-            assert e.code == 0
+        runner.run()
 
+    assert exc_info.value.code == 0
     assert execution_order == ["111", "222", "333"]

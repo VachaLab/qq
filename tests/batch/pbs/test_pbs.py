@@ -6,6 +6,7 @@
 import os
 import shutil
 import socket
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -1343,7 +1344,9 @@ def test_get_batch_jobs_using_command_success(sample_multi_dump_file):
             returncode=0, stdout=sample_multi_dump_file, stderr=""
         )
 
-        jobs = PBS._get_batch_jobs_using_command("fake command - unused", False, True)
+        jobs = PBS._get_batch_jobs_using_command(
+            "fake command - unused", False, True, False
+        )
 
         assert len(jobs) == 3
         assert all(isinstance(job, PBSJob) for job in jobs)
@@ -1367,11 +1370,12 @@ def test_get_batch_jobs_using_command_success(sample_multi_dump_file):
         ]
 
         mock_run.assert_called_once_with(
-            ["bash"],
+            ["stdbuf", "-oL", "-eL", "bash"],
             input="fake command - unused",
             text=True,
             check=False,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             errors="replace",
         )
 
@@ -1413,7 +1417,9 @@ def test_get_batch_jobs_using_command_filter_out_completed_jobs(
             returncode=0, stdout=sample_multi_dump_file_with_completed_job, stderr=""
         )
 
-        jobs = PBS._get_batch_jobs_using_command("fake command - unused", False, True)
+        jobs = PBS._get_batch_jobs_using_command(
+            "fake command - unused", False, True, False
+        )
 
         assert len(jobs) == 2
         assert all(isinstance(job, PBSJob) for job in jobs)
@@ -1434,11 +1440,12 @@ def test_get_batch_jobs_using_command_filter_out_completed_jobs(
         ]
 
         mock_run.assert_called_once_with(
-            ["bash"],
+            ["stdbuf", "-oL", "-eL", "bash"],
             input="fake command - unused",
             text=True,
             check=False,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             errors="replace",
         )
 
@@ -1480,7 +1487,9 @@ def test_get_batch_jobs_using_command_filter_out_top_level_array_jobs(
             returncode=0, stdout=sample_multi_dump_file_with_array_job, stderr=""
         )
 
-        jobs = PBS._get_batch_jobs_using_command("fake command - unused", False, False)
+        jobs = PBS._get_batch_jobs_using_command(
+            "fake command - unused", False, False, False
+        )
 
         assert len(jobs) == 2
         assert all(isinstance(job, PBSJob) for job in jobs)
@@ -1501,11 +1510,12 @@ def test_get_batch_jobs_using_command_filter_out_top_level_array_jobs(
         ]
 
         mock_run.assert_called_once_with(
-            ["bash"],
+            ["stdbuf", "-oL", "-eL", "bash"],
             input="fake command - unused",
             text=True,
             check=False,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             errors="replace",
         )
 
@@ -1518,7 +1528,9 @@ def test_get_batch_jobs_using_command_keep_top_level_array_jobs(
             returncode=0, stdout=sample_multi_dump_file_with_array_job, stderr=""
         )
 
-        jobs = PBS._get_batch_jobs_using_command("fake command - unused", False, True)
+        jobs = PBS._get_batch_jobs_using_command(
+            "fake command - unused", False, True, False
+        )
 
         assert len(jobs) == 3
         assert all(isinstance(job, PBSJob) for job in jobs)
@@ -1542,11 +1554,12 @@ def test_get_batch_jobs_using_command_keep_top_level_array_jobs(
         ]
 
         mock_run.assert_called_once_with(
-            ["bash"],
+            ["stdbuf", "-oL", "-eL", "bash"],
             input="fake command - unused",
             text=True,
             check=False,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             errors="replace",
         )
 
@@ -1554,13 +1567,79 @@ def test_get_batch_jobs_using_command_keep_top_level_array_jobs(
 def test_get_batch_jobs_using_command_nonzero_returncode():
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(
-            returncode=1, stdout="", stderr="Some error occurred"
+            returncode=1, stdout="Some error occurred", stderr=""
         )
         with pytest.raises(
             QQError,
             match="Could not retrieve information about jobs: Some error occurred",
         ):
-            PBS._get_batch_jobs_using_command("will not be used", True, True)
+            PBS._get_batch_jobs_using_command("will not be used", True, True, False)
+
+
+@pytest.fixture
+def sample_multi_dump_file_with_error():
+    return """Job Id: 123456.fake-cluster.example.com
+    Job_Name = example_job_1
+    Job_Owner = user@EXAMPLE
+    resources_used.cpupercent = 50
+    resources_used.ncpus = 4
+    job_state = R
+    queue = gpu
+
+qstat: Unknown Job Id 123457.fake-cluster.example.com
+
+Job Id: 123458.fake-cluster.example.com
+    Job_Name = example_job_3
+    Job_Owner = user@EXAMPLE
+    resources_used.cpupercent = 100
+    resources_used.ncpus = 16
+    job_state = H
+    queue = gpu
+"""
+
+
+def test_get_batch_jobs_using_command_with_ignore_exit_code(
+    sample_multi_dump_file_with_error,
+):
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            returncode=153, stdout=sample_multi_dump_file_with_error, stderr=""
+        )
+
+        jobs = PBS._get_batch_jobs_using_command(
+            "fake command - unused", False, True, True
+        )
+
+        assert len(jobs) == 3
+        assert all(isinstance(job, PBSJob) for job in jobs)
+
+        expected_ids = [
+            "123456.fake-cluster.example.com",
+            "123457.fake-cluster.example.com",
+            "123458.fake-cluster.example.com",
+        ]
+        assert [job._job_id for job in jobs] == expected_ids
+
+        assert [job._info.get("Job_Name") for job in jobs] == [
+            "example_job_1",
+            None,
+            "example_job_3",
+        ]
+        assert [job._info.get("job_state") for job in jobs] == [
+            "R",
+            None,
+            "H",
+        ]
+
+        mock_run.assert_called_once_with(
+            ["stdbuf", "-oL", "-eL", "bash"],
+            input="fake command - unused",
+            text=True,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            errors="replace",
+        )
 
 
 @pytest.mark.parametrize(
@@ -2049,3 +2128,235 @@ def test_translate_output_server_warns_when_no_output_host():
         assert server in mock_warning.call_args[0][0]
 
         assert result == "-j eo -e /mnt/shared/home/alice/jobs/myjob.qqout"
+
+
+@pytest.fixture()
+def mock_jobs() -> list[PBSJob]:
+    return [MagicMock(spec=PBSJob), MagicMock(spec=PBSJob)]
+
+
+def test_pbs_get_batch_jobs_from_ids_returns_empty_for_no_ids():
+    result = PBS.get_batch_jobs_from_ids([])
+
+    assert result == []
+
+
+def test_pbs_get_batch_jobs_from_ids_calls_correct_command(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ) as mock_call:
+        PBS.get_batch_jobs_from_ids(["111", "222"])
+
+    mock_call.assert_called_once_with(
+        "qstat -fxw 111 222",
+        include_completed=True,
+        include_top_level_array=True,
+        ignore_exit_code=True,
+    )
+
+
+def test_pbs_get_batch_jobs_from_ids_returns_result(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ):
+        result = PBS.get_batch_jobs_from_ids(["111", "222"])
+
+    assert result is mock_jobs
+
+
+def test_pbs_get_batch_jobs_from_ids_single_id(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ) as mock_call:
+        PBS.get_batch_jobs_from_ids(["111"])
+
+    command = mock_call.call_args[0][0]
+    assert command == "qstat -fxw 111"
+
+
+def test_pbs_get_unfinished_batch_jobs_calls_correct_command(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ) as mock_call:
+        PBS.get_unfinished_batch_jobs("alice")
+
+    mock_call.assert_called_once_with(
+        "qstat -fwtu alice",
+        include_completed=False,
+        include_top_level_array=True,
+        ignore_exit_code=False,
+    )
+
+
+def test_pbs_get_unfinished_batch_jobs_appends_server(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ) as mock_call:
+        PBS.get_unfinished_batch_jobs("alice", server="server")
+
+    mock_call.assert_called_once_with(
+        "qstat -fwtu alice @server",
+        include_completed=False,
+        include_top_level_array=True,
+        ignore_exit_code=False,
+    )
+
+
+def test_pbs_get_unfinished_batch_jobs_no_server_no_at_symbol(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ) as mock_call:
+        PBS.get_unfinished_batch_jobs("alice")
+
+    command = mock_call.call_args[0][0]
+    assert "@" not in command
+
+
+def test_pbs_get_unfinished_batch_jobs_returns_result(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ):
+        result = PBS.get_unfinished_batch_jobs("alice")
+
+    assert result is mock_jobs
+
+
+def test_pbs_get_batch_jobs_calls_correct_command(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ) as mock_call:
+        PBS.get_batch_jobs("alice")
+
+    mock_call.assert_called_once_with(
+        "qstat -fwxtu alice",
+        include_completed=True,
+        include_top_level_array=True,
+        ignore_exit_code=False,
+    )
+
+
+def test_pbs_get_batch_jobs_appends_server(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ) as mock_call:
+        PBS.get_batch_jobs("alice", server="server")
+
+    mock_call.assert_called_once_with(
+        "qstat -fwxtu alice @server",
+        include_completed=True,
+        include_top_level_array=True,
+        ignore_exit_code=False,
+    )
+
+
+def test_pbs_get_batch_jobs_no_server_no_at_symbol(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ) as mock_call:
+        PBS.get_batch_jobs("alice")
+
+    command = mock_call.call_args[0][0]
+    assert "@" not in command
+
+
+def test_pbs_get_batch_jobs_returns_result(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ):
+        result = PBS.get_batch_jobs("alice")
+
+    assert result is mock_jobs
+
+
+def test_pbs_get_all_unfinished_batch_jobs_calls_correct_command(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ) as mock_call:
+        PBS.get_all_unfinished_batch_jobs()
+
+    mock_call.assert_called_once_with(
+        "qstat -fwt",
+        include_completed=False,
+        include_top_level_array=True,
+        ignore_exit_code=False,
+    )
+
+
+def test_pbs_get_all_unfinished_batch_jobs_appends_server(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ) as mock_call:
+        PBS.get_all_unfinished_batch_jobs(server="server")
+
+    mock_call.assert_called_once_with(
+        "qstat -fwt @server",
+        include_completed=False,
+        include_top_level_array=True,
+        ignore_exit_code=False,
+    )
+
+
+def test_pbs_get_all_unfinished_batch_jobs_no_server_no_at_symbol(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ) as mock_call:
+        PBS.get_all_unfinished_batch_jobs()
+
+    command = mock_call.call_args[0][0]
+    assert "@" not in command
+
+
+def test_pbs_get_all_unfinished_batch_jobs_returns_result(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ):
+        result = PBS.get_all_unfinished_batch_jobs()
+
+    assert result is mock_jobs
+
+
+def test_pbs_get_all_batch_jobs_calls_correct_command(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ) as mock_call:
+        PBS.get_all_batch_jobs()
+
+    mock_call.assert_called_once_with(
+        "qstat -fxwt",
+        include_completed=True,
+        include_top_level_array=True,
+        ignore_exit_code=False,
+    )
+
+
+def test_pbs_get_all_batch_jobs_appends_server(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ) as mock_call:
+        PBS.get_all_batch_jobs(server="myserver")
+
+    mock_call.assert_called_once_with(
+        "qstat -fxwt @myserver",
+        include_completed=True,
+        include_top_level_array=True,
+        ignore_exit_code=False,
+    )
+
+
+def test_pbs_get_all_batch_jobs_no_server_no_at_symbol(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ) as mock_call:
+        PBS.get_all_batch_jobs()
+
+    command = mock_call.call_args[0][0]
+    assert "@" not in command
+
+
+def test_pbs_get_all_batch_jobs_returns_result(mock_jobs):
+    with patch(
+        "qq_lib.batch.pbs.PBS._get_batch_jobs_using_command", return_value=mock_jobs
+    ):
+        result = PBS.get_all_batch_jobs()
+
+    assert result is mock_jobs

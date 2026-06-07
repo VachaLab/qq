@@ -1,12 +1,13 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
+from pathlib import Path
 from typing import NoReturn
 
 import click
 from rich.console import Console
 
-from qq_lib.core.click_format import GNUHelpColorsCommand
+from qq_lib.core.click_format import QQOperatorCommand
 from qq_lib.core.command_runner import CommandRunner
 from qq_lib.core.common import (
     yes_or_no_prompt,
@@ -30,11 +31,13 @@ console = Console()
 
 @click.command(
     short_help="Terminate a job.",
-    help=f"""Terminate the specified qq jobs, or all qq jobs in the current directory.
+    help=f"""Terminate the specified qq jobs or all qq jobs in the specified directories.
 
 {click.style("JOB_ID", fg="green")}   One or more IDs of jobs to terminate. Optional.
 
-If no JOB_ID is specified, `{CFG.binary_name} kill` searches for qq jobs in the current directory.
+If no JOB_ID and no directory are specified, `{CFG.binary_name} kill` searches for qq jobs in the current directory.
+
+You can combine JOB_IDs with directories. All JOB_IDs must be specified before the `--dir` option.
 
 By default, `{CFG.binary_name} kill` prompts for confirmation before terminating a job.
 
@@ -43,7 +46,7 @@ are queued, held, booting, or running, but not yet finished or already killed.
 When the `--force` flag is used, `{CFG.binary_name} kill` attempts to terminate any job regardless of its state,
 including jobs that are, according to qq, already finished or killed.
 This can be useful for removing lingering or stuck jobs.""",
-    cls=GNUHelpColorsCommand,
+    cls=QQOperatorCommand,
     help_options_color="bright_blue",
 )
 @click.argument(
@@ -55,16 +58,42 @@ This can be useful for removing lingering or stuck jobs.""",
     nargs=-1,
 )
 @click.option(
-    "-y", "--yes", is_flag=True, help="Terminate the job without confirmation."
+    "-d",
+    "--dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    multiple=True,
+    help="One or more directories to search for qq jobs in. Supports globs.",
+)
+@click.option(
+    "-a",
+    "--all",
+    is_flag=True,
+    help="Terminate all your unfinished jobs.",
+)
+@click.option(
+    "-s",
+    "--server",
+    default=None,
+    help="Kill jobs on the specified batch server. If not specified, the current server is used. Only used with --all.",
+)
+@click.option(
+    "-y", "--yes", is_flag=True, help="Terminate the job(s) without confirmation."
 )
 @click.option(
     "--force",
     is_flag=True,
-    help="Terminate the job forcibly, ignoring its current state and without confirmation.",
+    help="Terminate the job(s) forcibly, ignoring its current state and without confirmation.",
 )
-def kill(jobs: tuple[str, ...], yes: bool = False, force: bool = False) -> NoReturn:
+def kill(
+    jobs: tuple[str, ...],
+    dir: tuple[Path, ...],
+    all: bool,
+    server: str | None,
+    yes: bool = False,
+    force: bool = False,
+) -> NoReturn:
     """
-    Terminate the specified qq job(s) or qq job(s) submitted from the current directory.
+    Terminate the specified qq job(s) or qq job(s) submitted from the specified directories.
 
     Details
         Killing a job sets its state to "killed". This is handled either by `qq kill` or
@@ -88,6 +117,9 @@ def kill(jobs: tuple[str, ...], yes: bool = False, force: bool = False) -> NoRet
     """
     CommandRunner(
         jobs,
+        dir,
+        all,
+        server,
         kill_job,
         logger,
         force,

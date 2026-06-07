@@ -1,9 +1,9 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-from datetime import datetime
-from pathlib import Path
-from typing import Self
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Self
 
 from qq_lib.batch.interface import BatchInterface, BatchJobInterface
 from qq_lib.core.common import construct_info_file_path
@@ -11,6 +11,10 @@ from qq_lib.core.error import QQError, QQJobMismatchError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.info import Info
 from qq_lib.properties.states import BatchState, NaiveState, RealState
+
+if TYPE_CHECKING:
+    from datetime import datetime
+    from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -118,6 +122,26 @@ class Informer:
 
         informer._batch_info = batch_job
         return informer
+
+    @staticmethod
+    def set_batch_info_in_bulk(informers: list[Informer]) -> None:
+        """
+        Set the batch info for a list of informers in bulk,
+        by querying the batch system as few times as possible.
+
+        If the corresponding batch job no longer exists, batch info is still set,
+        but the BatchJobInterface is empty.
+
+        Args:
+            informers (list[Informer]): The list of informers to set the batch info for.
+        """
+        if not informers:
+            return
+
+        job_ids = [informer.info.job_id for informer in informers]
+        batch_jobs = informers[0].batch_system.get_batch_jobs_from_ids(job_ids)
+        for informer, batch_job in zip(informers, batch_jobs):
+            informer._batch_info = batch_job
 
     def to_file(self, file: Path, host: str | None = None) -> None:
         """

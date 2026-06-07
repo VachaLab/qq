@@ -185,10 +185,16 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
 
     @classmethod
     def get_batch_jobs_from_ids(cls, job_ids: list[str]) -> list[PBSJob]:
+        if not job_ids:
+            return []
+
         command = f"qstat -fxw {' '.join(job_ids)}"
         logger.debug(command)
         return cls._get_batch_jobs_using_command(
-            command, include_completed=True, include_top_level_array=True
+            command,
+            include_completed=True,
+            include_top_level_array=True,
+            ignore_exit_code=True,
         )
 
     @classmethod
@@ -200,7 +206,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             command += f" @{server}"
         logger.debug(command)
         return cls._get_batch_jobs_using_command(
-            command, include_completed=False, include_top_level_array=True
+            command,
+            include_completed=False,
+            include_top_level_array=True,
+            ignore_exit_code=False,
         )
 
     @classmethod
@@ -210,7 +219,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             command += f" @{server}"
         logger.debug(command)
         return cls._get_batch_jobs_using_command(
-            command, include_completed=True, include_top_level_array=True
+            command,
+            include_completed=True,
+            include_top_level_array=True,
+            ignore_exit_code=False,
         )
 
     @classmethod
@@ -220,7 +232,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             command += f" @{server}"
         logger.debug(command)
         return cls._get_batch_jobs_using_command(
-            command, include_completed=False, include_top_level_array=True
+            command,
+            include_completed=False,
+            include_top_level_array=True,
+            ignore_exit_code=False,
         )
 
     @classmethod
@@ -230,7 +245,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             command += f" @{server}"
         logger.debug(command)
         return cls._get_batch_jobs_using_command(
-            command, include_completed=True, include_top_level_array=True
+            command,
+            include_completed=True,
+            include_top_level_array=True,
+            ignore_exit_code=False,
         )
 
     @classmethod
@@ -1016,7 +1034,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
 
     @classmethod
     def _get_batch_jobs_using_command(
-        cls, command: str, include_completed: bool, include_top_level_array: bool
+        cls,
+        command: str,
+        include_completed: bool,
+        include_top_level_array: bool,
+        ignore_exit_code: bool,
     ) -> list[PBSJob]:
         """
         Execute a shell command to retrieve information about PBS jobs and parse it.
@@ -1027,6 +1049,8 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
                 If `False`, completed jobs are filtered out from the output.
             include_top_level_array (bool): Include top-level array jobs in the output.
                 If `False`, top-level array jobs are filtered out from the output.
+            ignore_exit_code (bool): Ignore the exit code of the command.
+                If `False`, the command must return a zero exit code.
 
         Returns:
             list[PBSJob]: A list of `PBSJob` instances corresponding to the jobs
@@ -1038,17 +1062,21 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         """
         ...
         result = subprocess.run(
-            ["bash"],
+            # -oL (line-buffer stdout), -eL (line-buffer stderr)
+            # necessary for stdout and stderr merging
+            ["stdbuf", "-oL", "-eL", "bash"],
             input=command,
             text=True,
             check=False,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             errors="replace",
         )
 
-        if result.returncode != 0:
+        if not ignore_exit_code and result.returncode != 0:
             raise QQError(
-                f"Could not retrieve information about jobs: {result.stderr.strip()}."
+                # standard error is written to stdout
+                f"Could not retrieve information about jobs: {result.stdout.strip()}."
             )
 
         jobs = []

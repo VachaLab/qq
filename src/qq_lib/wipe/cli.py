@@ -1,12 +1,13 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
+from pathlib import Path
 from typing import NoReturn
 
 import click
 from rich.console import Console
 
-from qq_lib.core.click_format import GNUHelpColorsCommand
+from qq_lib.core.click_format import QQOperatorCommand
 from qq_lib.core.command_runner import CommandRunner
 from qq_lib.core.common import (
     yes_or_no_prompt,
@@ -30,11 +31,13 @@ console = Console()
 
 @click.command(
     short_help="Delete the working directory of a job.",
-    help=f"""Delete the working directories of the specified qq jobs, or of all qq jobs in the current directory.
+    help=f"""Delete the working directories of the specified qq jobs, or of all qq jobs in the specified directories.
 
 {click.style("JOB_ID", fg="green")}    One or more IDs of jobs whose working directories should be deleted. Optional.
 
-If no JOB_ID is specified, `{CFG.binary_name} wipe` searches for qq jobs in the current directory.
+If no JOB_ID and no directory are specified, `{CFG.binary_name} wipe` searches for qq jobs in the current directory.
+
+You can combine JOB_IDs with directories. All JOB_IDs must be specified before the `--dir` option.
 
 By default, `{CFG.binary_name} wipe` prompts for confirmation before deleting the working directory.
 
@@ -44,7 +47,7 @@ regardless of its state, including jobs that are queued, running or successfully
 You should be very careful when using this option as it may delete useful data or cause your job to crash!
 
 If the working directory matches the input directory, `{CFG.binary_name} wipe` will never delete it, even if you use the `--force` flag.""",
-    cls=GNUHelpColorsCommand,
+    cls=QQOperatorCommand,
     help_options_color="bright_blue",
 )
 @click.argument(
@@ -54,6 +57,13 @@ If the working directory matches the input directory, `{CFG.binary_name} wipe` w
     required=False,
     default=None,
     nargs=-1,
+)
+@click.option(
+    "-d",
+    "--dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    multiple=True,
+    help="One or more directories to search for qq jobs in. Supports globs.",
 )
 @click.option(
     "-y",
@@ -66,12 +76,17 @@ If the working directory matches the input directory, `{CFG.binary_name} wipe` w
     is_flag=True,
     help="Delete the working directory of the job forcibly, ignoring its current state and without confirmation.",
 )
-def wipe(jobs: tuple[str, ...], yes: bool = False, force: bool = False) -> NoReturn:
+def wipe(
+    jobs: tuple[str, ...], dir: tuple[Path, ...], yes: bool = False, force: bool = False
+) -> NoReturn:
     """
     Delete the working directory of the specified qq job or qq job(s) submitted from the current directory.
     """
     CommandRunner(
         jobs,
+        dir,
+        False,
+        None,
         _wipe_work_dir,
         logger,
         force,

@@ -1,4 +1,11 @@
 ## Version 0.12.0
+
+### Job collections
+- `qq info`, `qq kill`, `qq sync`, `qq respawn`, `qq wipe`, and `qq go` can now accept one or more directories and operate on jobs in these directories. Job resolution is parallelized and thus much faster than when these commands are called individually. Some of these commands also accept the `--all` flag to operate on all unfinished jobs on the given batch server.
+- **BREAKING CHANGE**: The `-s` option of `qq info` now corresponds to the `--server` option, not to the `--short` flag for consistency with other commands.
+- **BREAKING CHANGE**: `qq killall` command has been deprecated in favor of `qq kill --all` which has a very similar behavior.
+
+### Other changes
 - If a loop job does not create any archive files for the next cycle of the loop job, qq creates an empty `.init` file fulfilling the loop job's requirements.
 - If a loop job-specific or continuous job-specific option is used either on the command line or inside the submitted script, a warning is printed so that the user knows that the option will be ignored.
 

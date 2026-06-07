@@ -1,12 +1,13 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
+from pathlib import Path
 from typing import NoReturn
 
 import click
 from rich.console import Console
 
-from qq_lib.core.click_format import GNUHelpColorsCommand
+from qq_lib.core.click_format import QQOperatorCommand
 from qq_lib.core.command_runner import CommandRunner
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -18,15 +19,32 @@ from qq_lib.info.presenter import Presenter
 logger = get_logger(__name__)
 
 
+# TODO: remove before version 1.0
+# This is to help users to adjust to the breaking change in version 0.12.
+class InfoCommand(QQOperatorCommand):
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        if "-s" in args:
+            next_arg_index = args.index("-s") + 1
+            next_arg = args[next_arg_index] if next_arg_index < len(args) else None
+            if next_arg is None or next_arg.startswith("-"):
+                raise click.UsageError(
+                    "'-s' now means '--server', not '--short'. "
+                    "Use '-s <server>' to specify a batch server. "
+                    "Or '--short' to display only the job ID and current state."
+                )
+        return super().parse_args(ctx, args)
+
+
 @click.command(
     short_help="Display information about a job.",
-    help=f"""Display information about the state and properties of the specified qq jobs,
-or of qq jobs found in the current directory.
+    help=f"""Display information about the state and properties of the specified qq jobs or of qq jobs found in the specified directories.
 
 {click.style("JOB_ID", fg="green")}   One or more IDs of jobs to display information for. Optional.
 
-If no JOB_ID is specified, `{CFG.binary_name} info` searches for qq jobs in the current directory.""",
-    cls=GNUHelpColorsCommand,
+If no JOB_ID and no directory are specified, `{CFG.binary_name} info` searches for qq jobs in the current directory.
+
+You can combine JOB_IDs with directories. All JOB_IDs must be specified before the `--dir` option.""",
+    cls=InfoCommand,
     help_options_color="bright_blue",
 )
 @click.argument(
@@ -36,14 +54,42 @@ If no JOB_ID is specified, `{CFG.binary_name} info` searches for qq jobs in the 
     nargs=-1,
 )
 @click.option(
-    "-s", "--short", is_flag=True, help="Display only the job ID and current state."
+    "-d",
+    "--dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    multiple=True,
+    help="One or more directories to search for qq jobs in. Supports globs.",
 )
-def info(jobs: tuple[str, ...], short: bool) -> NoReturn:
+@click.option(
+    "-a",
+    "--all",
+    is_flag=True,
+    help="Print info for all your unfinished jobs.",
+)
+@click.option(
+    "-s",
+    "--server",
+    default=None,
+    help="Collect jobs from the specified batch server. If not specified, the current server is used. Only used with --all.",
+)
+@click.option(
+    "--short", is_flag=True, help="Display only the job ID and current state."
+)
+def info(
+    jobs: tuple[str, ...],
+    dir: tuple[Path, ...],
+    all: bool,
+    server: str | None,
+    short: bool,
+) -> NoReturn:
     """
     Get information about the specified qq jobs or qq jobs submitted from this directory.
     """
     CommandRunner(
         jobs,
+        dir,
+        all,
+        server,
         _info_for_job,
         logger,
         short,
