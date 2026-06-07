@@ -27,7 +27,7 @@ console = Console()
     short_help="Respawn a failed/killed job.",
     help=f"""Respawn the specified qq jobs, or all qq jobs in the specified directories.
 
-{click.style("JOB_ID", fg="green")}   One or more IDs of jobs to respawn. Optional.
+{click.style("JOB_ID...", fg="green")}   One or more IDs of jobs to respawn. Optional.
 
 If no JOB_ID and no directory are specified, `{CFG.binary_name} respawn` searches for qq jobs in the current directory.
 

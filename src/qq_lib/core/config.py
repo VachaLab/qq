@@ -470,6 +470,9 @@ class ParallelizationOptions:
     # Maximal number of threads used to collect job information.
     job_info_max_threads: int = 8
 
+    # Maximal number of threads used to submit jobs in parallel.
+    submission_max_threads: int = 8
+
 
 @dataclass(frozen=True)
 class Config:

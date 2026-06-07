@@ -30,7 +30,7 @@ class InfoCommand(QQOperatorCommand):
                 raise click.UsageError(
                     "'-s' now means '--server', not '--short'. "
                     "Use '-s <server>' to specify a batch server. "
-                    "Or '--short' to display only the job ID and current state."
+                    "Or '--short'/'--brief'/'-b' to display only the job ID and current state."
                 )
         return super().parse_args(ctx, args)
 
@@ -39,7 +39,7 @@ class InfoCommand(QQOperatorCommand):
     short_help="Display information about a job.",
     help=f"""Display information about the state and properties of the specified qq jobs or of qq jobs found in the specified directories.
 
-{click.style("JOB_ID", fg="green")}   One or more IDs of jobs to display information for. Optional.
+{click.style("JOB_ID...", fg="green")}   One or more IDs of jobs to display information for. Optional.
 
 If no JOB_ID and no directory are specified, `{CFG.binary_name} info` searches for qq jobs in the current directory.
 
@@ -73,14 +73,18 @@ You can combine JOB_IDs with directories. All JOB_IDs must be specified before t
     help="Collect jobs from the specified batch server. If not specified, the current server is used. Only used with --all.",
 )
 @click.option(
-    "--short", is_flag=True, help="Display only the job ID and current state."
+    "-b",
+    "--brief",
+    "--short",
+    is_flag=True,
+    help="Display a brief summary of the job.",
 )
 def info(
     jobs: tuple[str, ...],
     dir: tuple[Path, ...],
     all: bool,
     server: str | None,
-    short: bool,
+    brief: bool,
 ) -> NoReturn:
     """
     Get information about the specified qq jobs or qq jobs submitted from this directory.
@@ -92,12 +96,12 @@ def info(
         server,
         _info_for_job,
         logger,
-        short,
+        brief,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     ).on_exception(QQError, handle_general_qq_error).run()
 
 
-def _info_for_job(informer: Informer, short: bool) -> None:
+def _info_for_job(informer: Informer, brief: bool) -> None:
     """
     Display information about a qq job associated with the specified Informer.
 
@@ -108,7 +112,7 @@ def _info_for_job(informer: Informer, short: bool) -> None:
     """
     presenter = Presenter(informer)
     console = Console()
-    if short:
+    if brief:
         console.print(presenter.get_short_info())
     else:
         panel = presenter.create_full_info_panel(console)

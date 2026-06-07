@@ -31,7 +31,7 @@ console = Console()
     help=f"""Open a new shell in the working directory of the specified qq job, or in the
 working directories of qq jobs found in the specified directories.
 
-{click.style("JOB_ID", fg="green")}   One or more IDs of jobs whose working directories should be entered. Optional.
+{click.style("JOB_ID...", fg="green")}   One or more IDs of jobs whose working directories should be entered. Optional.
 
 If no JOB_ID and no directory are specified, `{CFG.binary_name} go` searches for qq jobs in the current directory.
 If multiple suitable jobs are provided or found, `{CFG.binary_name} go` opens a shell for each job in turn.

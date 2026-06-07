@@ -53,7 +53,7 @@ If the working directory matches the input directory, `{CFG.binary_name} wipe` w
 @click.argument(
     "jobs",
     type=str,
-    metavar=click.style("JOB_ID", fg="green"),
+    metavar=click.style("JOB_ID...", fg="green"),
     required=False,
     default=None,
     nargs=-1,

@@ -33,7 +33,7 @@ console = Console()
     help=f"""Fetch files from the working directory of the specified qq job, or from the
 working directories of the jobs submitted from the specified directories.
 
-{click.style("JOB_ID", fg="green")}   One or more IDs of jobs whose working directory files should be fetched. Optional.
+{click.style("JOB_ID...", fg="green")}   One or more IDs of jobs whose working directory files should be fetched. Optional.
 
 If no JOB_ID and no directory are specified, `{CFG.binary_name} sync` searches for qq jobs in the current directory.
 If multiple suitable jobs are provided or found, `{CFG.binary_name} sync` fetches files from each job in turn.

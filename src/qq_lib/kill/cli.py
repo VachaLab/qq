@@ -33,7 +33,7 @@ console = Console()
     short_help="Terminate a job.",
     help=f"""Terminate the specified qq jobs or all qq jobs in the specified directories.
 
-{click.style("JOB_ID", fg="green")}   One or more IDs of jobs to terminate. Optional.
+{click.style("JOB_ID...", fg="green")}   One or more IDs of jobs to terminate. Optional.
 
 If no JOB_ID and no directory are specified, `{CFG.binary_name} kill` searches for qq jobs in the current directory.
 

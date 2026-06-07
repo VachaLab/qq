@@ -26,7 +26,7 @@ def test_info_for_job_short_prints_short_info():
         patch("qq_lib.info.cli.Console") as console_cls,
     ):
         console_instance = console_cls.return_value
-        _info_for_job(informer_mock, short=True)
+        _info_for_job(informer_mock, brief=True)
 
         presenter_cls.assert_called_once_with(informer_mock)
         presenter_mock.get_short_info.assert_called_once()
@@ -47,7 +47,7 @@ def test_info_for_job_full_prints_full_info_panel():
         patch("qq_lib.info.cli.Console") as console_cls,
     ):
         console_instance = console_cls.return_value
-        _info_for_job(informer_mock, short=False)
+        _info_for_job(informer_mock, brief=False)
 
         presenter_cls.assert_called_once_with(informer_mock)
         presenter_mock.create_full_info_panel.assert_called_once_with(console_instance)
