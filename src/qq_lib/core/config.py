@@ -481,10 +481,13 @@ class ParallelizationOptions:
     """Options associated with multithreaded execution."""
 
     # Maximal number of threads used to collect job information.
-    job_info_max_threads: int = 8
+    job_info_max_threads: int = 16
 
     # Maximal number of threads used to submit jobs in parallel.
     submission_max_threads: int = 8
+
+    # Maximal number of threads used to clear runtime files in parallel.
+    clear_max_threads: int = 8
 
 
 @dataclass(frozen=True)

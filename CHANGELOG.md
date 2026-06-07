@@ -1,15 +1,14 @@
 ## Version 0.12.0
-
 ### Job collections
-- **BREAKING CHANGE**: The `-s` option of `qq info` now corresponds to the `--server` option, not to the `--short` flag for consistency with other commands. Instead, use `--brief`/`-b` or the legacy long variant `--short` to get a brief summary of the job.
-- **BREAKING CHANGE**: `qq killall` command has been deprecated in favor of `qq kill --all` which has a very similar behavior.
-
-- `qq info`, `qq kill`, `qq sync`, `qq respawn`, `qq wipe`, and `qq go` can now accept one or more directories and operate on jobs in these directories. Job resolution is parallelized and thus much faster than when these commands are called individually. Some of these commands also accept the `--all` flag to operate on all unfinished jobs on the given batch server.
-- `qq submit` now supports submitting multiple scripts at once. The submission is parallelized and thus much faster than when submitting scripts one by one.
+- **BREAKING CHANGE**: The `-s` option of `qq info` now corresponds to the `--server` option, not to the `--short` flag, for consistency with other commands. Use `--brief`/`-b` or the legacy long variant `--short` instead to get a brief summary of the job.
+- **BREAKING CHANGE**: The `qq killall` command has been deprecated in favor of `qq kill --all`, which has very similar behavior.
+- `qq info`, `qq kill`, `qq sync`, `qq respawn`, `qq wipe`, and `qq go` can now accept one or more directories and operate on jobs within them. Job resolution is parallelized and therefore much faster than calling these commands individually. Some of these commands also accept the `--all` flag to operate on all unfinished jobs on the given batch server.
+- `qq submit` now supports submitting multiple scripts at once. Submission is parallelized and therefore much faster than submitting scripts one by one.
+- `qq clear` can now clear runtime files from multiple directories at once.
 
 ### Other changes
-- If a loop job does not create any archive files for the next cycle of the loop job, qq creates an empty `.init` file fulfilling the loop job's requirements.
-- If a loop job-specific or continuous job-specific option is used either on the command line or inside the submitted script, a warning is printed so that the user knows that the option will be ignored.
+- If a loop job does not create any archive files for the next cycle, `qq` creates an empty `.init` file fulfilling the loop job's requirements.
+- If a loop job-specific or continuous job-specific option is used either on the command line or inside the submitted script, a warning is printed to inform the user that the option will be ignored.
 
 ***
 

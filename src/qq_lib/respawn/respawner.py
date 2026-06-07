@@ -60,7 +60,7 @@ class Respawner(Operator):
             logger.warning(f"Failed to remove working directory: {e}")
 
         # clear files from the input directory
-        clearer = Clearer(input_dir)
+        clearer = Clearer([input_dir])
         clearer.clear()
 
         # submit a new job

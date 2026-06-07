@@ -305,7 +305,7 @@ def test_respawner_respawn_calls_clearer_with_input_dir(respawner_for_respawn):
     ):
         respawner_for_respawn.respawn()
 
-    mock_clearer_cls.assert_called_once_with(Path("/tmp/input"))
+    mock_clearer_cls.assert_called_once_with([Path("/tmp/input")])
     mock_clearer_cls.return_value.clear.assert_called_once()
 
 
