@@ -381,3 +381,23 @@ def test_glob_directory_mixin_glob_with_job_ids(command, ctx, tmp_path):
         "-d",
         str(tmp_path / "jobs_b"),
     ]
+
+
+def test_glob_directory_mixin_single_dot(command, ctx):
+    command.parse_args(ctx, ["-d", "."])
+
+    assert command.received_args == ["-d", "."]
+
+
+def test_glob_directory_mixin_trailing_slash(command, ctx, tmp_path):
+    pattern = str(tmp_path) + "/"
+
+    command.parse_args(ctx, ["-d", pattern])
+
+    assert command.received_args == ["-d", str(tmp_path)]
+
+
+def test_glob_directory_mixin_double_dot(command, ctx):
+    command.parse_args(ctx, ["-d", ".."])
+
+    assert command.received_args == ["-d", ".."]

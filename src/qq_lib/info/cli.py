@@ -97,23 +97,27 @@ def info(
         _info_for_job,
         logger,
         brief,
+        len(dir) > 0,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     ).on_exception(QQError, handle_general_qq_error).run()
 
 
-def _info_for_job(informer: Informer, brief: bool) -> None:
+def _info_for_job(informer: Informer, brief: bool, dirs_provided: bool) -> None:
     """
     Display information about a qq job associated with the specified Informer.
 
     Args:
         informer (Informer): Informer associated with the job.
-        short (bool): If True, print only the job ID and the current job state.
+        brief (bool): If True, print only the job ID, its directory
+                      relative to the current directory (if `dirs_provided`),
+                      and the current job state.
                       If False, print the full formatted information panel.
+        dirs_provided (bool): If true, at least one directory was provided.
     """
     presenter = Presenter(informer)
     console = Console()
     if brief:
-        console.print(presenter.get_short_info())
+        console.print(presenter.get_brief_info(dirs_provided))
     else:
         panel = presenter.create_full_info_panel(console)
         console.print(panel)

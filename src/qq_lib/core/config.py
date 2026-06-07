@@ -183,6 +183,16 @@ class FullInfoPanelSettings:
 
 
 @dataclass(frozen=True)
+class BriefInfoSettings:
+    """Settings for brief info display."""
+
+    # Color of the job ID in brief info.
+    job_id_color: str = "default"
+    # Color of the directory path in brief info.
+    dir_path_color: str = "cyan"
+
+
+@dataclass(frozen=True)
 class PresenterSettings:
     """Settings for Presenter."""
 
@@ -195,6 +205,9 @@ class PresenterSettings:
     full_info_panel: FullInfoPanelSettings = field(
         default_factory=FullInfoPanelSettings
     )
+
+    # Settings for the brief info display.
+    brief_info: BriefInfoSettings = field(default_factory=BriefInfoSettings)
 
     # Style used for the keys in job status/info panel.
     key_style: str = "default bold"

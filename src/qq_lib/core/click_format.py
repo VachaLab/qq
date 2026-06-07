@@ -191,15 +191,16 @@ class GlobDirectoryMixin:
                 while i < len(args) and not args[i].startswith("-"):
                     pattern = args[i]
                     p = Path(pattern)
-                    expanded = sorted(p.parent.glob(p.name))
-                    if expanded:
-                        for path in expanded:
-                            rewritten.extend(["-d", str(path)])
-                    else:
-                        # no glob match
-                        #  pass through as-is and let Click
-                        # report a proper error via exists=True
+                    if not p.name:
+                        # pattern is a bare directory (e.g. "." or "/some/dir/") — no glob needed
                         rewritten.extend(["-d", pattern])
+                    else:
+                        expanded = sorted(p.parent.glob(p.name))
+                        if expanded:
+                            for path in expanded:
+                                rewritten.extend(["-d", str(path)])
+                        else:
+                            rewritten.extend(["-d", pattern])
                     i += 1
             else:
                 rewritten.append(args[i])

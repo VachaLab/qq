@@ -3,6 +3,8 @@
 
 from collections.abc import Sequence
 from datetime import datetime
+from pathlib import Path
+from warnings import deprecated
 
 from rich.align import Align
 from rich.console import Console, Group
@@ -141,20 +143,48 @@ class Presenter:
 
         return Group(Text(""), full_panel, Text(""))
 
-    def get_short_info(self) -> Text:
+    def get_brief_info(self, print_dir: bool) -> Text:
         """
         Return a concise, colorized summary of the job's current state.
 
         Returns:
-            Text: A Rich `Text` object containing the job ID followed by the
+            Text: A Rich `Text` object containing the job ID, optionally followed by the
+            relative path to the job input directory, and always followed by the
             current state, colorized according to the `RealState`.
         """
         state = self._informer.get_real_state()
-        return (
-            Text(self._informer.info.job_id)
-            + "    "
-            + Text(str(state), style=state.color)
+        job_id = Text(
+            self._informer.info.job_id,
+            style=CFG.presenter.brief_info.job_id_color,
         )
+        state_text = Text(str(state), style=state.color)
+
+        if print_dir:
+            dir_path = Text(
+                str(
+                    self._informer.info.input_dir.resolve().relative_to(
+                        Path.cwd(), walk_up=True
+                    )
+                ),
+                style=CFG.presenter.brief_info.dir_path_color,
+            )
+            return job_id + "  [" + dir_path + "]  " + state_text
+
+        return job_id + "    " + state_text
+
+    @deprecated("This function has been deprecated, use get_brief_info instead.")
+    def get_short_info(self, print_dir: bool) -> Text:
+        """
+        Return a concise, colorized summary of the job's current state.
+
+        This function is deprecated, use `get_brief_info` instead.
+
+        Returns:
+            Text: A Rich `Text` object containing the job ID, optionally followed by the
+            relative path to the job input directory, and always followed by the
+            current state, colorized according to the `RealState`.
+        """
+        return self.get_brief_info(print_dir)
 
     def _create_basic_info_table(self) -> Table:
         """
