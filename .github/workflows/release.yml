@@ -12,6 +12,10 @@ jobs:
     runs-on: [self-hosted, Linux, X64]
 
     steps:
+      - name: Clean workspace
+        run: |
+          rm -rf "$GITHUB_WORKSPACE/.git"
+
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
