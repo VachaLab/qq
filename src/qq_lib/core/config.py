@@ -190,6 +190,8 @@ class BriefInfoSettings:
     job_id_color: str = "default"
     # Color of the directory path in brief info.
     dir_path_color: str = "cyan"
+    # Color of the loop info in brief info.
+    loop_info_color: str = "grey70"
 
 
 @dataclass(frozen=True)

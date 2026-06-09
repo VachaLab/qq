@@ -148,9 +148,7 @@ class Presenter:
         Return a concise, colorized summary of the job's current state.
 
         Returns:
-            Text: A Rich `Text` object containing the job ID, optionally followed by the
-            relative path to the job input directory, and always followed by the
-            current state, colorized according to the `RealState`.
+            Text: A Rich `Text` object containing brief information about the job.
         """
         state = self._informer.get_real_state()
         job_id = Text(
@@ -168,9 +166,21 @@ class Presenter:
                 ),
                 style=CFG.presenter.brief_info.dir_path_color,
             )
-            return job_id + "  [" + dir_path + "]  " + state_text
+            full_text = job_id + "   [" + dir_path + "]   " + state_text
+        else:
+            full_text = job_id + "   " + state_text
 
-        return job_id + "    " + state_text
+        if loop_info := self._informer.info.loop_info:
+            full_text += (
+                Text("   [")
+                + Text(
+                    f"{loop_info.current}/{loop_info.end}",
+                    style=CFG.presenter.brief_info.loop_info_color,
+                )
+                + "]"
+            )
+
+        return full_text
 
     @deprecated("This function has been deprecated, use get_brief_info instead.")
     def get_short_info(self, print_dir: bool) -> Text:
@@ -180,9 +190,7 @@ class Presenter:
         This function is deprecated, use `get_brief_info` instead.
 
         Returns:
-            Text: A Rich `Text` object containing the job ID, optionally followed by the
-            relative path to the job input directory, and always followed by the
-            current state, colorized according to the `RealState`.
+            Text: A Rich `Text` object containing brief information about the job.
         """
         return self.get_brief_info(print_dir)
 

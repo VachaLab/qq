@@ -13,6 +13,9 @@ border_style = "black"
 title_style = "black bold"
 rule_style = "black"
 
+[presenter.brief_info]
+loop_info_color = "grey50"
+
 [jobs_presenter]
 border_style = "black"
 title_style = "black bold"

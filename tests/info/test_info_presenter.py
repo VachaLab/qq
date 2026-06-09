@@ -18,6 +18,7 @@ from qq_lib.info.informer import Informer
 from qq_lib.info.presenter import CFG, Presenter
 from qq_lib.properties.info import Info
 from qq_lib.properties.job_type import JobType
+from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.resources import Resources
 from qq_lib.properties.states import BatchState, NaiveState, RealState
 
@@ -521,11 +522,13 @@ def make_presenter(
     job_id: str = "12345",
     state: RealState = RealState.RUNNING,
     input_dir: Path = Path("/some/input/dir"),
+    loop_info: LoopInfo | None = None,
 ) -> Presenter:
     informer = MagicMock()
     informer.info.job_id = job_id
     informer.info.input_dir = input_dir
     informer.get_real_state.return_value = state
+    informer.info.loop_info = loop_info
     return Presenter(informer)
 
 
@@ -536,6 +539,21 @@ def test_presenter_get_brief_info_contains_job_id(state):
     result = presenter.get_brief_info(print_dir=False)
 
     assert "12345" in str(result)
+
+
+@pytest.mark.parametrize("state", list(RealState))
+def test_presenter_get_brief_info_loop_job_contains_current_and_end_cycle(state):
+    presenter = make_presenter(
+        job_id="12345",
+        state=state,
+        loop_info=LoopInfo(
+            start=1, end=5, current=3, archive=Path("storage"), archive_format="job%04d"
+        ),
+    )
+
+    result = presenter.get_brief_info(print_dir=False)
+
+    assert "[3/5]" in str(result)
 
 
 @pytest.mark.parametrize("state", list(RealState))
@@ -569,7 +587,7 @@ def test_presenter_get_brief_info_format_without_dir():
 
     result = presenter.get_brief_info(print_dir=False)
 
-    assert str(result) == f"9999    {RealState.RUNNING}"
+    assert str(result) == f"9999   {RealState.RUNNING}"
 
 
 def test_presenter_get_brief_info_does_not_contain_brackets_without_dir():
@@ -643,7 +661,40 @@ def test_presenter_get_brief_info_with_dir_format(tmp_path):
         result = presenter.get_brief_info(print_dir=True)
         relative = tmp_path.resolve().relative_to(tmp_path.parent, walk_up=True)
 
-    assert str(result) == f"9999  [{relative}]  {RealState.RUNNING}"
+    assert str(result) == f"9999   [{relative}]   {RealState.RUNNING}"
+
+
+def test_presenter_get_brief_info_with_loop_format(tmp_path):
+    presenter = make_presenter(
+        job_id="9999",
+        state=RealState.RUNNING,
+        input_dir=tmp_path,
+        loop_info=LoopInfo(
+            start=1, end=5, current=3, archive=Path("storage"), archive_format="job%04d"
+        ),
+    )
+
+    with patch("qq_lib.info.presenter.Path.cwd", return_value=tmp_path.parent):
+        result = presenter.get_brief_info(print_dir=False)
+
+    assert str(result) == f"9999   {RealState.RUNNING}   [3/5]"
+
+
+def test_presenter_get_brief_info_with_dir_and_loop_format(tmp_path):
+    presenter = make_presenter(
+        job_id="9999",
+        state=RealState.RUNNING,
+        input_dir=tmp_path,
+        loop_info=LoopInfo(
+            start=1, end=5, current=3, archive=Path("storage"), archive_format="job%04d"
+        ),
+    )
+
+    with patch("qq_lib.info.presenter.Path.cwd", return_value=tmp_path.parent):
+        result = presenter.get_brief_info(print_dir=True)
+        relative = tmp_path.resolve().relative_to(tmp_path.parent, walk_up=True)
+
+    assert str(result) == f"9999   [{relative}]   {RealState.RUNNING}   [3/5]"
 
 
 @pytest.mark.parametrize("state", list(RealState))
