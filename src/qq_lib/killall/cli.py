@@ -2,44 +2,125 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 
+import getpass
 import sys
+from collections.abc import Iterable
 from typing import NoReturn
 
 import click
 
+from qq_lib.batch.interface import BatchInterface
+from qq_lib.batch.interface.job import BatchJobInterface
 from qq_lib.core.click_format import GNUHelpColorsCommand
+from qq_lib.core.common import translate_server, yes_or_no_prompt
 from qq_lib.core.config import CFG
+from qq_lib.core.error import QQError, QQJobMismatchError, QQNotSuitableError
 from qq_lib.core.logger import get_logger
+from qq_lib.core.repeater import Repeater
+from qq_lib.info.informer import Informer
+from qq_lib.kill.cli import kill_job
 
 logger = get_logger(__name__)
 
 
 @click.command(
-    short_help="Terminate all your jobs. DEPRECATED. Use `qq kill --all` instead.",
-    help=f"Terminate all your submitted qq jobs. {click.style('DEPRECATED', bold=True, fg='red')}. Use `qq kill --all` instead.",
+    short_help="Terminate all your jobs.",
+    help=f"""Terminate all your submitted qq jobs. {click.style("THIS COMMAND IS DEPRECATED! Use `qq kill --all` instead.", fg="red")}
+
+This command is only able to terminate qq jobs, all other jobs are not affected by it.""",
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
+    hidden=True,
 )
 @click.option(
-    "-y",
-    "--yes",
-    is_flag=True,
-    help=f"{click.style('DEPRECATED', bold=True, fg='red')}. Use `qq kill --all` instead.",
+    "-y", "--yes", is_flag=True, help="Terminate the jobs without confirmation."
 )
 @click.option(
     "--force",
     is_flag=True,
-    help=f"{click.style('DEPRECATED', bold=True, fg='red')}. Use `qq kill --all` instead.",
+    help="Terminate the jobs forcibly, ignoring their current state and without confirmation.",
 )
 @click.option(
     "-s",
     "--server",
     default=None,
-    help=f"{click.style('DEPRECATED', bold=True, fg='red')}. Use `qq kill --all` instead.",
+    help="Termine all your jobs on the specified batch server. If not specified, the current server is used.",
 )
 def killall(
     yes: bool = False, force: bool = False, server: str | None = None
 ) -> NoReturn:
-    _ = yes, force, server
-    logger.error("This command is deprecated. Use `qq kill --all` instead.")
-    sys.exit(CFG.exit_codes.default)
+    try:
+        logger.warning(
+            "This command is deprecated! It will be removed in a future version of qq. Use `qq kill --all` instead."
+        )
+        BatchSystem = BatchInterface.from_env_var_or_guess()
+
+        if server:
+            server = translate_server(server)
+
+        jobs = BatchSystem.get_unfinished_batch_jobs(getpass.getuser(), server)
+        if not jobs:
+            logger.info("You have no active jobs. Nothing to kill.")
+            sys.exit(0)
+
+        informers = _informers_from_jobs(jobs)
+        if not informers:
+            logger.info(
+                f"You have no active qq jobs (and {len(jobs)} other jobs). Nothing to kill."
+            )
+            sys.exit(0)
+
+        if (
+            yes
+            or force
+            or yes_or_no_prompt(
+                f"You have {len(informers)} active qq job{'s' if len(informers) > 1 else ''}. Do you want to kill {'them' if len(informers) > 1 else 'it'}?"
+            )
+        ):
+            # TODO: this should be done in parallel
+            repeater = Repeater(
+                informers,
+                kill_job,
+                force=force,
+                yes=True,  # assume yes
+            )
+            repeater.on_exception(QQNotSuitableError, _log_error_and_continue)
+            repeater.on_exception(QQError, _log_error_and_continue)
+            repeater.run()
+        else:
+            logger.info("Operation aborted.")
+
+        logger.warning(
+            "This command is deprecated! It will be removed in a future version of qq. Use `qq kill --all` instead."
+        )
+        sys.exit(0)
+    except QQError as e:
+        logger.error(e)
+        sys.exit(CFG.exit_codes.default)
+    except Exception as e:
+        logger.critical(e, exc_info=True, stack_info=True)
+        sys.exit(CFG.exit_codes.unexpected_error)
+
+
+def _informers_from_jobs(jobs: Iterable[BatchJobInterface]) -> list[Informer]:
+    """
+    Get informers from the provided batch jobs. Ignore non-qq jobs.
+    """
+    informers = []
+    for job in jobs:
+        try:
+            informers.append(Informer.from_batch_job(job))
+        except (QQError, QQJobMismatchError):
+            continue
+
+    return informers
+
+
+def _log_error_and_continue(
+    exception: BaseException,
+    _metadata: Repeater,
+) -> None:
+    """
+    Log error as error and continue the execution.
+    """
+    logger.error(exception)
