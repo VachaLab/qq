@@ -169,9 +169,9 @@ class GlobDirectoryMixin:
 
     def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
         """
-        Rewrite -d/--directory tokens to support multiple values and globs.
+        Rewrite -d/--dir tokens to support multiple values and globs.
 
-        Greedily consumes all non-flag tokens following a -d/--directory flag,
+        Greedily consumes all non-flag tokens following a -d/--dir flag,
         glob-expands each one relative to its own parent directory, and emits
         one -d <path> pair per expanded result.
 
@@ -192,7 +192,7 @@ class GlobDirectoryMixin:
                     pattern = args[i]
                     p = Path(pattern)
                     if not p.name:
-                        # pattern is a bare directory (e.g. "." or "/some/dir/") — no glob needed
+                        # pattern is a bare directory (e.g. "." or "/some/dir/") - no glob needed
                         rewritten.extend(["-d", pattern])
                     else:
                         expanded = sorted(p.parent.glob(p.name))
@@ -209,6 +209,6 @@ class GlobDirectoryMixin:
 
 
 class QQOperatorCommand(GlobDirectoryMixin, GNUHelpColorsCommand):
-    """GNUHelpColorsCommand with glob-expanding -d/--directory support."""
+    """GNUHelpColorsCommand with glob-expanding -d/--dir support."""
 
     pass
