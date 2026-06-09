@@ -74,7 +74,7 @@ This can be useful for removing lingering or stuck jobs.""",
     "-s",
     "--server",
     default=None,
-    help="Kill jobs on the specified batch server. If not specified, the current server is used. Only used with --all.",
+    help="Terminate jobs on the specified batch server. If not specified, the current server is used. Only used with --all.",
 )
 @click.option(
     "-y", "--yes", is_flag=True, help="Terminate the job(s) without confirmation."
