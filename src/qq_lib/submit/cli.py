@@ -33,8 +33,8 @@ def complete_script(
     Return completion items for script files and directories matching the incomplete string.
 
     If incomplete is a directory or resolves to one, lists files and subdirectories
-    inside it. Otherwise, lists files and directories in the current directory
-    matching the prefix.
+    inside it. Otherwise, lists files and directories in the parent directory
+    matching the prefix, expanding any glob patterns in the parent path.
     """
     incomplete_path = Path(incomplete)
 
@@ -45,9 +45,20 @@ def complete_script(
         search_dir = incomplete_path.parent
         prefix = incomplete_path.name
 
+    try:
+        items = search_dir.iterdir()
+    except FileNotFoundError:
+        # parent contains a glob pattern - expand it and collect from all matches
+        items = (
+            child
+            for expanded in Path(search_dir.parent).glob(search_dir.name)
+            if expanded.is_dir()
+            for child in expanded.iterdir()
+        )
+
     return [
         CompletionItem(str(path), type="file")
-        for path in search_dir.iterdir()
+        for path in items
         if path.name.startswith(prefix)
     ]
 
