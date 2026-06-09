@@ -30,7 +30,7 @@ console = Console()
 
 @click.command(
     short_help="Fetch files from a job's working directory.",
-    help=f"""Fetch files from the working directory of the specified qq jobs, or from the
+    help=f"""Fetch files from the working directories of the specified qq jobs, or from the
 working directories of the jobs submitted from the specified directories.
 
 {click.style("JOB_ID...", fg="green")}   One or more IDs of jobs whose working directory files should be fetched. Optional.
