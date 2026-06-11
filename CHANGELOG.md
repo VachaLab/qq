@@ -5,6 +5,7 @@
 - `qq info`, `qq kill`, `qq sync`, `qq respawn`, `qq wipe`, and `qq go` can now accept one or more directories and operate on jobs within them. Job resolution is parallelized and therefore much faster than calling these commands individually. Some of these commands also accept the `--all` flag to operate on all unfinished jobs on the given batch server.
 - `qq submit` now supports submitting multiple scripts at once. Submission is parallelized and therefore much faster than submitting scripts one by one.
 - `qq clear` can now clear runtime files from multiple directories at once.
+- *For more information about job collections, read [the manual](https://vachalab.github.io/qq-manual/job_collections.html).*
 
 ### Other changes
 - If a loop job does not create any archive files for the next cycle, `qq` creates an empty `.init` file fulfilling the loop job's requirements.
