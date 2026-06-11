@@ -183,6 +183,18 @@ class FullInfoPanelSettings:
 
 
 @dataclass(frozen=True)
+class BriefInfoSettings:
+    """Settings for brief info display."""
+
+    # Color of the job ID in brief info.
+    job_id_color: str = "default"
+    # Color of the directory path in brief info.
+    dir_path_color: str = "cyan"
+    # Color of the loop info in brief info.
+    loop_info_color: str = "grey70"
+
+
+@dataclass(frozen=True)
 class PresenterSettings:
     """Settings for Presenter."""
 
@@ -195,6 +207,9 @@ class PresenterSettings:
     full_info_panel: FullInfoPanelSettings = field(
         default_factory=FullInfoPanelSettings
     )
+
+    # Settings for the brief info display.
+    brief_info: BriefInfoSettings = field(default_factory=BriefInfoSettings)
 
     # Style used for the keys in job status/info panel.
     key_style: str = "default bold"
@@ -468,7 +483,13 @@ class ParallelizationOptions:
     """Options associated with multithreaded execution."""
 
     # Maximal number of threads used to collect job information.
-    job_info_max_threads: int = 8
+    job_info_max_threads: int = 16
+
+    # Maximal number of threads used to submit jobs in parallel.
+    submission_max_threads: int = 8
+
+    # Maximal number of threads used to clear runtime files in parallel.
+    clear_max_threads: int = 8
 
 
 @dataclass(frozen=True)

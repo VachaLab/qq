@@ -42,6 +42,64 @@ def test_go_creates_command_runner_and_runs():
     assert result.exit_code == 0
     mock_cls.assert_called_once_with(
         ("111", "222"),
+        (),
+        False,
+        None,
+        _go_to_job,
+        logger,
+        n_threads=CFG.parallelization_options.job_info_max_threads,
+    )
+    mock_cls.return_value.run.assert_called_once()
+
+
+def test_go_creates_command_runner_with_dirs_and_runs(tmp_path):
+    dir1 = tmp_path / "dir1"
+    dir2 = tmp_path / "dir2"
+    dir1.mkdir()
+    dir2.mkdir()
+    runner = CliRunner()
+
+    with patch("qq_lib.go.cli.CommandRunner") as mock_cls:
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
+
+        result = runner.invoke(go, ["-d", str(dir1), str(dir2)])
+
+    assert result.exit_code == 0
+    mock_cls.assert_called_once_with(
+        (),
+        (dir1, dir2),
+        False,
+        None,
+        _go_to_job,
+        logger,
+        n_threads=CFG.parallelization_options.job_info_max_threads,
+    )
+    mock_cls.return_value.run.assert_called_once()
+
+
+def test_go_creates_complex_command_runner_and_runs(tmp_path):
+    dir1 = tmp_path / "dir1"
+    dir2 = tmp_path / "dir2"
+    dir1.mkdir()
+    dir2.mkdir()
+    runner = CliRunner()
+
+    with patch("qq_lib.go.cli.CommandRunner") as mock_cls:
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
+
+        result = runner.invoke(
+            go,
+            ["12345", "12346", "-d", str(dir1), str(dir2), "--all", "-s", "server"],
+        )
+
+    assert result.exit_code == 0
+    mock_cls.assert_called_once_with(
+        ("12345", "12346"),
+        (dir1, dir2),
+        True,
+        "server",
         _go_to_job,
         logger,
         n_threads=CFG.parallelization_options.job_info_max_threads,

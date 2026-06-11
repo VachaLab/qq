@@ -25,11 +25,12 @@ logger = get_logger(__name__)
 
 @click.command(
     short_help="Terminate all your jobs.",
-    help="""Terminate all your submitted qq jobs.
+    help=f"""Terminate all your submitted qq jobs. {click.style("THIS COMMAND IS DEPRECATED! Use `qq kill --all` instead.", fg="red")}
 
 This command is only able to terminate qq jobs, all other jobs are not affected by it.""",
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
+    hidden=True,
 )
 @click.option(
     "-y", "--yes", is_flag=True, help="Terminate the jobs without confirmation."
@@ -49,6 +50,9 @@ def killall(
     yes: bool = False, force: bool = False, server: str | None = None
 ) -> NoReturn:
     try:
+        logger.warning(
+            "This command is deprecated! It will be removed in a future version of qq. Use `qq kill --all` instead."
+        )
         BatchSystem = BatchInterface.from_env_var_or_guess()
 
         if server:
@@ -86,6 +90,9 @@ def killall(
         else:
             logger.info("Operation aborted.")
 
+        logger.warning(
+            "This command is deprecated! It will be removed in a future version of qq. Use `qq kill --all` instead."
+        )
         sys.exit(0)
     except QQError as e:
         logger.error(e)

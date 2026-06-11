@@ -99,7 +99,7 @@ def get_info_file(directory: Path) -> Path:
     """
     Locate the qq job info file in a directory.
 
-    This function searches for files matching the `QQ_INFO_SUFFIX` in the
+    This function searches for files with suffix `CFG.suffixes.qq_info` in the
     provided directory. It raises an error if none or multiple info files are found.
 
     Args:
@@ -124,7 +124,7 @@ def get_info_files(directory: Path) -> list[Path]:
     """
     Retrieve all qq job info files in a directory.
 
-    This function searches for files matching the `QQ_INFO_SUFFIX` in the
+    This function searches for files with suffix `CFG.suffixes.qq_info` in the
     provided directory. The files are sorted by their last modification time
     (with the newest modified file being last in the list).
 

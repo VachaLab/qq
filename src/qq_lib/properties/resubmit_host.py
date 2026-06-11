@@ -19,7 +19,7 @@ class ResubmitHost(ABC):
     Subclasses:
         InputHost: Resolves to the original input machine.
         WorkHost: Resolves to the current working node.
-        CustomHost: Resolves to an explicitly specified hostname.
+        ExplicitHost: Resolves to an explicitly specified hostname.
     """
 
     @classmethod

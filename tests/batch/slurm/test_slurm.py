@@ -14,6 +14,7 @@ from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.resources import Resources
 from qq_lib.properties.size import Size
+from qq_lib.properties.states import BatchState
 
 
 def test_slurm_env_name_returns_slurm():
@@ -888,3 +889,113 @@ def test_slurm_get_nodes_failure_raises_qqerror(mock_run):
 def test_slurm_delete_remote_dir_delegates(mock_make):
     Slurm.delete_remote_dir("host3", Path("/tmp/dir"))
     mock_make.assert_called_once_with("host3", Path("/tmp/dir"))
+
+
+def _make_job(job_id, state=BatchState.FINISHED):
+    job = MagicMock()
+    job.get_id.return_value = job_id
+    job.get_state.return_value = state
+    return job
+
+
+@patch("qq_lib.batch.slurm.slurm.Slurm._get_jobs_in_parallel")
+@patch("qq_lib.batch.slurm.slurm.Slurm._get_batch_jobs_using_sacct_command")
+def test_slurm_get_batch_jobs_from_ids_all_from_sacct(mock_sacct, mock_scontrol):
+    job_a = _make_job("101", BatchState.FINISHED)
+    job_b = _make_job("102", BatchState.RUNNING)
+    mock_sacct.return_value = [job_a, job_b]
+    mock_scontrol.return_value = []
+
+    result = Slurm.get_batch_jobs_from_ids(["101", "102"])
+
+    mock_scontrol.assert_called_once_with([])
+    assert result == [job_a, job_b]
+
+
+@patch("qq_lib.batch.slurm.slurm.Slurm._get_jobs_in_parallel")
+@patch("qq_lib.batch.slurm.slurm.Slurm._get_batch_jobs_using_sacct_command")
+def test_slurm_get_batch_jobs_from_ids_queued_jobs_use_scontrol(
+    mock_sacct, mock_scontrol
+):
+    job_queued = _make_job("201", BatchState.QUEUED)
+    job_done = _make_job("202", BatchState.FINISHED)
+    job_held = _make_job("203", BatchState.HELD)
+    mock_sacct.return_value = [job_queued, job_done, job_held]
+
+    mock_scontrol.return_value = [job_queued, job_held]
+
+    result = Slurm.get_batch_jobs_from_ids(["201", "202", "203"])
+
+    mock_scontrol.assert_called_once_with(["201", "203"])
+    assert result == [job_queued, job_done, job_held]
+
+
+@patch("qq_lib.batch.slurm.slurm.Slurm._get_jobs_in_parallel")
+@patch("qq_lib.batch.slurm.slurm.Slurm._get_batch_jobs_using_sacct_command")
+def test_slurm_get_batch_jobs_from_ids_missing_jobs_use_scontrol(
+    mock_sacct, mock_scontrol
+):
+    job_301 = _make_job("301", BatchState.FINISHED)
+    mock_sacct.return_value = [job_301]
+
+    job_302 = _make_job("302")
+    mock_scontrol.return_value = [job_302]
+
+    result = Slurm.get_batch_jobs_from_ids(["301", "302"])
+
+    mock_scontrol.assert_called_once_with(["302"])
+    assert result == [job_301, job_302]
+
+
+@patch("qq_lib.batch.slurm.slurm.Slurm._get_jobs_in_parallel")
+@patch("qq_lib.batch.slurm.slurm.Slurm._get_batch_jobs_using_sacct_command")
+def test_slurm_get_batch_jobs_from_ids_preserves_input_order(mock_sacct, mock_scontrol):
+    job_a = _make_job("401", BatchState.FINISHED)
+    job_b = _make_job("403", BatchState.FINISHED)
+    mock_sacct.return_value = [job_a, job_b]
+
+    job_c = _make_job("402")
+    mock_scontrol.return_value = [job_c]
+
+    result = Slurm.get_batch_jobs_from_ids(["403", "402", "401"])
+
+    assert result == [job_b, job_c, job_a]
+
+
+@patch("qq_lib.batch.slurm.slurm.Slurm._get_jobs_in_parallel")
+@patch("qq_lib.batch.slurm.slurm.Slurm._get_batch_jobs_using_sacct_command")
+def test_slurm_get_batch_jobs_from_ids_sacct_command(mock_sacct, mock_scontrol):
+    mock_sacct.return_value = []
+    mock_scontrol.return_value = []
+
+    Slurm.get_batch_jobs_from_ids(["501", "502", "503"])
+
+    command = mock_sacct.call_args[0][0]
+    assert "501,502,503" in command
+    assert "sacct" in command
+
+
+@patch("qq_lib.batch.slurm.slurm.SlurmJob")
+def test_slurm_get_jobs_in_parallel_returns_all_jobs(mock_slurm_job):
+    mock_slurm_job.side_effect = lambda job_id: MagicMock(name=f"job_{job_id}")
+
+    result = Slurm._get_jobs_in_parallel(["100", "200", "300"])
+
+    assert len(result) == 3
+    assert mock_slurm_job.call_count == 3
+
+
+@patch("qq_lib.batch.slurm.slurm.SlurmJob")
+def test_slurm_get_jobs_in_parallel_empty_list(mock_slurm_job):
+    result = Slurm._get_jobs_in_parallel([])
+
+    assert result == []
+    mock_slurm_job.assert_not_called()
+
+
+@patch("qq_lib.batch.slurm.slurm.SlurmJob")
+def test_slurm_get_jobs_in_parallel_raises_on_failure(mock_slurm_job):
+    mock_slurm_job.side_effect = RuntimeError("connection refused")
+
+    with pytest.raises(QQError, match="Failed to load job 999"):
+        Slurm._get_jobs_in_parallel(["999"])

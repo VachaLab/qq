@@ -10,6 +10,7 @@ option layouts.
 """
 
 from collections.abc import Sequence
+from pathlib import Path
 
 import click
 from click import Context, HelpFormatter
@@ -150,3 +151,64 @@ class GNUHelpColorsCommand(HelpColorsCommand):
                     i += 1
             args = processed
         return super().parse_args(ctx, args)
+
+
+class GlobDirectoryMixin:
+    """
+    Mixin that adds glob-expanding multi-value support for -d/--directory.
+
+    Click does not support nargs=-1 on options. This mixin pre-processes the
+    argument list before Click's parser sees it, greedily consuming all
+    non-flag tokens following -d/--directory, glob-expanding each one, and
+    rewriting them as repeated -d <path> pairs that Click's multiple=True
+    parser handles correctly.
+
+    Must appear before the Click command class in the MRO so that its
+    parse_args runs first.
+    """
+
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        """
+        Rewrite -d/--dir tokens to support multiple values and globs.
+
+        Greedily consumes all non-flag tokens following a -d/--dir flag,
+        glob-expands each one relative to its own parent directory, and emits
+        one -d <path> pair per expanded result.
+
+        Args:
+            ctx (click.Context): The current Click context.
+            args (list[str]): The raw argument list.
+
+        Returns:
+            list[str]: The remaining unparsed arguments after delegation to the
+                parent parser.
+        """
+        rewritten: list[str] = []
+        i = 0
+        while i < len(args):
+            if args[i] in ("-d", "--dir"):
+                i += 1
+                while i < len(args) and not args[i].startswith("-"):
+                    pattern = args[i]
+                    p = Path(pattern)
+                    if not p.name:
+                        # pattern is a bare directory (e.g. "." or "/some/dir/") - no glob needed
+                        rewritten.extend(["-d", pattern])
+                    else:
+                        expanded = sorted(p.parent.glob(p.name))
+                        if expanded:
+                            for path in expanded:
+                                rewritten.extend(["-d", str(path)])
+                        else:
+                            rewritten.extend(["-d", pattern])
+                    i += 1
+            else:
+                rewritten.append(args[i])
+                i += 1
+        return super().parse_args(ctx, rewritten)  # ty:ignore[unresolved-attribute]
+
+
+class QQOperatorCommand(GlobDirectoryMixin, GNUHelpColorsCommand):
+    """GNUHelpColorsCommand with glob-expanding -d/--dir support."""
+
+    pass

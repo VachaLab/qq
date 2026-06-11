@@ -271,7 +271,7 @@ class Runner:
             logger.debug(
                 f"Script exit code is '{self._process.returncode}'. Archiving files."
             )
-            self._archiver.to_archive(self._work_dir)
+            self._archive_files_from_work_dir()
 
         # transfer files back to the input (submission) directory
         if self._use_scratch:
@@ -690,7 +690,7 @@ class Runner:
 
         if self._informer.info.job_type == JobType.LOOP:
             if not (loop_info := self._informer.info.loop_info):
-                logger.warning(
+                raise QQError(
                     "Loop info is undefined while resubmiting a loop job. This is a bug!"
                 )
                 return
@@ -706,6 +706,38 @@ class Runner:
         job_id = resubmitter.resubmit()
 
         logger.info(f"Job resubmitted successfully as '{job_id}'.")
+
+    def _archive_files_from_work_dir(self) -> None:
+        """
+        Archive files from the working directory.
+
+        If no file exists for the next loop cycle, creates an empty init file to ensure the loop job continues normally.
+        """
+        if not self._archiver:
+            raise QQError("Archiver is undefined while archiving files. This is a bug!")
+
+        if not (loop_info := self._informer.info.loop_info):
+            raise QQError(
+                "Loop info is undefined while archiving files. This is a bug!"
+            )
+
+        # get the files to archive corresponding to the next loop job cycle
+        if not self._archiver.get_files_matching_pattern(
+            self._work_dir,
+            None,
+            loop_info.archive_format,
+            loop_info.current + 1,
+            False,
+        ):
+            # if there are no files matching the next loop job cycle, create an empty .init file
+            # so that the loop job continues normally
+            logger.debug(
+                f"Creating .init file for loop job cycle {loop_info.current + 1}."
+            )
+            self._archiver.create_init_file(loop_info.current + 1)
+
+        # archive all files matching the archive format
+        self._archiver.to_archive(self._work_dir)
 
     def _get_explicitly_included_files_in_work_dir(self) -> list[Path]:
         """

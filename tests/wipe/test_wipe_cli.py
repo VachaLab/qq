@@ -106,6 +106,37 @@ def test_wipe_creates_command_runner_and_runs():
     assert result.exit_code == 0
     mock_cls.assert_called_once_with(
         ("111",),
+        (),
+        False,
+        None,
+        _wipe_work_dir,
+        logger,
+        False,
+        False,
+        n_threads=CFG.parallelization_options.job_info_max_threads,
+    )
+    mock_cls.return_value.run.assert_called_once()
+
+
+def test_wipe_creates_command_runner_with_dirs_and_runs(tmp_path):
+    dir1 = tmp_path / "dir1"
+    dir2 = tmp_path / "dir2"
+    dir1.mkdir()
+    dir2.mkdir()
+    runner = CliRunner()
+
+    with patch("qq_lib.wipe.cli.CommandRunner") as mock_cls:
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
+
+        result = runner.invoke(wipe, ["-d", str(dir1), str(dir2)])
+
+    assert result.exit_code == 0
+    mock_cls.assert_called_once_with(
+        (),
+        (dir1, dir2),
+        False,
+        None,
         _wipe_work_dir,
         logger,
         False,
@@ -124,8 +155,8 @@ def test_wipe_passes_force_and_yes_flags():
 
         runner.invoke(wipe, ["--force", "--yes", "111"])
 
-    assert mock_cls.call_args[0][3] is True
-    assert mock_cls.call_args[0][4] is True
+    assert mock_cls.call_args[0][6] is True
+    assert mock_cls.call_args[0][7] is True
 
 
 def test_wipe_registers_exception_handlers():

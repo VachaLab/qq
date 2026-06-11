@@ -2,12 +2,13 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 import re
+from pathlib import Path
 from typing import NoReturn
 
 import click
 from rich.console import Console
 
-from qq_lib.core.click_format import GNUHelpColorsCommand
+from qq_lib.core.click_format import QQOperatorCommand
 from qq_lib.core.command_runner import CommandRunner
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
@@ -29,18 +30,20 @@ console = Console()
 
 @click.command(
     short_help="Fetch files from a job's working directory.",
-    help=f"""Fetch files from the working directory of the specified qq job, or from the
-working directory of the job submitted from the current directory.
+    help=f"""Fetch files from the working directories of the specified qq jobs, or from the
+working directories of the jobs submitted from the specified directories.
 
-{click.style("JOB_ID", fg="green")}   One or more IDs of jobs whose working directory files should be fetched. Optional.
+{click.style("JOB_ID...", fg="green")}   One or more IDs of jobs whose working directory files should be fetched. Optional.
 
-If no JOB_ID is specified, `{CFG.binary_name} sync` searches for qq jobs in the current directory.
+If no JOB_ID and no directory are specified, `{CFG.binary_name} sync` searches for qq jobs in the current directory.
 If multiple suitable jobs are provided or found, `{CFG.binary_name} sync` fetches files from each job in turn.
 Files fetched from later jobs may overwrite files from earlier jobs in the input directory.
 
+You can combine JOB_IDs with directories. All JOB_IDs must be specified before the `--dir` option.
+
 Files are copied from the job's working directory to its input directory, not to the current directory.
 """,
-    cls=GNUHelpColorsCommand,
+    cls=QQOperatorCommand,
     help_options_color="bright_blue",
 )
 @click.argument(
@@ -52,6 +55,25 @@ Files are copied from the job's working directory to its input directory, not to
     nargs=-1,
 )
 @click.option(
+    "-d",
+    "--dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    multiple=True,
+    help="One or more directories to search for qq jobs in. Supports globs.",
+)
+@click.option(
+    "-a",
+    "--all",
+    is_flag=True,
+    help="Fetch files for all your unfinished jobs.",
+)
+@click.option(
+    "-s",
+    "--server",
+    default=None,
+    help="Operate on jobs from the specified batch server. If not specified, the current server is used. Only used with --all.",
+)
+@click.option(
     "-f",
     "--files",
     type=str,
@@ -59,13 +81,22 @@ Files are copied from the job's working directory to its input directory, not to
     help="""A colon-, comma-, or space-separated list of files or directories to fetch.
 If not specified, the entire content of the working directory is fetched.""",
 )
-def sync(jobs: tuple[str, ...], files: str | None) -> NoReturn:
+def sync(
+    jobs: tuple[str, ...],
+    dir: tuple[Path, ...],
+    all: bool,
+    server: str | None,
+    files: str | None,
+) -> NoReturn:
     """
     Fetch files from the working directory (directories) of the specified qq job(s)
     or of qq job(s) submitted from this directory.
     """
     CommandRunner(
         jobs,
+        dir,
+        all,
+        server,
         _sync_job,
         logger,
         _split_files(files),

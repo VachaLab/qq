@@ -1,10 +1,10 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import NoReturn
+from typing import Any, NoReturn
 
 import click
 from click.shell_completion import CompletionItem
@@ -33,8 +33,8 @@ def complete_script(
     Return completion items for script files and directories matching the incomplete string.
 
     If incomplete is a directory or resolves to one, lists files and subdirectories
-    inside it. Otherwise, lists files and directories in the current directory
-    matching the prefix.
+    inside it. Otherwise, lists files and directories in the parent directory
+    matching the prefix, expanding any glob patterns in the parent path.
     """
     incomplete_path = Path(incomplete)
 
@@ -45,9 +45,20 @@ def complete_script(
         search_dir = incomplete_path.parent
         prefix = incomplete_path.name
 
+    try:
+        items = search_dir.iterdir()
+    except FileNotFoundError:
+        # parent contains a glob pattern - expand it and collect from all matches
+        items = (
+            child
+            for expanded in Path(search_dir.parent).glob(search_dir.name)
+            if expanded.is_dir()
+            for child in expanded.iterdir()
+        )
+
     return [
         CompletionItem(str(path), type="file")
-        for path in search_dir.iterdir()
+        for path in items
         if path.name.startswith(prefix)
     ]
 
@@ -56,22 +67,26 @@ def complete_script(
 @click.command(
     short_help="Submit a job to the batch system.",
     help=f"""
-Submit a qq job to a batch system from the command line.
+Submit one or more qq jobs to the batch system from the command line.
 
-{click.style("SCRIPT", fg="green")}   Path to the script to submit.
+{click.style("SCRIPT...", fg="green")}   One or more paths to the scripts to submit.
 
 All the options can also be specified inside the submitted script itself
 using qq directives of this format: `# qq <option> <value>`.
+
+Command-line options apply to all submitted scripts, but each script's own qq directives are respected individually.
 """,
     cls=GNUHelpColorsCommand,
     help_options_color="bright_blue",
 )
 @click.argument(
-    "script",
+    "scripts",
     type=click.Path(
         exists=True, file_okay=True, dir_okay=False, readable=True, path_type=str
     ),
-    metavar=click.style("SCRIPT", fg="green"),
+    metavar=click.style("SCRIPT...", fg="green"),
+    nargs=-1,
+    required=True,
     shell_complete=complete_script,
 )
 @optgroup.group(f"{click.style('General settings', fg='yellow')}")
@@ -307,19 +322,49 @@ using qq directives of this format: `# qq <option> <value>`.
         f"Supports the same modes as {click.style('--transfer-mode', bold=True)}. Defaults to {click.style(CFG.transfer_files_options.default_archive_mode, bold=True)}."
     ),
 )
-def submit(script: str, **kwargs) -> NoReturn:
+def submit(scripts: list[str], **kwargs) -> NoReturn:
     """
     Submit a qq job to a batch system from the command line.
+    """
+    with ThreadPoolExecutor(
+        max_workers=CFG.parallelization_options.submission_max_threads
+    ) as executor:
+        futures = [executor.submit(_submit_job, script, kwargs) for script in scripts]
+        results = [f.result() for f in futures]
+
+        successful = [r for r in results if r is not None]
+        failed = len(results) - len(successful)
+
+        if len(scripts) > 1:
+            logger.info(
+                f"{len(successful)}/{len(scripts)} jobs submitted successfully"
+                + (f", {failed} failed." if failed else ".")
+            )
+
+        if not successful:
+            sys.exit(CFG.exit_codes.default)
+
+        sys.exit(0)
+
+
+def _submit_job(script: str, kwargs: dict[str, Any]) -> str | None:
+    """
+    Submit a single qq job and return the job ID on success, or None on failure.
+
+    Args:
+        script (str): Path to the script to submit.
+        kwargs (dict): Parsed Click options forwarded to SubmitterFactory.
+
+    Returns:
+        str | None: The job ID if submission succeeded, None otherwise.
     """
     try:
         if not (script_path := Path(script)).is_file():
             raise QQError(f"Script '{script}' does not exist or is not a file.")
 
-        # parse options from the command line and from the script itself
         factory = SubmitterFactory(logical_resolve(script_path), **kwargs)
         submitter = factory.make_submitter()
 
-        # guard against multiple submissions from the same directory
         if (
             get_runtime_files(submitter.get_input_dir())
             and not submitter.continues_loop()
@@ -330,10 +375,10 @@ def submit(script: str, **kwargs) -> NoReturn:
 
         job_id = submitter.submit()
         logger.info(f"Job '{job_id}' submitted successfully.")
-        sys.exit(0)
+        return job_id
     except QQError as e:
         logger.error(e)
-        sys.exit(CFG.exit_codes.default)
+        return None
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)
-        sys.exit(CFG.exit_codes.unexpected_error)
+        return None

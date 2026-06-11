@@ -1,3 +1,18 @@
+## Version 0.12.0
+### Job collections
+- **BREAKING CHANGE**: The `-s` option of `qq info` now corresponds to the `--server` option, not to the `--short` flag, for consistency with other commands. Use `--brief`/`-b` or the legacy long variant `--short` instead to get a brief summary of the job.
+- The `qq killall` command has been deprecated in favor of `qq kill --all`, which has very similar behavior. It can still be used but will be completely removed in a future version of qq.
+- `qq info`, `qq kill`, `qq sync`, `qq respawn`, `qq wipe`, and `qq go` can now accept one or more directories and operate on jobs within them. Job resolution is parallelized and therefore much faster than calling these commands individually. Some of these commands also accept the `--all` flag to operate on all unfinished jobs on the given batch server.
+- `qq submit` now supports submitting multiple scripts at once. Submission is parallelized and therefore much faster than submitting scripts one by one.
+- `qq clear` can now clear runtime files from multiple directories at once.
+- *For more information about job collections, read [the manual](https://vachalab.github.io/qq-manual/job_collections.html).*
+
+### Other changes
+- If a loop job does not create any archive files for the next cycle, `qq` creates an empty `.init` file fulfilling the loop job's requirements.
+- If a loop job-specific or continuous job-specific option is used either on the command line or inside the submitted script, a warning is printed to inform the user that the option will be ignored.
+
+***
+
 ## Version 0.11
 ### qq respawn
 - Failed or killed jobs can now be easily "respawned" using `qq respawn`. When respawning a job, qq will remove the working directory of the failed job, clear all runtime files, and resubmit the job with the same parameters as before.

@@ -55,7 +55,9 @@ def parse_multi_pbs_dump_to_dictionaries(
 
     data = []
     block, identifier = [], None
-    pattern = re.compile(rf"^\s*{keyword}:\s*(.*)$") if keyword else None
+    pattern = pattern = (
+        re.compile(rf"^\s*(?:.*?{keyword}[:\s]+)(.*)$") if keyword else None
+    )
 
     for line in text.splitlines():
         # if the line is empty, start a new block

@@ -5,7 +5,8 @@
 
 """
 Submit qq jobs from multiple directories.
-Version qq 0.11.0.
+THIS SCRIPT IS DEPRECATED. YOU CAN USE `qq submit <directories>/script.sh` INSTEAD.
+Version qq 0.12.0.
 Requires `uv`: https://docs.astral.sh/uv
 """
 
@@ -16,7 +17,7 @@ Requires `uv`: https://docs.astral.sh/uv
 # ]
 #
 # [tool.uv.sources]
-# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.11.0" }
+# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.12.0" }
 # ///
 
 import argparse
@@ -65,7 +66,7 @@ def submit_job(base_submitter: Submitter, directory: str) -> bool:
 
     with suppress(QQError):
         # remove runtime files in the directory, if possible
-        clearer = Clearer(Path(directory))
+        clearer = Clearer([Path(directory)])
         clearer.clear()
 
     # make sure that the directory is suitable for submission

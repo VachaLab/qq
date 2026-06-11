@@ -12,9 +12,14 @@ jobs:
     runs-on: [self-hosted, Linux, X64]
 
     steps:
+      - name: Clean workspace
+        run: |
+          rm -rf "$GITHUB_WORKSPACE/.git"
+
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
 
       - name: Fix git ownership
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"

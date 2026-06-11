@@ -14,6 +14,7 @@ from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
 from qq_lib.properties.resources import Resources
+from qq_lib.properties.states import BatchState
 
 from .common import (
     SACCT_FIELDS,
@@ -153,6 +154,34 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         return SlurmJob(job_id)
 
     @classmethod
+    def get_batch_jobs_from_ids(cls, job_ids: list[str]) -> list[SlurmJob]:
+        command = f"sacct --allocations --noheader --parsable2 -j {','.join(job_ids)} --format={SACCT_FIELDS}"
+        logger.debug(command)
+
+        # sacct ignores IDs of nonexistent jobs - it will just not print any output for them
+        sacct_jobs = cls._get_batch_jobs_using_sacct_command(command)
+        sacct_jobs_dict = {
+            job.get_id(): job
+            for job in sacct_jobs
+            # filter out pending (queued) jobs - we want to use scontrol for them
+            if job.get_state() not in {BatchState.QUEUED, BatchState.HELD}
+        }
+
+        # get information about the remaining jobs using scontrol
+        scontrol_jobs = cls._get_jobs_in_parallel(
+            [id for id in job_ids if id not in sacct_jobs_dict]
+        )
+        scontrol_jobs_dict = {job.get_id(): job for job in scontrol_jobs}
+
+        # merge all jobs but maintain their original order
+        all_jobs = []
+        for id in job_ids:
+            if (job := sacct_jobs_dict.get(id)) or (job := scontrol_jobs_dict.get(id)):
+                all_jobs.append(job)
+
+        return all_jobs
+
+    @classmethod
     def get_unfinished_batch_jobs(
         cls, user: str, server: str | None = None
     ) -> list[SlurmJob]:
@@ -180,7 +209,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         # server unused
         _ = server
 
-        # get all jobs, except pending which are not available from sacct
+        # get all jobs, except pending for which full information is not available using sacct
         command = f"sacct -u {user} --allocations --noheader --parsable2 --array --format={SACCT_FIELDS}"
         logger.debug(command)
 
@@ -625,7 +654,6 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
             QQError: If the command fails (non-zero return code) or if the output
                     cannot be parsed into valid job information.
         """
-        ...
         result = subprocess.run(
             ["bash"],
             input=command,
@@ -670,7 +698,6 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
             QQError: If the command fails (non-zero return code) or if the output
                     cannot be parsed into valid job information.
         """
-        ...
         result = subprocess.run(
             ["bash"],
             input=command,
@@ -687,22 +714,35 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
 
         ids = [line.strip() for line in result.stdout.split("\n") if line.strip()]
 
+        return Slurm._get_jobs_in_parallel(ids)
+
+    @classmethod
+    def _get_jobs_in_parallel(cls, job_ids: list[str]) -> list[SlurmJob]:
+        """
+        Constructs Slurm jobs in parallel.
+
+        Args:
+            job_ids (list[str]): A list of job IDs to collect.
+
+        Returns:
+            list[SlurmJob]: A list of SlurmJob objects.
+        """
+
         def get_job(job_id: str) -> SlurmJob:
             return SlurmJob(job_id)
 
         jobs: list[SlurmJob] = []
 
-        # use ThreadPoolExecutor to get information about jobs in parallel
         with ThreadPoolExecutor(
             max_workers=CFG.slurm_options.jobs_scontrol_nthreads
         ) as executor:
-            future_to_id = {executor.submit(get_job, job_id): job_id for job_id in ids}
+            future_to_id = {executor.submit(get_job, id): id for id in job_ids}
 
             for future in as_completed(future_to_id):
                 try:
                     jobs.append(future.result())
                 except Exception as e:
-                    job_id = future_to_id[future]
-                    raise QQError(f"Failed to load job {job_id}: {e}.") from e
+                    id = future_to_id[future]
+                    raise QQError(f"Failed to load job {id}: {e}.") from e
 
         return jobs

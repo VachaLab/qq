@@ -161,40 +161,37 @@ class Submitter:
         )
 
         # create job qq info file
-        informer = Informer(
-            Info(
-                batch_system=self._batch_system,
-                qq_version=qq_lib.__version__,
-                username=getpass.getuser(),
-                job_id=job_id,
-                job_name=self._job_name,
-                script_name=self._script_name,
-                queue=self._queue,
-                job_type=self._job_type,
-                input_machine=socket.getfqdn(remote or ""),
-                input_dir=self._input_dir,
-                job_state=NaiveState.QUEUED,
-                submission_time=datetime.now(),
-                stdout_file=str(Path(self._job_name).with_suffix(CFG.suffixes.stdout)),
-                stderr_file=str(Path(self._job_name).with_suffix(CFG.suffixes.stderr)),
-                resources=self._resources,
-                loop_info=self._loop_info,
-                excluded_files=self._exclude,
-                included_files=self._include,
-                depend=self._depend,
-                account=self._account,
-                transfer_mode=self._transfer_mode,
-                server=self._server,
-                interpreter=self._interpreter,
-                resubmit_from=self._resubmit_from,
-            )
-        )
-
         # we create the info file from the current machine no matter
         # whether we are submiting from the current machine or from the remote machine
         # the input directory should be available on both concerned machines,
         # so this should be okay
-        informer.to_file(self._info_file)
+        Info(
+            batch_system=self._batch_system,
+            qq_version=qq_lib.__version__,
+            username=getpass.getuser(),
+            job_id=job_id,
+            job_name=self._job_name,
+            script_name=self._script_name,
+            queue=self._queue,
+            job_type=self._job_type,
+            input_machine=socket.getfqdn(remote or ""),
+            input_dir=self._input_dir,
+            job_state=NaiveState.QUEUED,
+            submission_time=datetime.now(),
+            stdout_file=str(Path(self._job_name).with_suffix(CFG.suffixes.stdout)),
+            stderr_file=str(Path(self._job_name).with_suffix(CFG.suffixes.stderr)),
+            resources=self._resources,
+            loop_info=self._loop_info,
+            excluded_files=self._exclude,
+            included_files=self._include,
+            depend=self._depend,
+            account=self._account,
+            transfer_mode=self._transfer_mode,
+            server=self._server,
+            interpreter=self._interpreter,
+            resubmit_from=self._resubmit_from,
+        ).to_file(self._info_file)
+
         return job_id
 
     def continues_loop(self) -> bool:
@@ -275,6 +272,10 @@ class Submitter:
         """Get the batch system used for submiting."""
         return self._batch_system
 
+    def get_job_name(self) -> str:
+        """Get the name of the job."""
+        return self._job_name
+
     def get_queue(self) -> str:
         """Get the submission queue."""
         return self._queue
@@ -284,7 +285,7 @@ class Submitter:
         return self._account
 
     def get_script(self) -> Path:
-        """Get path to the submitted script."""
+        """Get absolute (logical) path to the submitted script."""
         return self._script
 
     def get_job_type(self) -> JobType:
@@ -299,15 +300,15 @@ class Submitter:
         """Get loop job information."""
         return self._loop_info
 
-    def get_exclude(self) -> list[Path] | None:
+    def get_exclude(self) -> list[Path]:
         """Get a list of excluded files."""
         return self._exclude
 
-    def get_include(self) -> list[Path] | None:
+    def get_include(self) -> list[Path]:
         """Get a list of included files."""
         return self._include
 
-    def get_depend(self) -> list[Depend] | None:
+    def get_depend(self) -> list[Depend]:
         """Get the list of dependencies."""
         return self._depend
 

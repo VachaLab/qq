@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from qq_lib.archive import Archiver
 from qq_lib.core.error import (
     QQError,
     QQJobMismatchError,
@@ -18,6 +19,7 @@ from qq_lib.core.error import (
 )
 from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
+from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.states import NaiveState
 from qq_lib.run.runner import CFG, Runner, log_fatal_error_and_exit
 
@@ -911,6 +913,7 @@ def test_runner_finalize_with_scratch_and_archiver(mock_logger_info):
 
     runner._delete_work_dir = MagicMock()
     runner._update_info_finished = MagicMock()
+    runner._archive_files_from_work_dir = MagicMock()
 
     with (
         patch("qq_lib.run.runner.Retryer") as retryer_mock,
@@ -921,7 +924,7 @@ def test_runner_finalize_with_scratch_and_archiver(mock_logger_info):
     ):
         runner.finalize()
 
-    runner._archiver.to_archive.assert_called_once_with(runner._work_dir)
+    runner._archive_files_from_work_dir.assert_called_once()
     retryer_mock.assert_called_once()
     runner._delete_work_dir.assert_called_once()
     runner._update_info_finished.assert_called_once()
@@ -948,10 +951,11 @@ def test_runner_finalize_with_scratch_and_archiver_at_failure(mock_logger_info):
 
     runner._delete_work_dir = MagicMock()
     runner._update_info_failed = MagicMock()
+    runner._archive_files_from_work_dir = MagicMock()
 
     runner.finalize()
 
-    runner._archiver.to_archive.assert_not_called()
+    runner._archive_files_from_work_dir.assert_not_called()
     runner._delete_work_dir.assert_not_called()
     runner._update_info_failed.assert_called_once()
 
@@ -976,6 +980,7 @@ def test_runner_finalize_with_scratch_and_without_archiver(mock_logger_info):
 
     runner._delete_work_dir = MagicMock()
     runner._update_info_finished = MagicMock()
+    runner._archive_files_from_work_dir = MagicMock()
 
     with (
         patch("qq_lib.run.runner.Retryer") as retryer_mock,
@@ -986,6 +991,7 @@ def test_runner_finalize_with_scratch_and_without_archiver(mock_logger_info):
     retryer_mock.assert_called_once()
     runner._delete_work_dir.assert_called_once()
     runner._update_info_finished.assert_called_once()
+    runner._archive_files_from_work_dir.assert_not_called()
     mock_logger_info.assert_any_call("Finalizing the execution.")
     mock_logger_info.assert_any_call("Job completed with an exit code of 0.")
 
@@ -1007,10 +1013,11 @@ def test_runner_finalize_without_scratch_and_with_archiver(mock_logger_info):
 
     runner._delete_work_dir = MagicMock()
     runner._update_info_finished = MagicMock()
+    runner._archive_files_from_work_dir = MagicMock()
 
     runner.finalize()
 
-    runner._archiver.to_archive.assert_called_once_with(runner._work_dir)
+    runner._archive_files_from_work_dir.assert_called_once()
     runner._delete_work_dir.assert_not_called()
     runner._update_info_finished.assert_called_once()
     mock_logger_info.assert_any_call("Finalizing the execution.")
@@ -1034,10 +1041,11 @@ def test_runner_finalize_without_scratch_and_with_archiver_at_failure(mock_logge
 
     runner._delete_work_dir = MagicMock()
     runner._update_info_failed = MagicMock()
+    runner._archive_files_from_work_dir = MagicMock()
 
     runner.finalize()
 
-    runner._archiver.to_archive.assert_not_called()
+    runner._archive_files_from_work_dir.assert_not_called()
     runner._delete_work_dir.assert_not_called()
     runner._update_info_failed.assert_called_once()
     mock_logger_info.assert_any_call("Finalizing the execution.")
@@ -1060,11 +1068,13 @@ def test_runner_finalize_without_scratch_and_without_archiver(mock_logger_info):
 
     runner._delete_work_dir = MagicMock()
     runner._update_info_finished = MagicMock()
+    runner._archive_files_from_work_dir = MagicMock()
 
     runner.finalize()
 
     runner._delete_work_dir.assert_not_called()
     runner._update_info_finished.assert_called_once()
+    runner._archive_files_from_work_dir.assert_not_called()
     mock_logger_info.assert_any_call("Finalizing the execution.")
     mock_logger_info.assert_any_call("Job completed with an exit code of 0.")
 
@@ -1086,6 +1096,7 @@ def test_runner_finalize_with_scratch_archiver_and_resubmit(mock_logger_info):
     runner._delete_work_dir = MagicMock()
     runner._update_info_finished = MagicMock()
     runner._resubmit = MagicMock()
+    runner._archive_files_from_work_dir = MagicMock()
 
     resubmitter_mock = MagicMock()
     resubmitter_mock.resubmit.return_value = "12345"
@@ -1096,7 +1107,7 @@ def test_runner_finalize_with_scratch_archiver_and_resubmit(mock_logger_info):
     ):
         runner.finalize()
 
-    runner._archiver.to_archive.assert_called_once_with(runner._work_dir)
+    runner._archive_files_from_work_dir.assert_called_once()
     retryer_mock.assert_called_once()
     runner._delete_work_dir.assert_called_once()
     runner._resubmit.assert_called_once()
@@ -1664,3 +1675,102 @@ def test_runner_copy_files_calls_sync_selected(tmp_path):
     )
 
     assert runner._batch_system.sync_selected.call_count == 2
+
+
+def _make_runner_with_archiver(
+    tmp_path: Path,
+    loop_info: LoopInfo,
+) -> tuple[Runner, MagicMock]:
+    runner = Runner.__new__(Runner)
+    archiver = MagicMock(spec=Archiver)
+    runner._archiver = archiver
+    runner._work_dir = tmp_path
+
+    informer = MagicMock()
+    informer.info.loop_info = loop_info
+    runner._informer = informer
+
+    return runner, archiver
+
+
+def test_archive_files_from_work_dir_calls_to_archive(tmp_path: Path):
+    loop_info = LoopInfo(
+        start=1,
+        end=10,
+        archive=tmp_path / "archive",
+        archive_format="job%04d",
+        current=1,
+    )
+    runner, archiver = _make_runner_with_archiver(tmp_path, loop_info)
+    archiver.get_files_matching_pattern.return_value = ["job0002"]
+
+    runner._archive_files_from_work_dir()
+
+    archiver.to_archive.assert_called_once_with(tmp_path)
+
+
+def test_archive_files_from_work_dir_creates_init_file_when_no_matching_files(
+    tmp_path: Path,
+):
+    loop_info = LoopInfo(
+        start=1,
+        end=10,
+        archive=tmp_path / "archive",
+        archive_format="job%04d",
+        current=3,
+    )
+    runner, archiver = _make_runner_with_archiver(tmp_path, loop_info)
+    archiver.get_files_matching_pattern.return_value = []
+
+    runner._archive_files_from_work_dir()
+
+    archiver.create_init_file.assert_called_once_with(4)
+
+
+def test_archive_files_from_work_dir_does_not_create_init_file_when_matching_files_exist(
+    tmp_path: Path,
+):
+    loop_info = LoopInfo(
+        start=1,
+        end=10,
+        archive=tmp_path / "archive",
+        archive_format="job%04d",
+        current=1,
+    )
+    runner, archiver = _make_runner_with_archiver(tmp_path, loop_info)
+    archiver.get_files_matching_pattern.return_value = ["job0002"]
+
+    runner._archive_files_from_work_dir()
+
+    archiver.create_init_file.assert_not_called()
+
+
+def test_archive_files_from_work_dir_raises_when_archiver_is_none(tmp_path: Path):
+    runner = Runner.__new__(Runner)
+    runner._archiver = None
+    loop_info = LoopInfo(
+        start=1,
+        end=10,
+        archive=tmp_path / "archive",
+        archive_format="job%04d",
+        current=1,
+    )
+    informer = MagicMock()
+    informer.info.loop_info = loop_info
+    runner._informer = informer
+    runner._work_dir = tmp_path
+
+    with pytest.raises(QQError, match="Archiver is undefined"):
+        runner._archive_files_from_work_dir()
+
+
+def test_archive_files_from_work_dir_raises_when_loop_info_is_none(tmp_path: Path):
+    runner = Runner.__new__(Runner)
+    runner._archiver = MagicMock(spec=Archiver)
+    runner._work_dir = tmp_path
+    informer = MagicMock()
+    informer.info.loop_info = None
+    runner._informer = informer
+
+    with pytest.raises(QQError, match="Loop info is undefined"):
+        runner._archive_files_from_work_dir()
