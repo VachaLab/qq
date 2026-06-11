@@ -5,7 +5,8 @@
 
 """
 Kill qq jobs in multiple directories.
-Version qq 0.11.0.
+THIS SCRIPT IS DEPRECATED. YOU CAN USE `qq kill -d <directories>` INSTEAD.
+Version qq 0.12.0.
 Requires `uv`: https://docs.astral.sh/uv
 """
 
@@ -16,7 +17,7 @@ Requires `uv`: https://docs.astral.sh/uv
 # ]
 #
 # [tool.uv.sources]
-# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.11.0" }
+# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.12.0" }
 # ///
 
 import argparse
