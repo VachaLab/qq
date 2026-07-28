@@ -15,7 +15,8 @@ from qq_lib.properties.states import RealState
 
 
 def test_clear_result_defaults_to_zero():
-    result = _ClearResult()
+    result = _ClearResult(detected=1)
+    assert result.detected == 1
     assert result.deleted == 0
     assert result.excluded == 0
 
@@ -179,7 +180,7 @@ def test_clearer_clear_logs_nothing_to_clear_when_all_directories_empty(tmp_path
         patch.object(
             Clearer,
             "_clear_directory",
-            return_value=_ClearResult(deleted=0, excluded=0),
+            return_value=_ClearResult(detected=0, deleted=0, excluded=0),
         ),
         patch("qq_lib.clear.clearer.logger.info") as mock_info,
     ):
@@ -196,7 +197,7 @@ def test_clearer_clear_logs_removed_count(tmp_path):
         patch.object(
             Clearer,
             "_clear_directory",
-            return_value=_ClearResult(deleted=3, excluded=0),
+            return_value=_ClearResult(detected=3, deleted=3, excluded=0),
         ),
         patch("qq_lib.clear.clearer.logger.info") as mock_info,
     ):
@@ -206,14 +207,48 @@ def test_clearer_clear_logs_removed_count(tmp_path):
     assert any("Removed 3 qq files" in msg for msg in messages)
 
 
-def test_clearer_clear_logs_excluded_count(tmp_path):
+def test_clearer_clear_logs_excluded_count_equal_to_detected(tmp_path):
     clearer = Clearer([tmp_path])
 
     with (
         patch.object(
             Clearer,
             "_clear_directory",
-            return_value=_ClearResult(deleted=0, excluded=2),
+            return_value=_ClearResult(detected=2, deleted=0, excluded=2),
+        ),
+        patch("qq_lib.clear.clearer.logger.info") as mock_info,
+    ):
+        clearer.clear()
+
+    messages = [c.args[0] for c in mock_info.call_args_list]
+    assert any("2 qq files could not be safely cleared" in msg for msg in messages)
+
+
+def test_clearer_clear_logs_excluded_count_lower_than_detected(tmp_path):
+    clearer = Clearer([tmp_path])
+
+    with (
+        patch.object(
+            Clearer,
+            "_clear_directory",
+            return_value=_ClearResult(detected=4, deleted=0, excluded=2),
+        ),
+        patch("qq_lib.clear.clearer.logger.info") as mock_info,
+    ):
+        clearer.clear()
+
+    messages = [c.args[0] for c in mock_info.call_args_list]
+    assert any("2 qq files could not be safely cleared" in msg for msg in messages)
+
+
+def test_clearer_clear_logs_excluded_count_higher_than_detected(tmp_path):
+    clearer = Clearer([tmp_path])
+
+    with (
+        patch.object(
+            Clearer,
+            "_clear_directory",
+            return_value=_ClearResult(detected=2, deleted=0, excluded=4),
         ),
         patch("qq_lib.clear.clearer.logger.info") as mock_info,
     ):
@@ -235,8 +270,8 @@ def test_clearer_clear_logs_combined_summary_across_directories(tmp_path):
             Clearer,
             "_clear_directory",
             side_effect=[
-                _ClearResult(deleted=2, excluded=1),
-                _ClearResult(deleted=1, excluded=2),
+                _ClearResult(detected=3, deleted=2, excluded=1),
+                _ClearResult(detected=3, deleted=1, excluded=2),
             ],
         ),
         patch("qq_lib.clear.clearer.logger.info") as mock_info,
@@ -248,6 +283,32 @@ def test_clearer_clear_logs_combined_summary_across_directories(tmp_path):
     assert any("3 qq files could not be safely cleared" in msg for msg in messages)
 
 
+def test_clearer_clear_logs_combined_summary_across_directories_excluded_larger_than_detected(
+    tmp_path,
+):
+    dir1 = tmp_path / "a"
+    dir2 = tmp_path / "b"
+    dir1.mkdir()
+    dir2.mkdir()
+    clearer = Clearer([dir1, dir2])
+
+    with (
+        patch.object(
+            Clearer,
+            "_clear_directory",
+            side_effect=[
+                _ClearResult(detected=1, deleted=0, excluded=4),
+                _ClearResult(detected=2, deleted=0, excluded=4),
+            ],
+        ),
+        patch("qq_lib.clear.clearer.logger.info") as mock_info,
+    ):
+        clearer.clear()
+
+    messages = [c.args[0] for c in mock_info.call_args_list]
+    assert any("3 qq files could not be safely cleared" in msg for msg in messages)
+
+
 def test_clearer_clear_calls_clear_directory_for_each_directory(tmp_path):
     dir1 = tmp_path / "a"
     dir2 = tmp_path / "b"
@@ -256,7 +317,7 @@ def test_clearer_clear_calls_clear_directory_for_each_directory(tmp_path):
     clearer = Clearer([dir1, dir2])
 
     with patch.object(
-        Clearer, "_clear_directory", return_value=_ClearResult()
+        Clearer, "_clear_directory", return_value=_ClearResult(detected=4)
     ) as mock_clear:
         clearer.clear()
 
@@ -269,7 +330,7 @@ def test_clearer_clear_passes_force_to_clear_directory(tmp_path):
     clearer = Clearer([tmp_path])
 
     with patch.object(
-        Clearer, "_clear_directory", return_value=_ClearResult()
+        Clearer, "_clear_directory", return_value=_ClearResult(detected=4)
     ) as mock_clear:
         clearer.clear(force=True)
 
@@ -283,7 +344,7 @@ def test_clearer_clear_singular_file_grammar(tmp_path):
         patch.object(
             Clearer,
             "_clear_directory",
-            return_value=_ClearResult(deleted=1, excluded=1),
+            return_value=_ClearResult(detected=2, deleted=1, excluded=1),
         ),
         patch("qq_lib.clear.clearer.logger.info") as mock_info,
     ):
@@ -292,6 +353,7 @@ def test_clearer_clear_singular_file_grammar(tmp_path):
     messages = [c.args[0] for c in mock_info.call_args_list]
     assert any("Removed 1 qq file." in msg for msg in messages)
     assert any("1 qq file could not" in msg for msg in messages)
+    assert any("to clear it forcibly" in msg for msg in messages)
 
 
 def test_clear_runs_successfully():

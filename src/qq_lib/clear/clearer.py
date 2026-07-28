@@ -22,6 +22,7 @@ logger = get_logger(__name__)
 class _ClearResult:
     """Accumulates results from clearing a single directory."""
 
+    detected: int
     deleted: int = 0
     excluded: int = 0
 
@@ -65,6 +66,7 @@ class Clearer:
             for directory in self._directories:
                 executor.submit(clear_single, directory)
 
+        total_detected = sum(r.detected for r in results)
         total_deleted = sum(r.deleted for r in results)
         total_excluded = sum(r.excluded for r in results)
 
@@ -77,10 +79,14 @@ class Clearer:
                 f"Removed {total_deleted} qq file{'s' if total_deleted > 1 else ''}."
             )
 
-        if total_excluded > 0:
+        if total_excluded > 0 and total_detected > 0:
+            actually_excluded = (
+                total_excluded if total_excluded <= total_detected else total_detected
+            )
+
             logger.info(
-                f"{total_excluded} qq file{'s' if total_excluded > 1 else ''} could not be safely cleared. "
-                f"Rerun as '{CFG.binary_name} clear --force' to clear them forcibly."
+                f"{actually_excluded} qq file{'s' if actually_excluded > 1 else ''} could not be safely cleared. "
+                f"Rerun as '{CFG.binary_name} clear --force' to clear {'them' if actually_excluded > 1 else 'it'} forcibly."
             )
 
     @staticmethod
@@ -98,7 +104,7 @@ class Clearer:
         files = Clearer._collect_runtime_files(directory)
         logger.debug(f"All qq runtime files in '{directory}': {files}.")
         if not files:
-            return _ClearResult()
+            return _ClearResult(detected=0)
 
         excluded = Clearer._collect_excluded_files(directory) if not force else set()
         logger.debug(f"Files excluded from clearing in '{directory}': {excluded}.")
@@ -109,7 +115,9 @@ class Clearer:
         if to_delete:
             Clearer._delete_files(to_delete)
 
-        return _ClearResult(deleted=len(to_delete), excluded=len(excluded))
+        return _ClearResult(
+            detected=len(files), deleted=len(to_delete), excluded=len(excluded)
+        )
 
     @staticmethod
     def _collect_runtime_files(directory: Path) -> set[Path]:

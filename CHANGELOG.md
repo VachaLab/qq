@@ -1,39 +1,54 @@
+## Version 0.12.1
+
+- Fixed a bug where `qq clear` would report incorrect number of files excluded from clearing.
+
 ## Version 0.12.0
+
 ### Job collections
+
 - **BREAKING CHANGE**: The `-s` option of `qq info` now corresponds to the `--server` option, not to the `--short` flag, for consistency with other commands. Use `--brief`/`-b` or the legacy long variant `--short` instead to get a brief summary of the job.
 - The `qq killall` command has been deprecated in favor of `qq kill --all`, which has very similar behavior. It can still be used but will be completely removed in a future version of qq.
 - `qq info`, `qq kill`, `qq sync`, `qq respawn`, `qq wipe`, and `qq go` can now accept one or more directories and operate on jobs within them. Job resolution is parallelized and therefore much faster than calling these commands individually. Some of these commands also accept the `--all` flag to operate on all unfinished jobs on the given batch server.
 - `qq submit` now supports submitting multiple scripts at once. Submission is parallelized and therefore much faster than submitting scripts one by one.
 - `qq clear` can now clear runtime files from multiple directories at once.
-- *For more information about job collections, read [the manual](https://vachalab.github.io/qq-manual/job_collections.html).*
+- _For more information about job collections, read [the manual](https://vachalab.github.io/qq-manual/job_collections.html)._
 
 ### Other changes
+
 - If a loop job does not create any archive files for the next cycle, `qq` creates an empty `.init` file fulfilling the loop job's requirements.
 - If a loop job-specific or continuous job-specific option is used either on the command line or inside the submitted script, a warning is printed to inform the user that the option will be ignored.
 
-***
+---
 
 ## Version 0.11
+
 ### qq respawn
+
 - Failed or killed jobs can now be easily "respawned" using `qq respawn`. When respawning a job, qq will remove the working directory of the failed job, clear all runtime files, and resubmit the job with the same parameters as before.
 
 ### Specifying multiple job IDs
+
 - `qq info`, `qq kill`, `qq sync`, `qq respawn`, `qq wipe`, and `qq go` now accept multiple job IDs as arguments.
 - All of these commands now also internally resolve the jobs in parallel, making them much faster when dealing with a large number of jobs.
 
 ### Clearing runtime files in a specified directory
+
 - `qq clear` now supports clearing runtime files in a directory other than the current one via the `-d`/`--dir` flag.
 
 ### Better support for non-bash interpreters
+
 - Interpreters now support additional command-line arguments.
 
 ### Resubmitting with fallback hosts
+
 - Resubmission of loop and continuous jobs now supports multiple fallback hosts. Previously, jobs were resubmitted from a single machine (the input machine or the working node, depending on the batch system). A list of hosts can now be specified via `--resubmit-from` or in the config file; they are tried in order until one succeeds, making resubmission more resilient to individual machine failures. See [the manual](https://vachalab.github.io/qq-manual/resubmit_hosts.html) for more information.
 
 ### Other changes
+
 - Updated the installation scripts to more clearly report issues that occurred during the install.
 
 ### Internal changes
+
 - qq now uses Python 3.13 for better generics support.
 - Fixed type errors in qq scripts.
 - Refactored BatchMeta.
@@ -44,22 +59,26 @@
 - Default archive directory and archive format are now configurable.
 - Changed the internal representation of the interpreter specified to execute the script.
 
-***
+---
 
 ## Version 0.10.1
+
 - The minimal width of the job status info panel was slightly increased to better accomodate long node names.
 - **Bug fix:** None is no longer displayed in the subtitle of the panel when using `qq nodes`.
 
 ## Version 0.10.0
 
 ### New features
+
 - Added support for submitting jobs to different batch servers on Metacentrum-family clusters. See [the manual](https://vachalab.github.io/qq-manual/servers.html) for more information.
 - Added support for specifying a custom interpreter when submitting a job (e.g. Python, Julia). See [the manual](https://vachalab.github.io/qq-manual/interpreters.html) for more information.
 
 ### Python API changes
+
 - **Breaking Python API change:** Renamed methods from camelCase to snake_case.
 
 ### Small changes and bug fixes
+
 - Paths are now resolved to absolute paths without following symlinks, ensuring compatibility across machines with different mount points (e.g. Robox and Sokar).
 - Improved hostname resolution to allow accessing worker nodes of the Sokar cluster from machines outside the `ncbr.muni.cz` domain.
 - Fixed log lines in `qqout` files being truncated.
@@ -68,52 +87,62 @@
 - qq no longer includes completed array tasks within uncompleted array jobs in the output of `qq jobs` and `qq stat`, unless the `-a`/`--all` option is used.
 - **Bug fix:** Fixed incorrect conversion of default walltime of Slurm partitions.
 
-***
+---
 
 ## Version 0.9.0
+
 - Added `continuous` jobs: a light-weight alternative to loop jobs. Continuous jobs automatically submit their continuation but do not track their cycle nor do they perform archival operations. See [the manual](https://vachalab.github.io/qq-manual/job_types/continuous_job.html) for more information.
 
-***
+---
 
 ## Version 0.8.0
+
 - Added the `--transfer-mode` and `--archive-mode` options, which allow automatically transferring (and archiving, respectively) files from the working directory for other jobs than those successfully finished. See [the manual](https://vachalab.github.io/qq-manual/transfer_modes.html) for more information.
 - As a consequence of the above change, the behavior of `qq go`, `qq sync`, and `qq wipe` has been slightly adjusted.
 - **Breaking change:** In `qq submit`, list options (e.g., `--include`, `--exclude`, `--depend`, `--props`) are now sourced exclusively from either the command line or the submitted script, if specified. Values from both sources are no longer merged. The previous behavior was inconsistent and could cause confusion and bugs, such as duplicated resources in loop jobs.
 - **Bug fix:** Fixed an issue where autocomplete for the script name in `qq submit` did not work if a previous option's value contained `=`.
 - **Bug fix:** Fixed parsing of `qq` directives in submitted scripts containing numeric values.
 
-***
+---
 
 ## Version 0.7.2
+
 - **Bug fix:** Updated installation scripts so that installation works even for nodes opening login shell.
 
 ## Version 0.7.1
+
 - **Bug fix:** Fixed script name autocomplete so it works after options and with `--option=value` syntax.
 - Updated installation scripts to use the updated link to the repository.
 
 ## Version 0.7.0
+
 - Added passive support for array jobs. In the output of `qq jobs` and `qq stat`, individual sub-jobs are displayed for all array jobs.
 - Added autocomplete for script name in `qq submit` and `qq shebang`.
 - Some rewordings.
 
-***
+---
 
 ## Version 0.6.2
+
 - The operation for obtaining the list of working nodes at job start is now retried potentially decreasing the number of failures on unstable systems (like Metacentrum).
 
 ## Version 0.6.1
+
 - `qq cd -h` now properly prints help.
 
 ## Version 0.6.0
 
 ### Support for per-node resources
+
 - Number of CPU cores, number of GPUs, the amount of memory and the amount of storage can be now requested per-node using the submission options `ncpus-per-node`, `ngpus-per-node`, `mem-per-node`, and `work-size-per-node`. Per-node properties override per-cpu properties (`mem-per-cpu`, `work-size-per-cpu`) but are overriden by "total" properties (`ncpus`, `ngpus`, `mem`, `work-size`).
 
 ### Changes in Gromacs run scripts
+
 - The scripts now by default try to allocate the maximum possible number of MPI ranks.
 - Numbers of MPI ranks are now specified per node (in `*_md` scripts) or per client (in `*_re` scripts).
 
 ### Bug fixes and minor improvements
+
 - The available types of working directories for the current environment are now shown in the output of `qq submit -h`.
 - Fixed a regression from v0.5: missing size property in `qq nodes` is now correctly intepreted as zero size.
 - When a job is killed, runtime files are copied to the input directory only after the executed process finishes.
@@ -121,13 +150,14 @@
 - Collection of Slurm jobs (which is complicated by Slurm's architecture) is now performed in parallel and is consequently much faster.
 
 ### Internal changes
+
 - `Wiper.delete` method has been renamed to `Wiper.wipe`.
 - `Killer.terminate` method has been renamed to `Killer.kill`.
 - `SubmitterFactory` no longer requires a list of supported parameters and instead loads it itself.
 - Added getter methods to `Submitter`.
 - `Submitter` no longer requires to provide the "command line". Command line is no longer written into qq info files.
 
-***
+---
 
 ## Version 0.5.1
 
@@ -136,26 +166,33 @@
 ## Version 0.5.0
 
 ### Support for LUMI
+
 - qq is now fully compatible with the **LUMI** supercomputer.
 
 ### Handling of failed and killed jobs
+
 - The `.err` and `.out` runtime files are now copied from the working directory to the input directory even when a job fails or is killed.
   This makes it easier to inspect what went wrong while keeping the input directory in a consistent state — all other files remain in the working directory.
 
 ### New command: `qq wipe`
+
 - Added the `qq wipe` command for safely deleting the working directories of failed or killed jobs.
 
 ### Slurm step information
+
 - `qq info` now displays the status of individual Slurm job steps when multiple steps exist and the information is available from the batch system.
 
 ### Updates to `qq nodes`
-- The *Comment* column is now hidden when no queues include a comment.
-- Added a new *Max Nodes* column showing the maximum number of nodes that can be requested in each queue. This column is hidden if no queue has a set maximal number of nodes.
+
+- The _Comment_ column is now hidden when no queues include a comment.
+- Added a new _Max Nodes_ column showing the maximum number of nodes that can be requested in each queue. This column is hidden if no queue has a set maximal number of nodes.
 
 ### New option: `--include` in `qq submit`
+
 - You can now use the `--include` option to specify additional files or directories outside the job's input directory. These will be copied into the working directory upon submission.
 
 ### Bug fixes and minor improvements
+
 - Added support for the `-h` flag as a shorthand for `--help`.
 - Added shell autocomplete for qq commands.
 - Fixed incorrect naming of loop jobs when the job script had a file extension.
@@ -169,26 +206,32 @@
 - `qq sync` now correctly synchronizes contents of selected directories when using the `-f` option.
 
 ### Internal changes
+
 - Most methods in `BatchJobInterface`, `BatchQueueInterface`, and `BatchNodeInterface` now have optional return values.
 
-***
+---
 
 ## Version 0.4.0
 
 ### Support for Slurm
+
 - qq can now be used on IT4Innovations clusters with the Slurm batch scheduler.
 - A new `qq submit` option, `--account`, has been added to allow submitting jobs on IT4I.
 
 ### qq shebang
+
 - Introduced a new command, `qq shebang`, which makes it easier to add the required `qq run` shebang line to your scripts.
 
 ### qq jobs/stat flag --extra
+
 - Added a flag `-e`/`--extra` for `qq jobs` and `qq stat`, which makes qq print additional information about each job. Currently, the input machine and input directory are printed (if available), but the list may be expanded in the future.
 
 ### More qq environment variables
+
 - The environment variables `QQ_NCPUS` (number of allocated CPU cores), `QQ_NGPUS` (number of allocated GPU cores), `QQ_NNODES` (number of allocated nodes), and `QQ_WALLTIME` (walltime in hours) are now exported to the job environment.
 
 ### Bug fixes and other small changes
+
 - When `scratch_shm` or `input_dir` is requested, both `work-size` and `work-size-per-cpu` properties are now properly removed from the list of resources and are no longer displayed in the output of `qq info`.
 - Fixed occasional SSH authentication failures by explicitly enabling GSSAPI authentication.
 - Fixed current cycle identification in loop jobs. Only a partial match in archived files is now required to consider them.
@@ -196,22 +239,25 @@
 - The number of queued jobs shown in the output of `qq queues` now always includes both queued and held jobs. The column title was changed to 'QH' to reflect this.
 
 ### Internal changes
+
 - Refactored the loading of the YAML Dumper and SafeLoader.
 - Removed the 'QQ' prefix from all custom class names (excluding errors).
 
-***
+---
 
 ## Version 0.3.0
 
 - Added support for manually disabling automatic resubmission in loop jobs by returning the value of the `QQ_NO_RESUBMIT` environment variable from within the job script.
 
-***
+---
 
 ## Version 0.2.1
 
 ### Bug fixes
+
 - Fixed a bug that prevented files from being rsynced when the user’s group differed between the computing node and the filesystem containing the input directory.
 
 ### Internal changes
+
 - Renamed PBSJobInfo to PBSJob.
 - Set up GitHub Actions to take care of releases.
