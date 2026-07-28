@@ -2183,7 +2183,7 @@ def test_pbs_get_unfinished_batch_jobs_calls_correct_command(mock_jobs):
     mock_call.assert_called_once_with(
         "qstat -fwtu alice",
         include_completed=False,
-        include_top_level_array=True,
+        include_top_level_array=False,
         ignore_exit_code=False,
     )
 
@@ -2197,7 +2197,7 @@ def test_pbs_get_unfinished_batch_jobs_appends_server(mock_jobs):
     mock_call.assert_called_once_with(
         "qstat -fwtu alice @server",
         include_completed=False,
-        include_top_level_array=True,
+        include_top_level_array=False,
         ignore_exit_code=False,
     )
 
@@ -2230,7 +2230,7 @@ def test_pbs_get_batch_jobs_calls_correct_command(mock_jobs):
     mock_call.assert_called_once_with(
         "qstat -fwxtu alice",
         include_completed=True,
-        include_top_level_array=True,
+        include_top_level_array=False,
         ignore_exit_code=False,
     )
 
@@ -2244,7 +2244,7 @@ def test_pbs_get_batch_jobs_appends_server(mock_jobs):
     mock_call.assert_called_once_with(
         "qstat -fwxtu alice @server",
         include_completed=True,
-        include_top_level_array=True,
+        include_top_level_array=False,
         ignore_exit_code=False,
     )
 
@@ -2277,7 +2277,7 @@ def test_pbs_get_all_unfinished_batch_jobs_calls_correct_command(mock_jobs):
     mock_call.assert_called_once_with(
         "qstat -fwt",
         include_completed=False,
-        include_top_level_array=True,
+        include_top_level_array=False,
         ignore_exit_code=False,
     )
 
@@ -2291,7 +2291,7 @@ def test_pbs_get_all_unfinished_batch_jobs_appends_server(mock_jobs):
     mock_call.assert_called_once_with(
         "qstat -fwt @server",
         include_completed=False,
-        include_top_level_array=True,
+        include_top_level_array=False,
         ignore_exit_code=False,
     )
 
@@ -2324,7 +2324,7 @@ def test_pbs_get_all_batch_jobs_calls_correct_command(mock_jobs):
     mock_call.assert_called_once_with(
         "qstat -fxwt",
         include_completed=True,
-        include_top_level_array=True,
+        include_top_level_array=False,
         ignore_exit_code=False,
     )
 
@@ -2338,7 +2338,7 @@ def test_pbs_get_all_batch_jobs_appends_server(mock_jobs):
     mock_call.assert_called_once_with(
         "qstat -fxwt @myserver",
         include_completed=True,
-        include_top_level_array=True,
+        include_top_level_array=False,
         ignore_exit_code=False,
     )
 

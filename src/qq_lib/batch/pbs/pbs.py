@@ -208,7 +208,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         return cls._get_batch_jobs_using_command(
             command,
             include_completed=False,
-            include_top_level_array=True,
+            include_top_level_array=False,
             ignore_exit_code=False,
         )
 
@@ -221,7 +221,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         return cls._get_batch_jobs_using_command(
             command,
             include_completed=True,
-            include_top_level_array=True,
+            include_top_level_array=False,
             ignore_exit_code=False,
         )
 
@@ -234,7 +234,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         return cls._get_batch_jobs_using_command(
             command,
             include_completed=False,
-            include_top_level_array=True,
+            include_top_level_array=False,
             ignore_exit_code=False,
         )
 
@@ -247,7 +247,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         return cls._get_batch_jobs_using_command(
             command,
             include_completed=True,
-            include_top_level_array=True,
+            include_top_level_array=False,
             ignore_exit_code=False,
         )
 

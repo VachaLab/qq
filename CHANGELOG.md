@@ -1,6 +1,7 @@
 ## Version 0.12.1
 
 - Fixed a bug where `qq clear` would report incorrect number of files excluded from clearing.
+- Fixed a regression where top-level array jobs were shown in the output of `qq jobs` and `qq stat`.
 
 ## Version 0.12.0
 

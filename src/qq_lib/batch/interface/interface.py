@@ -329,6 +329,8 @@ class BatchInterface[
 
         The jobs can be returned in arbitrary order.
 
+        Top level array jobs should not be included in the output.
+
         Args:
             user (str): Username for which to fetch uncompleted jobs.
             server (str | None): Optional name of the batch server to get jobs from.
@@ -347,6 +349,8 @@ class BatchInterface[
         on the specified or default batch server.
 
         The jobs can be returned in arbitrary order.
+
+        Top level array jobs should not be included in the output.
 
         Args:
             user (str): Username for which to fetch all jobs.
@@ -368,6 +372,8 @@ class BatchInterface[
 
         The jobs can be returned in arbitrary order.
 
+        Top level array jobs should not be included in the output.
+
         Args:
             server (str | None): Optional name of the batch server to get jobs from.
 
@@ -384,6 +390,8 @@ class BatchInterface[
         Retrieve information about all jobs of all users on the specified or default batch server.
 
         The jobs can be returned in arbitrary order.
+
+        Top level array jobs should not be included in the output.
 
         Args:
             server (str | None): Optional name of the batch server to get jobs from.
