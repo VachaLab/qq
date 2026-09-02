@@ -1,72 +1,89 @@
 name: Build and Release
-
 on:
   release:
     types: [created]
-
 permissions:
   contents: write
-
+env:
+  MAX_GLIBC: "2.28"
 jobs:
-  build-and-upload:
-    runs-on: [self-hosted, Linux, X64]
-
+  build:
+    runs-on: ubuntu-latest
+    container: quay.io/pypa/manylinux_2_28_x86_64
     steps:
-      - name: Clean workspace
-        run: |
-          rm -rf "$GITHUB_WORKSPACE/.git"
-
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ github.event.release.tag_name }}
-
       - name: Fix git ownership
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: false
-
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Install dependencies and pyinstaller
         run: |
+          uv python install 3.13
           uv sync --all-groups
-
       - name: Get version from tag
         id: version
         run: |
           TAG="${{ github.event.release.tag_name }}"
           VERSION="${TAG#v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
       - name: Build with PyInstaller
         run: |
           uv run pyinstaller qq.spec
-
+      - name: Verify glibc requirements
+        run: |
+          found=$(find dist/qq -type f \( -name '*.so*' -o -perm -u+x \) -print0 |
+            xargs -0 -r objdump -T 2>/dev/null |
+            awk '$1 == "*UND*"' |
+            grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -uV | tail -1)
+          echo "highest glibc requirement: ${found:-none}"
+          highest=$(printf '%s\n%s\n' "$found" "$MAX_GLIBC" | sort -V | tail -1)
+          if [ "$highest" != "$MAX_GLIBC" ]; then
+            echo "bundle requires glibc $found, above the $MAX_GLIBC floor" >&2
+            exit 1
+          fi
       - name: Add VERSION file to package directory
         run: |
           echo "${{ steps.version.outputs.version }}" > dist/qq/VERSION
-
       - name: Update version in installation scripts
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           for script in scripts/installation_scripts/*; do
             sed -i "s/__VERSION__/$VERSION/g" "$script"
           done
-
       - name: Create tarball
         run: |
           cd dist
           tar -czf ../qq-release.tar.gz qq/
           cd ..
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets
+          path: |
+            qq-release.tar.gz
+            scripts/installation_scripts/*
+          if-no-files-found: error
 
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: assets
       - name: Upload release assets
         run: |
-          # upload the package
-          gh release upload ${{ github.event.release.tag_name }} qq-release.tar.gz
-
-          # upload installation scripts
-          gh release upload ${{ github.event.release.tag_name }} scripts/installation_scripts/*
+          gh release upload ${{ github.event.release.tag_name }} \
+            assets/qq-release.tar.gz
+          gh release upload ${{ github.event.release.tag_name }} \
+            assets/scripts/installation_scripts/*
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
