@@ -725,6 +725,7 @@ def test_nodes_presenter_format_properties_section_returns_expected_text():
         (8, 8, 1, 1, True, CFG.nodes_presenter.free_node_style),
         (4, 8, 0, 1, True, CFG.nodes_presenter.part_free_node_style),
         (0, 8, 0, 1, True, CFG.nodes_presenter.busy_node_style),
+        (0, 8, 2, 2, True, CFG.nodes_presenter.busy_node_style),
     ],
 )
 def test_nodes_presenter_format_state_mark_returns_correct_style(

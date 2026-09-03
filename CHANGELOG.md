@@ -6,6 +6,12 @@
 
 - Fixed build for IT4Innovation's Karolina.
 
+## Version 0.13.0
+
+- Number of free GPUs is no longer relevant for determining node state in `qq nodes`. Nodes with exhausted CPUs will always be marked as busy even if they have free GPUs.
+
+---
+
 ## Version 0.12.1
 
 - Fixed a bug where `qq clear` would report incorrect number of files excluded from clearing.
