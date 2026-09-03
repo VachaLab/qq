@@ -63,7 +63,7 @@ class Syncer(Navigator):
             )
 
         # hint for type checker
-        # work_dir and main_node must be set - we check that in self.hasDestination
+        # work_dir and main_node must be set - we check that in self.has_destination
         assert self._work_dir and self._main_node
 
         if files:
