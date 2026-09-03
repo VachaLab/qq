@@ -9,6 +9,7 @@
 ## Version 0.13.0
 
 - Number of free GPUs is no longer relevant for determining node state in `qq nodes`. Nodes with exhausted CPUs will always be marked as busy even if they have free GPUs.
+- Clarified in `qq submit -h` that files and directories that the job creates in the working directory **are** copied back to the input directory **even if they are excluded** from being copied to the working directory.
 
 ---
 

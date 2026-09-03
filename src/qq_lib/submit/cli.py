@@ -124,6 +124,7 @@ Command-line options apply to all submitted scripts, but each script's own qq di
     help=(
         f"Colon-, comma-, or space-separated list of files or directories that should {click.style('not', bold=True)} be copied to the working directory.\n"
         "Paths to files and directories to exclude must be relative to the input directory.\n"
+        f"Excluded files and directories that the job creates in the working directory {click.style('will', bold=True)} be copied back to the input directory.\n"
     ),
 )
 @optgroup.option(
