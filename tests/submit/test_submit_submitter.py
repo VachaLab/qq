@@ -317,7 +317,7 @@ def test_submitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mode
         current = 1
         start = 0
         end = 5
-        archive_format = "zip"
+        archive_format = "job%02d"
 
     submitter = Submitter.__new__(Submitter)
     submitter._info_file = tmp_path / "job.qqinfo"
@@ -340,10 +340,13 @@ def test_submitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mode
     assert env[CFG.env_vars.input_dir] == str(submitter._input_dir)
 
     assert env[CFG.env_vars.loop_current] == str(DummyLoop.current)
+    assert env[CFG.env_vars.loop_next] == str(DummyLoop.current + 1)
     assert env[CFG.env_vars.loop_start] == str(DummyLoop.start)
     assert env[CFG.env_vars.loop_end] == str(DummyLoop.end)
     assert env[CFG.env_vars.archive_format] == DummyLoop.archive_format
     assert env[CFG.env_vars.no_resubmit] == str(CFG.exit_codes.qq_run_no_resubmit)
+    assert env[CFG.env_vars.archive_current] == "job01"
+    assert env[CFG.env_vars.archive_next] == "job02"
     if debug_mode:
         assert env[CFG.env_vars.debug_mode] == "true"
     else:
@@ -719,3 +722,18 @@ def test_submitter_submit(tmp_path):
     )
     mock_info_instance.to_file.assert_called_once_with(submitter._info_file)
     assert result == "jobid123"
+
+
+@pytest.mark.parametrize(
+    "input_pattern, cycle, expected",
+    [
+        ("job%04d", 1, "job0001"),
+        ("md%03d", 643, "md643"),
+        ("job%2d", 5, "job 5"),
+        ("^abc\\d+$", 7, ""),
+        ("file\\d{3}", 123, ""),
+    ],
+)
+def test_submitter_make_pattern(input_pattern, cycle, expected):
+    result = Submitter._make_pattern(input_pattern, cycle)
+    assert result == expected

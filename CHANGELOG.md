@@ -8,6 +8,14 @@
 
 ## Version 0.13.0
 
+### New environment variables for loop jobs
+
+- Loop jobs now expose three additional environment variables:
+    - `QQ_LOOP_NEXT` which specifies the index of the next loop cycle.
+    - `QQ_ARCHIVE_CURRENT` and `QQ_ARCHIVE_NEXT` which specify strings expected in files archived by qq for the current and the next loop cycles, respectively. If the archive format is not a printf pattern, the values of these variables are empty strings.
+
+### Other changes
+
 - Number of free GPUs is no longer relevant for determining node state in `qq nodes`. Nodes with exhausted CPUs will always be marked as busy even if they have free GPUs.
 - Clarified in `qq submit -h` that files and directories that the job creates in the working directory **are** copied back to the input directory **even if they are excluded** from being copied to the working directory.
 

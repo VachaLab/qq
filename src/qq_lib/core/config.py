@@ -58,10 +58,16 @@ class EnvironmentVariables:
     batch_system: str = "QQ_BATCH_SYSTEM"
     # Current loop-cycle index.
     loop_current: str = "QQ_LOOP_CURRENT"
+    # Loop-cycle index for the next cycle.
+    loop_next: str = "QQ_LOOP_NEXT"
     # Starting loop-cycle index.
     loop_start: str = "QQ_LOOP_START"
     # Final loop-cycle index.
     loop_end: str = "QQ_LOOP_END"
+    # Archive pattern used for the current cycle.
+    archive_current: str = "QQ_ARCHIVE_CURRENT"
+    # Archive pattern used for the next cycle.
+    archive_next: str = "QQ_ARCHIVE_NEXT"
     # Non-resubmit flag returned by a job script.
     no_resubmit: str = "QQ_NO_RESUBMIT"
     # Archive filename pattern.

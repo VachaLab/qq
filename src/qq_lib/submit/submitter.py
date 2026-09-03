@@ -14,6 +14,7 @@ from qq_lib.core.common import (
     construct_loop_job_name,
     get_info_file,
     hhmmss_to_duration,
+    is_printf_pattern,
 )
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -381,15 +382,41 @@ class Submitter:
         # loop job-specific environment variables
         if self._loop_info:
             env_vars[CFG.env_vars.loop_current] = str(self._loop_info.current)
+            env_vars[CFG.env_vars.loop_next] = str(self._loop_info.current + 1)
             env_vars[CFG.env_vars.loop_start] = str(self._loop_info.start)
             env_vars[CFG.env_vars.loop_end] = str(self._loop_info.end)
             env_vars[CFG.env_vars.archive_format] = self._loop_info.archive_format
+            env_vars[CFG.env_vars.archive_current] = self._make_pattern(
+                self._loop_info.archive_format, self._loop_info.current
+            )
+            env_vars[CFG.env_vars.archive_next] = self._make_pattern(
+                self._loop_info.archive_format, self._loop_info.current + 1
+            )
 
         # loop job- or continuous job-specific environment variables
         if self._job_type in [JobType.LOOP, JobType.CONTINUOUS]:
             env_vars[CFG.env_vars.no_resubmit] = str(CFG.exit_codes.qq_run_no_resubmit)
 
         return env_vars
+
+    @staticmethod
+    def _make_pattern(archive_format: str, cycle: int) -> str:
+        """
+        Create a pattern for archived files in the specified cycle.
+
+        If the archive_format is not a printf pattern, returns an empty string.
+
+        Args:
+            archive_format (str): The provided archive format.
+            cycle (int): Cycle number to use.
+
+        Returns:
+            str: The pattern or an empty string if the archive format is not a printf pattern.
+        """
+        if is_printf_pattern(archive_format):
+            return archive_format % cycle
+
+        return ""
 
     def _has_valid_shebang(self, script: Path) -> bool:
         """
