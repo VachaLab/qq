@@ -21,6 +21,10 @@
 
 ---
 
+## Version 0.12.2
+
+- Fixed build for IT4Innovation's Karolina.
+
 ## Version 0.12.1
 
 - Fixed a bug where `qq clear` would report incorrect number of files excluded from clearing.
