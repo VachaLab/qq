@@ -51,7 +51,8 @@ def killall(
 ) -> NoReturn:
     try:
         logger.warning(
-            "This command is deprecated! It will be removed in a future version of qq. Use `qq kill --all` instead."
+            "This command is deprecated! It will be removed in qq v0.14. Use `qq kill --all` instead.",
+            extra={"markup": False, "highlighter": None},
         )
         BatchSystem = BatchInterface.from_env_var_or_guess()
 
@@ -91,7 +92,8 @@ def killall(
             logger.info("Operation aborted.")
 
         logger.warning(
-            "This command is deprecated! It will be removed in a future version of qq. Use `qq kill --all` instead."
+            "This command is deprecated! It will be removed in qq v0.14. Use `qq kill --all` instead.",
+            extra={"markup": False, "highlighter": None},
         )
         sys.exit(0)
     except QQError as e:
