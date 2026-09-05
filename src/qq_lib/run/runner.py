@@ -742,6 +742,9 @@ class Runner:
             self._archiver.create_init_file(loop_info.current + 1)
 
         # archive all files matching the archive format
+        # note that if the .init file created in the previous block of code
+        # is in a list of ignored files, it will not be included in the archive
+        # thus, its creation is pointless
         self._archiver.to_archive(self._work_dir)
 
     def _copy_files(self, files: list[Path]):
