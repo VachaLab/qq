@@ -117,17 +117,17 @@ def test_submitter_factory_get_transfer_mode_from_parser():
 
 def test_submitter_factory_get_exclude_from_command_line():
     mock_parser = MagicMock()
-    parser_excludes = [Path("/tmp/file1"), Path("/tmp/file2")]
+    parser_excludes = ["/tmp/file1", "/tmp/file2"]
     mock_parser.get_exclude.return_value = parser_excludes
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {"exclude": "/tmp/file3,/tmp/file4"}
 
-    cli_excludes = [Path("/tmp/file3"), Path("/tmp/file4")]
+    cli_excludes = ["/tmp/file3", "/tmp/file4"]
 
     with patch(
-        "qq_lib.submit.factory.split_files_list", return_value=cli_excludes
+        "qq_lib.submit.factory.split_string_list", return_value=cli_excludes
     ) as mock_split:
         result = factory._get_exclude()
 
@@ -137,7 +137,7 @@ def test_submitter_factory_get_exclude_from_command_line():
 
 def test_submitter_factory_get_exclude_from_parser():
     mock_parser = MagicMock()
-    parser_excludes = [Path("/tmp/file1"), Path("/tmp/file2")]
+    parser_excludes = ["/tmp/file1", "/tmp/file2"]
     mock_parser.get_exclude.return_value = parser_excludes
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
@@ -150,17 +150,17 @@ def test_submitter_factory_get_exclude_from_parser():
 
 def test_submitter_factory_get_include_from_command_line():
     mock_parser = MagicMock()
-    parser_includes = [Path("/tmp/file1"), Path("/tmp/file2")]
+    parser_includes = ["/tmp/file1", "/tmp/file2"]
     mock_parser.get_include.return_value = parser_includes
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {"include": "/tmp/file3,/tmp/file4"}
 
-    cli_includes = [Path("/tmp/file3"), Path("/tmp/file4")]
+    cli_includes = ["/tmp/file3", "/tmp/file4"]
 
     with patch(
-        "qq_lib.submit.factory.split_files_list", return_value=cli_includes
+        "qq_lib.submit.factory.split_string_list", return_value=cli_includes
     ) as mock_split:
         result = factory._get_include()
 
@@ -170,7 +170,7 @@ def test_submitter_factory_get_include_from_command_line():
 
 def test_submitter_factory_get_include_from_parser():
     mock_parser = MagicMock()
-    parser_includes = [Path("/tmp/file1"), Path("/tmp/file2")]
+    parser_includes = ["/tmp/file1", "/tmp/file2"]
     mock_parser.get_include.return_value = parser_includes
 
     factory = SubmitterFactory.__new__(SubmitterFactory)

@@ -94,8 +94,8 @@ class Respawner(Operator):
             job_type=informer.info.job_type,
             resources=informer.info.resources,
             loop_info=loop_info,
-            exclude=informer.info.excluded_files,
-            include=informer.info.included_files,
+            exclude=[str(x) for x in informer.info.excluded_files],
+            include=[str(x) for x in informer.info.included_files],
             # we need to remove dependencies that are no longer present in the batch system
             depend=filter_dependencies(informer.batch_system, informer.info.depend),
             transfer_mode=informer.info.transfer_mode,

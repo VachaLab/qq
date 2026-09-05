@@ -9,9 +9,11 @@ YAML I/O, string normalization, user prompts, path manipulation, and job-name co
 """
 
 import re
+from collections.abc import Iterable
 from datetime import timedelta
 from functools import lru_cache
 from pathlib import Path
+from typing import Final
 
 import readchar
 import yaml
@@ -26,6 +28,9 @@ from .error import QQError
 from .logger import get_logger
 
 logger = get_logger(__name__)
+
+
+_GLOB_MAGIC: Final[tuple[str, ...]] = ("*", "?", "[")
 
 
 @lru_cache(maxsize=1)
@@ -605,25 +610,25 @@ def is_printf_pattern(pattern: str) -> bool:
     return bool(re.search(r"%0?\d*d", pattern))
 
 
-def split_files_list(string: str | None) -> list[Path]:
+def split_string_list(string: str | None) -> list[str]:
     """
-    Split a string containing multiple file paths into a list of relative Path objects.
+    Split a string containing multiple substrings into a list of strings.
 
-    The string can contain file paths separated by colons (:), commas (,), or
+    The string can contain substrings separated by colons (:), commas (,), or
     any whitespace characters (space, tab, newline).
 
     Args:
-        string (str | None): The string containing file paths. If None or empty,
+        string (str | None): The string containing substrings. If None or empty,
                              an empty list is returned.
 
     Returns:
-        list[Path]: A list of Path objects corresponding to the individual
-                    relative file paths in the input string.
+        list[str]: A list of strings corresponding to the individual
+                    substrings in the input string.
     """
     if not string:
         return []
 
-    return [Path(f) for f in re.split(r"[:,\s]+", string)]
+    return list(re.split(r"[:,\s]+", string))
 
 
 def to_snake_case(s: str) -> str:
@@ -766,3 +771,58 @@ def default_resubmit_from_hosts() -> str:
     # if no batch system is available
     except QQError:
         return "??? (no batch system detected)"
+
+
+def expand_paths(patterns: Iterable[str], directory: Path) -> list[Path]:
+    """
+    Convert paths to absolute paths, expanding glob patterns along the way.
+
+    Args:
+        patterns (Iterable[str]): Paths or glob patterns, relative or absolute.
+        directory (Path): Directory to resolve relative patterns against.
+
+    Returns:
+        list[Path]: Absolute paths, with glob patterns expanded.
+
+    Raises:
+        QQError: If a pattern cannot be expanded.
+    """
+    expanded: list[Path] = []
+    for pattern in patterns:
+        expanded.extend(expand_pattern(pattern, directory))
+
+    return list(dict.fromkeys(expanded))
+
+
+def expand_pattern(pattern: str, directory: Path) -> list[Path]:
+    """
+    Expand a single path or glob pattern into absolute paths.
+
+    Args:
+        pattern (str): Path or glob pattern, relative or absolute.
+        directory (Path): Directory to resolve a relative pattern against.
+
+    Returns:
+        list[Path]: Absolute paths matching the pattern, sorted. A pattern
+        without glob metacharacters yields exactly one path.
+
+    Raises:
+        QQError: If the pattern is not a valid glob pattern or the file system
+        could not be searched.
+    """
+    path = Path(pattern)
+
+    if not any(char in pattern for char in _GLOB_MAGIC):
+        return [path if path.is_absolute() else directory / path]
+
+    if path.is_absolute():
+        anchor = Path(path.anchor)
+        relative = path.relative_to(path.anchor)
+    else:
+        anchor = directory
+        relative = path
+
+    try:
+        return sorted(anchor.glob(str(relative)))
+    except Exception as e:
+        raise QQError(f"Could not expand pattern '{pattern}': {e}.") from e

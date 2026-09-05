@@ -5,7 +5,7 @@ from dataclasses import fields
 from pathlib import Path
 
 from qq_lib.batch.interface import AnyBatchClass, BatchInterface
-from qq_lib.core.common import split_files_list, translate_server
+from qq_lib.core.common import split_string_list, translate_server
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -233,7 +233,7 @@ class SubmitterFactory:
                 f"Option 'resubmit_from' is specified but job type is '{str(job_type)}', not 'loop' or 'continuous' - 'resubmit_from' will be ignored."
             )
 
-    def _get_exclude(self) -> list[Path]:
+    def _get_exclude(self) -> list[str]:
         """
         Determine the files to exclude from being copied to the job's working directory.
 
@@ -244,13 +244,13 @@ class SubmitterFactory:
         The lists are NOT merged.
 
         Returns:
-            list[Path]: List of relative file paths to exclude.
+            list[str]: List of files or glob patterns to exclude.
         """
         return (
-            split_files_list(self._kwargs.get("exclude")) or self._parser.get_exclude()
+            split_string_list(self._kwargs.get("exclude")) or self._parser.get_exclude()
         )
 
-    def _get_include(self) -> list[Path]:
+    def _get_include(self) -> list[str]:
         """
         Determine the files to explicitly copy to the job's working directory.
 
@@ -261,10 +261,10 @@ class SubmitterFactory:
         The lists are NOT merged.
 
         Returns:
-            list[Path]: List of file paths to include.
+            list[str]: List of files or glob patterns to include.
         """
         return (
-            split_files_list(self._kwargs.get("include")) or self._parser.get_include()
+            split_string_list(self._kwargs.get("include")) or self._parser.get_include()
         )
 
     def _get_depend(self) -> list[Depend]:

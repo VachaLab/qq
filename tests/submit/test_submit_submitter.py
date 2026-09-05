@@ -10,7 +10,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.batch.pbs.pbs import PBS
+from qq_lib.batch.slurm import Slurm
 from qq_lib.core.error import QQError
 from qq_lib.info.informer import Informer
 from qq_lib.properties.depend import Depend, DependType
@@ -39,8 +41,8 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
             script=script,
             job_type=JobType.STANDARD,
             resources=Resources(),
-            exclude=[Path("exclude")],
-            include=[Path("include"), Path("/tmp/include")],
+            exclude=["exclude", "/tmp/exclude"],
+            include=["include", "/tmp/include"],
             transfer_mode=[Always()],
             server="pbs-m1.metacentrum.cz",
             interpreter=Interpreter(executable="bash"),
@@ -57,7 +59,7 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
         assert submitter._job_name == "job1"
         assert submitter._info_file == tmp_path / f"job1{CFG.suffixes.qq_info}"
         assert submitter._resources == Resources()
-        assert submitter._exclude == [tmp_path / "exclude"]
+        assert submitter._exclude == [tmp_path / "exclude", Path("/tmp/exclude")]
         assert submitter._include == [tmp_path / "include", Path("/tmp/include")]
         assert submitter._depend == []
         assert isinstance(submitter._transfer_mode[0], Always)
@@ -104,7 +106,7 @@ def test_submitter_init_sets_all_optional_arguments_correctly(tmp_path):
     script.write_text("#!/usr/bin/env -S qq run\n")
 
     loop_info = LoopInfo(1, 5, Path("storage"), "job%04d")
-    exclude_files = [tmp_path / "file1.txt", tmp_path / "file2.txt"]
+    exclude_files = [str(tmp_path / "file1.txt"), str(tmp_path / "file2.txt")]
     depend_jobs = [
         Depend(DependType.AFTER_SUCCESS, ["12345"]),
         Depend(DependType.AFTER_START, ["23456"]),
@@ -139,7 +141,7 @@ def test_submitter_init_sets_all_optional_arguments_correctly(tmp_path):
         assert submitter._job_name == "job"
         assert submitter._info_file == tmp_path / f"job{CFG.suffixes.qq_info}"
         assert submitter._resources == Resources()
-        assert submitter._exclude == exclude_files
+        assert submitter._exclude == [Path(x) for x in exclude_files]
         assert submitter._depend == depend_jobs
         assert submitter._server == "fake.server.com"
         assert submitter._resubmit_from == [WorkHost(), ExplicitHost("node01")]
@@ -737,3 +739,52 @@ def test_submitter_submit(tmp_path):
 def test_submitter_make_pattern(input_pattern, cycle, expected):
     result = Submitter._make_pattern(input_pattern, cycle)
     assert result == expected
+
+
+@pytest.mark.parametrize("batch_system", [PBS, Slurm])
+def test_submitter_expands_glob_patterns_in_exclude_and_include(
+    tmp_path: Path, batch_system: AnyBatchClass
+) -> None:
+    input_dir = tmp_path / "job"
+    input_dir.mkdir()
+
+    script = input_dir / "run.sh"
+    script.write_text(f"#!/usr/bin/env -S {CFG.binary_name} run\n")
+
+    (input_dir / "topology.pdb").touch()
+    (input_dir / "start.gro").touch()
+    (input_dir / "old.log").touch()
+    (input_dir / "run.log").touch()
+    (input_dir / "notes.md").touch()
+    (input_dir / "sub").mkdir()
+    (input_dir / "sub" / "nested.log").touch()
+
+    shared = tmp_path / "shared"
+    shared.mkdir()
+    (shared / "params.itp").touch()
+    (shared / "forcefield.itp").touch()
+    (shared / "readme.md").touch()
+
+    submitter = Submitter(
+        batch_system=batch_system,
+        queue="default",
+        account=None,
+        script=script,
+        job_type=JobType.STANDARD,
+        resources=Resources(ncpus=1, mem="1gb", walltime="1:00:00"),
+        exclude=["*.log", "notes.md", "missing.dat"],
+        include=[str(shared / "*.itp"), "sub/nested.log"],
+    )
+
+    assert submitter._exclude == [
+        input_dir / "old.log",
+        input_dir / "run.log",
+        input_dir / "notes.md",
+        input_dir / "missing.dat",
+    ]
+
+    assert submitter._include == [
+        shared / "forcefield.itp",
+        shared / "params.itp",
+        input_dir / "sub" / "nested.log",
+    ]

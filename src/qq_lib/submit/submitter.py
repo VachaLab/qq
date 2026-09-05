@@ -12,6 +12,7 @@ from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.core.common import (
     construct_info_file_path,
     construct_loop_job_name,
+    expand_paths,
     get_info_file,
     hhmmss_to_duration,
     is_printf_pattern,
@@ -57,8 +58,8 @@ class Submitter:
         job_type: JobType,
         resources: Resources,
         loop_info: LoopInfo | None = None,
-        exclude: list[Path] | None = None,
-        include: list[Path] | None = None,
+        exclude: list[str] | None = None,
+        include: list[str] | None = None,
         depend: list[Depend] | None = None,
         transfer_mode: list[TransferMode] | None = None,
         server: str | None = None,
@@ -77,9 +78,9 @@ class Submitter:
             job_type (JobType): Type of the job to submit (e.g. standard, loop).
             resources (Resources): Job resource requirements (e.g., CPUs, memory, walltime).
             loop_info (LoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
-            exclude (list[Path] | None): Optional list of files which should not be copied to the working directory.
-                Paths are provided relative to the input directory.
-            include (list[Path] | None): Optional list of files which should be copied to the working directory
+            exclude (list[str] | None): Optional list of files or glob patterns which should not be copied to the working directory.
+                Paths are provided relative to the input directory or absolute.
+            include (list[str] | None): Optional list of files or glob patterns which should be copied to the working directory
                 even though they are not part of the job's input directory.
                 Paths are provided either absolute or relative to the input directory.
             depend (list[Depend] | None): Optional list of job dependencies.
@@ -108,11 +109,8 @@ class Submitter:
         self._job_name = self._construct_job_name()
         self._info_file = construct_info_file_path(self._input_dir, self._job_name)
         self._resources = resources
-        # convert relative paths to absolute paths by prepending the input dir path
-        self._exclude = [self._input_dir / e for e in (exclude or [])]
-        self._include = [
-            i if i.is_absolute() else self._input_dir / i for i in (include or [])
-        ]
+        self._exclude = expand_paths(exclude or [], self._input_dir)
+        self._include = expand_paths(include or [], self._input_dir)
         self._depend = depend or []
         self._transfer_mode = transfer_mode or TransferMode.multi_from_str(
             CFG.transfer_files_options.default_transfer_mode

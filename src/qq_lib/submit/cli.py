@@ -123,7 +123,8 @@ Command-line options apply to all submitted scripts, but each script's own qq di
     default=None,
     help=(
         f"Colon-, comma-, or space-separated list of files or directories that should {click.style('not', bold=True)} be copied to the working directory.\n"
-        "Paths to files and directories to exclude must be relative to the input directory.\n"
+        "Paths to files and directories to exclude must be absolute or relative to the input directory.\n"
+        "You can use glob patterns to match multiple files or directories.\n"
         f"Excluded files and directories that the job creates in the working directory {click.style('will', bold=True)} be copied back to the input directory.\n"
     ),
 )
@@ -135,8 +136,9 @@ Command-line options apply to all submitted scripts, but each script's own qq di
         f"Colon-, comma-, or space-separated list of files or directories to copy into the working directory "
         f"in addition to the input directory contents.\n"
         f"These files are {click.style('not', bold=True)} copied back after job completion. "
-        f"Paths must be absolute or relative to the input directory. "
-        f"Ignored if the input directory is used as the working directory.\n"
+        f"Paths must be absolute or relative to the input directory.\n"
+        "You can use glob patterns to match multiple files or directories.\n"
+        f"This option is ignored if the input directory is used as the working directory.\n"
     ),
 )
 @optgroup.option(

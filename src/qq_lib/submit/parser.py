@@ -9,7 +9,7 @@ from click import Parameter
 from click_option_group import GroupedOption
 
 from qq_lib.batch.interface import BatchInterface
-from qq_lib.core.common import split_files_list, to_snake_case
+from qq_lib.core.common import split_string_list, to_snake_case
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.depend import Depend
@@ -158,27 +158,28 @@ class Parser:
         # only select fields that are part of Resources
         return Resources(**{k: v for k, v in self._options.items() if k in field_names})  # ty: ignore[invalid-argument-type]
 
-    def get_exclude(self) -> list[Path]:
+    def get_exclude(self) -> list[str]:
         """
         Determine the files to exclude from being copied to the job's working directory.
 
         Returns:
-            list[Path]: List of excluded file paths. Returns an empty list if none specified.
+            list[str]: List of excluded files or glob patterns.
+                Returns an empty list if none specified.
         """
         if (exclude := self._options.get("exclude")) is not None:
-            return split_files_list(str(exclude))
+            return split_string_list(str(exclude))
 
         return []
 
-    def get_include(self) -> list[Path]:
+    def get_include(self) -> list[str]:
         """
         Determine the files to explicitly copy to the job's working directory.
 
         Returns:
-            list[Path]: List of included file paths. Returns an empty list if none specified.
+            list[Path]: List of included files or glob patterns. Returns an empty list if none specified.
         """
         if (include := self._options.get("include")) is not None:
-            return split_files_list(str(include))
+            return split_string_list(str(include))
 
         return []
 
