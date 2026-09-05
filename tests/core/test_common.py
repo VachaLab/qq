@@ -39,6 +39,7 @@ from qq_lib.core.common import (
     load_yaml_dumper,
     load_yaml_loader,
     printf_to_regex,
+    relocate_by_name,
     split_string_list,
     to_snake_case,
     translate_server,
@@ -1322,3 +1323,101 @@ def test_expand_pattern_raises_on_glob_failure(
 
     with pytest.raises(QQError, match=r"\*\.txt"):
         expand_pattern("*.txt", tmp_path)
+
+        expand_pattern("*.txt", tmp_path)
+
+
+def test_relocate_by_name_empty_input(tmp_path: Path) -> None:
+    assert relocate_by_name([], tmp_path / "work") == []
+
+
+def test_relocate_by_name_single_file(tmp_path: Path) -> None:
+    assert relocate_by_name([tmp_path / "input" / "start.gro"], tmp_path / "work") == [
+        tmp_path / "work" / "start.gro"
+    ]
+
+
+def test_relocate_by_name_preserves_order(tmp_path: Path) -> None:
+    files = [
+        tmp_path / "input" / "c.itp",
+        tmp_path / "input" / "a.itp",
+        tmp_path / "input" / "b.itp",
+    ]
+
+    assert relocate_by_name(files, tmp_path / "work") == [
+        tmp_path / "work" / "c.itp",
+        tmp_path / "work" / "a.itp",
+        tmp_path / "work" / "b.itp",
+    ]
+
+
+def test_relocate_by_name_flattens_nested_paths(tmp_path: Path) -> None:
+    files = [
+        tmp_path / "input" / "topology.pdb",
+        tmp_path / "input" / "sub" / "deeper" / "params.itp",
+    ]
+
+    assert relocate_by_name(files, tmp_path / "work") == [
+        tmp_path / "work" / "topology.pdb",
+        tmp_path / "work" / "params.itp",
+    ]
+
+
+def test_relocate_by_name_flattens_files_from_unrelated_directories(
+    tmp_path: Path,
+) -> None:
+    files = [
+        tmp_path / "input" / "start.gro",
+        Path("/shared/forcefield/params.itp"),
+    ]
+
+    assert relocate_by_name(files, tmp_path / "work") == [
+        tmp_path / "work" / "start.gro",
+        tmp_path / "work" / "params.itp",
+    ]
+
+
+def test_relocate_by_name_duplicate_basenames_collide(tmp_path: Path) -> None:
+    files = [
+        tmp_path / "first" / "params.itp",
+        tmp_path / "second" / "params.itp",
+    ]
+
+    assert relocate_by_name(files, tmp_path / "work") == [
+        tmp_path / "work" / "params.itp",
+        tmp_path / "work" / "params.itp",
+    ]
+
+
+def test_relocate_by_name_relocates_directories(tmp_path: Path) -> None:
+    assert relocate_by_name([tmp_path / "input" / "frames"], tmp_path / "work") == [
+        tmp_path / "work" / "frames"
+    ]
+
+
+def test_relocate_by_name_collapses_dot_segments_in_directory(tmp_path: Path) -> None:
+    directory = tmp_path / "work" / "sub" / ".." / "." / "final"
+
+    assert relocate_by_name([tmp_path / "input" / "a.txt"], directory) == [
+        tmp_path / "work" / "final" / "a.txt"
+    ]
+
+
+def test_relocate_by_name_does_not_expand_symlinks(tmp_path: Path) -> None:
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real)
+
+    assert relocate_by_name([tmp_path / "input" / "a.txt"], link) == [link / "a.txt"]
+
+    assert relocate_by_name([tmp_path / "input" / "a.txt"], link) == [link / "a.txt"]
+
+
+def test_relocate_by_name_returns_absolute_paths(tmp_path: Path) -> None:
+    files = [tmp_path / "input" / "a.txt", Path("/shared/b.txt")]
+
+    result = relocate_by_name(files, tmp_path / "work")
+
+    assert result
+    assert all(path.is_absolute() for path in result)

@@ -826,3 +826,17 @@ def expand_pattern(pattern: str, directory: Path) -> list[Path]:
         return sorted(anchor.glob(str(relative)))
     except Exception as e:
         raise QQError(f"Could not expand pattern '{pattern}': {e}.") from e
+
+
+def relocate_by_name(files: Iterable[Path], directory: Path) -> list[Path]:
+    """
+    Map paths to their counterparts in another directory, matching by file name.
+
+    Args:
+        files (Iterable[Path]): Original paths of the files.
+        directory (Path): Directory the files were placed in.
+
+    Returns:
+        list[Path]: Logical absolute paths to the files inside `directory`.
+    """
+    return [logical_resolve(directory / file.name) for file in files]

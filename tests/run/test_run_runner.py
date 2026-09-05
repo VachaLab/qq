@@ -187,11 +187,13 @@ def test_runner_init_creates_archiver_when_loop_info_present():
         runner = Runner(Path("job.qqinfo"), "host")
 
         mock_archiver.assert_called_once_with(
-            loop_info.archive,
-            loop_info.archive_format,
-            informer.info.input_machine,
-            informer.info.input_dir,
-            batch,
+            archive=loop_info.archive,
+            archive_format=loop_info.archive_format,
+            input_machine=informer.info.input_machine,
+            input_dir=informer.info.input_dir,
+            batch_system=batch,
+            included_files=informer.info.included_files,
+            excluded_files=informer.info.excluded_files,
         )
         mock_batchmeta.assert_called_once()
         mock_retryer.assert_called_once()
@@ -1688,6 +1690,24 @@ def _make_runner_with_archiver(
 
     informer = MagicMock()
     informer.info.loop_info = loop_info
+    informer.info.included_files = []
+    runner._informer = informer
+
+    return runner, archiver
+
+
+def _make_runner_with_archiver_and_included_files(
+    tmp_path: Path,
+    loop_info: LoopInfo,
+) -> tuple[Runner, MagicMock]:
+    runner = Runner.__new__(Runner)
+    archiver = MagicMock(spec=Archiver)
+    runner._archiver = archiver
+    runner._work_dir = tmp_path
+
+    informer = MagicMock()
+    informer.info.loop_info = loop_info
+    informer.info.included_files = [Path("/path/to/job0003.dat")]
     runner._informer = informer
 
     return runner, archiver
@@ -1721,6 +1741,26 @@ def test_archive_files_from_work_dir_creates_init_file_when_no_matching_files(
     )
     runner, archiver = _make_runner_with_archiver(tmp_path, loop_info)
     archiver.get_files_matching_pattern.return_value = []
+
+    runner._archive_files_from_work_dir()
+
+    archiver.create_init_file.assert_called_once_with(4)
+
+
+def test_archive_files_from_work_dir_creates_init_file_even_when_matching_files_exist_if_they_were_included(
+    tmp_path: Path,
+):
+    loop_info = LoopInfo(
+        start=1,
+        end=10,
+        archive=tmp_path / "archive",
+        archive_format="job%04d",
+        current=3,
+    )
+    runner, archiver = _make_runner_with_archiver_and_included_files(
+        tmp_path, loop_info
+    )
+    archiver.get_files_matching_pattern.return_value = [tmp_path / "job0003.dat"]
 
     runner._archive_files_from_work_dir()
 

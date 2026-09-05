@@ -2,12 +2,13 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 import re
+import shutil
 import socket
 from collections.abc import Iterable
 from pathlib import Path
 
 from qq_lib.batch.interface import AnyBatchClass
-from qq_lib.core.common import is_printf_pattern, printf_to_regex
+from qq_lib.core.common import is_printf_pattern, printf_to_regex, relocate_by_name
 from qq_lib.core.config import CFG
 from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
@@ -28,6 +29,8 @@ class Archiver:
         input_machine: str,
         input_dir: Path,
         batch_system: AnyBatchClass,
+        included_files: list[Path],
+        excluded_files: list[Path],
     ):
         """
         Initialize the Archiver.
@@ -38,12 +41,18 @@ class Archiver:
             input_machine (str): The hostname from which the job was submitted.
             input_dir (Path): The directory from which the job was submitted.
             batch_system (AnyBatchClass): The batch system which manages the job.
+            included_files (list[Path]): List that were explicitly included
+                in the working directory and should not be archived.
+            excluded_files (list[Path]): List of files that were explicitly excluded
+                from the working directory and should not be fetched from archive.
         """
         self._batch_system = batch_system
         self._archive = archive
         self._archive_format = archive_format
         self._input_machine = input_machine
         self._input_dir = input_dir
+        self._included_files = included_files
+        self._excluded_files = excluded_files
 
     def make_archive_dir(self) -> None:
         """
@@ -64,6 +73,8 @@ class Archiver:
         fetched. If no cycle is provided, all files matching the pattern
         in the archive are fetched.
 
+        Files that were explicitly excluded via the `exclude` submission option are not fetched.
+
         Args:
             dir (Path): The directory where files will be copied to.
             cycle (int | None): The cycle number to filter files for.
@@ -80,6 +91,12 @@ class Archiver:
         ):
             logger.debug("Nothing to fetch from archive.")
             return
+
+        # files that were explicitly excluded via the `exclude` submission option are not fetched
+        logger.debug(
+            f"Files that were excluded from work dir using the `--exclude` option: {self._excluded_files}."
+        )
+        files = [file for file in files if file not in self._excluded_files]
 
         logger.debug(f"Files to fetch from archive: {files}.")
 
@@ -102,6 +119,8 @@ class Archiver:
         `dir` to the archive directory. After successfully transferring
         the files, they are removed from the working directory.
 
+        Files that were explicitly included via the `include` submission option are not archived.
+
         Args:
             work_dir (Path): The directory containing files to archive.
 
@@ -115,6 +134,15 @@ class Archiver:
         ):
             logger.debug("Nothing to archive.")
             return
+
+        # files that were explicitly included into the working directory
+        # are not transferred back to the input directory
+        # and also should not be archived
+        included_files = relocate_by_name(self._included_files, dir)
+        logger.debug(
+            f"Files that were copied to work dir using the `--include` option: {included_files}."
+        )
+        files = [file for file in files if file not in included_files]
 
         logger.debug(f"Files to archive: {files}.")
 
@@ -281,13 +309,16 @@ class Archiver:
     @staticmethod
     def _remove_files(files: Iterable[Path]) -> None:
         """
-        Remove a list of files from the filesystem.
+        Remove a list of files or directories from the filesystem.
 
         Args:
-            files (Iterable[Path]): Files to delete.
+            files (Iterable[Path]): Files or directories to delete.
 
         Raises:
-            OSError: If file removal fails for any file.
+            OSError: If file or directory removal fails for any file.
         """
         for file in files:
-            file.unlink()
+            if file.is_symlink() or not file.is_dir():
+                file.unlink()
+            else:
+                shutil.rmtree(file)

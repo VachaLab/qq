@@ -14,8 +14,15 @@
     - `QQ_LOOP_NEXT` which specifies the index of the next loop cycle.
     - `QQ_ARCHIVE_CURRENT` and `QQ_ARCHIVE_NEXT` which specify strings expected in files archived by qq for the current and the next loop cycles, respectively. If the archive format is not a printf pattern, the values of these variables are empty strings.
 
-### Other changes
+### `--include` and `--exclude` revisited
 
+- Glob patterns are now supported in `--include` and `--exclude` options.
+- If you explicitly include a file into a working directory using the `--include` submission option, it will no longer be archived even if it matches the archive pattern.
+- If you explicitly exclude a file from a working directory using the `--exclude` submission option, it will no longer be fetched from the archive, even if it matches the archive pattern for this loop job cycle.
+
+### Bug fixes and other changes
+
+- Directories can be now properly archived.
 - Number of free GPUs is no longer relevant for determining node state in `qq nodes`. Nodes with exhausted CPUs will always be marked as busy even if they have free GPUs.
 - Clarified in `qq submit -h` that files and directories that the job creates in the working directory **are** copied back to the input directory **even if they are excluded** from being copied to the working directory.
 

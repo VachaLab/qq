@@ -16,7 +16,7 @@ from typing import NoReturn
 import qq_lib
 from qq_lib.archive.archiver import Archiver
 from qq_lib.batch.interface import BatchInterface
-from qq_lib.core.common import construct_loop_job_name
+from qq_lib.core.common import construct_loop_job_name, relocate_by_name
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
@@ -122,11 +122,13 @@ class Runner:
         # initialize archiver, if this is a loop job
         if loop_info := self._informer.info.loop_info:
             self._archiver = Archiver(
-                loop_info.archive,
-                loop_info.archive_format,
-                self._informer.info.input_machine,
-                self._informer.info.input_dir,
-                self._batch_system,
+                archive=loop_info.archive,
+                archive_format=loop_info.archive_format,
+                input_machine=self._informer.info.input_machine,
+                input_dir=self._informer.info.input_dir,
+                batch_system=self._batch_system,
+                included_files=self._informer.info.included_files,
+                excluded_files=self._informer.info.excluded_files,
             )
             self._should_resubmit = True
         else:
@@ -722,14 +724,20 @@ class Runner:
             )
 
         # get the files to archive corresponding to the next loop job cycle
-        if not self._archiver.get_files_matching_pattern(
+        files_matching_pattern = self._archiver.get_files_matching_pattern(
             self._work_dir,
             None,
             loop_info.archive_format,
             loop_info.current + 1,
             False,
-        ):
-            # if there are no files matching the next loop job cycle, create an empty .init file
+        )
+        included_files = self._get_explicitly_included_files_in_work_dir()
+        files = [f for f in files_matching_pattern if f not in included_files]
+
+        if not files:
+            # if there are no files matching the next loop job cycle
+            # which were not explicitly included,
+            # create an empty .init file
             # so that the loop job continues normally
             logger.debug(
                 f"Creating .init file for loop job cycle {loop_info.current + 1}."
@@ -744,10 +752,7 @@ class Runner:
         Return absolute paths to files and directories in the working directory
         that were explicitly copied via the `--include` submission option.
         """
-        files = [
-            logical_resolve(self._work_dir / f.name)
-            for f in self._informer.info.included_files
-        ]
+        files = relocate_by_name(self._informer.info.included_files, self._work_dir)
 
         logger.debug(
             f"Files that were copied to work dir using the `--include` option: {files}."

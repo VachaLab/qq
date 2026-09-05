@@ -24,6 +24,19 @@ def test_remove_files(tmp_path):
         assert not f.exists()
 
 
+def test_remove_files_directory(tmp_path):
+    files = []
+    for i in range(3):
+        d = tmp_path / f"dir{i}"
+        d.mkdir()
+        files.append(d)
+
+    Archiver._remove_files(files)
+
+    for f in files:
+        assert not f.exists()
+
+
 def test_remove_files_raises(tmp_path):
     f = tmp_path / "file.txt"
     f.write_text("test")
@@ -95,6 +108,8 @@ def test_make_archive_dir_creates_directory(monkeypatch, archive_dir, input_dir)
         input_machine="fake_host",
         input_dir=input_dir,
         batch_system=PBS,
+        included_files=[],
+        excluded_files=[],
     )
 
     assert not archive_dir.exists()
@@ -114,6 +129,8 @@ def test_make_archive_dir_already_exists(monkeypatch, archive_dir, input_dir):
         input_machine="fake_host",
         input_dir=input_dir,
         batch_system=PBS,
+        included_files=[],
+        excluded_files=[],
     )
 
     archiver.make_archive_dir()
@@ -129,6 +146,34 @@ def archiver(input_dir, archive_dir):
         input_machine="fake_host",
         input_dir=input_dir,
         batch_system=PBS,
+        included_files=[],
+        excluded_files=[],
+    )
+
+
+@pytest.fixture
+def archiver_with_included_files(input_dir, archive_dir):
+    return Archiver(
+        archive=archive_dir,
+        archive_format="job%04d",
+        input_machine="fake_host",
+        input_dir=input_dir,
+        batch_system=PBS,
+        included_files=[Path("external/shared/job0002.dat")],
+        excluded_files=[],
+    )
+
+
+@pytest.fixture
+def archiver_with_excluded_files(input_dir, archive_dir):
+    return Archiver(
+        archive=archive_dir,
+        archive_format="job%04d",
+        input_machine="fake_host",
+        input_dir=input_dir,
+        batch_system=PBS,
+        included_files=[],
+        excluded_files=[archive_dir / "job0001.dat"],
     )
 
 
@@ -295,7 +340,7 @@ def test_get_files_printf_pattern_without_cycle_partial_match(
 
 
 @pytest.mark.parametrize("cycle", [None, 1])
-def test_archive_from_copies_files(monkeypatch, archiver, archive_dir, work_dir, cycle):
+def test_from_archive_copies_files(monkeypatch, archiver, archive_dir, work_dir, cycle):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     archiver.make_archive_dir()
 
@@ -322,6 +367,36 @@ def test_archive_from_copies_files(monkeypatch, archiver, archive_dir, work_dir,
     assert not (work_dir / "other.txt").exists()
 
 
+@pytest.mark.parametrize("cycle", [None, 1])
+def test_from_archive_copies_files_except_excluded(
+    monkeypatch, archiver_with_excluded_files, archive_dir, work_dir, cycle
+):
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+    archiver_with_excluded_files.make_archive_dir()
+
+    filenames = ["job0001.dat", "job0002.dat", "other.txt", "job0001.qqinfo"]
+    touch_files(archive_dir, filenames)
+
+    archiver_with_excluded_files.from_archive(work_dir, cycle=cycle)
+
+    expected_files = [] if cycle == 1 else [archive_dir / "job0002.dat"]
+
+    for f in expected_files:
+        copied_file = work_dir / f.name
+        assert copied_file.exists()
+        assert copied_file.is_file()
+
+        # files still exist in the archive
+        assert f.exists()
+        assert f.is_file()
+
+    # files not matching pattern should not be copied
+    assert not (work_dir / "other.txt").exists()
+
+    # files excluded by pattern should not be copied
+    assert not (work_dir / "job0001.dat").exists()
+
+
 def test_archive_from_nothing_to_fetch(monkeypatch, archiver, work_dir):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     archiver.make_archive_dir()
@@ -333,7 +408,7 @@ def test_archive_from_nothing_to_fetch(monkeypatch, archiver, work_dir):
     assert list(work_dir.iterdir()) == []
 
 
-def test_archive_to_copies_and_removes_files(
+def test_archive_to_archive_copies_and_removes_files(
     monkeypatch, archiver, archive_dir, work_dir
 ):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
@@ -360,6 +435,41 @@ def test_archive_to_copies_and_removes_files(
 
     # non-matching files should remain
     assert (work_dir / "other.txt").exists()
+
+    # qq runtime files should remain as well
+    assert (work_dir / "job0001.out").exists()
+    assert (work_dir / "job0002.err").exists()
+
+
+def test_archive_to_archive_copies_and_removes_files_except_included(
+    monkeypatch, archiver_with_included_files, archive_dir, work_dir
+):
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+    archiver_with_included_files.make_archive_dir()
+
+    filenames = [
+        "job0001.dat",
+        "job0002.dat",
+        "other.txt",
+        "job0001.out",
+        "job0002.err",
+    ]
+    touch_files(work_dir, filenames)
+
+    archiver_with_included_files.to_archive(work_dir)
+
+    expected_copied = [archive_dir / "job0001.dat"]
+    for f in expected_copied:
+        assert f.exists() and f.is_file()
+
+    # matching files should be removed from work_dir
+    assert not (work_dir / "job0001.dat").exists()
+
+    # non-matching files should remain
+    assert (work_dir / "other.txt").exists()
+
+    # included files should also remain
+    assert (work_dir / "job0002.dat").exists()
 
     # qq runtime files should remain as well
     assert (work_dir / "job0001.out").exists()
@@ -503,6 +613,8 @@ def test_create_init_file_creates_file_for_given_cycle(tmp_path: Path):
         input_machine="localhost",
         input_dir=tmp_path,
         batch_system=PBS,
+        included_files=[],
+        excluded_files=[],
     )
 
     archiver.create_init_file(cycle=1)
@@ -518,6 +630,8 @@ def test_create_init_file_creates_empty_file(tmp_path: Path):
         input_machine="localhost",
         input_dir=tmp_path,
         batch_system=PBS,
+        included_files=[],
+        excluded_files=[],
     )
 
     archiver.create_init_file(cycle=1)
@@ -533,6 +647,8 @@ def test_create_init_file_uses_correct_cycle_number(tmp_path: Path):
         input_machine="localhost",
         input_dir=tmp_path,
         batch_system=PBS,
+        included_files=[],
+        excluded_files=[],
     )
 
     archiver.create_init_file(cycle=42)
