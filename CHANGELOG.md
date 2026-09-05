@@ -12,9 +12,14 @@
 - If you explicitly include a file into a working directory using the `--include` submission option, it will no longer be archived even if it matches the archive pattern.
 - If you explicitly exclude a file from a working directory using the `--exclude` submission option, it will no longer be fetched from the archive, even if it matches the archive pattern for this loop job cycle.
 
+### `--ignore` option
+
+- As a complement to `--include` and `--exclude`, `--ignore` allows to specify files that should be completely ignored by qq's transfer operations. Ignored files will never be copied to working directory; if they are created in working directory, they will never be transferred to the input directory. If the job is a loop job, ignored files will also never be archived nor fetched from the archive.
+
 ### Bug fixes and other changes
 
 - Directories can be now properly archived.
+- Archive directory created in a working directory is no longer merged with the actual archive directory in the input directory.
 - Number of free GPUs is no longer relevant for determining node state in `qq nodes`. Nodes with exhausted CPUs will always be marked as busy even if they have free GPUs.
 - Clarified in `qq submit -h` that files and directories that the job creates in the working directory **are** copied back to the input directory **even if they are excluded** from being copied to the working directory.
 
