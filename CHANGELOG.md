@@ -1,11 +1,3 @@
-## Version 0.12.3
-
-- More robust installation script for Metacentrum.
-
-## Version 0.12.2
-
-- Fixed build for IT4Innovation's Karolina.
-
 ## Version 0.13.0
 
 ### New environment variables for loop jobs
@@ -26,7 +18,9 @@
 - Number of free GPUs is no longer relevant for determining node state in `qq nodes`. Nodes with exhausted CPUs will always be marked as busy even if they have free GPUs.
 - Clarified in `qq submit -h` that files and directories that the job creates in the working directory **are** copied back to the input directory **even if they are excluded** from being copied to the working directory.
 
----
+## Version 0.12.3
+
+- More robust installation script for Metacentrum.
 
 ## Version 0.12.2
 
