@@ -84,6 +84,7 @@ class SubmitterFactory:
             loop_info=loop_info,
             exclude=self._get_exclude(),
             include=self._get_include(),
+            ignore=self._get_ignore(),
             depend=self._get_depend(),
             transfer_mode=self._get_transfer_mode(),
             server=server,
@@ -265,6 +266,23 @@ class SubmitterFactory:
         """
         return (
             split_string_list(self._kwargs.get("include")) or self._parser.get_include()
+        )
+
+    def _get_ignore(self) -> list[str]:
+        """
+        Determine the files that transfer operations should ignore completely.
+
+        Priority:
+            1. Ignored files specified on the command line.
+            2. Ignored files specified inside the submitted script.
+
+        The lists are NOT merged.
+
+        Returns:
+            list[str]: List of files or glob patterns to ignore.
+        """
+        return (
+            split_string_list(self._kwargs.get("ignore")) or self._parser.get_ignore()
         )
 
     def _get_depend(self) -> list[Depend]:

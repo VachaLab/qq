@@ -205,7 +205,7 @@ def test_parser_get_exclude_calls_split_string_list():
     parser = Parser.__new__(Parser)
     parser._options = {"exclude": "file1,file2"}
 
-    mock_split_result = [Path("file1"), Path("file2")]
+    mock_split_result = ["file1", "file2"]
 
     with patch(
         "qq_lib.submit.parser.split_string_list", return_value=mock_split_result
@@ -249,6 +249,29 @@ def test_parser_get_include_calls_split_string_list():
         "qq_lib.submit.parser.split_string_list", return_value=mock_split_result
     ) as mock_split:
         result = parser.get_include()
+
+    mock_split.assert_called_once_with("file1,file2")
+    assert result == mock_split_result
+
+
+def test_parser_get_ignore_empty_list():
+    parser = Parser.__new__(Parser)
+    parser._options = {}
+
+    result = parser.get_ignore()
+    assert result == []
+
+
+def test_parser_get_ignore_calls_split_string_list():
+    parser = Parser.__new__(Parser)
+    parser._options = {"ignore": "file1,file2"}
+
+    mock_split_result = ["file1", "file2"]
+
+    with patch(
+        "qq_lib.submit.parser.split_string_list", return_value=mock_split_result
+    ) as mock_split:
+        result = parser.get_ignore()
 
     mock_split.assert_called_once_with("file1,file2")
     assert result == mock_split_result

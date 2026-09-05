@@ -43,6 +43,7 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
             resources=Resources(),
             exclude=["exclude", "/tmp/exclude"],
             include=["include", "/tmp/include"],
+            ignore=["ignore", "/tmp/ignore"],
             transfer_mode=[Always()],
             server="pbs-m1.metacentrum.cz",
             interpreter=Interpreter(executable="bash"),
@@ -61,6 +62,7 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
         assert submitter._resources == Resources()
         assert submitter._exclude == [tmp_path / "exclude", Path("/tmp/exclude")]
         assert submitter._include == [tmp_path / "include", Path("/tmp/include")]
+        assert submitter._ignore == [tmp_path / "ignore", Path("/tmp/ignore")]
         assert submitter._depend == []
         assert isinstance(submitter._transfer_mode[0], Always)
         assert submitter._server == "pbs-m1.metacentrum.cz"
@@ -107,6 +109,8 @@ def test_submitter_init_sets_all_optional_arguments_correctly(tmp_path):
 
     loop_info = LoopInfo(1, 5, Path("storage"), "job%04d")
     exclude_files = [str(tmp_path / "file1.txt"), str(tmp_path / "file2.txt")]
+    include_files = [str(tmp_path / "file3.txt"), str(tmp_path / "file4.txt")]
+    ignore_files = [str(tmp_path / "file5.txt"), str(tmp_path / "file6.txt")]
     depend_jobs = [
         Depend(DependType.AFTER_SUCCESS, ["12345"]),
         Depend(DependType.AFTER_START, ["23456"]),
@@ -125,6 +129,8 @@ def test_submitter_init_sets_all_optional_arguments_correctly(tmp_path):
             resources=Resources(),
             loop_info=loop_info,
             exclude=exclude_files,
+            include=include_files,
+            ignore=ignore_files,
             depend=depend_jobs,
             server="fake.server.com",
             resubmit_from=[WorkHost(), ExplicitHost("node01")],
@@ -139,6 +145,8 @@ def test_submitter_init_sets_all_optional_arguments_correctly(tmp_path):
         assert submitter._input_dir == tmp_path
         assert submitter._script_name == script.name
         assert submitter._job_name == "job"
+        assert submitter._include == [Path(x) for x in include_files]
+        assert submitter._ignore == [Path(x) for x in ignore_files]
         assert submitter._info_file == tmp_path / f"job{CFG.suffixes.qq_info}"
         assert submitter._resources == Resources()
         assert submitter._exclude == [Path(x) for x in exclude_files]
@@ -603,6 +611,7 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
     submitter._loop_info = None
     submitter._exclude = []
     submitter._include = []
+    submitter._ignore = []
     submitter._depend = []
     submitter._transfer_mode = [Success()]
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
@@ -657,6 +666,7 @@ def test_submitter_submit(tmp_path):
     submitter._loop_info = None
     submitter._exclude = ["exclude1"]
     submitter._include = ["include1"]
+    submitter._ignore = ["ignore1"]
     submitter._depend = []
     submitter._transfer_mode = [Always()]
     submitter._server = "fake.server.com"
@@ -716,6 +726,7 @@ def test_submitter_submit(tmp_path):
         loop_info=submitter._loop_info,
         excluded_files=submitter._exclude,
         included_files=submitter._include,
+        ignored_files=submitter._ignore,
         depend=submitter._depend,
         transfer_mode=[Always()],
         server=submitter._server,

@@ -129,6 +129,7 @@ class Runner:
                 batch_system=self._batch_system,
                 included_files=self._informer.info.included_files,
                 excluded_files=self._informer.info.excluded_files,
+                ignored_files=self._informer.info.ignored_files,
             )
             self._should_resubmit = True
         else:
@@ -288,9 +289,9 @@ class Runner:
                     self._input_dir,
                     socket.getfqdn(),
                     self._informer.info.input_machine,
-                    # exclude files that were copied to workdir from the outside of input dir (--include option)
-                    # these files should not be copied to the input directory, since they were never inside it
-                    self._get_explicitly_included_files_in_work_dir(),
+                    # exclude files that were specifically included via the `--include` option
+                    # and files that were specifically chosen to be ignored via `--ignore` option
+                    self._get_excluded_from_input_dir(),
                     max_tries=CFG.runner.retry_tries,
                     wait_seconds=CFG.runner.retry_wait,
                 ).run()
@@ -378,17 +379,12 @@ class Runner:
         ).run()
 
         # files excluded from copying to the working directory
-        qq_out = (
-            self._informer.info.input_dir / self._informer.info.job_name
-        ).with_suffix(CFG.suffixes.qq_out)
-        excluded = self._informer.info.excluded_files + [self._info_file, qq_out]
-        if self._archiver:
-            excluded.append(self._archiver._archive)
-
-        # copy files from the input directory to the working directory
+        excluded = self._get_excluded_from_work_dir()
         logger.debug(
             f"Files excluded from being copied to the working directory: {excluded}."
         )
+
+        # copy files from the input directory to the working directory
         Retryer(
             self._batch_system.sync_with_exclusions,
             self._input_dir,
@@ -731,12 +727,13 @@ class Runner:
             loop_info.current + 1,
             False,
         )
-        included_files = self._get_explicitly_included_files_in_work_dir()
-        files = [f for f in files_matching_pattern if f not in included_files]
+        exclude = self._get_excluded_from_input_dir()
+        logger.debug(f"Files excluded from archiving: {exclude}.")
+        files = [f for f in files_matching_pattern if f not in exclude]
 
         if not files:
             # if there are no files matching the next loop job cycle
-            # which were not explicitly included,
+            # (which are not excluded via `--include` or `--ignore` options)
             # create an empty .init file
             # so that the loop job continues normally
             logger.debug(
@@ -746,19 +743,6 @@ class Runner:
 
         # archive all files matching the archive format
         self._archiver.to_archive(self._work_dir)
-
-    def _get_explicitly_included_files_in_work_dir(self) -> list[Path]:
-        """
-        Return absolute paths to files and directories in the working directory
-        that were explicitly copied via the `--include` submission option.
-        """
-        files = relocate_by_name(self._informer.info.included_files, self._work_dir)
-
-        logger.debug(
-            f"Files that were copied to work dir using the `--include` option: {files}."
-        )
-
-        return files
 
     def _copy_files(self, files: list[Path]):
         """
@@ -774,6 +758,52 @@ class Runner:
                 socket.getfqdn(),
                 [file],
             )
+
+    def _get_excluded_from_work_dir(self) -> list[Path]:
+        """
+        Return paths that must not be copied to the working directory.
+
+        Collects the files excluded and ignored by the user, the qq info file,
+        the qq output file, and the archive if the job is a loop job.
+        Duplicates are removed, preserving the order of first occurrence.
+
+        Returns:
+            list[Path]: Paths that should not be copied to the working directory.
+        """
+        info = self._informer.info
+
+        qq_out = (info.input_dir / info.job_name).with_suffix(CFG.suffixes.qq_out)
+
+        excluded = [
+            *info.excluded_files,
+            *info.ignored_files,
+            self._info_file,
+            qq_out,
+        ]
+
+        if self._archiver:
+            excluded.append(self._archiver.archive)
+
+        return list(dict.fromkeys(excluded))
+
+    def _get_excluded_from_input_dir(self) -> list[Path]:
+        """
+        Return paths that must not be copied to the input directory.
+
+        Collects explicitly included files and ignored files, and the
+        archive if the job is a loop job. Duplicates are removed,
+        preserving the order of first occurrence.
+
+        Returns:
+            list[Path]: Paths that should not be copied to the input directory.
+        """
+        info = self._informer.info
+
+        excluded = [*info.included_files, *info.ignored_files]
+        if self._archiver:
+            excluded.append(self._archiver.archive)
+
+        return list(dict.fromkeys(relocate_by_name(excluded, self._work_dir)))
 
     def _cleanup(self) -> None:
         """

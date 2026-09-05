@@ -60,6 +60,7 @@ class Submitter:
         loop_info: LoopInfo | None = None,
         exclude: list[str] | None = None,
         include: list[str] | None = None,
+        ignore: list[str] | None = None,
         depend: list[Depend] | None = None,
         transfer_mode: list[TransferMode] | None = None,
         server: str | None = None,
@@ -82,6 +83,9 @@ class Submitter:
                 Paths are provided relative to the input directory or absolute.
             include (list[str] | None): Optional list of files or glob patterns which should be copied to the working directory
                 even though they are not part of the job's input directory.
+                Paths are provided either absolute or relative to the input directory.
+            ignore (list[str] | None): Optional list of files or glob patterns which should be ignored completely.
+                These files will not be copied to the working directory and if they are created in the working directory, they are also not copied back.
                 Paths are provided either absolute or relative to the input directory.
             depend (list[Depend] | None): Optional list of job dependencies.
             transfer_mode (list[TransferMode] | None): Mode specifying when files whould be transferred from the
@@ -111,6 +115,7 @@ class Submitter:
         self._resources = resources
         self._exclude = expand_paths(exclude or [], self._input_dir)
         self._include = expand_paths(include or [], self._input_dir)
+        self._ignore = expand_paths(ignore or [], self._input_dir)
         self._depend = depend or []
         self._transfer_mode = transfer_mode or TransferMode.multi_from_str(
             CFG.transfer_files_options.default_transfer_mode
@@ -183,6 +188,7 @@ class Submitter:
             loop_info=self._loop_info,
             excluded_files=self._exclude,
             included_files=self._include,
+            ignored_files=self._ignore,
             depend=self._depend,
             account=self._account,
             transfer_mode=self._transfer_mode,
@@ -306,6 +312,10 @@ class Submitter:
     def get_include(self) -> list[Path]:
         """Get a list of included files."""
         return self._include
+
+    def get_ignore(self) -> list[Path]:
+        """Get a list of ignored files."""
+        return self._ignore
 
     def get_depend(self) -> list[Depend]:
         """Get the list of dependencies."""

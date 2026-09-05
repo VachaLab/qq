@@ -87,6 +87,7 @@ class Resubmitter(Operator):
             loop_info=informer.info.loop_info,
             exclude=[str(x) for x in informer.info.excluded_files],
             include=[str(x) for x in informer.info.included_files],
+            ignore=[str(x) for x in informer.info.ignored_files],
             depend=[Depend(type=DependType.AFTER_SUCCESS, jobs=[informer.info.job_id])],
             transfer_mode=informer.info.transfer_mode,
             server=informer.info.server,

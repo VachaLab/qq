@@ -110,6 +110,7 @@ def test_make_archive_dir_creates_directory(monkeypatch, archive_dir, input_dir)
         batch_system=PBS,
         included_files=[],
         excluded_files=[],
+        ignored_files=[],
     )
 
     assert not archive_dir.exists()
@@ -131,6 +132,7 @@ def test_make_archive_dir_already_exists(monkeypatch, archive_dir, input_dir):
         batch_system=PBS,
         included_files=[],
         excluded_files=[],
+        ignored_files=[],
     )
 
     archiver.make_archive_dir()
@@ -148,32 +150,26 @@ def archiver(input_dir, archive_dir):
         batch_system=PBS,
         included_files=[],
         excluded_files=[],
+        ignored_files=[],
     )
 
 
-@pytest.fixture
-def archiver_with_included_files(input_dir, archive_dir):
+def _make_archiver(
+    archive: Path,
+    input_dir: Path,
+    included_files: list[Path] | None = None,
+    excluded_files: list[Path] | None = None,
+    ignored_files: list[Path] | None = None,
+) -> Archiver:
     return Archiver(
-        archive=archive_dir,
+        archive=archive,
         archive_format="job%04d",
-        input_machine="fake_host",
+        input_machine="input",
         input_dir=input_dir,
         batch_system=PBS,
-        included_files=[Path("external/shared/job0002.dat")],
-        excluded_files=[],
-    )
-
-
-@pytest.fixture
-def archiver_with_excluded_files(input_dir, archive_dir):
-    return Archiver(
-        archive=archive_dir,
-        archive_format="job%04d",
-        input_machine="fake_host",
-        input_dir=input_dir,
-        batch_system=PBS,
-        included_files=[],
-        excluded_files=[archive_dir / "job0001.dat"],
+        included_files=included_files or [],
+        excluded_files=excluded_files or [],
+        ignored_files=ignored_files or [],
     )
 
 
@@ -369,15 +365,18 @@ def test_from_archive_copies_files(monkeypatch, archiver, archive_dir, work_dir,
 
 @pytest.mark.parametrize("cycle", [None, 1])
 def test_from_archive_copies_files_except_excluded(
-    monkeypatch, archiver_with_excluded_files, archive_dir, work_dir, cycle
+    monkeypatch, archive_dir, work_dir, cycle, input_dir
 ):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
-    archiver_with_excluded_files.make_archive_dir()
+    archiver = _make_archiver(
+        archive_dir, input_dir, excluded_files=[archive_dir / "job0001.dat"]
+    )
+    archiver.make_archive_dir()
 
     filenames = ["job0001.dat", "job0002.dat", "other.txt", "job0001.qqinfo"]
     touch_files(archive_dir, filenames)
 
-    archiver_with_excluded_files.from_archive(work_dir, cycle=cycle)
+    archiver.from_archive(work_dir, cycle=cycle)
 
     expected_files = [] if cycle == 1 else [archive_dir / "job0002.dat"]
 
@@ -395,6 +394,51 @@ def test_from_archive_copies_files_except_excluded(
 
     # files excluded by pattern should not be copied
     assert not (work_dir / "job0001.dat").exists()
+
+
+@pytest.mark.parametrize("cycle", [None, 1])
+def test_from_archive_copies_files_except_excluded_and_ignored(
+    monkeypatch, archive_dir, work_dir, cycle, input_dir
+):
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+    archiver = _make_archiver(
+        archive_dir,
+        input_dir,
+        excluded_files=[archive_dir / "job0001.dat"],
+        ignored_files=[input_dir / "file_to_ignore.txt"],
+    )
+    archiver.make_archive_dir()
+
+    filenames = [
+        "job0001.dat",
+        "job0002.dat",
+        "other.txt",
+        "file_to_ignore.txt",
+        "job0001.qqinfo",
+    ]
+    touch_files(archive_dir, filenames)
+
+    archiver.from_archive(work_dir, cycle=cycle)
+
+    expected_files = [] if cycle == 1 else [archive_dir / "job0002.dat"]
+
+    for f in expected_files:
+        copied_file = work_dir / f.name
+        assert copied_file.exists()
+        assert copied_file.is_file()
+
+        # files still exist in the archive
+        assert f.exists()
+        assert f.is_file()
+
+    # files not matching pattern should not be copied
+    assert not (work_dir / "other.txt").exists()
+
+    # excluded files should not be copied
+    assert not (work_dir / "job0001.dat").exists()
+
+    # ignored files should not be copied
+    assert not (work_dir / "file_to_ignore.txt").exists()
 
 
 def test_archive_from_nothing_to_fetch(monkeypatch, archiver, work_dir):
@@ -442,10 +486,16 @@ def test_archive_to_archive_copies_and_removes_files(
 
 
 def test_archive_to_archive_copies_and_removes_files_except_included(
-    monkeypatch, archiver_with_included_files, archive_dir, work_dir
+    monkeypatch,
+    archive_dir,
+    work_dir,
+    input_dir,
 ):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
-    archiver_with_included_files.make_archive_dir()
+    archiver = _make_archiver(
+        archive_dir, input_dir, included_files=[Path("external/shared/job0002.dat")]
+    )
+    archiver.make_archive_dir()
 
     filenames = [
         "job0001.dat",
@@ -456,7 +506,48 @@ def test_archive_to_archive_copies_and_removes_files_except_included(
     ]
     touch_files(work_dir, filenames)
 
-    archiver_with_included_files.to_archive(work_dir)
+    archiver.to_archive(work_dir)
+
+    expected_copied = [archive_dir / "job0001.dat"]
+    for f in expected_copied:
+        assert f.exists() and f.is_file()
+
+    # matching files should be removed from work_dir
+    assert not (work_dir / "job0001.dat").exists()
+
+    # non-matching files should remain
+    assert (work_dir / "other.txt").exists()
+
+    # included files should also remain
+    assert (work_dir / "job0002.dat").exists()
+
+    # qq runtime files should remain as well
+    assert (work_dir / "job0001.out").exists()
+    assert (work_dir / "job0002.err").exists()
+
+
+def test_archive_to_archive_copies_and_removes_files_except_ignored(
+    monkeypatch,
+    archive_dir,
+    work_dir,
+    input_dir,
+):
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+    archiver = _make_archiver(
+        archive_dir, input_dir, ignored_files=[Path("external/shared/job0002.dat")]
+    )
+    archiver.make_archive_dir()
+
+    filenames = [
+        "job0001.dat",
+        "job0002.dat",
+        "other.txt",
+        "job0001.out",
+        "job0002.err",
+    ]
+    touch_files(work_dir, filenames)
+
+    archiver.to_archive(work_dir)
 
     expected_copied = [archive_dir / "job0001.dat"]
     for f in expected_copied:
@@ -615,6 +706,7 @@ def test_create_init_file_creates_file_for_given_cycle(tmp_path: Path):
         batch_system=PBS,
         included_files=[],
         excluded_files=[],
+        ignored_files=[],
     )
 
     archiver.create_init_file(cycle=1)
@@ -632,6 +724,7 @@ def test_create_init_file_creates_empty_file(tmp_path: Path):
         batch_system=PBS,
         included_files=[],
         excluded_files=[],
+        ignored_files=[],
     )
 
     archiver.create_init_file(cycle=1)
@@ -649,8 +742,236 @@ def test_create_init_file_uses_correct_cycle_number(tmp_path: Path):
         batch_system=PBS,
         included_files=[],
         excluded_files=[],
+        ignored_files=[],
     )
 
     archiver.create_init_file(cycle=42)
 
     assert (tmp_path / "md042.init").exists()
+
+
+def test_archiver_get_excluded_from_copying_to_archive_collects_all_sources(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+    archive = input_dir / "archive"
+    work_dir = tmp_path / "scratch" / "main"
+
+    archiver = _make_archiver(
+        archive=archive,
+        input_dir=input_dir,
+        ignored_files=[input_dir / "core.dump"],
+        included_files=[tmp_path / "shared" / "params.itp"],
+    )
+
+    assert archiver._get_excluded_from_copying_to_archive(work_dir) == [
+        work_dir / "core.dump",
+        work_dir / "params.itp",
+        work_dir / "archive",
+    ]
+
+
+def test_archiver_get_excluded_from_copying_to_archive_only_the_archive(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+    work_dir = tmp_path / "scratch" / "main"
+
+    archiver = _make_archiver(archive=input_dir / "archive", input_dir=input_dir)
+
+    assert archiver._get_excluded_from_copying_to_archive(work_dir) == [
+        work_dir / "archive"
+    ]
+
+
+def test_archiver_get_excluded_from_copying_to_archive_ignores_excluded_files(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+    work_dir = tmp_path / "scratch" / "main"
+
+    archiver = _make_archiver(
+        archive=input_dir / "archive",
+        input_dir=input_dir,
+        excluded_files=[input_dir / "old.log"],
+    )
+
+    assert archiver._get_excluded_from_copying_to_archive(work_dir) == [
+        work_dir / "archive"
+    ]
+
+
+def test_archiver_get_excluded_from_copying_to_archive_relocates_to_the_given_dir(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+    archive = input_dir / "archive"
+    other_dir = tmp_path / "scratch" / "other"
+
+    archiver = _make_archiver(
+        archive=archive,
+        input_dir=input_dir,
+        ignored_files=[input_dir / "core.dump"],
+    )
+
+    result = archiver._get_excluded_from_copying_to_archive(other_dir)
+
+    assert result == [other_dir / "core.dump", other_dir / "archive"]
+    assert all(path.parent == other_dir for path in result)
+
+
+def test_archiver_get_excluded_from_copying_to_archive_flattens_nested_paths(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+    work_dir = tmp_path / "scratch" / "main"
+
+    archiver = _make_archiver(
+        archive=input_dir / "archive",
+        input_dir=input_dir,
+        included_files=[tmp_path / "shared" / "forcefield" / "deeper" / "params.itp"],
+    )
+
+    assert archiver._get_excluded_from_copying_to_archive(work_dir) == [
+        work_dir / "params.itp",
+        work_dir / "archive",
+    ]
+
+
+def test_archiver_get_excluded_from_copying_to_archive_deduplicates(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+    shared = tmp_path / "shared"
+    work_dir = tmp_path / "scratch" / "main"
+
+    archiver = _make_archiver(
+        archive=input_dir / "archive",
+        input_dir=input_dir,
+        ignored_files=[shared / "params.itp", input_dir / "core.dump"],
+        included_files=[shared / "params.itp"],
+    )
+
+    assert archiver._get_excluded_from_copying_to_archive(work_dir) == [
+        work_dir / "params.itp",
+        work_dir / "core.dump",
+        work_dir / "archive",
+    ]
+
+
+def test_archiver_get_excluded_from_copying_to_archive_deduplicates_after_relocating(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+    work_dir = tmp_path / "scratch" / "main"
+
+    archiver = _make_archiver(
+        archive=input_dir / "archive",
+        input_dir=input_dir,
+        included_files=[
+            tmp_path / "first" / "params.itp",
+            tmp_path / "second" / "params.itp",
+        ],
+    )
+
+    assert archiver._get_excluded_from_copying_to_archive(work_dir) == [
+        work_dir / "params.itp",
+        work_dir / "archive",
+    ]
+
+
+def test_archiver_get_excluded_from_copying_to_archive_preserves_order(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+    work_dir = tmp_path / "scratch" / "main"
+
+    archiver = _make_archiver(
+        archive=input_dir / "archive",
+        input_dir=input_dir,
+        ignored_files=[input_dir / "b.dump", input_dir / "a.dump"],
+        included_files=[input_dir / "c.itp"],
+    )
+
+    assert archiver._get_excluded_from_copying_to_archive(work_dir) == [
+        work_dir / "b.dump",
+        work_dir / "a.dump",
+        work_dir / "c.itp",
+        work_dir / "archive",
+    ]
+
+
+def test_archiver_get_excluded_from_copying_from_archive_collects_all_sources(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+
+    archiver = _make_archiver(
+        archive=input_dir / "archive",
+        input_dir=input_dir,
+        ignored_files=[input_dir / "core.dump"],
+        excluded_files=[input_dir / "old.log"],
+    )
+
+    assert archiver._get_excluded_from_copying_from_archive() == [
+        input_dir / "core.dump",
+        input_dir / "old.log",
+    ]
+
+
+def test_archiver_get_excluded_from_copying_from_archive_empty(tmp_path: Path) -> None:
+    input_dir = tmp_path / "input"
+
+    archiver = _make_archiver(archive=input_dir / "archive", input_dir=input_dir)
+
+    assert archiver._get_excluded_from_copying_from_archive() == []
+
+
+def test_archiver_get_excluded_from_copying_from_archive_ignores_included_files(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+
+    archiver = _make_archiver(
+        archive=input_dir / "archive",
+        input_dir=input_dir,
+        included_files=[tmp_path / "shared" / "params.itp"],
+    )
+
+    assert archiver._get_excluded_from_copying_from_archive() == []
+
+
+def test_archiver_get_excluded_from_copying_from_archive_deduplicates(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+
+    archiver = _make_archiver(
+        archive=input_dir / "archive",
+        input_dir=input_dir,
+        ignored_files=[input_dir / "core.dump", input_dir / "notes.md"],
+        excluded_files=[input_dir / "core.dump"],
+    )
+
+    assert archiver._get_excluded_from_copying_from_archive() == [
+        input_dir / "core.dump",
+        input_dir / "notes.md",
+    ]
+
+
+def test_archiver_get_excluded_from_copying_from_archive_keeps_duplicate_basenames(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+
+    archiver = _make_archiver(
+        archive=input_dir / "archive",
+        input_dir=input_dir,
+        ignored_files=[tmp_path / "first" / "params.itp"],
+        excluded_files=[tmp_path / "second" / "params.itp"],
+    )
+
+    assert archiver._get_excluded_from_copying_from_archive() == [
+        tmp_path / "first" / "params.itp",
+        tmp_path / "second" / "params.itp",
+    ]

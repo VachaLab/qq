@@ -104,6 +104,9 @@ class Info:
     # List of files and directories to explicitly copy to the working directory.
     included_files: list[Path] = field(default_factory=list)
 
+    # List of files and directories to ignore completely.
+    ignored_files: list[Path] = field(default_factory=list)
+
     # Mode of transferring files from the working directory to the input directory after job completion.
     transfer_mode: list[TransferMode] = field(default_factory=lambda: [Success()])
 

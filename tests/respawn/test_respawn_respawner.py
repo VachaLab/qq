@@ -133,6 +133,7 @@ def test_respawner_build_submitter_creates_submitter_with_correct_params(
         loop_info=None,
         exclude=[str(x) for x in informer.info.excluded_files],
         include=[str(x) for x in informer.info.included_files],
+        ignore=[str(x) for x in informer.info.ignored_files],
         depend=dependencies,
         transfer_mode=informer.info.transfer_mode,
         server=informer.info.server,

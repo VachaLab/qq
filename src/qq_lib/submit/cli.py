@@ -138,7 +138,17 @@ Command-line options apply to all submitted scripts, but each script's own qq di
         f"These files are {click.style('not', bold=True)} copied back after job completion. "
         f"Paths must be absolute or relative to the input directory.\n"
         "You can use glob patterns to match multiple files or directories.\n"
-        f"This option is ignored if the input directory is used as the working directory.\n"
+    ),
+)
+@optgroup.option(
+    "--ignore",
+    type=str,
+    default=None,
+    help=(
+        "Colon-, comma-, or space-separated list of files or directories to ignore in all transfer operations.\n"
+        "These files are neither copied to the working directory nor copied back after job completion.\n"
+        "Paths to files and directories to ignore must be absolute or relative to the input directory.\n"
+        "You can use glob patterns to match multiple files or directories.\n"
     ),
 )
 @optgroup.option(

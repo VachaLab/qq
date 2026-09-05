@@ -183,6 +183,18 @@ class Parser:
 
         return []
 
+    def get_ignore(self) -> list[str]:
+        """
+        Determine the files to completely ignore during transfer operations.
+
+        Returns:
+            list[Path]: List of ignored files or glob patterns. Returns an empty list if none specified.
+        """
+        if (ignore := self._options.get("ignore")) is not None:
+            return split_string_list(str(ignore))
+
+        return []
+
     def get_loop_start(self) -> int | None:
         """
         Return the starting cycle number for loop jobs.

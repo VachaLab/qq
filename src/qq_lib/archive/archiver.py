@@ -31,6 +31,7 @@ class Archiver:
         batch_system: AnyBatchClass,
         included_files: list[Path],
         excluded_files: list[Path],
+        ignored_files: list[Path],
     ):
         """
         Initialize the Archiver.
@@ -45,6 +46,8 @@ class Archiver:
                 in the working directory and should not be archived.
             excluded_files (list[Path]): List of files that were explicitly excluded
                 from the working directory and should not be fetched from archive.
+            ignored_files (list[Path]): List of files that are ignored and should be neither
+                archived nor fetched from archive.
         """
         self._batch_system = batch_system
         self._archive = archive
@@ -53,6 +56,14 @@ class Archiver:
         self._input_dir = input_dir
         self._included_files = included_files
         self._excluded_files = excluded_files
+        self._ignored_files = ignored_files
+
+    @property
+    def archive(self) -> Path:
+        """
+        Returns the absolute path to the archive.
+        """
+        return self._archive
 
     def make_archive_dir(self) -> None:
         """
@@ -93,11 +104,13 @@ class Archiver:
             return
 
         # files that were explicitly excluded via the `exclude` submission option are not fetched
+        # as are not fetched files that are explicitly ignored via the `ignore` submission option
+        exclude = self._get_excluded_from_copying_from_archive()
         logger.debug(
-            f"Files that were excluded from work dir using the `--exclude` option: {self._excluded_files}."
+            f"Files that are excluded or ignored from being copied from the archive: {exclude}."
         )
-        files = [file for file in files if file not in self._excluded_files]
 
+        files = [file for file in files if file not in exclude]
         logger.debug(f"Files to fetch from archive: {files}.")
 
         Retryer(
@@ -135,14 +148,13 @@ class Archiver:
             logger.debug("Nothing to archive.")
             return
 
-        # files that were explicitly included into the working directory
-        # are not transferred back to the input directory
-        # and also should not be archived
-        included_files = relocate_by_name(self._included_files, dir)
+        # files that were explicitly included via the `include` submission option are not archived
+        # as well as files that are explicitly ignored via the `ignore` submission option
+        exclude = self._get_excluded_from_copying_to_archive(dir)
         logger.debug(
-            f"Files that were copied to work dir using the `--include` option: {included_files}."
+            f"Files that are excluded or ignored from being copied to the archive: {exclude}."
         )
-        files = [file for file in files if file not in included_files]
+        files = [file for file in files if file not in exclude]
 
         logger.debug(f"Files to archive: {files}.")
 
@@ -279,6 +291,54 @@ class Archiver:
             for f in available_files
             if regex.search(f.stem) and f.suffix not in CFG.suffixes.all_suffixes
         ]
+
+    def _get_excluded_from_copying_to_archive(self, dir: Path) -> list[Path]:
+        """
+        Return paths that must not be copied to the archive.
+
+        Collects the files ignored and explicitly included by the user,
+        and the archive directory itself. Duplicates are removed,
+        preserving the order of first occurrence.
+
+        Args:
+            dir (Path): The directory from which we are archiving the files.
+
+        Returns:
+            list[Path]: Paths that should not be copied to the archive.
+        """
+
+        return list(
+            dict.fromkeys(
+                relocate_by_name(
+                    [
+                        *self._ignored_files,
+                        *self._included_files,
+                        self._archive,
+                    ],
+                    dir,
+                )
+            )
+        )
+
+    def _get_excluded_from_copying_from_archive(self) -> list[Path]:
+        """
+        Return paths that must not be copied from the archive.
+
+        Collects files ignored and explicitly excluded by the user.
+        Duplicates are removed, preserving the order of first occurrence.
+
+        Returns:
+            list[Path]: Paths that should not be copied from the archive.
+        """
+
+        return list(
+            dict.fromkeys(
+                [
+                    *self._ignored_files,
+                    *self._excluded_files,
+                ]
+            )
+        )
 
     def create_init_file(self, cycle: int) -> None:
         """
