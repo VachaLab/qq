@@ -518,6 +518,7 @@ def test_informer_from_job_id_returns_informer_when_valid():
 
 def test_informer_from_batch_job_raises_when_no_info_file():
     batch_job = MagicMock()
+    batch_job.is_empty.return_value = False
     batch_job.get_info_file.return_value = None
     batch_job.get_id.return_value = "123"
 
@@ -527,6 +528,7 @@ def test_informer_from_batch_job_raises_when_no_info_file():
 
 def test_informer_from_batch_job_raises_on_mismatch():
     batch_job = MagicMock()
+    batch_job.is_empty.return_value = False
     batch_job.get_info_file.return_value = "info_path"
     batch_job.get_id.return_value = "123"
 
@@ -545,6 +547,7 @@ def test_informer_from_batch_job_raises_on_mismatch():
 
 def test_informer_from_batch_job_returns_informer_on_success():
     batch_job = MagicMock()
+    batch_job.is_empty.return_value = False
     batch_job.get_info_file.return_value = "info_path"
     batch_job.get_id.return_value = "123"
 
@@ -556,6 +559,15 @@ def test_informer_from_batch_job_returns_informer_on_success():
 
     assert result is informer_mock
     assert result._batch_info is batch_job
+
+
+def test_informer_from_batch_job_raises_when_empty():
+    batch_job = MagicMock()
+    batch_job.is_empty.return_value = True
+    batch_job.get_id.return_value = "123"
+
+    with pytest.raises(QQError, match="Job '123' does not exist"):
+        Informer.from_batch_job(batch_job)
 
 
 def test_informer_should_transfer_files_returns_true_on_success():

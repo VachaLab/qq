@@ -109,6 +109,9 @@ class Informer:
             QQError: If the job is not a valid qq job (missing info file).
             QQJobMismatchError: If the info file does not correspond to the job's ID.
         """
+        if batch_job.is_empty():
+            raise QQError(f"Job '{batch_job.get_id()}' does not exist")
+
         if not (path := batch_job.get_info_file()):
             raise QQError(f"Job '{batch_job.get_id()}' is not a valid qq job")
 

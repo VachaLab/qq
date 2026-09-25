@@ -5,6 +5,7 @@
 import pytest
 
 from qq_lib.batch.pbs.common import (
+    _parse_unknown_pbs_object,
     parse_multi_pbs_dump_to_dictionaries,
     parse_pbs_dump_to_dictionary,
 )
@@ -298,6 +299,71 @@ Job Id: 103.fake-cluster.example.com
         assert isinstance(name, str)
 
 
+def test_parse_multi_pbs_dump_to_dictionaries_jobs_with_nonexistent():
+    pbs_dump = """Job Id: 101.fake-cluster.example.com
+    Job_Name = job_one
+    Job_Owner = user1@EXAMPLE
+    job_state = R
+    queue = gpu
+    ctime = Sun Sep 21 00:00:00 2025
+    Resource_List.ncpus = 8
+    Resource_List.ngpus = 1
+    Resource_List.mem = 8gb
+    Resource_List.walltime = 24:00:00
+    started = True
+
+qstat: Unknown Job Id 99.fake-cluster.example.com
+qstat: Unknown Job Id 104.fake-cluster.example.com
+Job Id: 102.fake-cluster.example.com
+    Job_Name = job_two
+    Job_Owner = user2@EXAMPLE
+    job_state = Q
+    queue = cpu
+    ctime = Sun Sep 21 01:00:00 2025
+    Resource_List.ncpus = 16
+    Resource_List.ngpus = 0
+    Resource_List.mem = 16gb
+    Resource_List.walltime = 12:00:00
+    started = False
+
+Job Id: 103.fake-cluster.example.com
+    Job_Name = job_three
+    Job_Owner = user3@EXAMPLE
+    job_state = H
+    queue = maintenance
+    ctime = Sun Sep 21 02:00:00 2025
+    Resource_List.ncpus = 4
+    Resource_List.ngpus = 0
+    Resource_List.mem = 4gb
+    Resource_List.walltime = 06:00:00
+    started = False
+    """
+
+    result = parse_multi_pbs_dump_to_dictionaries(pbs_dump, "Job Id")
+
+    assert len(result) == 5
+
+    job_names = [name for _, name in result]
+    assert job_names == [
+        "101.fake-cluster.example.com",
+        "99.fake-cluster.example.com",
+        "104.fake-cluster.example.com",
+        "102.fake-cluster.example.com",
+        "103.fake-cluster.example.com",
+    ]
+
+    for data_dict, name in result:
+        assert isinstance(data_dict, dict)
+        if name in ["99.fake-cluster.example.com", "104.fake-cluster.example.com"]:
+            assert data_dict == {}
+            continue
+
+        assert "Job_Name" in data_dict
+        assert "job_state" in data_dict
+        assert "queue" in data_dict
+        assert isinstance(name, str)
+
+
 def test_parse_pbs_dump_to_dictionary_node():
     pbs_dump = """zero21
         Mom = zero21.cluster.local
@@ -422,3 +488,117 @@ def test_parse_multi_pbs_dump_to_dictionaries_invalid_format_raises_error():
     invalid_dump = "Invalid text without queue name line"
     with pytest.raises(QQError, match="Invalid PBS dump format"):
         parse_multi_pbs_dump_to_dictionaries(invalid_dump, "Job Id")
+
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        ("qstat: Unknown queue gpu1234", "gpu1234"),
+        (
+            "qstat: Unknown Job Id 100.robox-pro.ceitec.muni.cz",
+            "100.robox-pro.ceitec.muni.cz",
+        ),
+        (
+            "Node: node.ceitec.muni.cz,  Error: Unknown node",
+            "node.ceitec.muni.cz",
+        ),
+    ],
+)
+def test_parse_unknown_pbs_object_extracts_identifier(line: str, expected: str) -> None:
+    assert _parse_unknown_pbs_object(line) == expected
+
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        ("  qstat: Unknown queue gpu1234", "gpu1234"),
+        ("qstat: Unknown queue gpu1234   ", "gpu1234"),
+        ("qstat: Unknown queue gpu1234\n", "gpu1234"),
+        ("\tqstat: Unknown Job Id 100.robox-pro\t", "100.robox-pro"),
+        ("Node: node.ceitec.muni.cz, Error: Unknown node", "node.ceitec.muni.cz"),
+        ("Node: node.ceitec.muni.cz,Error: Unknown node", "node.ceitec.muni.cz"),
+        ("  Node: node.ceitec.muni.cz,  Error: Unknown node  ", "node.ceitec.muni.cz"),
+    ],
+)
+def test_parse_unknown_pbs_object_tolerates_surrounding_whitespace(
+    line: str, expected: str
+) -> None:
+    assert _parse_unknown_pbs_object(line) == expected
+
+
+@pytest.mark.parametrize(
+    "identifier",
+    [
+        "gpu",
+        "gpu1234",
+        "q_2h",
+        "default@server.ceitec.muni.cz",
+    ],
+)
+def test_parse_unknown_pbs_object_extracts_queue_names(identifier: str) -> None:
+    assert _parse_unknown_pbs_object(f"qstat: Unknown queue {identifier}") == identifier
+
+
+@pytest.mark.parametrize(
+    "identifier",
+    [
+        "100",
+        "100.robox-pro.ceitec.muni.cz",
+        "100[].robox-pro.ceitec.muni.cz",
+        "100[7].robox-pro.ceitec.muni.cz",
+        "1234567.pbs-m1.metacentrum.cz",
+    ],
+)
+def test_parse_unknown_pbs_object_extracts_job_ids(identifier: str) -> None:
+    assert (
+        _parse_unknown_pbs_object(f"qstat: Unknown Job Id {identifier}") == identifier
+    )
+
+
+@pytest.mark.parametrize(
+    "identifier",
+    [
+        "konos1",
+        "node.ceitec.muni.cz",
+        "elmo3-1.elmo.metacentrum.cz",
+    ],
+)
+def test_parse_unknown_pbs_object_extracts_node_names(identifier: str) -> None:
+    assert (
+        _parse_unknown_pbs_object(f"Node: {identifier},  Error: Unknown node")
+        == identifier
+    )
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "",
+        "   ",
+        "\n",
+        "Job Id: 100.robox-pro.ceitec.muni.cz",
+        "Queue: gpu1234",
+        "    job_state = R",
+        "    resources_used.walltime = 00:10:00",
+        "    comment = Job run at Mon Sep 21",
+        "qstat: invalid option",
+        "pbsnodes: Server has no node list",
+    ],
+)
+def test_parse_unknown_pbs_object_returns_none_for_regular_lines(line: str) -> None:
+    assert _parse_unknown_pbs_object(line) is None
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "Job Id: unknown.robox-pro.ceitec.muni.cz",
+        "    Variable_List = QQ_NODE=unknown node",
+        "    comment = Unknown queue gpu1234 was requested",
+        "Node: node.ceitec.muni.cz,  Error: Node is down",
+    ],
+)
+def test_parse_unknown_pbs_object_ignores_unknown_inside_regular_lines(
+    line: str,
+) -> None:
+    assert _parse_unknown_pbs_object(line) is None

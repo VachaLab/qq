@@ -19,6 +19,7 @@
 ### Bug fixes and other changes
 
 - Directories can be now properly archived.
+- qq commands operating on multiple job IDs no longer fail on the first occurence of a job that does not exist. They report an error and continue processing the remaining jobs.
 - Archive directory created in a working directory is no longer merged with the actual archive directory in the input directory.
 - Number of free GPUs is no longer relevant for determining node state in `qq nodes`. Nodes with exhausted CPUs will always be marked as busy even if they have free GPUs.
 - Clarified in `qq submit -h` that files and directories that the job creates in the working directory **are** copied back to the input directory **even if they are excluded** from being copied to the working directory.
