@@ -1,0 +1,258 @@
+#!/usr/bin/env -S uv run --script
+
+# Released under MIT License.
+# Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
+
+"""
+Write the computational resources used by a collection of qq jobs into a CSV file.
+Version qq 0.13.0.
+Requires `uv`: https://docs.astral.sh/uv
+"""
+
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "qq",
+# ]
+#
+# [tool.uv.sources]
+# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.13.0" }
+# ///
+
+from __future__ import annotations
+
+import csv
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, NoReturn
+
+import click
+
+from qq_lib.core.common import get_info_files
+from qq_lib.core.error import QQError
+from qq_lib.properties.info import Info
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from qq_lib.properties.resources import Resources
+
+CSV_HEADER = ["directory", "jobs", "run_hours", "cpu_hours", "gpu_hours", "node_hours"]
+
+
+@dataclass(frozen=True)
+class Usage:
+    """
+    Resources used by one or more jobs.
+    """
+
+    # number of jobs
+    jobs: int = 0
+
+    # total run time in hours
+    run_hours: float = 0.0
+
+    # run time multiplied by the number of CPUs
+    cpu_hours: float = 0.0
+
+    # run time multiplied by the number of GPUs
+    gpu_hours: float = 0.0
+
+    # run time multiplied by the number of nodes
+    node_hours: float = 0.0
+
+    def __add__(self, other: Usage) -> Usage:
+        """
+        Combine the usage of two sets of jobs.
+
+        Args:
+            other (Usage): Usage to add.
+
+        Returns:
+            Usage: The combined usage.
+        """
+        return Usage(
+            jobs=self.jobs + other.jobs,
+            run_hours=self.run_hours + other.run_hours,
+            cpu_hours=self.cpu_hours + other.cpu_hours,
+            gpu_hours=self.gpu_hours + other.gpu_hours,
+            node_hours=self.node_hours + other.node_hours,
+        )
+
+
+def list_info_files(directory: Path) -> list[Path]:
+    """
+    List qq info files in a directory, oldest first.
+    """
+    try:
+        return get_info_files(directory)
+    except OSError as e:
+        raise QQError(f"Could not read directory '{directory}': {e}") from e
+
+
+def read_infos(files: Iterable[Path]) -> list[Info]:
+    """
+    Load qq info files, skipping those that cannot be read.
+    """
+    infos: list[Info] = []
+    for file in files:
+        try:
+            infos.append(Info.from_file(file))
+        except QQError as e:
+            print(f"Warning: {e.terminated}", file=sys.stderr)
+
+    return infos
+
+
+def load_infos(directory: Path) -> list[Info]:
+    """
+    Load the infos of all jobs submitted from a directory.
+    """
+    input_infos = read_infos(list_info_files(directory))
+    if not input_infos:
+        raise QQError("No qq job info file found")
+
+    infos = {info.job_id: info for info in input_infos}
+
+    archives = {
+        (loop_info.archive, info.script_name)
+        for info in input_infos
+        if (loop_info := info.loop_info) is not None
+    }
+
+    for archive, script_name in archives:
+        if not archive.is_dir():
+            continue
+
+        for info in read_infos(list_info_files(archive)):
+            if info.script_name == script_name:
+                infos.setdefault(info.job_id, info)
+
+    return list(infos.values())
+
+
+def total_cpus(resources: Resources) -> int:
+    """
+    Get the total number of CPUs requested by a job.
+    """
+    if resources.ncpus:
+        return resources.ncpus
+    if resources.ncpus_per_node:
+        return resources.ncpus_per_node * (resources.nnodes or 1)
+    return 1
+
+
+def total_gpus(resources: Resources) -> int:
+    """
+    Get the total number of GPUs requested by a job.
+    """
+    if resources.ngpus:
+        return resources.ngpus
+    if resources.ngpus_per_node:
+        return resources.ngpus_per_node * (resources.nnodes or 1)
+    return 0
+
+
+def job_usage(info: Info) -> Usage:
+    """
+    Compute the resources used by a single job.
+    """
+    if info.start_time is None or info.completion_time is None:
+        return Usage()
+
+    hours = (info.completion_time - info.start_time).total_seconds() / 3600
+    resources = info.resources
+
+    return Usage(
+        jobs=1,
+        run_hours=hours,
+        cpu_hours=hours * total_cpus(resources),
+        gpu_hours=hours * total_gpus(resources),
+        node_hours=hours * (resources.nnodes or 1),
+    )
+
+
+def directory_usage(directory: Path) -> Usage:
+    """
+    Compute the resources used by all jobs submitted from a directory.
+    """
+    return sum((job_usage(info) for info in load_infos(directory)), Usage())
+
+
+def to_row(name: str, usage: Usage) -> list[str]:
+    """
+    Convert usage into a CSV row.
+    """
+    return [
+        name,
+        str(usage.jobs),
+        f"{usage.run_hours:.2f}",
+        f"{usage.cpu_hours:.2f}",
+        f"{usage.gpu_hours:.2f}",
+        f"{usage.node_hours:.2f}",
+    ]
+
+
+def write_csv(output: Path, rows: Iterable[list[str]]) -> None:
+    """
+    Write rows into a CSV file with a header.
+    """
+    try:
+        with output.open("w", newline="") as file:
+            writer = csv.writer(file, lineterminator="\n")
+            writer.writerow(CSV_HEADER)
+            writer.writerows(rows)
+    except OSError as e:
+        raise QQError(f"Could not write file '{output}': {e}") from e
+
+
+@click.command(
+    help="Write the resources used by qq jobs in the specified directories into a CSV file. "
+    "If no directory is specified, the current directory is used.",
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
+@click.argument(
+    "directories",
+    nargs=-1,
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+)
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=Path("resources.csv"),
+    show_default=True,
+    help="Path to the output CSV file. An existing file is overwritten.",
+)
+def main(directories: tuple[Path, ...], output: Path) -> NoReturn:
+    try:
+        rows: list[list[str]] = []
+        total = Usage()
+
+        for directory in directories or (Path.cwd(),):
+            try:
+                usage = directory_usage(directory)
+            except QQError as e:
+                print(f"Warning: {directory}: {e.terminated}", file=sys.stderr)
+                continue
+
+            rows.append(to_row(str(directory), usage))
+            total += usage
+
+        if not rows:
+            print("Error: No loop jobs found.", file=sys.stderr)
+            sys.exit(1)
+
+        rows.append(to_row("total", total))
+        write_csv(output, rows)
+
+        print(f"Resource usage written to '{output}'.")
+        sys.exit(0)
+    except QQError as e:
+        print(f"Error: {e.terminated}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
