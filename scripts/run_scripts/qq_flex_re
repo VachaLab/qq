@@ -1,9 +1,9 @@
 #!/usr/bin/env -S qq run
 ########################################
 #     Script for running Gromacs       #
-#  flexible-length replica exchange    #
-#              using qq                #
-#         script version: 0.7          #
+#   flexible-length replica exchange   #
+#         script version: 0.8          #
+#     requires qq version: >=0.13      #
 #      support: ladmeb@gmail.com       #
 ########################################
 
@@ -152,11 +152,16 @@ if [[ -z "${MAX_TIME}" ]]; then
 fi
 echo "[QQ_FLEX_RE]    INFO    Setting the maximum Gromacs runtime to ${MAX_TIME} hours."
 
-# create STAGE strings
-# CURR - prefix for the data produced in this run
-# NEXT - prefix for the checkpoint file for the next run
-printf -v CURR "${QQ_ARCHIVE_FORMAT}" "${QQ_LOOP_CURRENT}"
-printf -v NEXT "${QQ_ARCHIVE_FORMAT}" "$((QQ_LOOP_CURRENT + 1))"
+
+# set up stage strings
+if [ -z "${QQ_ARCHIVE_CURRENT:-}" ] || [ -z "${QQ_ARCHIVE_NEXT:-}" ]; then
+    echo "[QQ_FLEX_RE]    ERROR     QQ_ARCHIVE_CURRENT and QQ_ARCHIVE_NEXT are not set." >&2
+    echo "[QQ_FLEX_RE]    ERROR     You are either not using qq version 0.13 or higher, or your archive format is not a printf pattern." >&2
+    exit 9
+fi
+
+CURR=${QQ_ARCHIVE_CURRENT}
+NEXT=${QQ_ARCHIVE_NEXT}
 
 # determine gromacs version to set the appropriate appending method
 GMX_VER="$(gmx_mpi --version | awk 'BEGIN {i = 0} tolower($0) ~ /gromacs version/ {split($NF, N, "."); if (N[1] > 6) i = 1} END {print i}')"
@@ -303,7 +308,7 @@ for ((I=0; I<${#CLIENTS[@]}; I++)); do
     SUFFIX=${CLI_SUFFIXES[I]}
 
     cd ${CLI}
-        
+
     # rename output files from gromacs 2016 and later
     for PART in *part*; do
         [[ -e "${PART}" ]] || break
