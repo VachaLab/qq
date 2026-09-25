@@ -420,7 +420,7 @@ def test_submitter_factory_get_queue_raises_error_if_missing():
     factory._parser = mock_parser
     factory._kwargs = {}
 
-    with pytest.raises(QQError, match="Submission queue not specified."):
+    with pytest.raises(QQError, match="Submission queue not specified"):
         factory._get_queue()
 
 

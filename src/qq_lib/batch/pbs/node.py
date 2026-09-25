@@ -115,7 +115,7 @@ class PBSNode(BatchNodeInterface):
         )
 
         if result.returncode != 0:
-            raise QQError(f"Node '{self._name}' does not exist.")
+            raise QQError(f"Node '{self._name}' does not exist")
 
         self._info = parse_pbs_dump_to_dictionary(result.stdout)
 

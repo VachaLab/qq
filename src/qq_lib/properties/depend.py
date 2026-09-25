@@ -95,7 +95,7 @@ class DependType(Enum):
                 return "afterany"
 
         raise QQError(
-            f"Unknown dependency type '{self}'. This is a bug; please report it."
+            f"Unknown dependency type '{self}'. This is a bug, please report it"
         )
 
 
@@ -140,7 +140,7 @@ class Depend:
             return cls(type, jobs)
         except Exception as e:
             raise QQError(
-                f"Could not parse dependency specification '{raw_depend}': {e}."
+                f"Could not parse dependency specification '{raw_depend}': {e}"
             ) from e
 
     @classmethod

@@ -82,7 +82,7 @@ def test_get_info_file_no_info_file():
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
 
-        with pytest.raises(QQError, match="No qq job info file found."):
+        with pytest.raises(QQError, match="No qq job info file found"):
             get_info_file(tmp_path)
 
 

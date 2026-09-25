@@ -1927,7 +1927,7 @@ def test_pbs_delete_remote_dir_raises_error_on_local_failure(tmp_path, monkeypat
     host = socket.getfqdn()
 
     with pytest.raises(
-        QQError, match=f"Could not delete directory '{test_dir}': access denied."
+        QQError, match=f"Could not delete directory '{test_dir}': access denied"
     ):
         PBS.delete_remote_dir(host, test_dir)
 

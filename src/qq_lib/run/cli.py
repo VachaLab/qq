@@ -10,7 +10,12 @@ from typing import NoReturn
 import click
 
 from qq_lib.core.config import CFG
-from qq_lib.core.error import QQError, QQRunCommunicationError, QQRunFatalError
+from qq_lib.core.error import (
+    QQError,
+    QQRunCommunicationError,
+    QQRunFatalError,
+    terminate,
+)
 from qq_lib.core.logger import get_logger
 
 from .runner import Runner, log_fatal_error_and_exit
@@ -61,19 +66,19 @@ def run(script_path: str) -> NoReturn:
         # make sure that qq run is being run as a batch job
         ensure_qq_env()
     except Exception as e:
-        logger.error(e)
+        logger.error(terminate(str(e)))
         sys.exit(CFG.exit_codes.not_qq_env)
 
     try:
         # get the destination of the info file from env vars
         if not (info_file := os.environ.get(CFG.env_vars.info_file)):
             raise QQRunFatalError(
-                f"'{CFG.env_vars.info_file}' environment variable is not set."
+                f"'{CFG.env_vars.info_file}' environment variable is not set"
             )
 
         if not (input_machine := os.environ.get(CFG.env_vars.input_machine)):
             raise QQRunFatalError(
-                f"'{CFG.env_vars.input_machine}' environment variable is not set."
+                f"'{CFG.env_vars.input_machine}' environment variable is not set"
             )
 
         # initialize the runner
@@ -109,5 +114,5 @@ def ensure_qq_env() -> None:
     if not os.environ.get(CFG.env_vars.guard):
         raise QQError(
             "This script must be run as a qq job within the batch system. "
-            f"To submit it properly, use: '{CFG.binary_name} submit'."
+            f"To submit it properly, use: '{CFG.binary_name} submit'"
         )

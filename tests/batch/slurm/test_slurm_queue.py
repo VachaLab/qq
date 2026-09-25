@@ -113,7 +113,7 @@ def test_slurm_queue_update_raises_on_failure(mock_run):
     queue = SlurmQueue.__new__(SlurmQueue)
     queue._name = "cpu"
     mock_run.return_value = MagicMock(returncode=1, stdout="")
-    with pytest.raises(QQError, match="Queue 'cpu' does not exist."):
+    with pytest.raises(QQError, match="Queue 'cpu' does not exist"):
         queue.update()
 
 
@@ -426,7 +426,7 @@ def test_slurm_queue_set_job_numbers_raises_on_failure(mock_run):
     queue._name = "cpu"
     mock_run.return_value = MagicMock(returncode=1, stderr="permission denied")
     with pytest.raises(
-        QQError, match="Could not get job numbers for queue 'cpu': permission denied."
+        QQError, match="Could not get job numbers for queue 'cpu': permission denied"
     ):
         queue._set_job_numbers()
 

@@ -670,7 +670,7 @@ def test_batch_interface_sort_jobs_empty_list():
 
 
 @patch("qq_lib.batch.interface.interface.subprocess.run")
-def test_batchinterface_delete_remote_dir_success(mock_run):
+def test_batch_interface_delete_remote_dir_success(mock_run):
     mock_run.return_value = MagicMock(returncode=0)
 
     BatchInterface.delete_remote_dir("remote_host", Path("/remote/dir"))
@@ -691,12 +691,12 @@ def test_batchinterface_delete_remote_dir_success(mock_run):
 
 
 @patch("qq_lib.batch.interface.interface.subprocess.run")
-def test_batchinterface_delete_remote_dir_raises_error(mock_run):
+def test_batch_interface_delete_remote_dir_raises_error(mock_run):
     mock_run.return_value = MagicMock(returncode=1, stderr="permission denied")
 
     with pytest.raises(
         QQError,
-        match="Could not delete remote directory '/remote/dir' on 'remote_host': permission denied.",
+        match="Could not delete remote directory '/remote/dir' on 'remote_host': permission denied",
     ):
         BatchInterface.delete_remote_dir("remote_host", Path("/remote/dir"))
 

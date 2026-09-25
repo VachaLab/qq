@@ -23,6 +23,7 @@ from qq_lib.core.error import (
     QQJobMismatchError,
     QQRunCommunicationError,
     QQRunFatalError,
+    terminate,
 )
 from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
@@ -329,7 +330,7 @@ class Runner:
         exit_code = getattr(exception, "exit_code", CFG.exit_codes.unexpected_error)
         try:
             self._update_info_failed(exit_code)
-            logger.error(exception)
+            logger.error(terminate(str(exception)))
             sys.exit(exit_code)
         except Exception as e:
             # unable to log the current state into the info file
@@ -456,7 +457,7 @@ class Runner:
             ).run()
         except Exception as e:
             raise QQError(
-                f"Could not update qqinfo file '{self._info_file}' at JOB START: {e}."
+                f"Could not update qqinfo file '{self._info_file}' at JOB START: {e}"
             ) from e
 
     def _get_nodes(self) -> list[str]:
@@ -636,7 +637,7 @@ class Runner:
         """
         if not self._informer.matches_job(job_id):
             raise QQJobMismatchError(
-                f"Info file '{self._info_file}' does not correspond to job '{job_id}'."
+                f"Info file '{self._info_file}' does not correspond to job '{job_id}'"
             )
 
     def _ensure_not_killed(self) -> None:
@@ -648,7 +649,7 @@ class Runner:
         """
         if self._informer.info.job_state == NaiveState.KILLED:
             raise QQRunCommunicationError(
-                "Job has been killed without informing qq run. Aborting the job!"
+                "Job has been killed without informing qq run. Aborting the job"
             )
 
     def _reload_info_and_ensure_valid(self, retry: bool = False) -> None:
@@ -689,7 +690,7 @@ class Runner:
         if self._informer.info.job_type == JobType.LOOP:
             if not (loop_info := self._informer.info.loop_info):
                 raise QQError(
-                    "Loop info is undefined while resubmiting a loop job. This is a bug!"
+                    "Loop info is undefined while resubmiting a loop job. This is a bug, please report it"
                 )
                 return
 
@@ -712,11 +713,13 @@ class Runner:
         If no file exists for the next loop cycle, creates an empty init file to ensure the loop job continues normally.
         """
         if not self._archiver:
-            raise QQError("Archiver is undefined while archiving files. This is a bug!")
+            raise QQError(
+                "Archiver is undefined while archiving files. This is a bug, please report it"
+            )
 
         if not (loop_info := self._informer.info.loop_info):
             raise QQError(
-                "Loop info is undefined while archiving files. This is a bug!"
+                "Loop info is undefined while archiving files. This is a bug, please report it"
             )
 
         # get the files to archive corresponding to the next loop job cycle
@@ -861,7 +864,7 @@ def log_fatal_error_and_exit(exception: BaseException) -> NoReturn:
     Raises:
         SystemExit: Exits with an exit code associated with the exception.
     """
-    logger.error(f"Fatal qq run error: {exception}")
+    logger.error(f"Fatal qq run error: {exception}.")
     logger.error("Failure state was NOT logged into the job info file.")
 
     if isinstance(exception, (QQRunFatalError, QQRunCommunicationError, QQError)):

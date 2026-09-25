@@ -14,7 +14,7 @@ from qq_lib.batch.interface.job import BatchJobInterface
 from qq_lib.core.click_format import GNUHelpColorsCommand
 from qq_lib.core.common import translate_server, yes_or_no_prompt
 from qq_lib.core.config import CFG
-from qq_lib.core.error import QQError, QQJobMismatchError, QQNotSuitableError
+from qq_lib.core.error import QQError, QQJobMismatchError, QQNotSuitableError, terminate
 from qq_lib.core.logger import get_logger
 from qq_lib.core.repeater import Repeater
 from qq_lib.info.informer import Informer
@@ -125,4 +125,4 @@ def _log_error_and_continue(
     """
     Log error as error and continue the execution.
     """
-    logger.error(exception)
+    logger.error(terminate(str(exception)))

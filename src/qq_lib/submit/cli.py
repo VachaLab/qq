@@ -373,7 +373,7 @@ def _submit_job(script: str, kwargs: dict[str, Any]) -> str | None:
     """
     try:
         if not (script_path := Path(script)).is_file():
-            raise QQError(f"Script '{script}' does not exist or is not a file.")
+            raise QQError(f"Script '{script}' does not exist or is not a file")
 
         factory = SubmitterFactory(logical_resolve(script_path), **kwargs)
         submitter = factory.make_submitter()
@@ -383,14 +383,14 @@ def _submit_job(script: str, kwargs: dict[str, Any]) -> str | None:
             and not submitter.continues_loop()
         ):
             raise QQError(
-                "Detected qq runtime files in the submission directory. Submission aborted."
+                "Detected qq runtime files in the submission directory. Submission aborted"
             )
 
         job_id = submitter.submit()
         logger.info(f"Job '{job_id}' submitted successfully.")
         return job_id
     except QQError as e:
-        logger.error(e)
+        logger.error(e.terminated)
         return None
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)

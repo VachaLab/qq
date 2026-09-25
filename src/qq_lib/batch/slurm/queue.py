@@ -117,7 +117,7 @@ class SlurmQueue(BatchQueueInterface):
         )
 
         if result.returncode != 0:
-            raise QQError(f"Queue '{self._name}' does not exist.")
+            raise QQError(f"Queue '{self._name}' does not exist")
 
         self._info = parse_slurm_dump_to_dictionary(result.stdout)
         self._set_job_numbers()
@@ -268,7 +268,7 @@ class SlurmQueue(BatchQueueInterface):
 
         if result.returncode != 0:
             raise QQError(
-                f"Could not get job numbers for queue '{self._name}': {result.stderr.strip()}."
+                f"Could not get job numbers for queue '{self._name}': {result.stderr.strip()}"
             )
 
         for line in result.stdout.splitlines():

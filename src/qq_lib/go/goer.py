@@ -25,12 +25,12 @@ class Goer(Navigator):
         """
         if self._is_synchronized() and not self._work_dir_is_input_dir():
             raise QQNotSuitableError(
-                "Job has been completed and was synchronized: working directory no longer exists."
+                "Job has been completed and was synchronized: working directory no longer exists"
             )
 
         if self._is_killed() and not self.has_destination():
             raise QQNotSuitableError(
-                "Job has been killed and no working directory has been created."
+                "Job has been killed and no working directory has been created"
             )
 
     def go(self) -> None:
@@ -76,7 +76,7 @@ class Goer(Navigator):
 
         if not self.has_destination():
             raise QQError(
-                "Host ('main_node') or working directory ('work_dir') are not defined."
+                "Host ('main_node') or working directory ('work_dir') are not defined"
             )
 
         # hint for type checker

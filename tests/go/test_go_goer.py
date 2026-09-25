@@ -147,7 +147,7 @@ def test_goer_ensure_suitable_raises_killed_without_destination(destination):
 
     with pytest.raises(
         QQNotSuitableError,
-        match="Job has been killed and no working directory has been created.",
+        match="Job has been killed and no working directory has been created",
     ):
         goer.ensure_suitable()
 
@@ -553,7 +553,7 @@ def test_goer_go_no_destination_raises_error():
         patch("qq_lib.go.goer.logger"),
         pytest.raises(
             QQError,
-            match="Host \\('main_node'\\) or working directory \\('work_dir'\\) are not defined.",
+            match="Host \\('main_node'\\) or working directory \\('work_dir'\\) are not defined",
         ),
     ):
         goer.go()

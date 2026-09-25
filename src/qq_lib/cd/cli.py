@@ -44,7 +44,7 @@ def cd(job: str) -> NoReturn:
         print(cder.cd())
         sys.exit(0)
     except QQError as e:
-        logger.error(e)
+        logger.error(e.terminated)
         sys.exit(CFG.exit_codes.default)
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)

@@ -488,7 +488,7 @@ def test_informer_from_job_id_raises_when_empty():
             "qq_lib.info.informer.BatchInterface.from_env_var_or_guess",
             return_value=batch_system,
         ),
-        pytest.raises(QQError, match="Job '123' does not exist."),
+        pytest.raises(QQError, match="Job '123' does not exist"),
     ):
         Informer.from_job_id("123")
 
@@ -521,7 +521,7 @@ def test_informer_from_batch_job_raises_when_no_info_file():
     batch_job.get_info_file.return_value = None
     batch_job.get_id.return_value = "123"
 
-    with pytest.raises(QQError, match="Job '123' is not a valid qq job."):
+    with pytest.raises(QQError, match="Job '123' is not a valid qq job"):
         Informer.from_batch_job(batch_job)
 
 
@@ -537,7 +537,7 @@ def test_informer_from_batch_job_raises_on_mismatch():
         patch("qq_lib.info.informer.Informer.from_file", return_value=informer_mock),
         pytest.raises(
             QQJobMismatchError,
-            match="Info file for job '123' does not exist or is not reachable.",
+            match="Info file for job '123' does not exist or is not reachable",
         ),
     ):
         Informer.from_batch_job(batch_job)

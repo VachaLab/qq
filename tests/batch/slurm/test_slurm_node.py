@@ -57,7 +57,7 @@ def test_slurm_node_update_failure_raises_qqerror(mock_run):
     mock_result.returncode = 1
     mock_run.return_value = mock_result
 
-    with pytest.raises(QQError, match="Node 'node2' does not exist."):
+    with pytest.raises(QQError, match="Node 'node2' does not exist"):
         SlurmNode("node2")
 
 

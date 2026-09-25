@@ -560,7 +560,7 @@ class Config:
                 return _dict_to_dataclass(cls, config_data)
         except Exception as e:
             print(
-                f"[ FATAL CONFIGURATION ERROR ] Could not read qq config '{config_path}': {e}."
+                f"[ FATAL CONFIGURATION ERROR ] Could not read qq config '{config_path}': {e}"
             )
             print(
                 "[ FATAL CONFIGURATION ERROR ] Falling back to default configuration.\n\n"

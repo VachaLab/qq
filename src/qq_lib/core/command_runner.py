@@ -125,7 +125,7 @@ class CommandRunner:
             self._run_pipeline(targets)
             sys.exit(0)
         except QQError as e:
-            self._logger.error(e)
+            self._logger.error(e.terminated)
             sys.exit(CFG.exit_codes.default)
         except Exception as e:
             self._logger.critical(e, exc_info=True, stack_info=True)
@@ -173,8 +173,8 @@ class CommandRunner:
 
         if not targets:
             if not self._job_ids and not self._all:
-                raise QQError("No qq job info file found.")
-            raise QQError("No jobs found.")
+                raise QQError("No qq job info file found")
+            raise QQError("No jobs found")
 
         return targets
 
@@ -285,7 +285,7 @@ class CommandRunner:
                         self._execute(result)
                     else:
                         raise ValueError(
-                            f"Unexpected result type: {type(result)}. This is a bug, please report it."
+                            f"Unexpected result type: {type(result)}. This is a bug, please report it"
                         )
 
     def _execute(self, informer: Informer) -> None:

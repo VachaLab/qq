@@ -43,4 +43,4 @@ class JobType(Enum):
         try:
             return cls[s.upper()]
         except KeyError:
-            raise QQError(f"Could not recognize a job type '{s}'.")
+            raise QQError(f"Could not recognize a job type '{s}'")

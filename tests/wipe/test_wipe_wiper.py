@@ -175,7 +175,7 @@ def test_wiper_ensure_suitable_raises_when_destination_missing():
     wiper._batch_system = MagicMock()
 
     with pytest.raises(
-        QQNotSuitableError, match="Job does not have a working directory."
+        QQNotSuitableError, match="Job does not have a working directory"
     ):
         wiper.ensure_suitable()
 

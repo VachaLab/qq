@@ -125,12 +125,12 @@ class Submitter:
 
         # script must exist
         if not self._script.is_file():
-            raise QQError(f"Script '{script}' does not exist or is not a file.")
+            raise QQError(f"Script '{script}' does not exist or is not a file")
 
         # script must have a valid qq shebang
         if not self._has_valid_shebang(self._script):
             raise QQError(
-                f"Script '{self._script}' has an invalid shebang. The first line of the script should be '#!/usr/bin/env -S {CFG.binary_name} run'."
+                f"Script '{self._script}' has an invalid shebang. The first line of the script should be '#!/usr/bin/env -S {CFG.binary_name} run'"
             )
 
     def submit(self, remote: str | None = None) -> str:
@@ -223,7 +223,7 @@ class Submitter:
             )
             return False
         except QQError as e:
-            logger.debug(f"Could not read an info file: {e}.")
+            logger.debug(f"Could not read an info file: {e}")
             return False
 
     def _loop_job_continues_loop(self, previous: Informer) -> bool:

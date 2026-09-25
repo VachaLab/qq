@@ -118,9 +118,9 @@ def get_info_file(directory: Path) -> Path:
     """
     info_files = get_info_files(directory)
     if len(info_files) == 0:
-        raise QQError("No qq job info file found.")
+        raise QQError("No qq job info file found")
     if len(info_files) > 1:
-        raise QQError("Multiple qq job info files found.")
+        raise QQError("Multiple qq job info files found")
 
     return info_files[0]
 
@@ -167,10 +167,10 @@ def get_info_file_from_job_id(job_id: str) -> Path:
     job_info: BatchJobInterface = BatchSystem.get_batch_job(job_id)
 
     if job_info.is_empty():
-        raise QQError(f"Job '{job_id}' does not exist.")
+        raise QQError(f"Job '{job_id}' does not exist")
 
     if not (path := job_info.get_info_file()):
-        raise QQError(f"Job '{job_id}' is not a valid qq job.")
+        raise QQError(f"Job '{job_id}' is not a valid qq job")
 
     return path
 
@@ -203,7 +203,7 @@ def get_info_files_from_job_id_or_dir(job_id: str | None) -> list[Path]:
 
         if missing:
             raise QQError(
-                f"Info file for job '{job_id}' does not exist or is not reachable."
+                f"Info file for job '{job_id}' does not exist or is not reachable"
             )
 
         return [info_file]
@@ -211,7 +211,7 @@ def get_info_files_from_job_id_or_dir(job_id: str | None) -> list[Path]:
     # get info files from the directory
     info_files = get_info_files(Path())
     if not info_files:
-        raise QQError("No qq job info file found.")
+        raise QQError("No qq job info file found")
 
     return info_files
 
@@ -353,7 +353,7 @@ def hhmmss_to_duration(timestr: str) -> timedelta:
     pattern = re.compile(r"^\s*(\d+):([0-5]?\d):([0-5]?\d)\s*$")
     match = pattern.fullmatch(timestr)
     if not match:
-        raise QQError(f"Invalid HH:MM:SS time string '{timestr}'.")
+        raise QQError(f"Invalid HH:MM:SS time string '{timestr}'")
 
     hours, minutes, seconds = map(int, match.groups())
 
@@ -382,7 +382,7 @@ def dhhmmss_to_duration(timestr: str) -> timedelta:
     pattern = re.compile(r"^\s*(?:(\d+)-)?(\d+):([0-5]?\d):([0-5]?\d)\s*$")
     match = pattern.fullmatch(timestr)
     if not match:
-        raise QQError(f"Invalid D-HH:MM:SS time string '{timestr}'.")
+        raise QQError(f"Invalid D-HH:MM:SS time string '{timestr}'")
 
     days_str, hours_str, minutes_str, seconds_str = match.groups()
     days = int(days_str) if days_str else 0
@@ -450,7 +450,7 @@ def convert_absolute_to_relative(files: list[Path], target: Path) -> list[Path]:
 
         # file must starts with the target path
         if file_parts[: len(target_parts)] != target_parts:
-            raise QQError(f"Item '{file}' is not in target directory '{target}'.")
+            raise QQError(f"Item '{file}' is not in target directory '{target}'")
 
         # create a relative path
         rel_path = Path(*file_parts[len(target_parts) :])
@@ -494,7 +494,7 @@ def wdhms_to_hhmmss(timestr: str) -> str:
     # validation
     full_pattern = re.compile(r"^\s*(?:\d+\s*[wdhms]\s*)+$", re.IGNORECASE)
     if not full_pattern.fullmatch(timestr):
-        raise QQError(f"Invalid time string '{timestr}'.")
+        raise QQError(f"Invalid time string '{timestr}'")
 
     # extract tokens
     token_pattern = re.compile(r"(\d+)\s*([wdhms])", re.IGNORECASE)
@@ -554,7 +554,7 @@ def hhmmss_to_wdhms(timestr: str) -> str:
     pattern = re.compile(r"^\s*(\d+):([0-5]?\d):([0-5]?\d)\s*$")
     match = pattern.fullmatch(timestr)
     if not match:
-        raise QQError(f"Invalid HH:MM:SS time string '{timestr}'.")
+        raise QQError(f"Invalid HH:MM:SS time string '{timestr}'")
 
     hours, minutes, seconds = map(int, match.groups())
     total_seconds = hours * 3600 + minutes * 60 + seconds
@@ -825,7 +825,7 @@ def expand_pattern(pattern: str, directory: Path) -> list[Path]:
     try:
         return sorted(anchor.glob(str(relative)))
     except Exception as e:
-        raise QQError(f"Could not expand pattern '{pattern}': {e}.") from e
+        raise QQError(f"Could not expand pattern '{pattern}': {e}") from e
 
 
 def relocate_by_name(files: Iterable[Path], directory: Path) -> list[Path]:

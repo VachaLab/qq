@@ -125,12 +125,12 @@ class Resubmitter(Operator):
         main_node = informer.info.main_node
         if not main_node:
             raise QQError(
-                "Job cannot be resubmitted. The 'main_node' of the job is not defined."
+                "Job cannot be resubmitted. The 'main_node' of the job is not defined"
             )
 
         if not hosts:
             raise QQError(
-                "Job cannot be resubmitted. No resubmission hosts defined. This is a bug."
+                "Job cannot be resubmitted. No resubmission hosts defined. This is a bug, please report it"
             )
 
         for host in hosts:
@@ -146,4 +146,4 @@ class Resubmitter(Operator):
             except Exception as e:
                 logger.warning(f"Failed resubmission from host '{hostname}': {e}")
 
-        raise QQError("Could not resubmit the job.")
+        raise QQError("Could not resubmit the job")

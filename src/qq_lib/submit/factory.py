@@ -142,7 +142,7 @@ class SubmitterFactory:
             QQError: If no queue is specified either in kwargs or in the script.
         """
         if not (queue := self._kwargs.get("queue") or self._parser.get_queue()):
-            raise QQError("Submission queue not specified.")
+            raise QQError("Submission queue not specified")
         return queue
 
     def _get_resources(

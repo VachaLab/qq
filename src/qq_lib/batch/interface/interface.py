@@ -485,11 +485,11 @@ class BatchInterface[
         # we ignore user exit codes entirely and only treat _SSH_FAIL and _CD_FAIL as errors
         if result.returncode == cls._SSH_FAIL:
             raise QQError(
-                f"Could not reach '{host}:{str(directory)}': Could not connect to host."
+                f"Could not reach '{host}:{str(directory)}': could not connect to host"
             )
         if result.returncode == cls._CD_FAIL:
             raise QQError(
-                f"Could not reach '{host}:{str(directory)}': Could not change directory."
+                f"Could not reach '{host}:{str(directory)}': could not change directory"
             )
 
     @classmethod
@@ -531,7 +531,7 @@ class BatchInterface[
 
         if result.returncode != 0:
             raise QQError(
-                f"Could not read remote file '{file}' on '{host}': {result.stderr.strip()}."
+                f"Could not read remote file '{file}' on '{host}': {result.stderr.strip()}"
             )
         return result.stdout
 
@@ -573,7 +573,7 @@ class BatchInterface[
 
         if result.returncode != 0:
             raise QQError(
-                f"Could not write to remote file '{file}' on '{host}': {result.stderr.strip()}."
+                f"Could not write to remote file '{file}' on '{host}': {result.stderr.strip()}"
             )
 
     @classmethod
@@ -612,7 +612,7 @@ class BatchInterface[
 
         if result.returncode != 0:
             raise QQError(
-                f"Could not make remote directory '{directory}' on '{host}': {result.stderr.strip()}."
+                f"Could not make remote directory '{directory}' on '{host}': {result.stderr.strip()}"
             )
 
     @classmethod
@@ -654,7 +654,7 @@ class BatchInterface[
 
         if result.returncode != 0:
             raise QQError(
-                f"Could not list remote directory '{directory}' on '{host}': {result.stderr.strip()}."
+                f"Could not list remote directory '{directory}' on '{host}': {result.stderr.strip()}"
             )
 
         # split by newline and filter out empty lines
@@ -699,7 +699,7 @@ class BatchInterface[
 
         if result.returncode != 0:
             raise QQError(
-                f"Could not delete remote directory '{directory}' on '{host}': {result.stderr.strip()}."
+                f"Could not delete remote directory '{directory}' on '{host}': {result.stderr.strip()}"
             )
 
     @classmethod
@@ -744,7 +744,7 @@ class BatchInterface[
 
         if result.returncode != 0:
             raise QQError(
-                f"Could not move files on a remote host '{host}': {result.stderr.strip()}."
+                f"Could not move files on a remote host '{host}': {result.stderr.strip()}"
             )
 
     @classmethod
@@ -977,7 +977,7 @@ class BatchInterface[
         logger.debug("Current host is the same as target host. Using 'cd'.")
         if not directory.is_dir():
             raise QQError(
-                f"Could not reach '{socket.getfqdn()}:{str(directory)}': Could not change directory."
+                f"Could not reach '{socket.getfqdn()}:{str(directory)}': could not change directory"
             )
 
         subprocess.run(["bash"], cwd=directory)
@@ -1007,7 +1007,7 @@ class BatchInterface[
         """
         if len(files) != len(moved_files):
             raise QQError(
-                "The provided 'files' and 'moved_files' must have the same length."
+                "The provided 'files' and 'moved_files' must have the same length"
             )
 
         mv_commands: list[str] = []
@@ -1159,10 +1159,10 @@ class BatchInterface[
             )
         except subprocess.TimeoutExpired as e:
             raise QQError(
-                f"Could not rsync files between '{src}' and '{dest}': Connection timed out after {CFG.timeouts.rsync} seconds."
+                f"Could not rsync files between '{src}' and '{dest}': connection timed out after {CFG.timeouts.rsync} seconds"
             ) from e
 
         if result.returncode != 0:
             raise QQError(
-                f"Could not rsync files between '{src}' and '{dest}': {result.stderr.strip()}."
+                f"Could not rsync files between '{src}' and '{dest}': {result.stderr.strip()}"
             )

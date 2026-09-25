@@ -68,7 +68,7 @@ def nodes(all: bool, server: str | None, yaml: bool) -> NoReturn:
             console.print(panel)
         sys.exit(0)
     except QQError as e:
-        logger.error(e)
+        logger.error(e.terminated)
         print()
         sys.exit(CFG.exit_codes.default)
     except Exception as e:

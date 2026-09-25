@@ -28,17 +28,17 @@ class Killer(Operator):
         """
         if self._is_completed():
             raise QQNotSuitableError(
-                "Job cannot be terminated. Job is already completed."
+                "Job cannot be terminated. Job is already completed"
             )
 
         if self._is_killed():
             raise QQNotSuitableError(
-                "Job cannot be terminated. Job has already been killed."
+                "Job cannot be terminated. Job has already been killed"
             )
 
         if self._is_exiting():
             raise QQNotSuitableError(
-                "Job cannot be terminated. Job is in an exiting state."
+                "Job cannot be terminated. Job is in an exiting state"
             )
 
     def kill(self, force: bool = False) -> str:

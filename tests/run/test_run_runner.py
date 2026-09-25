@@ -16,6 +16,7 @@ from qq_lib.core.error import (
     QQJobMismatchError,
     QQRunCommunicationError,
     QQRunFatalError,
+    terminate,
 )
 from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
@@ -846,7 +847,7 @@ def test_runner_log_failure_and_exit_calls_update_and_exits():
         runner.log_failure_and_exit(exc)
 
     runner._update_info_failed.assert_called_once_with(42)
-    mock_logger.error.assert_called_once_with(exc)
+    mock_logger.error.assert_called_once_with(terminate(str(exc)))
     mock_exit.assert_called_once_with(42)
 
 
@@ -1370,7 +1371,7 @@ def test_log_fatal_error_and_exit_known_exception():
     ):
         log_fatal_error_and_exit(exc)
 
-    mock_logger.error.assert_any_call("Fatal qq run error: fatal")
+    mock_logger.error.assert_any_call("Fatal qq run error: fatal.")
     mock_logger.error.assert_any_call(
         "Failure state was NOT logged into the job info file."
     )
@@ -1386,7 +1387,7 @@ def test_log_fatal_error_and_exit_unknown_exception():
     ):
         log_fatal_error_and_exit(exc)
 
-    mock_logger.error.assert_any_call("Fatal qq run error: unknown")
+    mock_logger.error.assert_any_call("Fatal qq run error: unknown.")
     mock_logger.error.assert_any_call(
         "Failure state was NOT logged into the job info file."
     )

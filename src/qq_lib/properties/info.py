@@ -186,23 +186,23 @@ class Info:
                     with file.open("r") as input:
                         data: dict[str, object] = yaml.load(input, Loader=SafeLoader)
                 except FileNotFoundError:
-                    raise QQError(f"qq info file '{file}' does not exist.")
+                    raise QQError(f"qq info file '{file}' does not exist")
                 except PermissionError:
                     raise QQError(
-                        f"No permission to read file '{file}' or access its parent directory."
+                        f"No permission to read file '{file}' or access its parent directory"
                     )
                 except IsADirectoryError:
-                    raise QQError(f"Expected a file but path is a directory: {file}.")
+                    raise QQError(f"Expected a file but path is a directory: {file}")
                 except UnicodeDecodeError as e:
-                    raise QQError(f"File is not valid UTF-8 text: {file}.") from e
+                    raise QQError(f"File is not valid UTF-8 text: {file}") from e
                 except yaml.YAMLError as e:
-                    raise QQError(f"Failed to parse YAML in {file}: {e}.") from e
+                    raise QQError(f"Failed to parse YAML in {file}: {e}") from e
 
             return cls._from_dict(data)
         except yaml.YAMLError as e:
-            raise QQError(f"Could not parse the qq info file '{file}': {e}.") from e
+            raise QQError(f"Could not parse the qq info file '{file}': {e}") from e
         except TypeError as e:
-            raise QQError(f"Invalid qq info file '{file}': {e}.") from e
+            raise QQError(f"Invalid qq info file '{file}': {e}") from e
 
     def to_file(self, file: Path, host: str | None = None) -> None:
         """

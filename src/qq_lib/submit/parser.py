@@ -64,7 +64,7 @@ class Parser:
                     contains an unknown option.
         """
         if not self._script.is_file():
-            raise QQError(f"Could not open '{self._script}' as a file.")
+            raise QQError(f"Could not open '{self._script}' as a file")
 
         with self._script.open() as f:
             # skip the first line (shebang)
@@ -88,7 +88,7 @@ class Parser:
                 parts = Parser._strip_and_split(line)
                 if len(parts) < 2:
                     raise QQError(
-                        f"Invalid qq submit option line in '{str(self._script)}': {line}."
+                        f"Invalid qq submit option line in '{str(self._script)}': {line}"
                     )
 
                 key, value = parts[-2], parts[-1]
@@ -107,7 +107,7 @@ class Parser:
                         self._options[snake_case_key] = value
                 else:
                     raise QQError(
-                        f"Unknown qq submit option '{key}' in '{str(self._script)}': {line.strip()}.\nKnown options are '{' '.join(self._known_options)}'."
+                        f"Unknown qq submit option '{key}' in '{str(self._script)}': {line.strip()}.\nKnown options are '{' '.join(self._known_options)}'"
                     )
 
         logger.debug(f"Parsed options from '{self._script}': {self._options}.")

@@ -31,7 +31,7 @@ class Respawner(Operator):
         """
         if self._state not in {RealState.FAILED, RealState.KILLED}:
             raise QQNotSuitableError(
-                f"Job cannot be respawned. Job is {str(self._state)}."
+                f"Job cannot be respawned. Job is {str(self._state)}"
             )
 
     def respawn(self) -> str:
@@ -122,5 +122,5 @@ class Respawner(Operator):
         ) != loop_info.current:
             raise QQError(
                 f"Respawning loop job in cycle '{loop_info.current}' but the loop job should continue from cycle '{archive_cycle}' "
-                "based on the contents of the archive directory. Canceling job respawn."
+                "based on the contents of the archive directory. Canceling job respawn"
             )

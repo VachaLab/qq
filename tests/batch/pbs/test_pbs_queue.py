@@ -170,7 +170,7 @@ def test_pbsqueue_update_failure():
 
     with (
         patch("qq_lib.batch.pbs.queue.subprocess.run", return_value=mock_result),
-        pytest.raises(QQError, match="Queue 'nonexistent' does not exist."),
+        pytest.raises(QQError, match="Queue 'nonexistent' does not exist"),
     ):
         queue.update()
 

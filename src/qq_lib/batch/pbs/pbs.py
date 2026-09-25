@@ -138,7 +138,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
 
         if result.returncode != 0:
             raise QQError(
-                f"Failed to submit script '{str(script)}': {result.stderr.strip()}."
+                f"Failed to submit script '{str(script)}': {result.stderr.strip()}"
             )
 
         return result.stdout.strip()
@@ -159,7 +159,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         )
 
         if result.returncode != 0:
-            raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}.")
+            raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}")
 
     @classmethod
     def job_kill_force(cls, job_id: str) -> None:
@@ -177,7 +177,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         )
 
         if result.returncode != 0:
-            raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}.")
+            raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}")
 
     @classmethod
     def get_batch_job(cls, job_id: str) -> PBSJob:
@@ -269,7 +269,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
 
         if result.returncode != 0:
             raise QQError(
-                f"Could not retrieve information about queues: {result.stderr.strip()}."
+                f"Could not retrieve information about queues: {result.stderr.strip()}"
             )
 
         queues = []
@@ -298,7 +298,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
 
         if result.returncode != 0:
             raise QQError(
-                f"Could not retrieve information about nodes: {result.stderr.strip()}."
+                f"Could not retrieve information about nodes: {result.stderr.strip()}"
             )
 
         queues = []
@@ -326,7 +326,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             try:
                 return file.read_text()
             except Exception as e:
-                raise QQError(f"Could not read file '{file}': {e}.") from e
+                raise QQError(f"Could not read file '{file}': {e}") from e
         else:
             # otherwise, we fall back to the default implementation
             logger.debug(f"Reading a remote file '{file}' on '{host}'.")
@@ -341,7 +341,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             try:
                 file.write_text(content)
             except Exception as e:
-                raise QQError(f"Could not write file '{file}': {e}.") from e
+                raise QQError(f"Could not write file '{file}': {e}") from e
         else:
             # otherwise, we fall back to the default implementation
             logger.debug(f"Writing a remote file '{file}' on '{host}'.")
@@ -355,9 +355,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             try:
                 directory.mkdir(exist_ok=True)
             except Exception as e:
-                raise QQError(
-                    f"Could not create a directory '{directory}': {e}."
-                ) from e
+                raise QQError(f"Could not create a directory '{directory}': {e}") from e
         else:
             # otherwise we fall back to the default implementation
             logger.debug(f"Creating a directory '{directory}' on '{host}'.")
@@ -371,7 +369,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             try:
                 return list(directory.iterdir())
             except Exception as e:
-                raise QQError(f"Could not list a directory '{directory}': {e}.") from e
+                raise QQError(f"Could not list a directory '{directory}': {e}") from e
         else:
             # otherwise we fall back to the default implementation
             logger.debug(f"Listing a directory '{directory}' on '{host}'.")
@@ -385,7 +383,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             try:
                 shutil.rmtree(directory)
             except Exception as e:
-                raise QQError(f"Could not delete directory '{directory}': {e}.") from e
+                raise QQError(f"Could not delete directory '{directory}': {e}") from e
         else:
             # otherwise we fall back to the default implementation
             logger.debug(f"Deleting a directory '{directory}' on '{host}'.")
@@ -463,7 +461,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         )
         if not resources.work_dir:
             raise QQError(
-                "Work-dir is not set after filling in default attributes. This is a bug."
+                "Work-dir is not set after filling in default attributes. This is a bug, please report it"
             )
 
         # sanity check input_dir
@@ -512,7 +510,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
 
         # unknown work-dir type
         raise QQError(
-            f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.env_name()} are: '{' '.join(cls.get_supported_work_dir_types())}'."
+            f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.env_name()} are: '{' '.join(cls.get_supported_work_dir_types())}'"
         )
 
     @classmethod
@@ -575,19 +573,19 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         elif not res.uses_scratch():
             # if job directory is used as working directory, it must always be shared
             raise QQError(
-                "Job was requested to run directly in the submission directory (work-dir='job_dir' or 'input_dir'), but submission is done from a local filesystem."
+                "Job was requested to run directly in the submission directory (work-dir='job_dir' or 'input_dir'), but submission is done from a local filesystem"
             )
         elif server is not None:
             # if we are submitting to a different server
             raise QQError(
-                f"Job was requested to be submitted to server '{server}' which is potentially non-local, but the submission is done from a local filesystem."
+                f"Job was requested to be submitted to server '{server}' which is potentially non-local, but the submission is done from a local filesystem"
             )
         elif (
             remote_host is not None and socket.getfqdn(remote_host) != socket.getfqdn()
         ):
             # if we are submitting from a different host than the current one
             raise QQError(
-                f"Job was requested to be submitted from host '{remote_host}', but the submission is done from a local filesystem."
+                f"Job was requested to be submitted from host '{remote_host}', but the submission is done from a local filesystem"
             )
 
     @classmethod
@@ -758,18 +756,18 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         # sanity checking per-chunk resources
         if not res.nnodes:
             raise QQError(
-                "Attribute 'nnodes' should not be undefined. This is a bug, please report it."
+                "Attribute 'nnodes' should not be undefined. This is a bug, please report it"
             )
         if res.nnodes == 0:
-            raise QQError("Attribute 'nnodes' cannot be 0.")
+            raise QQError("Attribute 'nnodes' cannot be 0")
 
         if res.ncpus and res.ncpus != 0 and res.ncpus % res.nnodes != 0:
             raise QQError(
-                f"Attribute 'ncpus' ({res.ncpus}) must be divisible by 'nnodes' ({res.nnodes})."
+                f"Attribute 'ncpus' ({res.ncpus}) must be divisible by 'nnodes' ({res.nnodes})"
             )
         if res.ngpus and res.ngpus != 0 and res.ngpus % res.nnodes != 0:
             raise QQError(
-                f"Attribute 'ngpus' ({res.ngpus}) must be divisible by 'nnodes' ({res.nnodes})."
+                f"Attribute 'ngpus' ({res.ngpus}) must be divisible by 'nnodes' ({res.nnodes})"
             )
 
         # translate per-chunk resources
@@ -798,12 +796,12 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
                 )
             else:
                 raise QQError(
-                    "Attribute 'mem-per-cpu' requires attributes 'ncpus' or 'ncpus-per-node' to be defined."
+                    "Attribute 'mem-per-cpu' requires attributes 'ncpus' or 'ncpus-per-node' to be defined"
                 )
         else:
             # memory not set in any way
             raise QQError(
-                "None of the attributes 'mem', 'mem-per-node', or 'mem-per-cpu' is defined."
+                "None of the attributes 'mem', 'mem-per-node', or 'mem-per-cpu' is defined"
             )
 
         if res.ngpus:
@@ -847,11 +845,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
                 return f"{res.work_dir}={(res.work_size_per_cpu * res.ncpus_per_node).to_str_exact()}"
 
             raise QQError(
-                "Attribute 'work-size-per-cpu' requires attributes 'ncpus' or 'ncpus-per-node' to be defined."
+                "Attribute 'work-size-per-cpu' requires attributes 'ncpus' or 'ncpus-per-node' to be defined"
             )
 
         raise QQError(
-            "None of the attributes 'work-size', 'work-size-per-node', or 'work-size-per-cpu' is defined."
+            "None of the attributes 'work-size', 'work-size-per-node', or 'work-size-per-cpu' is defined"
         )
 
     @classmethod
@@ -1029,7 +1027,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
                 sync_function(src_dir, dest_dir, src, dest, files)
             else:
                 raise QQError(
-                    f"The source '{src_host}' and destination '{dest_host}' cannot be both remote."
+                    f"The source '{src_host}' and destination '{dest_host}' cannot be both remote"
                 )
 
     @classmethod
@@ -1076,7 +1074,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         if not ignore_exit_code and result.returncode != 0:
             raise QQError(
                 # standard error is written to stdout
-                f"Could not retrieve information about jobs: {result.stdout.strip()}."
+                f"Could not retrieve information about jobs: {result.stdout.strip()}"
             )
 
         jobs = []

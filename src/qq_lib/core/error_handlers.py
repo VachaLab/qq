@@ -16,7 +16,7 @@ from typing import NoReturn
 from qq_lib.core.command_runner import CommandRunner
 
 from .config import CFG
-from .error import QQNotSuitableError
+from .error import QQNotSuitableError, terminate
 from .logger import get_logger
 
 logger = get_logger(__name__)
@@ -28,11 +28,11 @@ def handle_not_suitable_error(
 ) -> None:
     """Handle cases where a job is unsuitable for a qq operation."""
     if runner.n_jobs == 1:
-        logger.error(exception)
+        logger.error(terminate(str(exception)))
         sys.exit(CFG.exit_codes.default)
 
     if runner.n_jobs > 1:
-        logger.info(exception)
+        logger.info(terminate(str(exception)))
 
     if (
         sum(
@@ -50,7 +50,7 @@ def handle_job_mismatch_error(
     _runner: CommandRunner,
 ) -> NoReturn:
     """Handle cases where the provided job ID does not match the qq info file."""
-    logger.error(exception)
+    logger.error(terminate(str(exception)))
     sys.exit(CFG.exit_codes.default)
 
 
@@ -59,7 +59,7 @@ def handle_general_qq_error(
     runner: CommandRunner,
 ) -> None:
     """Handle general qq errors that occur during a qq operation."""
-    logger.error(exception)
+    logger.error(terminate(str(exception)))
 
     if runner.n_jobs == len(runner.encountered_errors):
         sys.exit(CFG.exit_codes.default)

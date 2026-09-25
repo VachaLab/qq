@@ -86,7 +86,7 @@ class Informer:
         batch_job: BatchJobInterface = BatchSystem.get_batch_job(job_id)
 
         if batch_job.is_empty():
-            raise QQError(f"Job '{job_id}' does not exist.")
+            raise QQError(f"Job '{job_id}' does not exist")
 
         return cls.from_batch_job(batch_job)
 
@@ -110,14 +110,14 @@ class Informer:
             QQJobMismatchError: If the info file does not correspond to the job's ID.
         """
         if not (path := batch_job.get_info_file()):
-            raise QQError(f"Job '{batch_job.get_id()}' is not a valid qq job.")
+            raise QQError(f"Job '{batch_job.get_id()}' is not a valid qq job")
 
         informer = cls.from_file(path)
 
         # check that the loaded info file actually corresponds to the batch job's ID
         if not informer.matches_job(batch_job.get_id()):
             raise QQJobMismatchError(
-                f"Info file for job '{batch_job.get_id()}' does not exist or is not reachable."
+                f"Info file for job '{batch_job.get_id()}' does not exist or is not reachable"
             )
 
         informer._batch_info = batch_job

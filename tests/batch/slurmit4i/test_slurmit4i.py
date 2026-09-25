@@ -222,7 +222,7 @@ def test_slurmit4i_move_remote_files_raises_on_length_mismatch():
     moved_files = [Path("/data/a_moved.txt"), Path("/data/b_moved.txt")]
     with pytest.raises(
         QQError,
-        match="The provided 'files' and 'moved_files' must have the same length.",
+        match="The provided 'files' and 'moved_files' must have the same length",
     ):
         SlurmIT4I.move_remote_files("host", files, moved_files)
 
@@ -370,7 +370,7 @@ def test_slurmit4i_delete_remote_dir_raises_error_on_local_failure(
     monkeypatch.setattr(shutil, "rmtree", mock_rmtree)
 
     with pytest.raises(
-        QQError, match=f"Could not delete directory '{test_dir}': access denied."
+        QQError, match=f"Could not delete directory '{test_dir}': access denied"
     ):
         SlurmIT4I.delete_remote_dir("some_host", test_dir)
 
