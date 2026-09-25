@@ -1,0 +1,314 @@
+#!/usr/bin/env -S uv run --quiet --script
+
+# Released under MIT License.
+# Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
+
+"""
+Report running qq jobs with low CPU utilization.
+The script is meant to be run periodically as a cron job.
+
+Version qq 0.13.0.
+Requires `uv`: https://docs.astral.sh/uv
+"""
+
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "qq",
+# ]
+#
+# [tool.uv.sources]
+# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.13.0" }
+# ///
+
+import contextlib
+import getpass
+import json
+import os
+import sys
+from collections.abc import Iterable
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import NoReturn
+
+import click
+
+from qq_lib.batch.interface import BatchInterface, BatchJobInterface
+from qq_lib.core.common import format_duration, translate_server
+from qq_lib.core.error import QQError
+from qq_lib.properties.states import BatchState
+
+REPORT_HEADER = [
+    "Job ID",
+    "Job name",
+    "CPU util",
+    "CPUs",
+    "Running for",
+    "Node",
+    "Input directory",
+]
+
+# a job is reported again slightly before the repeat interval passes, so that
+# a cron job started a few seconds early does not postpone the report by an hour
+REPEAT_TOLERANCE = timedelta(minutes=1)
+
+
+def default_state_file() -> Path:
+    """
+    Get the default path to the file storing when jobs were last reported.
+
+    Returns:
+        Path: `$XDG_STATE_HOME/qq/low_cpu_check.json`, or
+            `~/.local/state/qq/low_cpu_check.json` if `XDG_STATE_HOME` is not set.
+    """
+    state_home = os.environ.get("XDG_STATE_HOME") or Path.home() / ".local" / "state"
+    return Path(state_home) / "qq" / "low_cpu_check.json"
+
+
+def load_reported(state_file: Path) -> dict[str, datetime]:
+    """
+    Load the times when jobs were last reported.
+
+    A missing or unreadable file is treated as empty. Invalid entries are skipped.
+    """
+    try:
+        data = json.loads(state_file.read_text())
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError):
+        return {}
+
+    if not isinstance(data, dict):
+        return {}
+
+    reported: dict[str, datetime] = {}
+    for job_id, timestamp in data.items():
+        with contextlib.suppress(TypeError, ValueError):
+            reported[str(job_id)] = datetime.fromisoformat(timestamp)
+
+    return reported
+
+
+def save_reported(state_file: Path, reported: dict[str, datetime]) -> None:
+    """
+    Save the times when jobs were last reported.
+
+    The file is replaced atomically, so an interrupted write does not corrupt it.
+    """
+    content = {job_id: time.isoformat() for job_id, time in reported.items()}
+    tmp_file = state_file.with_name(f"{state_file.name}.tmp")
+
+    try:
+        state_file.parent.mkdir(parents=True, exist_ok=True)
+        tmp_file.write_text(json.dumps(content, indent=2) + "\n")
+        tmp_file.replace(state_file)
+    except OSError as e:
+        raise QQError(f"Could not write file '{state_file}': {e}") from e
+
+
+def should_report(
+    job: BatchJobInterface,
+    reported: dict[str, datetime],
+    now: datetime,
+    repeat_after: timedelta,
+) -> bool:
+    """
+    Determine whether a job with low CPU utilization should be reported now.
+    """
+    if (last := reported.get(job.get_id())) is None:
+        return True
+
+    return now - last >= repeat_after - REPEAT_TOLERANCE
+
+
+def update_reported(
+    reported: dict[str, datetime],
+    jobs: Iterable[BatchJobInterface],
+    now: datetime,
+    repeat_after: timedelta,
+) -> dict[str, datetime]:
+    """
+    Record the report of jobs and drop entries that no longer prevent a report.
+    """
+    updated = {
+        job_id: time for job_id, time in reported.items() if now - time < repeat_after
+    }
+    updated.update({job.get_id(): now for job in jobs})
+    return updated
+
+
+def collect_jobs(
+    BatchSystem: type[BatchInterface],
+    user: str,
+    servers: Iterable[str | None],
+) -> tuple[list[BatchJobInterface], bool]:
+    """
+    Collect unfinished jobs of a user from the specified batch servers.
+    """
+    jobs: list[BatchJobInterface] = []
+    failed = False
+
+    for server in servers:
+        try:
+            jobs.extend(BatchSystem.get_unfinished_batch_jobs(user, server))
+        except QQError as e:
+            print(
+                f"Error: Could not collect jobs from server '{server or 'default'}': {e.terminated}",
+                file=sys.stderr,
+            )
+            failed = True
+
+    return jobs, failed
+
+
+def has_low_utilization(
+    job: BatchJobInterface, now: datetime, grace: timedelta, threshold: int
+) -> bool:
+    """
+    Determine whether a job is a running qq job with low CPU utilization.
+    """
+    if job.get_state() != BatchState.RUNNING:
+        return False
+
+    # interactive sessions and other jobs not submitted by qq are ignored
+    if job.get_info_file() is None:
+        return False
+
+    if (start_time := job.get_start_time()) is None or now - start_time < grace:
+        return False
+
+    if (util := job.get_util_cpu()) is None:
+        return False
+
+    return util < threshold
+
+
+def to_row(job: BatchJobInterface, now: datetime) -> list[str]:
+    """
+    Convert a job into a row of the report.
+    """
+    util = job.get_util_cpu()
+    ncpus = job.get_n_cpus()
+    start_time = job.get_start_time()
+
+    return [
+        job.get_id(),
+        job.get_name() or "-",
+        f"{util}%" if util is not None else "-",
+        str(ncpus) if ncpus is not None else "-",
+        format_duration(now - start_time) if start_time is not None else "-",
+        job.get_main_node() or "-",
+        str(job.get_input_dir() or "-"),
+    ]
+
+
+def format_table(rows: list[list[str]]) -> str:
+    """
+    Format rows into a plain-text table with aligned columns and a header.
+    """
+    table = [REPORT_HEADER, *rows]
+    widths = [max(len(row[i]) for row in table) for i in range(len(REPORT_HEADER))]
+
+    return "\n".join(
+        "  ".join(cell.ljust(width) for cell, width in zip(row, widths)).rstrip()
+        for row in table
+    )
+
+
+def format_report(
+    jobs: Iterable[BatchJobInterface], now: datetime, threshold: int
+) -> str:
+    """
+    Create the report listing jobs with low CPU utilization.
+    """
+    table = format_table([to_row(job, now) for job in jobs])
+    return f"Running qq jobs with CPU utilization below {threshold}%:\n\n{table}"
+
+
+@click.command(
+    help="Report running qq jobs with low CPU utilization. Prints nothing if all "
+    "jobs are fine. Only works on PBS.",
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
+@click.option(
+    "-s",
+    "--server",
+    "servers",
+    multiple=True,
+    help="Batch server to collect jobs from. Can be specified multiple times. "
+    "Shortcuts such as 'meta' are supported. If not specified, the current server is used.",
+)
+@click.option(
+    "-t",
+    "--threshold",
+    type=click.IntRange(min=1, max=100),
+    default=50,
+    show_default=True,
+    help="CPU utilization in percent below which a job is reported.",
+)
+@click.option(
+    "-g",
+    "--grace",
+    type=click.IntRange(min=0),
+    default=20,
+    show_default=True,
+    help="Minutes after the start of a job during which its CPU utilization is not checked.",
+)
+@click.option(
+    "-r",
+    "--repeat-after",
+    type=click.IntRange(min=0),
+    default=6,
+    show_default=True,
+    help="Hours before a job that still has low CPU utilization is reported again.",
+)
+@click.option(
+    "--state-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=default_state_file(),
+    show_default=True,
+    help="File storing when each job was last reported.",
+)
+def main(
+    servers: tuple[str, ...],
+    threshold: int,
+    grace: int,
+    repeat_after: int,
+    state_file: Path,
+) -> NoReturn:
+    try:
+        targets: list[str | None] = [translate_server(server) for server in servers]
+        if not targets:
+            targets = [None]
+
+        now = datetime.now()
+        BatchSystem = BatchInterface.from_env_var_or_guess()
+        jobs, failed = collect_jobs(BatchSystem, getpass.getuser(), targets)
+
+        low = [
+            job
+            for job in jobs
+            if has_low_utilization(job, now, timedelta(minutes=grace), threshold)
+        ]
+
+        if low:
+            repeat = timedelta(hours=repeat_after)
+            reported = load_reported(state_file)
+            to_report = [
+                job for job in low if should_report(job, reported, now, repeat)
+            ]
+
+            if to_report:
+                print(format_report(to_report, now, threshold))
+                save_reported(
+                    state_file, update_reported(reported, to_report, now, repeat)
+                )
+
+        sys.exit(1 if failed else 0)
+    except QQError as e:
+        print(f"Error: {e.terminated}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
