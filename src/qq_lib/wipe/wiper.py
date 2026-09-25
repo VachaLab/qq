@@ -24,31 +24,31 @@ class Wiper(Navigator):
         """
         if self._work_dir_is_input_dir():
             raise QQNotSuitableError(
-                "Working directory of the job is the input directory of the job. Cannot delete the input directory."
+                "Working directory of the job is the input directory of the job. Cannot delete the input directory"
             )
 
         if self._is_queued():
             raise QQNotSuitableError(
-                f"Job is {str(self._informer.get_real_state()).lower()} and does not have a working directory yet."
+                f"Job is {str(self._informer.get_real_state()).lower()} and does not have a working directory yet"
             )
 
         if self._is_running() or self._is_suspended():
             raise QQNotSuitableError(
-                f"Job is {str(self._informer.get_real_state()).lower()}. It is not safe to delete the working directory."
+                f"Job is {str(self._informer.get_real_state()).lower()}. It is not safe to delete the working directory"
             )
 
         if self._is_synchronized():
             raise QQNotSuitableError(
-                "Job has been completed and was synchronized: working directory no longer exists."
+                "Job has been completed and was synchronized: working directory no longer exists"
             )
 
         if self._is_finished():
             raise QQNotSuitableError(
-                "It may not be safe to delete the working directory of a successfully finished job. Rerun as 'qq wipe --force' if sure."
+                "It may not be safe to delete the working directory of a successfully finished job. Rerun as 'qq wipe --force' if sure"
             )
 
         if not self.has_destination():
-            raise QQNotSuitableError("Job does not have a working directory.")
+            raise QQNotSuitableError("Job does not have a working directory")
 
     def wipe(self) -> str:
         """
@@ -62,17 +62,17 @@ class Wiper(Navigator):
         """
         if not self.has_destination():
             raise QQError(
-                "Host ('main_node') or working directory ('work_dir') are not defined."
+                "Host ('main_node') or working directory ('work_dir') are not defined"
             )
 
         # hint for type checker
-        # work_dir and main_node must be set - we check that in self.hasDestination
+        # work_dir and main_node must be set - we check that in self.has_destination
         assert self._work_dir and self._main_node
 
         # we cannot delete the input directory even if the `--force` flag is used
         if self._work_dir_is_input_dir():
             raise QQError(
-                "Working directory of the job is the input directory of the job. Cannot delete the input directory."
+                "Working directory of the job is the input directory of the job. Cannot delete the input directory"
             )
 
         logger.info(

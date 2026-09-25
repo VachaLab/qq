@@ -45,7 +45,7 @@ class Size:
                 self.value = 0 if value == 0 else 1
                 return
 
-            raise QQError(f"Unsupported unit for size '{unit}'.")
+            raise QQError(f"Unsupported unit for size '{unit}'")
 
         self.value = value * self._unit_map[unit]
 
@@ -65,7 +65,7 @@ class Size:
         """
         match = re.match(r"^\s*(\d+)\s*([a-zA-Z]+)\s*$", s)
         if not match:
-            raise QQError(f"Invalid size string: '{s}'.")
+            raise QQError(f"Invalid size string: '{s}'")
         value, unit = match.groups()
 
         # normalize single-letter units to their full form by appending 'b'
@@ -139,7 +139,7 @@ class Size:
         if not isinstance(n, int):
             return NotImplemented
         if n == 0:
-            raise ZeroDivisionError("Division by zero.")
+            raise ZeroDivisionError("Division by zero")
 
         return Size(math.ceil(self.value / n), "kb")
 
@@ -167,7 +167,7 @@ class Size:
             )
 
         if other.value == 0:
-            raise ZeroDivisionError("Division by zero size.")
+            raise ZeroDivisionError("Division by zero size")
 
         return self.value / other.value
 
@@ -192,6 +192,6 @@ class Size:
 
         result_kb = self.value - other.value
         if result_kb < 0:
-            raise ValueError("Resulting Size cannot be negative.")
+            raise ValueError("Resulting Size cannot be negative")
 
         return Size(result_kb, "kb")

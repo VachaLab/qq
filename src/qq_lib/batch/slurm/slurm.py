@@ -108,7 +108,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
 
         if result.returncode != 0:
             raise QQError(
-                f"Failed to submit script '{str(script)}': {result.stderr.strip()}."
+                f"Failed to submit script '{str(script)}': {result.stderr.strip()}"
             )
 
         return result.stdout.split()[-1]
@@ -129,7 +129,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         )
 
         if result.returncode != 0:
-            raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}.")
+            raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}")
 
     @classmethod
     def job_kill_force(cls, job_id: str) -> None:
@@ -147,7 +147,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         )
 
         if result.returncode != 0:
-            raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}.")
+            raise QQError(f"Failed to kill job '{job_id}': {result.stderr.strip()}")
 
     @classmethod
     def get_batch_job(cls, job_id: str) -> SlurmJob:
@@ -286,7 +286,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
 
         if result.returncode != 0:
             raise QQError(
-                f"Could not retrieve information about queues: {result.stderr.strip()}."
+                f"Could not retrieve information about queues: {result.stderr.strip()}"
             )
 
         queues = []
@@ -315,7 +315,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
 
         if result.returncode != 0:
             raise QQError(
-                f"Could not retrieve information about nodes: {result.stderr.strip()}."
+                f"Could not retrieve information about nodes: {result.stderr.strip()}"
             )
 
         nodes = []
@@ -470,7 +470,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
             for k, v in res.props.items():
                 if v != "true":
                     raise QQError(
-                        f"Slurm only supports properties with a value of 'true', not '{k}={v}'."
+                        f"Slurm only supports properties with a value of 'true', not '{k}={v}'"
                     )
                 constraints.append(k)
 
@@ -535,18 +535,18 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         # sanity checking per-chunk resources
         if res.nnodes is None:
             raise QQError(
-                "Attribute 'nnodes' should not be undefined. This is a bug, please report it."
+                "Attribute 'nnodes' should not be undefined. This is a bug, please report it"
             )
         if res.nnodes == 0:
-            raise QQError("Attribute 'nnodes' cannot be 0.")
+            raise QQError("Attribute 'nnodes' cannot be 0")
 
         if res.ncpus and res.ncpus != 0 and res.ncpus % res.nnodes != 0:
             raise QQError(
-                f"Attribute 'ncpus' ({res.ncpus}) must be divisible by 'nnodes' ({res.nnodes})."
+                f"Attribute 'ncpus' ({res.ncpus}) must be divisible by 'nnodes' ({res.nnodes})"
             )
         if res.ngpus and res.ngpus != 0 and res.ngpus % res.nnodes != 0:
             raise QQError(
-                f"Attribute 'ngpus' ({res.ngpus}) must be divisible by 'nnodes' ({res.nnodes})."
+                f"Attribute 'ngpus' ({res.ngpus}) must be divisible by 'nnodes' ({res.nnodes})"
             )
 
         # translate per-chunk resources
@@ -569,7 +569,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         else:
             # memory not set in any way
             raise QQError(
-                "None of the attributes 'mem', 'mem-per-node', or 'mem-per-cpu' is defined."
+                "None of the attributes 'mem', 'mem-per-node', or 'mem-per-cpu' is defined"
             )
 
         if res.ngpus:
@@ -665,7 +665,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
 
         if result.returncode != 0:
             raise QQError(
-                f"Could not retrieve information about jobs: {result.stderr.strip()}."
+                f"Could not retrieve information about jobs: {result.stderr.strip()}"
             )
 
         jobs = []
@@ -709,7 +709,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
 
         if result.returncode != 0:
             raise QQError(
-                f"Could not retrieve information about jobs: {result.stderr.strip()}."
+                f"Could not retrieve information about jobs: {result.stderr.strip()}"
             )
 
         ids = [line.strip() for line in result.stdout.split("\n") if line.strip()]
@@ -743,6 +743,6 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
                     jobs.append(future.result())
                 except Exception as e:
                     id = future_to_id[future]
-                    raise QQError(f"Failed to load job {id}: {e}.") from e
+                    raise QQError(f"Failed to load job {id}: {e}") from e
 
         return jobs

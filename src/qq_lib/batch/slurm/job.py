@@ -408,7 +408,7 @@ class SlurmJob(BatchJobInterface):
         split = string.split("|")
         if len(fields) != len(split):
             raise QQError(
-                f"Number of items in a sacct string '{string}' ('{len(split)}') does not match the expected number of items ('{len(fields)}'). This is a bug, please report it!"
+                f"Number of items in a sacct string '{string}' ('{len(split)}') does not match the expected number of items ('{len(fields)}'). This is a bug, please report it"
             )
 
         info: dict[str, str] = dict(zip(fields, split))
@@ -443,7 +443,7 @@ class SlurmJob(BatchJobInterface):
         split = string.split("|")
         if len(fields) != len(split):
             raise QQError(
-                f"Number of items in a sacct string for a slurm step '{string}' ('{len(split)}') does not match the expected number of items ('{len(fields)}'). This is a bug, please report it!"
+                f"Number of items in a sacct string for a slurm step '{string}' ('{len(split)}') does not match the expected number of items ('{len(fields)}'). This is a bug, please report it"
             )
 
         info: dict[str, str] = dict(zip(fields, split))

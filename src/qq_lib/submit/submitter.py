@@ -12,8 +12,10 @@ from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.core.common import (
     construct_info_file_path,
     construct_loop_job_name,
+    expand_paths,
     get_info_file,
     hhmmss_to_duration,
+    is_printf_pattern,
 )
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -56,8 +58,9 @@ class Submitter:
         job_type: JobType,
         resources: Resources,
         loop_info: LoopInfo | None = None,
-        exclude: list[Path] | None = None,
-        include: list[Path] | None = None,
+        exclude: list[str] | None = None,
+        include: list[str] | None = None,
+        ignore: list[str] | None = None,
         depend: list[Depend] | None = None,
         transfer_mode: list[TransferMode] | None = None,
         server: str | None = None,
@@ -76,10 +79,13 @@ class Submitter:
             job_type (JobType): Type of the job to submit (e.g. standard, loop).
             resources (Resources): Job resource requirements (e.g., CPUs, memory, walltime).
             loop_info (LoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
-            exclude (list[Path] | None): Optional list of files which should not be copied to the working directory.
-                Paths are provided relative to the input directory.
-            include (list[Path] | None): Optional list of files which should be copied to the working directory
+            exclude (list[str] | None): Optional list of files or glob patterns which should not be copied to the working directory.
+                Paths are provided relative to the input directory or absolute.
+            include (list[str] | None): Optional list of files or glob patterns which should be copied to the working directory
                 even though they are not part of the job's input directory.
+                Paths are provided either absolute or relative to the input directory.
+            ignore (list[str] | None): Optional list of files or glob patterns which should be ignored completely.
+                These files will not be copied to the working directory and if they are created in the working directory, they are also not copied back.
                 Paths are provided either absolute or relative to the input directory.
             depend (list[Depend] | None): Optional list of job dependencies.
             transfer_mode (list[TransferMode] | None): Mode specifying when files whould be transferred from the
@@ -107,11 +113,9 @@ class Submitter:
         self._job_name = self._construct_job_name()
         self._info_file = construct_info_file_path(self._input_dir, self._job_name)
         self._resources = resources
-        # convert relative paths to absolute paths by prepending the input dir path
-        self._exclude = [self._input_dir / e for e in (exclude or [])]
-        self._include = [
-            i if i.is_absolute() else self._input_dir / i for i in (include or [])
-        ]
+        self._exclude = expand_paths(exclude or [], self._input_dir)
+        self._include = expand_paths(include or [], self._input_dir)
+        self._ignore = expand_paths(ignore or [], self._input_dir)
         self._depend = depend or []
         self._transfer_mode = transfer_mode or TransferMode.multi_from_str(
             CFG.transfer_files_options.default_transfer_mode
@@ -121,12 +125,12 @@ class Submitter:
 
         # script must exist
         if not self._script.is_file():
-            raise QQError(f"Script '{script}' does not exist or is not a file.")
+            raise QQError(f"Script '{script}' does not exist or is not a file")
 
         # script must have a valid qq shebang
         if not self._has_valid_shebang(self._script):
             raise QQError(
-                f"Script '{self._script}' has an invalid shebang. The first line of the script should be '#!/usr/bin/env -S {CFG.binary_name} run'."
+                f"Script '{self._script}' has an invalid shebang. The first line of the script should be '#!/usr/bin/env -S {CFG.binary_name} run'"
             )
 
     def submit(self, remote: str | None = None) -> str:
@@ -184,6 +188,7 @@ class Submitter:
             loop_info=self._loop_info,
             excluded_files=self._exclude,
             included_files=self._include,
+            ignored_files=self._ignore,
             depend=self._depend,
             account=self._account,
             transfer_mode=self._transfer_mode,
@@ -218,7 +223,7 @@ class Submitter:
             )
             return False
         except QQError as e:
-            logger.debug(f"Could not read an info file: {e}.")
+            logger.debug(f"Could not read an info file: {e}")
             return False
 
     def _loop_job_continues_loop(self, previous: Informer) -> bool:
@@ -308,6 +313,10 @@ class Submitter:
         """Get a list of included files."""
         return self._include
 
+    def get_ignore(self) -> list[Path]:
+        """Get a list of ignored files."""
+        return self._ignore
+
     def get_depend(self) -> list[Depend]:
         """Get the list of dependencies."""
         return self._depend
@@ -381,15 +390,41 @@ class Submitter:
         # loop job-specific environment variables
         if self._loop_info:
             env_vars[CFG.env_vars.loop_current] = str(self._loop_info.current)
+            env_vars[CFG.env_vars.loop_next] = str(self._loop_info.current + 1)
             env_vars[CFG.env_vars.loop_start] = str(self._loop_info.start)
             env_vars[CFG.env_vars.loop_end] = str(self._loop_info.end)
             env_vars[CFG.env_vars.archive_format] = self._loop_info.archive_format
+            env_vars[CFG.env_vars.archive_current] = self._make_pattern(
+                self._loop_info.archive_format, self._loop_info.current
+            )
+            env_vars[CFG.env_vars.archive_next] = self._make_pattern(
+                self._loop_info.archive_format, self._loop_info.current + 1
+            )
 
         # loop job- or continuous job-specific environment variables
         if self._job_type in [JobType.LOOP, JobType.CONTINUOUS]:
             env_vars[CFG.env_vars.no_resubmit] = str(CFG.exit_codes.qq_run_no_resubmit)
 
         return env_vars
+
+    @staticmethod
+    def _make_pattern(archive_format: str, cycle: int) -> str:
+        """
+        Create a pattern for archived files in the specified cycle.
+
+        If the archive_format is not a printf pattern, returns an empty string.
+
+        Args:
+            archive_format (str): The provided archive format.
+            cycle (int): Cycle number to use.
+
+        Returns:
+            str: The pattern or an empty string if the archive format is not a printf pattern.
+        """
+        if is_printf_pattern(archive_format):
+            return archive_format % cycle
+
+        return ""
 
     def _has_valid_shebang(self, script: Path) -> bool:
         """

@@ -5,7 +5,7 @@ from dataclasses import fields
 from pathlib import Path
 
 from qq_lib.batch.interface import AnyBatchClass, BatchInterface
-from qq_lib.core.common import split_files_list, translate_server
+from qq_lib.core.common import split_string_list, translate_server
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -84,6 +84,7 @@ class SubmitterFactory:
             loop_info=loop_info,
             exclude=self._get_exclude(),
             include=self._get_include(),
+            ignore=self._get_ignore(),
             depend=self._get_depend(),
             transfer_mode=self._get_transfer_mode(),
             server=server,
@@ -141,7 +142,7 @@ class SubmitterFactory:
             QQError: If no queue is specified either in kwargs or in the script.
         """
         if not (queue := self._kwargs.get("queue") or self._parser.get_queue()):
-            raise QQError("Submission queue not specified.")
+            raise QQError("Submission queue not specified")
         return queue
 
     def _get_resources(
@@ -233,7 +234,7 @@ class SubmitterFactory:
                 f"Option 'resubmit_from' is specified but job type is '{str(job_type)}', not 'loop' or 'continuous' - 'resubmit_from' will be ignored."
             )
 
-    def _get_exclude(self) -> list[Path]:
+    def _get_exclude(self) -> list[str]:
         """
         Determine the files to exclude from being copied to the job's working directory.
 
@@ -244,13 +245,13 @@ class SubmitterFactory:
         The lists are NOT merged.
 
         Returns:
-            list[Path]: List of relative file paths to exclude.
+            list[str]: List of files or glob patterns to exclude.
         """
         return (
-            split_files_list(self._kwargs.get("exclude")) or self._parser.get_exclude()
+            split_string_list(self._kwargs.get("exclude")) or self._parser.get_exclude()
         )
 
-    def _get_include(self) -> list[Path]:
+    def _get_include(self) -> list[str]:
         """
         Determine the files to explicitly copy to the job's working directory.
 
@@ -261,10 +262,27 @@ class SubmitterFactory:
         The lists are NOT merged.
 
         Returns:
-            list[Path]: List of file paths to include.
+            list[str]: List of files or glob patterns to include.
         """
         return (
-            split_files_list(self._kwargs.get("include")) or self._parser.get_include()
+            split_string_list(self._kwargs.get("include")) or self._parser.get_include()
+        )
+
+    def _get_ignore(self) -> list[str]:
+        """
+        Determine the files that transfer operations should ignore completely.
+
+        Priority:
+            1. Ignored files specified on the command line.
+            2. Ignored files specified inside the submitted script.
+
+        The lists are NOT merged.
+
+        Returns:
+            list[str]: List of files or glob patterns to ignore.
+        """
+        return (
+            split_string_list(self._kwargs.get("ignore")) or self._parser.get_ignore()
         )
 
     def _get_depend(self) -> list[Depend]:

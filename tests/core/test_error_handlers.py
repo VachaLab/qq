@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from qq_lib.core.command_runner import CommandRunner
-from qq_lib.core.error import QQNotSuitableError
+from qq_lib.core.error import QQNotSuitableError, terminate
 from qq_lib.core.error_handlers import (
     CFG,
     handle_general_qq_error,
@@ -28,7 +28,7 @@ def test_not_suitable_single_item_logs_error_and_exits():
     ):
         handle_not_suitable_error(exc, metadata)
 
-    mock_logger.error.assert_called_once_with(exc)
+    mock_logger.error.assert_called_once_with(terminate(str(exc)))
     mock_exit.assert_called_once_with(CFG.exit_codes.default)
 
 
@@ -44,7 +44,7 @@ def test_not_suitable_multiple_items_logs_info():
     ):
         handle_not_suitable_error(exc, metadata)
 
-    mock_logger.info.assert_called_once_with(exc)
+    mock_logger.info.assert_called_once_with(terminate(str(exc)))
     mock_exit.assert_not_called()
 
 
@@ -63,7 +63,7 @@ def test_not_suitable_multiple_items_multiple_errors_logs_and_exits():
     ):
         handle_not_suitable_error(exc, metadata)
 
-    mock_logger.info.assert_called_once_with(exc)
+    mock_logger.info.assert_called_once_with(terminate(str(exc)))
     mock_logger.error.assert_called_once_with("No suitable qq job.\n")
     mock_exit.assert_called_once_with(CFG.exit_codes.default)
 
@@ -81,7 +81,7 @@ def test_job_mismatch_logs_and_exits(n_jobs):
     ):
         handle_job_mismatch_error(exc, metadata)
 
-    mock_logger.error.assert_called_once_with(exc)
+    mock_logger.error.assert_called_once_with(terminate(str(exc)))
     mock_exit.assert_called_once_with(CFG.exit_codes.default)
 
 
@@ -97,7 +97,7 @@ def test_job_general_qq_error_single_item_logs_and_exits():
     ):
         handle_general_qq_error(exc, metadata)
 
-    mock_logger.error.assert_called_once_with(exc)
+    mock_logger.error.assert_called_once_with(terminate(str(exc)))
     mock_exit.assert_called_once_with(CFG.exit_codes.default)
 
 
@@ -113,7 +113,7 @@ def test_job_general_qq_error_multiple_items_logs():
     ):
         handle_general_qq_error(exc, metadata)
 
-    mock_logger.error.assert_called_once_with(exc)
+    mock_logger.error.assert_called_once_with(terminate(str(exc)))
     mock_exit.assert_not_called()
 
 
@@ -132,5 +132,5 @@ def test_job_general_qq_error_multiple_items_multiple_errors_logs_and_exits():
     ):
         handle_general_qq_error(exc, metadata)
 
-    mock_logger.error.assert_called_once_with(exc)
+    mock_logger.error.assert_called_once_with(terminate(str(exc)))
     mock_exit.assert_called_once_with(CFG.exit_codes.default)

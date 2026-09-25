@@ -9,6 +9,32 @@ from qq_lib.core.logger import get_logger
 
 logger = get_logger(__name__)
 
+_UNKNOWN_OBJECT_PATTERNS = (
+    # qstat: Unknown queue gpu1234
+    # qstat: Unknown Job Id 100.robox-pro.ceitec.muni.cz
+    re.compile(r"^\s*\w+:\s+Unknown\s+(?:Job Id|queue|node)\s+(\S+)\s*$"),
+    # Node: node.ceitec.muni.cz,  Error: Unknown node
+    re.compile(r"^\s*Node:\s*([^,\s]+)\s*,\s*Error:\s*Unknown node\s*$"),
+)
+
+
+def _parse_unknown_pbs_object(line: str) -> str | None:
+    """
+    Extract the identifier from a PBS line reporting an unknown job, queue or node.
+
+    Args:
+        line (str): A single line of a PBS dump.
+
+    Returns:
+        str | None: Identifier of the unknown PBS object, or `None` if the line does
+            not report an unknown object or carries no identifier.
+    """
+    for pattern in _UNKNOWN_OBJECT_PATTERNS:
+        match = pattern.match(line)
+        if match:
+            return match.group(1)
+    return None
+
 
 def parse_pbs_dump_to_dictionary(text: str) -> dict[str, str]:
     """
@@ -60,6 +86,17 @@ def parse_multi_pbs_dump_to_dictionaries(
     )
 
     for line in text.splitlines():
+        # lines reporting unknown objects are parsed into empty dictionaries
+        unknown = _parse_unknown_pbs_object(line)
+        if unknown is not None:
+            if block:
+                data.append(
+                    (parse_pbs_dump_to_dictionary("\n".join(block)), identifier)
+                )
+                block, identifier = [], None
+            data.append(({}, unknown))
+            continue
+
         # if the line is empty, start a new block
         if not line.strip():
             if block:

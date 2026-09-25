@@ -123,7 +123,9 @@ Command-line options apply to all submitted scripts, but each script's own qq di
     default=None,
     help=(
         f"Colon-, comma-, or space-separated list of files or directories that should {click.style('not', bold=True)} be copied to the working directory.\n"
-        "Paths to files and directories to exclude must be relative to the input directory.\n"
+        "Paths to files and directories to exclude must be absolute or relative to the input directory.\n"
+        "You can use glob patterns to match multiple files or directories.\n"
+        f"Excluded files and directories that the job creates in the working directory {click.style('will', bold=True)} be copied back to the input directory.\n"
     ),
 )
 @optgroup.option(
@@ -134,8 +136,19 @@ Command-line options apply to all submitted scripts, but each script's own qq di
         f"Colon-, comma-, or space-separated list of files or directories to copy into the working directory "
         f"in addition to the input directory contents.\n"
         f"These files are {click.style('not', bold=True)} copied back after job completion. "
-        f"Paths must be absolute or relative to the input directory. "
-        f"Ignored if the input directory is used as the working directory.\n"
+        f"Paths must be absolute or relative to the input directory.\n"
+        "You can use glob patterns to match multiple files or directories.\n"
+    ),
+)
+@optgroup.option(
+    "--ignore",
+    type=str,
+    default=None,
+    help=(
+        "Colon-, comma-, or space-separated list of files or directories to ignore in all transfer operations.\n"
+        "These files are neither copied to the working directory nor copied back after job completion.\n"
+        "Paths to files and directories to ignore must be absolute or relative to the input directory.\n"
+        "You can use glob patterns to match multiple files or directories.\n"
     ),
 )
 @optgroup.option(
@@ -360,7 +373,7 @@ def _submit_job(script: str, kwargs: dict[str, Any]) -> str | None:
     """
     try:
         if not (script_path := Path(script)).is_file():
-            raise QQError(f"Script '{script}' does not exist or is not a file.")
+            raise QQError(f"Script '{script}' does not exist or is not a file")
 
         factory = SubmitterFactory(logical_resolve(script_path), **kwargs)
         submitter = factory.make_submitter()
@@ -370,14 +383,14 @@ def _submit_job(script: str, kwargs: dict[str, Any]) -> str | None:
             and not submitter.continues_loop()
         ):
             raise QQError(
-                "Detected qq runtime files in the submission directory. Submission aborted."
+                "Detected qq runtime files in the submission directory. Submission aborted"
             )
 
         job_id = submitter.submit()
         logger.info(f"Job '{job_id}' submitted successfully.")
         return job_id
     except QQError as e:
-        logger.error(e)
+        logger.error(e.terminated)
         return None
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)

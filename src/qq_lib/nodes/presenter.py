@@ -662,7 +662,7 @@ class NodesPresenter:
             style = CFG.nodes_presenter.unavailable_node_style
         elif free_cpus == total_cpus and free_gpus == total_gpus:
             style = CFG.nodes_presenter.free_node_style
-        elif free_cpus != 0 or free_gpus != 0:
+        elif free_cpus != 0:
             style = CFG.nodes_presenter.part_free_node_style
         else:
             style = CFG.nodes_presenter.busy_node_style

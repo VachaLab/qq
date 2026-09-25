@@ -171,7 +171,7 @@ def test_pbs_node_update_raises_on_nonzero_return(mock_run):
     node._name = "nodeX"
     node._server = None
     mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="error")
-    with pytest.raises(QQError, match="Node 'nodeX' does not exist."):
+    with pytest.raises(QQError, match="Node 'nodeX' does not exist"):
         node.update()
     mock_run.assert_called_once()
 

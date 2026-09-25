@@ -45,7 +45,7 @@ def shebang(script: str | None) -> NoReturn:
             print(SHEBANG)
         sys.exit(0)
     except QQError as e:
-        logger.error(e)
+        logger.error(e.terminated)
         print()
         sys.exit(CFG.exit_codes.default)
     except Exception as e:
@@ -66,7 +66,7 @@ def _replace_or_add_shebang(file: Path) -> None:
     """
 
     if not file.is_file():
-        raise QQError(f"File '{str(file)}' does not exist.")
+        raise QQError(f"File '{str(file)}' does not exist")
 
     content = file.read_text().splitlines()
 

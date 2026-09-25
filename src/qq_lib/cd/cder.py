@@ -76,9 +76,9 @@ class Cder:
         job_info: BatchJobInterface = BatchSystem.get_batch_job(job_id)
 
         if job_info.is_empty():
-            raise QQError(f"Job '{job_id}' does not exist.")
+            raise QQError(f"Job '{job_id}' does not exist")
 
         if not (input_dir := job_info.get_input_dir()):
-            raise QQError(f"Job '{job_id}' has an unknown input directory.")
+            raise QQError(f"Job '{job_id}' has an unknown input directory")
 
         return input_dir

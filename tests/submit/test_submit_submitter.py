@@ -10,7 +10,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.batch.pbs.pbs import PBS
+from qq_lib.batch.slurm import Slurm
 from qq_lib.core.error import QQError
 from qq_lib.info.informer import Informer
 from qq_lib.properties.depend import Depend, DependType
@@ -39,8 +41,9 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
             script=script,
             job_type=JobType.STANDARD,
             resources=Resources(),
-            exclude=[Path("exclude")],
-            include=[Path("include"), Path("/tmp/include")],
+            exclude=["exclude", "/tmp/exclude"],
+            include=["include", "/tmp/include"],
+            ignore=["ignore", "/tmp/ignore"],
             transfer_mode=[Always()],
             server="pbs-m1.metacentrum.cz",
             interpreter=Interpreter(executable="bash"),
@@ -57,8 +60,9 @@ def test_submitter_init_sets_all_attributes_correctly(tmp_path):
         assert submitter._job_name == "job1"
         assert submitter._info_file == tmp_path / f"job1{CFG.suffixes.qq_info}"
         assert submitter._resources == Resources()
-        assert submitter._exclude == [tmp_path / "exclude"]
+        assert submitter._exclude == [tmp_path / "exclude", Path("/tmp/exclude")]
         assert submitter._include == [tmp_path / "include", Path("/tmp/include")]
+        assert submitter._ignore == [tmp_path / "ignore", Path("/tmp/ignore")]
         assert submitter._depend == []
         assert isinstance(submitter._transfer_mode[0], Always)
         assert submitter._server == "pbs-m1.metacentrum.cz"
@@ -104,7 +108,9 @@ def test_submitter_init_sets_all_optional_arguments_correctly(tmp_path):
     script.write_text("#!/usr/bin/env -S qq run\n")
 
     loop_info = LoopInfo(1, 5, Path("storage"), "job%04d")
-    exclude_files = [tmp_path / "file1.txt", tmp_path / "file2.txt"]
+    exclude_files = [str(tmp_path / "file1.txt"), str(tmp_path / "file2.txt")]
+    include_files = [str(tmp_path / "file3.txt"), str(tmp_path / "file4.txt")]
+    ignore_files = [str(tmp_path / "file5.txt"), str(tmp_path / "file6.txt")]
     depend_jobs = [
         Depend(DependType.AFTER_SUCCESS, ["12345"]),
         Depend(DependType.AFTER_START, ["23456"]),
@@ -123,6 +129,8 @@ def test_submitter_init_sets_all_optional_arguments_correctly(tmp_path):
             resources=Resources(),
             loop_info=loop_info,
             exclude=exclude_files,
+            include=include_files,
+            ignore=ignore_files,
             depend=depend_jobs,
             server="fake.server.com",
             resubmit_from=[WorkHost(), ExplicitHost("node01")],
@@ -137,9 +145,11 @@ def test_submitter_init_sets_all_optional_arguments_correctly(tmp_path):
         assert submitter._input_dir == tmp_path
         assert submitter._script_name == script.name
         assert submitter._job_name == "job"
+        assert submitter._include == [Path(x) for x in include_files]
+        assert submitter._ignore == [Path(x) for x in ignore_files]
         assert submitter._info_file == tmp_path / f"job{CFG.suffixes.qq_info}"
         assert submitter._resources == Resources()
-        assert submitter._exclude == exclude_files
+        assert submitter._exclude == [Path(x) for x in exclude_files]
         assert submitter._depend == depend_jobs
         assert submitter._server == "fake.server.com"
         assert submitter._resubmit_from == [WorkHost(), ExplicitHost("node01")]
@@ -317,7 +327,7 @@ def test_submitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mode
         current = 1
         start = 0
         end = 5
-        archive_format = "zip"
+        archive_format = "job%02d"
 
     submitter = Submitter.__new__(Submitter)
     submitter._info_file = tmp_path / "job.qqinfo"
@@ -340,10 +350,13 @@ def test_submitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mode
     assert env[CFG.env_vars.input_dir] == str(submitter._input_dir)
 
     assert env[CFG.env_vars.loop_current] == str(DummyLoop.current)
+    assert env[CFG.env_vars.loop_next] == str(DummyLoop.current + 1)
     assert env[CFG.env_vars.loop_start] == str(DummyLoop.start)
     assert env[CFG.env_vars.loop_end] == str(DummyLoop.end)
     assert env[CFG.env_vars.archive_format] == DummyLoop.archive_format
     assert env[CFG.env_vars.no_resubmit] == str(CFG.exit_codes.qq_run_no_resubmit)
+    assert env[CFG.env_vars.archive_current] == "job01"
+    assert env[CFG.env_vars.archive_next] == "job02"
     if debug_mode:
         assert env[CFG.env_vars.debug_mode] == "true"
     else:
@@ -598,6 +611,7 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
     submitter._loop_info = None
     submitter._exclude = []
     submitter._include = []
+    submitter._ignore = []
     submitter._depend = []
     submitter._transfer_mode = [Success()]
     submitter._info_file = tmp_path / f"{submitter._job_name}.qqinfo"
@@ -652,6 +666,7 @@ def test_submitter_submit(tmp_path):
     submitter._loop_info = None
     submitter._exclude = ["exclude1"]
     submitter._include = ["include1"]
+    submitter._ignore = ["ignore1"]
     submitter._depend = []
     submitter._transfer_mode = [Always()]
     submitter._server = "fake.server.com"
@@ -711,6 +726,7 @@ def test_submitter_submit(tmp_path):
         loop_info=submitter._loop_info,
         excluded_files=submitter._exclude,
         included_files=submitter._include,
+        ignored_files=submitter._ignore,
         depend=submitter._depend,
         transfer_mode=[Always()],
         server=submitter._server,
@@ -719,3 +735,67 @@ def test_submitter_submit(tmp_path):
     )
     mock_info_instance.to_file.assert_called_once_with(submitter._info_file)
     assert result == "jobid123"
+
+
+@pytest.mark.parametrize(
+    "input_pattern, cycle, expected",
+    [
+        ("job%04d", 1, "job0001"),
+        ("md%03d", 643, "md643"),
+        ("job%2d", 5, "job 5"),
+        ("^abc\\d+$", 7, ""),
+        ("file\\d{3}", 123, ""),
+    ],
+)
+def test_submitter_make_pattern(input_pattern, cycle, expected):
+    result = Submitter._make_pattern(input_pattern, cycle)
+    assert result == expected
+
+
+@pytest.mark.parametrize("batch_system", [PBS, Slurm])
+def test_submitter_expands_glob_patterns_in_exclude_and_include(
+    tmp_path: Path, batch_system: AnyBatchClass
+) -> None:
+    input_dir = tmp_path / "job"
+    input_dir.mkdir()
+
+    script = input_dir / "run.sh"
+    script.write_text(f"#!/usr/bin/env -S {CFG.binary_name} run\n")
+
+    (input_dir / "topology.pdb").touch()
+    (input_dir / "start.gro").touch()
+    (input_dir / "old.log").touch()
+    (input_dir / "run.log").touch()
+    (input_dir / "notes.md").touch()
+    (input_dir / "sub").mkdir()
+    (input_dir / "sub" / "nested.log").touch()
+
+    shared = tmp_path / "shared"
+    shared.mkdir()
+    (shared / "params.itp").touch()
+    (shared / "forcefield.itp").touch()
+    (shared / "readme.md").touch()
+
+    submitter = Submitter(
+        batch_system=batch_system,
+        queue="default",
+        account=None,
+        script=script,
+        job_type=JobType.STANDARD,
+        resources=Resources(ncpus=1, mem="1gb", walltime="1:00:00"),
+        exclude=["*.log", "notes.md", "missing.dat"],
+        include=[str(shared / "*.itp"), "sub/nested.log"],
+    )
+
+    assert submitter._exclude == [
+        input_dir / "old.log",
+        input_dir / "run.log",
+        input_dir / "notes.md",
+        input_dir / "missing.dat",
+    ]
+
+    assert submitter._include == [
+        shared / "forcefield.itp",
+        shared / "params.itp",
+        input_dir / "sub" / "nested.log",
+    ]

@@ -22,6 +22,8 @@ from qq_lib.core.common import (
     convert_absolute_to_relative,
     dhhmmss_to_duration,
     equals_normalized,
+    expand_paths,
+    expand_pattern,
     format_duration,
     format_duration_wdhhmmss,
     get_files_with_suffix,
@@ -37,7 +39,8 @@ from qq_lib.core.common import (
     load_yaml_dumper,
     load_yaml_loader,
     printf_to_regex,
-    split_files_list,
+    relocate_by_name,
+    split_string_list,
     to_snake_case,
     translate_server,
     wdhms_to_hhmmss,
@@ -79,7 +82,7 @@ def test_get_info_file_no_info_file():
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
 
-        with pytest.raises(QQError, match="No qq job info file found."):
+        with pytest.raises(QQError, match="No qq job info file found"):
             get_info_file(tmp_path)
 
 
@@ -476,52 +479,63 @@ def test_is_printf_pattern(pattern, expected):
     assert is_printf_pattern(pattern) == expected
 
 
-def test_split_files_list_none_or_empty():
+def test_split_string_list_none_or_empty():
     # None input
-    assert split_files_list(None) == []
+    assert split_string_list(None) == []
     # empty string
-    assert split_files_list("") == []
+    assert split_string_list("") == []
 
 
-def test_split_files_list_whitespace(tmp_path):
+def test_split_string_list_whitespace(tmp_path):
     string = (
         f"{tmp_path / 'file1.txt'} {tmp_path / 'file2.txt'}\t{tmp_path / 'file3.txt'}"
     )
     expected = [
-        Path(tmp_path / "file1.txt"),
-        Path(tmp_path / "file2.txt"),
-        Path(tmp_path / "file3.txt"),
+        str(tmp_path / "file1.txt"),
+        str(tmp_path / "file2.txt"),
+        str(tmp_path / "file3.txt"),
     ]
-    assert split_files_list(string) == expected
+    assert split_string_list(string) == expected
 
 
-def test_split_files_list_commas_and_colons(tmp_path):
+def test_split_string_list_commas_and_colons(tmp_path):
     string = (
         f"{tmp_path / 'file1.txt'},{tmp_path / 'file2.txt'}:{tmp_path / 'file3.txt'}"
     )
     expected = [
-        Path(tmp_path / "file1.txt"),
-        Path(tmp_path / "file2.txt"),
-        Path(tmp_path / "file3.txt"),
+        str(tmp_path / "file1.txt"),
+        str(tmp_path / "file2.txt"),
+        str(tmp_path / "file3.txt"),
     ]
-    assert split_files_list(string) == expected
+    assert split_string_list(string) == expected
 
 
-def test_split_files_list_mixed_separators(tmp_path):
+def test_split_string_list_mixed_separators(tmp_path):
     string = f"{tmp_path / 'file1.txt'}, {tmp_path / 'file2.txt'}:{tmp_path / 'file3.txt'} {tmp_path / 'file4.txt'}"
     expected = [
-        Path(tmp_path / "file1.txt"),
-        Path(tmp_path / "file2.txt"),
-        Path(tmp_path / "file3.txt"),
-        Path(tmp_path / "file4.txt"),
+        str(tmp_path / "file1.txt"),
+        str(tmp_path / "file2.txt"),
+        str(tmp_path / "file3.txt"),
+        str(tmp_path / "file4.txt"),
     ]
-    assert split_files_list(string) == expected
+    assert split_string_list(string) == expected
 
 
-def test_split_files_list_single_file(tmp_path):
+def test_split_string_list_mixed_separators_glob_patterns(tmp_path):
+    string = f"{tmp_path / 'file*.txt'}, {tmp_path / 'file2.txt'}:{tmp_path / 'file??.txt'} {tmp_path / 'file4.txt'}"
+    expected = [
+        str(tmp_path / "file*.txt"),
+        str(tmp_path / "file2.txt"),
+        str(tmp_path / "file??.txt"),
+        str(tmp_path / "file4.txt"),
+    ]
+    assert split_string_list(string) == expected
+
+
+def test_split_string_list_single_file(tmp_path):
     string = str(tmp_path / "single_file.txt")
-    expected = [Path(tmp_path / "single_file.txt")]
-    assert split_files_list(string) == expected
+    expected = [str(tmp_path / "single_file.txt")]
+    assert split_string_list(string) == expected
 
 
 @pytest.mark.parametrize(
@@ -1112,3 +1126,298 @@ def test_translate_server_returns_unknown_value_unchanged():
     assert (
         translate_server("unknown-server.example.com") == "unknown-server.example.com"
     )
+
+
+def _touch(directory: Path, *relative: str) -> None:
+    """
+    Create empty files under a directory, making parent directories as needed.
+
+    Args:
+        directory (Path): Directory to create the files in.
+        *relative (str): Paths of the files, relative to `directory`.
+    """
+    for rel in relative:
+        path = directory / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
+
+
+def test_expand_paths_empty_input(tmp_path: Path) -> None:
+    assert expand_paths([], tmp_path) == []
+
+
+def test_expand_paths_relative_literals_are_prefixed(tmp_path: Path) -> None:
+    _touch(tmp_path, "a.txt", "sub/b.txt")
+
+    assert expand_paths(["a.txt", "sub/b.txt"], tmp_path) == [
+        tmp_path / "a.txt",
+        tmp_path / "sub" / "b.txt",
+    ]
+
+
+def test_expand_paths_absolute_literals_are_unchanged(tmp_path: Path) -> None:
+    _touch(tmp_path, "a.txt")
+    other = tmp_path / "elsewhere"
+    other.mkdir()
+
+    assert expand_paths([str(other / "c.txt")], tmp_path) == [other / "c.txt"]
+
+
+def test_expand_paths_keeps_literals_that_do_not_exist(
+    tmp_path: Path,
+) -> None:
+    assert expand_paths(["missing.txt"], tmp_path) == [tmp_path / "missing.txt"]
+
+
+def test_expand_paths_drops_patterns_that_match_nothing(
+    tmp_path: Path,
+) -> None:
+    _touch(tmp_path, "a.txt")
+
+    assert expand_paths(["*.log"], tmp_path) == []
+
+
+def test_expand_paths_mixes_literals_and_patterns(tmp_path: Path) -> None:
+    _touch(tmp_path, "a.txt", "b.txt")
+
+    assert expand_paths(["missing.dat", "*.txt"], tmp_path) == [
+        tmp_path / "missing.dat",
+        tmp_path / "a.txt",
+        tmp_path / "b.txt",
+    ]
+
+
+def test_expand_paths_deduplicates_preserving_order(tmp_path: Path) -> None:
+    _touch(tmp_path, "a.txt", "b.txt")
+
+    assert expand_paths(["b.txt", "*.txt"], tmp_path) == [
+        tmp_path / "b.txt",
+        tmp_path / "a.txt",
+    ]
+
+
+def test_expand_paths_deduplicates_relative_and_absolute_forms(
+    tmp_path: Path,
+) -> None:
+    _touch(tmp_path, "a.txt")
+
+    assert expand_paths(["a.txt", str(tmp_path / "a.txt")], tmp_path) == [
+        tmp_path / "a.txt"
+    ]
+
+
+def test_expand_paths_returns_absolute_paths(tmp_path: Path) -> None:
+    _touch(tmp_path, "a.txt", "sub/b.txt")
+
+    result = expand_paths(["a.txt", "**/*.txt", "missing.dat"], tmp_path)
+
+    assert result
+    assert all(path.is_absolute() for path in result)
+
+
+def test_expand_paths_propagates_expansion_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _raise(_self: Path, _pattern: str) -> list[Path]:
+        raise OSError("boom")
+
+    monkeypatch.setattr(Path, "glob", _raise)
+
+    with pytest.raises(QQError):
+        expand_paths(["*.txt"], tmp_path)
+
+
+def test_expand_pattern_relative_literal(tmp_path: Path) -> None:
+    assert expand_pattern("a.txt", tmp_path) == [tmp_path / "a.txt"]
+
+
+def test_expand_pattern_absolute_literal(tmp_path: Path) -> None:
+    other = tmp_path / "elsewhere" / "a.txt"
+
+    assert expand_pattern(str(other), tmp_path) == [other]
+
+
+def test_expand_pattern_literal_does_not_require_existence(tmp_path: Path) -> None:
+    missing = tmp_path / "nowhere" / "deeply" / "nested.txt"
+
+    assert expand_pattern(str(missing), tmp_path) == [missing]
+
+
+@pytest.mark.parametrize(
+    ("pattern", "expected"),
+    [
+        ("*.txt", ["a.txt", "ab.txt"]),
+        ("a?.txt", ["ab.txt"]),
+        ("[ab].txt", ["a.txt"]),
+    ],
+)
+def test_expand_pattern_metacharacters(
+    tmp_path: Path, pattern: str, expected: list[str]
+) -> None:
+    _touch(tmp_path, "a.txt", "ab.txt")
+
+    assert expand_pattern(pattern, tmp_path) == [tmp_path / name for name in expected]
+
+
+def test_expand_pattern_returns_sorted_matches(tmp_path: Path) -> None:
+    _touch(tmp_path, "c.txt", "a.txt", "b.txt")
+
+    assert expand_pattern("*.txt", tmp_path) == [
+        tmp_path / "a.txt",
+        tmp_path / "b.txt",
+        tmp_path / "c.txt",
+    ]
+
+
+def test_expand_pattern_recursive_pattern(tmp_path: Path) -> None:
+    _touch(tmp_path, "a.txt", "sub/b.txt", "sub/deeper/c.txt")
+
+    assert expand_pattern("**/*.txt", tmp_path) == [
+        tmp_path / "a.txt",
+        tmp_path / "sub" / "b.txt",
+        tmp_path / "sub" / "deeper" / "c.txt",
+    ]
+
+
+def test_expand_pattern_absolute_pattern(tmp_path: Path) -> None:
+    _touch(tmp_path, "a.txt", "b.log")
+    elsewhere = tmp_path / "elsewhere"
+    _touch(elsewhere, "c.txt")
+
+    assert expand_pattern(str(elsewhere / "*.txt"), tmp_path) == [elsewhere / "c.txt"]
+
+
+def test_expand_pattern_ignores_the_directory_for_absolute_patterns(
+    tmp_path: Path,
+) -> None:
+    _touch(tmp_path, "a.txt")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+
+    assert expand_pattern(str(elsewhere / "*.txt"), tmp_path) == []
+
+
+def test_expand_pattern_matches_directories(tmp_path: Path) -> None:
+    _touch(tmp_path, "logs.txt")
+    (tmp_path / "logs").mkdir()
+
+    assert expand_pattern("log*", tmp_path) == [
+        tmp_path / "logs",
+        tmp_path / "logs.txt",
+    ]
+
+
+def test_expand_pattern_no_matches(tmp_path: Path) -> None:
+    _touch(tmp_path, "a.txt")
+
+    assert expand_pattern("*.log", tmp_path) == []
+
+
+def test_expand_pattern_raises_on_glob_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _raise(_self: Path, _pattern: str) -> list[Path]:
+        raise OSError("boom")
+
+    monkeypatch.setattr(Path, "glob", _raise)
+
+    with pytest.raises(QQError, match=r"\*\.txt"):
+        expand_pattern("*.txt", tmp_path)
+
+        expand_pattern("*.txt", tmp_path)
+
+
+def test_relocate_by_name_empty_input(tmp_path: Path) -> None:
+    assert relocate_by_name([], tmp_path / "work") == []
+
+
+def test_relocate_by_name_single_file(tmp_path: Path) -> None:
+    assert relocate_by_name([tmp_path / "input" / "start.gro"], tmp_path / "work") == [
+        tmp_path / "work" / "start.gro"
+    ]
+
+
+def test_relocate_by_name_preserves_order(tmp_path: Path) -> None:
+    files = [
+        tmp_path / "input" / "c.itp",
+        tmp_path / "input" / "a.itp",
+        tmp_path / "input" / "b.itp",
+    ]
+
+    assert relocate_by_name(files, tmp_path / "work") == [
+        tmp_path / "work" / "c.itp",
+        tmp_path / "work" / "a.itp",
+        tmp_path / "work" / "b.itp",
+    ]
+
+
+def test_relocate_by_name_flattens_nested_paths(tmp_path: Path) -> None:
+    files = [
+        tmp_path / "input" / "topology.pdb",
+        tmp_path / "input" / "sub" / "deeper" / "params.itp",
+    ]
+
+    assert relocate_by_name(files, tmp_path / "work") == [
+        tmp_path / "work" / "topology.pdb",
+        tmp_path / "work" / "params.itp",
+    ]
+
+
+def test_relocate_by_name_flattens_files_from_unrelated_directories(
+    tmp_path: Path,
+) -> None:
+    files = [
+        tmp_path / "input" / "start.gro",
+        Path("/shared/forcefield/params.itp"),
+    ]
+
+    assert relocate_by_name(files, tmp_path / "work") == [
+        tmp_path / "work" / "start.gro",
+        tmp_path / "work" / "params.itp",
+    ]
+
+
+def test_relocate_by_name_duplicate_basenames_collide(tmp_path: Path) -> None:
+    files = [
+        tmp_path / "first" / "params.itp",
+        tmp_path / "second" / "params.itp",
+    ]
+
+    assert relocate_by_name(files, tmp_path / "work") == [
+        tmp_path / "work" / "params.itp",
+        tmp_path / "work" / "params.itp",
+    ]
+
+
+def test_relocate_by_name_relocates_directories(tmp_path: Path) -> None:
+    assert relocate_by_name([tmp_path / "input" / "frames"], tmp_path / "work") == [
+        tmp_path / "work" / "frames"
+    ]
+
+
+def test_relocate_by_name_collapses_dot_segments_in_directory(tmp_path: Path) -> None:
+    directory = tmp_path / "work" / "sub" / ".." / "." / "final"
+
+    assert relocate_by_name([tmp_path / "input" / "a.txt"], directory) == [
+        tmp_path / "work" / "final" / "a.txt"
+    ]
+
+
+def test_relocate_by_name_does_not_expand_symlinks(tmp_path: Path) -> None:
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real)
+
+    assert relocate_by_name([tmp_path / "input" / "a.txt"], link) == [link / "a.txt"]
+
+    assert relocate_by_name([tmp_path / "input" / "a.txt"], link) == [link / "a.txt"]
+
+
+def test_relocate_by_name_returns_absolute_paths(tmp_path: Path) -> None:
+    files = [tmp_path / "input" / "a.txt", Path("/shared/b.txt")]
+
+    result = relocate_by_name(files, tmp_path / "work")
+
+    assert result
+    assert all(path.is_absolute() for path in result)

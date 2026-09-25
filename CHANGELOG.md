@@ -1,3 +1,32 @@
+## Version 0.13.0
+
+### New environment variables for loop jobs
+
+- Loop jobs now expose three additional environment variables:
+    - `QQ_LOOP_NEXT`, which specifies the index of the next loop cycle.
+    - `QQ_ARCHIVE_CURRENT` and `QQ_ARCHIVE_NEXT`, which specify strings expected in files archived by qq for the current and the next loop cycles, respectively. If the archive format is not a printf pattern, the values of these variables are empty strings.
+
+### `--include` and `--exclude` revisited
+
+- Glob patterns are now supported in `--include` and `--exclude` options.
+- If you explicitly include a file in the working directory using the `--include` submission option, it will no longer be archived even if it matches the archive pattern.
+- If you explicitly exclude a file from the working directory using the `--exclude` submission option, it will no longer be fetched from the archive, even if it matches the archive pattern for this loop job cycle.
+
+### `--ignore` option
+
+- As a complement to `--include` and `--exclude`, `--ignore` allows you to specify files that should be completely ignored by qq's transfer operations. Ignored files will never be copied to the working directory; if they are created in the working directory, they will never be transferred to the input directory. If the job is a loop job, ignored files will also never be archived nor fetched from the archive.
+
+### Bug fixes and other changes
+
+- Directories can now be properly archived.
+- qq commands operating on multiple job IDs no longer fail on the first occurrence of a job that does not exist. They report an error and continue processing the remaining jobs.
+- The archive directory created in the working directory is no longer merged with the actual archive directory in the input directory.
+- The number of free GPUs is no longer relevant for determining node state in `qq nodes`. Nodes with exhausted CPUs will always be marked as busy even if they have free GPUs.
+- Clarified in `qq submit -h` that files and directories that the job creates in the working directory **are** copied back to the input directory **even if they are excluded** from being copied to the working directory.
+- Error messages reformatted to be easier to compose.
+
+---
+
 ## Version 0.12.3
 
 - More robust installation script for Metacentrum.

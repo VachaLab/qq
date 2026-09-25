@@ -69,11 +69,11 @@ class LoopInfo:
                 or if the archive path is invalid.
         """
         if not end:
-            raise QQError("Attribute 'loop-end' is undefined.")
+            raise QQError("Attribute 'loop-end' is undefined")
 
         self.archive = logical_resolve(archive)
         if input_dir and self.archive == logical_resolve(input_dir):
-            raise QQError("Input directory cannot be used as the loop job's archive.")
+            raise QQError("Input directory cannot be used as the loop job's archive")
 
         self.archive_format = archive_format
         self.archive_mode = archive_mode or TransferMode.multi_from_str(
@@ -85,16 +85,16 @@ class LoopInfo:
         self.current = current or self.determine_cycle_from_archive()
 
         if self.start < 0:
-            raise QQError(f"Attribute 'loop-start' ({self.start}) cannot be negative.")
+            raise QQError(f"Attribute 'loop-start' ({self.start}) cannot be negative")
 
         if self.start > self.end:
             raise QQError(
-                f"Attribute 'loop-start' ({self.start}) cannot be higher than 'loop-end' ({self.end})."
+                f"Attribute 'loop-start' ({self.start}) cannot be higher than 'loop-end' ({self.end})"
             )
 
         if self.current > self.end:
             raise QQError(
-                f"Current cycle number ({self.current}) cannot be higher than 'loop-end' ({self.end})."
+                f"Current cycle number ({self.current}) cannot be higher than 'loop-end' ({self.end})"
             )
 
     @classmethod
@@ -116,25 +116,25 @@ class LoopInfo:
         archive_mode = data.get("archive_mode", ["success"])
 
         if not isinstance(start, int):
-            raise QQError(f"Field 'start' must be an int, got {type(start).__name__}.")
+            raise QQError(f"Field 'start' must be an int, got {type(start).__name__}")
         if not isinstance(end, int):
-            raise QQError(f"Field 'end' must be an int, got {type(end).__name__}.")
+            raise QQError(f"Field 'end' must be an int, got {type(end).__name__}")
         if not isinstance(archive, str):
             raise QQError(
-                f"Field 'archive' must be a str, got {type(archive).__name__}."
+                f"Field 'archive' must be a str, got {type(archive).__name__}"
             )
         if not isinstance(archive_format, str):
             raise QQError(
-                f"Field 'archive_format' must be a str, got {type(archive_format).__name__}."
+                f"Field 'archive_format' must be a str, got {type(archive_format).__name__}"
             )
         if not isinstance(current, int):
             raise QQError(
-                f"Field 'current' must be an int, got {type(current).__name__}."
+                f"Field 'current' must be an int, got {type(current).__name__}"
             )
         if not isinstance(archive_mode, list) or not all(
             isinstance(m, str) for m in archive_mode
         ):
-            raise QQError("Field 'archive_mode' must be a list of strings.")
+            raise QQError("Field 'archive_mode' must be a list of strings")
 
         return cls(
             start=start,

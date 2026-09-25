@@ -43,7 +43,7 @@ class TransferMode(ABC):
                 if bool(re.match(r"^-?\d+$", s.strip())):
                     return ExitCode(int(s))
 
-                raise QQError(f"Could not recognize a transfer mode variant '{s}'.")
+                raise QQError(f"Could not recognize a transfer mode variant '{s}'")
 
     @classmethod
     def multi_from_str(cls, raw: str) -> list["TransferMode"]:

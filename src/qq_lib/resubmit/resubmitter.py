@@ -85,8 +85,9 @@ class Resubmitter(Operator):
             job_type=informer.info.job_type,
             resources=informer.info.resources,
             loop_info=informer.info.loop_info,
-            exclude=informer.info.excluded_files,
-            include=informer.info.included_files,
+            exclude=[str(x) for x in informer.info.excluded_files],
+            include=[str(x) for x in informer.info.included_files],
+            ignore=[str(x) for x in informer.info.ignored_files],
             depend=[Depend(type=DependType.AFTER_SUCCESS, jobs=[informer.info.job_id])],
             transfer_mode=informer.info.transfer_mode,
             server=informer.info.server,
@@ -124,12 +125,12 @@ class Resubmitter(Operator):
         main_node = informer.info.main_node
         if not main_node:
             raise QQError(
-                "Job cannot be resubmitted. The 'main_node' of the job is not defined."
+                "Job cannot be resubmitted. The 'main_node' of the job is not defined"
             )
 
         if not hosts:
             raise QQError(
-                "Job cannot be resubmitted. No resubmission hosts defined. This is a bug."
+                "Job cannot be resubmitted. No resubmission hosts defined. This is a bug, please report it"
             )
 
         for host in hosts:
@@ -145,4 +146,4 @@ class Resubmitter(Operator):
             except Exception as e:
                 logger.warning(f"Failed resubmission from host '{hostname}': {e}")
 
-        raise QQError("Could not resubmit the job.")
+        raise QQError("Could not resubmit the job")

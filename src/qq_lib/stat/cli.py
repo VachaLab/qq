@@ -71,7 +71,7 @@ def stat(extra: bool, all: bool, server: str | None, yaml: bool) -> NoReturn:
 
         sys.exit(0)
     except QQError as e:
-        logger.error(e)
+        logger.error(e.terminated)
         print()
         sys.exit(CFG.exit_codes.default)
     except Exception as e:

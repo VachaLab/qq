@@ -16,13 +16,14 @@ from typing import NoReturn
 import qq_lib
 from qq_lib.archive.archiver import Archiver
 from qq_lib.batch.interface import BatchInterface
-from qq_lib.core.common import construct_loop_job_name
+from qq_lib.core.common import construct_loop_job_name, relocate_by_name
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
     QQJobMismatchError,
     QQRunCommunicationError,
     QQRunFatalError,
+    terminate,
 )
 from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
@@ -122,11 +123,14 @@ class Runner:
         # initialize archiver, if this is a loop job
         if loop_info := self._informer.info.loop_info:
             self._archiver = Archiver(
-                loop_info.archive,
-                loop_info.archive_format,
-                self._informer.info.input_machine,
-                self._informer.info.input_dir,
-                self._batch_system,
+                archive=loop_info.archive,
+                archive_format=loop_info.archive_format,
+                input_machine=self._informer.info.input_machine,
+                input_dir=self._informer.info.input_dir,
+                batch_system=self._batch_system,
+                included_files=self._informer.info.included_files,
+                excluded_files=self._informer.info.excluded_files,
+                ignored_files=self._informer.info.ignored_files,
             )
             self._should_resubmit = True
         else:
@@ -286,9 +290,9 @@ class Runner:
                     self._input_dir,
                     socket.getfqdn(),
                     self._informer.info.input_machine,
-                    # exclude files that were copied to workdir from the outside of input dir (--include option)
-                    # these files should not be copied to the input directory, since they were never inside it
-                    self._get_explicitly_included_files_in_work_dir(),
+                    # exclude files that were specifically included via the `--include` option
+                    # and files that were specifically chosen to be ignored via `--ignore` option
+                    self._get_excluded_from_input_dir(),
                     max_tries=CFG.runner.retry_tries,
                     wait_seconds=CFG.runner.retry_wait,
                 ).run()
@@ -326,7 +330,7 @@ class Runner:
         exit_code = getattr(exception, "exit_code", CFG.exit_codes.unexpected_error)
         try:
             self._update_info_failed(exit_code)
-            logger.error(exception)
+            logger.error(terminate(str(exception)))
             sys.exit(exit_code)
         except Exception as e:
             # unable to log the current state into the info file
@@ -376,17 +380,12 @@ class Runner:
         ).run()
 
         # files excluded from copying to the working directory
-        qq_out = (
-            self._informer.info.input_dir / self._informer.info.job_name
-        ).with_suffix(CFG.suffixes.qq_out)
-        excluded = self._informer.info.excluded_files + [self._info_file, qq_out]
-        if self._archiver:
-            excluded.append(self._archiver._archive)
-
-        # copy files from the input directory to the working directory
+        excluded = self._get_excluded_from_work_dir()
         logger.debug(
             f"Files excluded from being copied to the working directory: {excluded}."
         )
+
+        # copy files from the input directory to the working directory
         Retryer(
             self._batch_system.sync_with_exclusions,
             self._input_dir,
@@ -458,7 +457,7 @@ class Runner:
             ).run()
         except Exception as e:
             raise QQError(
-                f"Could not update qqinfo file '{self._info_file}' at JOB START: {e}."
+                f"Could not update qqinfo file '{self._info_file}' at JOB START: {e}"
             ) from e
 
     def _get_nodes(self) -> list[str]:
@@ -638,7 +637,7 @@ class Runner:
         """
         if not self._informer.matches_job(job_id):
             raise QQJobMismatchError(
-                f"Info file '{self._info_file}' does not correspond to job '{job_id}'."
+                f"Info file '{self._info_file}' does not correspond to job '{job_id}'"
             )
 
     def _ensure_not_killed(self) -> None:
@@ -650,7 +649,7 @@ class Runner:
         """
         if self._informer.info.job_state == NaiveState.KILLED:
             raise QQRunCommunicationError(
-                "Job has been killed without informing qq run. Aborting the job!"
+                "Job has been killed without informing qq run. Aborting the job"
             )
 
     def _reload_info_and_ensure_valid(self, retry: bool = False) -> None:
@@ -691,7 +690,7 @@ class Runner:
         if self._informer.info.job_type == JobType.LOOP:
             if not (loop_info := self._informer.info.loop_info):
                 raise QQError(
-                    "Loop info is undefined while resubmiting a loop job. This is a bug!"
+                    "Loop info is undefined while resubmiting a loop job. This is a bug, please report it"
                 )
                 return
 
@@ -714,22 +713,31 @@ class Runner:
         If no file exists for the next loop cycle, creates an empty init file to ensure the loop job continues normally.
         """
         if not self._archiver:
-            raise QQError("Archiver is undefined while archiving files. This is a bug!")
+            raise QQError(
+                "Archiver is undefined while archiving files. This is a bug, please report it"
+            )
 
         if not (loop_info := self._informer.info.loop_info):
             raise QQError(
-                "Loop info is undefined while archiving files. This is a bug!"
+                "Loop info is undefined while archiving files. This is a bug, please report it"
             )
 
         # get the files to archive corresponding to the next loop job cycle
-        if not self._archiver.get_files_matching_pattern(
+        files_matching_pattern = self._archiver.get_files_matching_pattern(
             self._work_dir,
             None,
             loop_info.archive_format,
             loop_info.current + 1,
             False,
-        ):
-            # if there are no files matching the next loop job cycle, create an empty .init file
+        )
+        exclude = self._get_excluded_from_input_dir()
+        logger.debug(f"Files excluded from archiving: {exclude}.")
+        files = [f for f in files_matching_pattern if f not in exclude]
+
+        if not files:
+            # if there are no files matching the next loop job cycle
+            # (which are not excluded via `--include` or `--ignore` options)
+            # create an empty .init file
             # so that the loop job continues normally
             logger.debug(
                 f"Creating .init file for loop job cycle {loop_info.current + 1}."
@@ -737,23 +745,10 @@ class Runner:
             self._archiver.create_init_file(loop_info.current + 1)
 
         # archive all files matching the archive format
+        # note that if the .init file created in the previous block of code
+        # is in a list of ignored files, it will not be included in the archive
+        # thus, its creation is pointless
         self._archiver.to_archive(self._work_dir)
-
-    def _get_explicitly_included_files_in_work_dir(self) -> list[Path]:
-        """
-        Return absolute paths to files and directories in the working directory
-        that were explicitly copied via the `--include` submission option.
-        """
-        files = [
-            logical_resolve(self._work_dir / f.name)
-            for f in self._informer.info.included_files
-        ]
-
-        logger.debug(
-            f"Files that were copied to work dir using the `--include` option: {files}."
-        )
-
-        return files
 
     def _copy_files(self, files: list[Path]):
         """
@@ -769,6 +764,52 @@ class Runner:
                 socket.getfqdn(),
                 [file],
             )
+
+    def _get_excluded_from_work_dir(self) -> list[Path]:
+        """
+        Return paths that must not be copied to the working directory.
+
+        Collects the files excluded and ignored by the user, the qq info file,
+        the qq output file, and the archive if the job is a loop job.
+        Duplicates are removed, preserving the order of first occurrence.
+
+        Returns:
+            list[Path]: Paths that should not be copied to the working directory.
+        """
+        info = self._informer.info
+
+        qq_out = (info.input_dir / info.job_name).with_suffix(CFG.suffixes.qq_out)
+
+        excluded = [
+            *info.excluded_files,
+            *info.ignored_files,
+            self._info_file,
+            qq_out,
+        ]
+
+        if self._archiver:
+            excluded.append(self._archiver.archive)
+
+        return list(dict.fromkeys(excluded))
+
+    def _get_excluded_from_input_dir(self) -> list[Path]:
+        """
+        Return paths that must not be copied to the input directory.
+
+        Collects explicitly included files and ignored files, and the
+        archive if the job is a loop job. Duplicates are removed,
+        preserving the order of first occurrence.
+
+        Returns:
+            list[Path]: Paths that should not be copied to the input directory.
+        """
+        info = self._informer.info
+
+        excluded = [*info.included_files, *info.ignored_files]
+        if self._archiver:
+            excluded.append(self._archiver.archive)
+
+        return list(dict.fromkeys(relocate_by_name(excluded, self._work_dir)))
 
     def _cleanup(self) -> None:
         """
@@ -823,7 +864,7 @@ def log_fatal_error_and_exit(exception: BaseException) -> NoReturn:
     Raises:
         SystemExit: Exits with an exit code associated with the exception.
     """
-    logger.error(f"Fatal qq run error: {exception}")
+    logger.error(f"Fatal qq run error: {exception}.")
     logger.error("Failure state was NOT logged into the job info file.")
 
     if isinstance(exception, (QQRunFatalError, QQRunCommunicationError, QQError)):

@@ -163,7 +163,7 @@ def test_syncer_ensure_suitable_raises_killed_without_destination(destination):
 
     with pytest.raises(
         QQNotSuitableError,
-        match="Job has been killed and no working directory is available.",
+        match="Job has been killed and no working directory is available",
     ):
         syncer.ensure_suitable()
 
@@ -283,7 +283,7 @@ def test_syncer_sync_raises_without_destination(destination):
 
     with pytest.raises(
         QQError,
-        match=r"Host \('main_node'\) or working directory \('work_dir'\) are not defined\.",
+        match=r"Host \('main_node'\) or working directory \('work_dir'\) are not defined",
     ):
         syncer.sync()
 

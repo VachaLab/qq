@@ -445,7 +445,7 @@ def test_parse_props_strips_empty_parts():
     ],
 )
 def test_parse_props_raises_on_duplicate_keys(props):
-    with pytest.raises(QQError, match="Property 'foo' is defined multiple times."):
+    with pytest.raises(QQError, match="Property 'foo' is defined multiple times"):
         Resources._parse_props(props)
 
 

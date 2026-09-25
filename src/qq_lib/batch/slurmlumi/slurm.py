@@ -61,12 +61,12 @@ class SlurmLumi(SlurmIT4I):
     @classmethod
     def create_work_dir_on_scratch(cls, job_id: str) -> Path:
         if not (account := os.environ.get(CFG.env_vars.slurm_job_account)):
-            raise QQError(f"No account is defined for job '{job_id}'.")
+            raise QQError(f"No account is defined for job '{job_id}'")
 
         # get the storage type (scratch or flash)
         if not (storage_type := os.environ.get(CFG.env_vars.lumi_scratch_type)):
             raise QQError(
-                f"Environment variable '{CFG.env_vars.lumi_scratch_type}' is not defined. This is a bug!"
+                f"Environment variable '{CFG.env_vars.lumi_scratch_type}' is not defined. This is a bug, please report it"
             )
 
         user = getpass.getuser()

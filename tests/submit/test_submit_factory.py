@@ -117,17 +117,17 @@ def test_submitter_factory_get_transfer_mode_from_parser():
 
 def test_submitter_factory_get_exclude_from_command_line():
     mock_parser = MagicMock()
-    parser_excludes = [Path("/tmp/file1"), Path("/tmp/file2")]
+    parser_excludes = ["/tmp/file1", "/tmp/file2"]
     mock_parser.get_exclude.return_value = parser_excludes
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {"exclude": "/tmp/file3,/tmp/file4"}
 
-    cli_excludes = [Path("/tmp/file3"), Path("/tmp/file4")]
+    cli_excludes = ["/tmp/file3", "/tmp/file4"]
 
     with patch(
-        "qq_lib.submit.factory.split_files_list", return_value=cli_excludes
+        "qq_lib.submit.factory.split_string_list", return_value=cli_excludes
     ) as mock_split:
         result = factory._get_exclude()
 
@@ -137,7 +137,7 @@ def test_submitter_factory_get_exclude_from_command_line():
 
 def test_submitter_factory_get_exclude_from_parser():
     mock_parser = MagicMock()
-    parser_excludes = [Path("/tmp/file1"), Path("/tmp/file2")]
+    parser_excludes = ["/tmp/file1", "/tmp/file2"]
     mock_parser.get_exclude.return_value = parser_excludes
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
@@ -150,17 +150,17 @@ def test_submitter_factory_get_exclude_from_parser():
 
 def test_submitter_factory_get_include_from_command_line():
     mock_parser = MagicMock()
-    parser_includes = [Path("/tmp/file1"), Path("/tmp/file2")]
+    parser_includes = ["/tmp/file1", "/tmp/file2"]
     mock_parser.get_include.return_value = parser_includes
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
     factory._parser = mock_parser
     factory._kwargs = {"include": "/tmp/file3,/tmp/file4"}
 
-    cli_includes = [Path("/tmp/file3"), Path("/tmp/file4")]
+    cli_includes = ["/tmp/file3", "/tmp/file4"]
 
     with patch(
-        "qq_lib.submit.factory.split_files_list", return_value=cli_includes
+        "qq_lib.submit.factory.split_string_list", return_value=cli_includes
     ) as mock_split:
         result = factory._get_include()
 
@@ -170,7 +170,7 @@ def test_submitter_factory_get_include_from_command_line():
 
 def test_submitter_factory_get_include_from_parser():
     mock_parser = MagicMock()
-    parser_includes = [Path("/tmp/file1"), Path("/tmp/file2")]
+    parser_includes = ["/tmp/file1", "/tmp/file2"]
     mock_parser.get_include.return_value = parser_includes
 
     factory = SubmitterFactory.__new__(SubmitterFactory)
@@ -179,6 +179,39 @@ def test_submitter_factory_get_include_from_parser():
 
     result = factory._get_include()
     assert result == parser_includes
+
+
+def test_submitter_factory_get_ignore_from_command_line():
+    mock_parser = MagicMock()
+    parser_ignores = ["/tmp/file1", "/tmp/file2"]
+    mock_parser.get_ignore.return_value = parser_ignores
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {"ignore": "/tmp/file3,/tmp/file4"}
+
+    cli_ignores = ["/tmp/file3", "/tmp/file4"]
+
+    with patch(
+        "qq_lib.submit.factory.split_string_list", return_value=cli_ignores
+    ) as mock_split:
+        result = factory._get_ignore()
+
+    mock_split.assert_called_once_with("/tmp/file3,/tmp/file4")
+    assert result == cli_ignores
+
+
+def test_submitter_factory_get_ignore_from_parser():
+    mock_parser = MagicMock()
+    parser_ignores = ["/tmp/file1", "/tmp/file2"]
+    mock_parser.get_ignore.return_value = parser_ignores
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._parser = mock_parser
+    factory._kwargs = {}
+
+    result = factory._get_ignore()
+    assert result == parser_ignores
 
 
 def test_submitter_factory_get_loop_info_uses_cli_over_parser():
@@ -387,7 +420,7 @@ def test_submitter_factory_get_queue_raises_error_if_missing():
     factory._parser = mock_parser
     factory._kwargs = {}
 
-    with pytest.raises(QQError, match="Submission queue not specified."):
+    with pytest.raises(QQError, match="Submission queue not specified"):
         factory._get_queue()
 
 
@@ -719,8 +752,9 @@ def test_submitter_factory_make_submitter_standard_job(server):
     mock_parser.parse = MagicMock()
     mock_parser.get_job_type.return_value = JobType.STANDARD
     resources = Resources()
-    excludes = [Path("/tmp/file1")]
-    includes = [Path("included_file")]
+    excludes = ["/tmp/file1"]
+    includes = ["included_file"]
+    ignores = ["ignored_file"]
     depends = []
     account = "fake-account"
     transfer = [Always()]
@@ -744,6 +778,7 @@ def test_submitter_factory_make_submitter_standard_job(server):
         patch.object(factory, "_get_resources", return_value=resources) as mock_get_res,
         patch.object(factory, "_get_exclude", return_value=excludes) as mock_get_excl,
         patch.object(factory, "_get_include", return_value=includes) as mock_get_incl,
+        patch.object(factory, "_get_ignore", return_value=ignores) as mock_get_ignore,
         patch.object(factory, "_get_depend", return_value=depends) as mock_get_dep,
         patch.object(factory, "_get_account", return_value=account) as mock_get_acct,
         patch.object(
@@ -777,6 +812,7 @@ def test_submitter_factory_make_submitter_standard_job(server):
     mock_get_res.assert_called_once_with(BatchSystem, queue, server)
     mock_get_excl.assert_called_once()
     mock_get_incl.assert_called_once()
+    mock_get_ignore.assert_called_once()
     mock_get_dep.assert_called_once()
     mock_get_acct.assert_called_once()
     mock_get_transfer.assert_called_once()
@@ -795,6 +831,7 @@ def test_submitter_factory_make_submitter_standard_job(server):
         loop_info=None,  # loop_info is None for STANDARD job
         exclude=excludes,
         include=includes,
+        ignore=ignores,
         depend=depends,
         transfer_mode=transfer,
         server=server,
@@ -810,8 +847,9 @@ def test_submitter_factory_make_submitter_loop_job(server):
     mock_parser.parse = MagicMock()
     mock_parser.get_job_type.return_value = JobType.LOOP
     resources = Resources()
-    excludes = [Path("/tmp/file1")]
-    includes = [Path("included_file")]
+    excludes = ["/tmp/file1"]
+    includes = ["included_file"]
+    ignores = ["ignored_file"]
     depends = []
     account = None
     transfer = [Always()]
@@ -838,6 +876,7 @@ def test_submitter_factory_make_submitter_loop_job(server):
         patch.object(factory, "_get_resources", return_value=resources) as mock_get_res,
         patch.object(factory, "_get_exclude", return_value=excludes) as mock_get_excl,
         patch.object(factory, "_get_include", return_value=includes) as mock_get_incl,
+        patch.object(factory, "_get_ignore", return_value=ignores) as mock_get_ignore,
         patch.object(factory, "_get_depend", return_value=depends) as mock_get_dep,
         patch.object(factory, "_get_account", return_value=account) as mock_get_acct,
         patch.object(
@@ -871,6 +910,7 @@ def test_submitter_factory_make_submitter_loop_job(server):
     mock_get_res.assert_called_once_with(BatchSystem, queue, server)
     mock_get_excl.assert_called_once()
     mock_get_incl.assert_called_once()
+    mock_get_ignore.assert_called_once()
     mock_get_dep.assert_called_once()
     mock_get_acct.assert_called_once()
     mock_get_transfer.assert_called_once()
@@ -889,6 +929,7 @@ def test_submitter_factory_make_submitter_loop_job(server):
         loop_info=loop_info,
         exclude=excludes,
         include=includes,
+        ignore=ignores,
         depend=depends,
         transfer_mode=transfer,
         server=server,
@@ -904,8 +945,9 @@ def test_submitter_factory_make_submitter_continuous_job(server):
     mock_parser.parse = MagicMock()
     mock_parser.get_job_type.return_value = JobType.CONTINUOUS
     resources = Resources()
-    excludes = [Path("/tmp/file1")]
-    includes = [Path("included_file")]
+    excludes = ["/tmp/file1"]
+    includes = ["included_file"]
+    ignores = ["ignored_file"]
     depends = []
     account = None
     transfer = [Always()]
@@ -932,6 +974,7 @@ def test_submitter_factory_make_submitter_continuous_job(server):
         patch.object(factory, "_get_resources", return_value=resources) as mock_get_res,
         patch.object(factory, "_get_exclude", return_value=excludes) as mock_get_excl,
         patch.object(factory, "_get_include", return_value=includes) as mock_get_incl,
+        patch.object(factory, "_get_ignore", return_value=ignores) as mock_get_ignore,
         patch.object(factory, "_get_depend", return_value=depends) as mock_get_dep,
         patch.object(factory, "_get_account", return_value=account) as mock_get_acct,
         patch.object(
@@ -965,6 +1008,7 @@ def test_submitter_factory_make_submitter_continuous_job(server):
     mock_get_res.assert_called_once_with(BatchSystem, queue, server)
     mock_get_excl.assert_called_once()
     mock_get_incl.assert_called_once()
+    mock_get_ignore.assert_called_once()
     mock_get_dep.assert_called_once()
     mock_get_acct.assert_called_once()
     mock_get_transfer.assert_called_once()
@@ -983,6 +1027,7 @@ def test_submitter_factory_make_submitter_continuous_job(server):
         loop_info=None,
         exclude=excludes,
         include=includes,
+        ignore=ignores,
         depend=depends,
         transfer_mode=transfer,
         server=server,

@@ -274,7 +274,7 @@ class Resources(HasCouplingMethods):
                 key, value = part, "true"
 
             if key in result:
-                raise QQError(f"Property '{key}' is defined multiple times.")
+                raise QQError(f"Property '{key}' is defined multiple times")
             result[key] = value
 
         return result

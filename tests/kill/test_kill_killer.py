@@ -247,20 +247,20 @@ def test_killer_kill_does_not_update_info_file():
 @pytest.mark.parametrize(
     "state,exit,expected_message",
     [
-        (RealState.FINISHED, 0, "Job cannot be terminated. Job is already completed."),
-        (RealState.FAILED, 1, "Job cannot be terminated. Job is already completed."),
+        (RealState.FINISHED, 0, "Job cannot be terminated. Job is already completed"),
+        (RealState.FAILED, 1, "Job cannot be terminated. Job is already completed"),
         (
             RealState.KILLED,
             None,
-            "Job cannot be terminated. Job has already been killed.",
+            "Job cannot be terminated. Job has already been killed",
         ),
         (
             RealState.EXITING,
             None,
-            "Job cannot be terminated. Job has already been killed.",
+            "Job cannot be terminated. Job has already been killed",
         ),
-        (RealState.EXITING, 0, "Job cannot be terminated. Job is in an exiting state."),
-        (RealState.EXITING, 1, "Job cannot be terminated. Job is in an exiting state."),
+        (RealState.EXITING, 0, "Job cannot be terminated. Job is in an exiting state"),
+        (RealState.EXITING, 1, "Job cannot be terminated. Job is in an exiting state"),
     ],
 )
 def test_killer_ensure_suitable_raises(state, exit, expected_message):

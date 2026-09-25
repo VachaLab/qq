@@ -38,7 +38,7 @@ class SlurmIT4I(Slurm):
     @classmethod
     def create_work_dir_on_scratch(cls, job_id: str) -> Path:
         if not (account := os.environ.get(CFG.env_vars.slurm_job_account)):
-            raise QQError(f"No account is defined for job '{job_id}'.")
+            raise QQError(f"No account is defined for job '{job_id}'")
 
         user = getpass.getuser()
 
@@ -87,7 +87,7 @@ class SlurmIT4I(Slurm):
         try:
             return file.read_text()
         except Exception as e:
-            raise QQError(f"Could not read file '{file}': {e}.") from e
+            raise QQError(f"Could not read file '{file}': {e}") from e
 
     @classmethod
     def write_remote_file(cls, host: str, file: Path, content: str) -> None:
@@ -96,7 +96,7 @@ class SlurmIT4I(Slurm):
         try:
             file.write_text(content)
         except Exception as e:
-            raise QQError(f"Could not write file '{file}': {e}.") from e
+            raise QQError(f"Could not write file '{file}': {e}") from e
 
     @classmethod
     def make_remote_dir(cls, host: str, directory: Path) -> None:
@@ -105,7 +105,7 @@ class SlurmIT4I(Slurm):
         try:
             directory.mkdir(exist_ok=True)
         except Exception as e:
-            raise QQError(f"Could not create a directory '{directory}': {e}.") from e
+            raise QQError(f"Could not create a directory '{directory}': {e}") from e
 
     @classmethod
     def list_remote_dir(cls, host: str, directory: Path) -> list[Path]:
@@ -114,7 +114,7 @@ class SlurmIT4I(Slurm):
         try:
             return list(directory.iterdir())
         except Exception as e:
-            raise QQError(f"Could not list a directory '{directory}': {e}.") from e
+            raise QQError(f"Could not list a directory '{directory}': {e}") from e
 
     @classmethod
     def delete_remote_dir(cls, host: str, directory: Path) -> None:
@@ -123,7 +123,7 @@ class SlurmIT4I(Slurm):
         try:
             shutil.rmtree(directory)
         except Exception as e:
-            raise QQError(f"Could not delete directory '{directory}': {e}.") from e
+            raise QQError(f"Could not delete directory '{directory}': {e}") from e
 
     @classmethod
     def move_remote_files(
@@ -131,7 +131,7 @@ class SlurmIT4I(Slurm):
     ) -> None:
         if len(files) != len(moved_files):
             raise QQError(
-                "The provided 'files' and 'moved_files' must have the same length."
+                "The provided 'files' and 'moved_files' must have the same length"
             )
 
         # always on shared storage
@@ -187,12 +187,12 @@ class SlurmIT4I(Slurm):
         )
         if not resources.work_dir:
             raise QQError(
-                "Work-dir is not set after filling in default attributes. This is a bug."
+                "Work-dir is not set after filling in default attributes. This is a bug, please report it"
             )
 
         if provided_resources.work_size_per_cpu or provided_resources.work_size:
             logger.warning(
-                "Setting work-size is not supported in this environment. Working directory has a virtually unlimited capacity."
+                "Setting work-size is not supported in this environment. Working directory has a virtually unlimited capacity"
             )
 
         if not any(
@@ -200,7 +200,7 @@ class SlurmIT4I(Slurm):
             for dir in cls.get_supported_work_dir_types()
         ):
             raise QQError(
-                f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.env_name()} are: {' '.join(cls.get_supported_work_dir_types())}."
+                f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.env_name()} are: {' '.join(cls.get_supported_work_dir_types())}"
             )
 
         return resources

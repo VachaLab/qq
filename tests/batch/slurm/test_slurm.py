@@ -307,7 +307,7 @@ def test_slurm_translate_per_chunk_resources_raises_when_mem_missing():
     res.mem_per_cpu = None
     with pytest.raises(
         QQError,
-        match="None of the attributes 'mem', 'mem-per-node', or 'mem-per-cpu' is defined.",
+        match="None of the attributes 'mem', 'mem-per-node', or 'mem-per-cpu' is defined",
     ):
         Slurm._translate_per_chunk_resources(res)
 
@@ -880,7 +880,7 @@ def test_slurm_get_nodes_failure_raises_qqerror(mock_run):
     mock_run.return_value = mock_result
 
     with pytest.raises(
-        QQError, match="Could not retrieve information about nodes: some error."
+        QQError, match="Could not retrieve information about nodes: some error"
     ):
         Slurm.get_nodes()
 

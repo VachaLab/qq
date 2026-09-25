@@ -54,7 +54,7 @@ def clear(dir: tuple[Path, ...], force: bool) -> NoReturn:
         clearer.clear(force)
         sys.exit(0)
     except QQError as e:
-        logger.error(e)
+        logger.error(e.terminated)
         sys.exit(CFG.exit_codes.default)
     except Exception as e:
         logger.critical(e, exc_info=True, stack_info=True)

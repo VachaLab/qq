@@ -16,6 +16,7 @@ from qq_lib.core.error import (
     QQJobMismatchError,
     QQRunCommunicationError,
     QQRunFatalError,
+    terminate,
 )
 from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
@@ -187,11 +188,14 @@ def test_runner_init_creates_archiver_when_loop_info_present():
         runner = Runner(Path("job.qqinfo"), "host")
 
         mock_archiver.assert_called_once_with(
-            loop_info.archive,
-            loop_info.archive_format,
-            informer.info.input_machine,
-            informer.info.input_dir,
-            batch,
+            archive=loop_info.archive,
+            archive_format=loop_info.archive_format,
+            input_machine=informer.info.input_machine,
+            input_dir=informer.info.input_dir,
+            batch_system=batch,
+            included_files=informer.info.included_files,
+            excluded_files=informer.info.excluded_files,
+            ignored_files=informer.info.ignored_files,
         )
         mock_batchmeta.assert_called_once()
         mock_retryer.assert_called_once()
@@ -721,8 +725,9 @@ def test_runner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
     runner._info_file = Path("job.qqinfo")
     runner._input_dir = Path("/input")
     runner._informer.info.job_id = "123"
-    runner._informer.info.excluded_files = ["ignore.txt"]
+    runner._informer.info.excluded_files = [Path("ignore.txt")]
     runner._informer.info.included_files = ["include1.txt", "include2.txt"]
+    runner._informer.info.ignored_files = [Path("something.dat")]
     runner._informer.info.input_machine = "random.host.org"
     runner._informer.info.input_dir = Path("/input")
     runner._informer.info.job_name = "job+0002"
@@ -753,13 +758,18 @@ def test_runner_set_up_scratch_dir_calls_retryers_with_correct_arguments():
 
     # third Retryer call: sync_with_exclusions
     sync_call = retryer_cls.call_args_list[2]
-    expected_excluded = ["ignore.txt", runner._info_file, Path("/input/job+0002.qqout")]
+    expected_excluded = [
+        Path("ignore.txt"),
+        runner._info_file,
+        Path("/input/job+0002.qqout"),
+    ]
+    expected_ignored = [Path("something.dat")]
     assert sync_call.args[0] == runner._batch_system.sync_with_exclusions
     assert sync_call.args[1] == runner._input_dir
     assert sync_call.args[2] == work_dir
     assert sync_call.args[3] == "random.host.org"
     assert sync_call.args[4] == "localhost"
-    assert set(sync_call.args[5]) == set(expected_excluded)
+    assert set(sync_call.args[5]) == set(expected_excluded + expected_ignored)
     assert sync_call.kwargs["max_tries"] == CFG.runner.retry_tries
     assert sync_call.kwargs["wait_seconds"] == CFG.runner.retry_wait
 
@@ -786,7 +796,7 @@ def test_runner_set_up_scratch_dir_with_archiver_adds_archive_to_excluded():
 
     # set archiver with a dummy _archive attribute
     archiver_mock = MagicMock()
-    archiver_mock._archive = Path("storage")
+    archiver_mock.archive = Path("storage")
     runner._archiver = archiver_mock
 
     scratch_dir = Path("/scratch")
@@ -837,7 +847,7 @@ def test_runner_log_failure_and_exit_calls_update_and_exits():
         runner.log_failure_and_exit(exc)
 
     runner._update_info_failed.assert_called_once_with(42)
-    mock_logger.error.assert_called_once_with(exc)
+    mock_logger.error.assert_called_once_with(terminate(str(exc)))
     mock_exit.assert_called_once_with(42)
 
 
@@ -919,8 +929,8 @@ def test_runner_finalize_with_scratch_and_archiver(mock_logger_info):
         patch("qq_lib.run.runner.Retryer") as retryer_mock,
         patch("socket.getfqdn", return_value="host"),
         patch.object(
-            Runner, "_get_explicitly_included_files_in_work_dir", return_value=[]
-        ) as included_mock,
+            Runner, "_get_excluded_from_input_dir", return_value=[]
+        ) as excluded_mock,
     ):
         runner.finalize()
 
@@ -928,7 +938,7 @@ def test_runner_finalize_with_scratch_and_archiver(mock_logger_info):
     retryer_mock.assert_called_once()
     runner._delete_work_dir.assert_called_once()
     runner._update_info_finished.assert_called_once()
-    included_mock.assert_called_once()
+    excluded_mock.assert_called_once()
     mock_logger_info.assert_any_call("Finalizing the execution.")
     mock_logger_info.assert_any_call("Job completed with an exit code of 0.")
 
@@ -1361,7 +1371,7 @@ def test_log_fatal_error_and_exit_known_exception():
     ):
         log_fatal_error_and_exit(exc)
 
-    mock_logger.error.assert_any_call("Fatal qq run error: fatal")
+    mock_logger.error.assert_any_call("Fatal qq run error: fatal.")
     mock_logger.error.assert_any_call(
         "Failure state was NOT logged into the job info file."
     )
@@ -1377,7 +1387,7 @@ def test_log_fatal_error_and_exit_unknown_exception():
     ):
         log_fatal_error_and_exit(exc)
 
-    mock_logger.error.assert_any_call("Fatal qq run error: unknown")
+    mock_logger.error.assert_any_call("Fatal qq run error: unknown.")
     mock_logger.error.assert_any_call(
         "Failure state was NOT logged into the job info file."
     )
@@ -1615,33 +1625,6 @@ def test_runner_copy_runtime_files_to_input_dir_retry_false():
     )
 
 
-def test_runner_get_included_files_in_work_dir_resolves_paths(tmp_path):
-    runner = Runner.__new__(Runner)
-
-    runner._work_dir = tmp_path / "workdir"
-    runner._work_dir.mkdir()
-
-    abs_file = tmp_path / "abs.txt"
-    abs_file.write_text("abs")
-
-    rel_file = Path("rel.txt")
-    (tmp_path / "rel.txt").write_text("rel")
-
-    included = [abs_file, rel_file]
-
-    runner._informer = MagicMock()
-    runner._informer.info.included_files = included
-
-    expected = [
-        (runner._work_dir / abs_file.name).resolve(),
-        (runner._work_dir / rel_file.name).resolve(),
-    ]
-
-    result = runner._get_explicitly_included_files_in_work_dir()
-
-    assert result == expected
-
-
 @patch("qq_lib.run.runner.socket.getfqdn", return_value="local")
 def test_runner_copy_files_calls_sync_selected(tmp_path):
     runner = Runner.__new__(Runner)
@@ -1688,6 +1671,24 @@ def _make_runner_with_archiver(
 
     informer = MagicMock()
     informer.info.loop_info = loop_info
+    informer.info.included_files = []
+    runner._informer = informer
+
+    return runner, archiver
+
+
+def _make_runner_with_archiver_and_included_files(
+    tmp_path: Path,
+    loop_info: LoopInfo,
+) -> tuple[Runner, MagicMock]:
+    runner = Runner.__new__(Runner)
+    archiver = MagicMock(spec=Archiver)
+    runner._archiver = archiver
+    runner._work_dir = tmp_path
+
+    informer = MagicMock()
+    informer.info.loop_info = loop_info
+    informer.info.included_files = [Path("/path/to/job0003.dat")]
     runner._informer = informer
 
     return runner, archiver
@@ -1721,6 +1722,26 @@ def test_archive_files_from_work_dir_creates_init_file_when_no_matching_files(
     )
     runner, archiver = _make_runner_with_archiver(tmp_path, loop_info)
     archiver.get_files_matching_pattern.return_value = []
+
+    runner._archive_files_from_work_dir()
+
+    archiver.create_init_file.assert_called_once_with(4)
+
+
+def test_archive_files_from_work_dir_creates_init_file_even_when_matching_files_exist_if_they_were_included(
+    tmp_path: Path,
+):
+    loop_info = LoopInfo(
+        start=1,
+        end=10,
+        archive=tmp_path / "archive",
+        archive_format="job%04d",
+        current=3,
+    )
+    runner, archiver = _make_runner_with_archiver_and_included_files(
+        tmp_path, loop_info
+    )
+    archiver.get_files_matching_pattern.return_value = [tmp_path / "job0003.dat"]
 
     runner._archive_files_from_work_dir()
 
@@ -1774,3 +1795,221 @@ def test_archive_files_from_work_dir_raises_when_loop_info_is_none(tmp_path: Pat
 
     with pytest.raises(QQError, match="Loop info is undefined"):
         runner._archive_files_from_work_dir()
+
+
+def _make_info(
+    input_dir: Path,
+    job_name: str = "job",
+    excluded_files: list[Path] | None = None,
+    ignored_files: list[Path] | None = None,
+    included_files: list[Path] | None = None,
+) -> MagicMock:
+    info = MagicMock()
+    info.input_dir = input_dir
+    info.job_name = job_name
+    info.excluded_files = excluded_files or []
+    info.ignored_files = ignored_files or []
+    info.included_files = included_files or []
+
+    return info
+
+
+def _make_runner(
+    input_dir: Path,
+    work_dir: Path,
+    job_name: str = "job",
+    excluded_files: list[Path] | None = None,
+    ignored_files: list[Path] | None = None,
+    included_files: list[Path] | None = None,
+    archive: Path | None = None,
+) -> Runner:
+    runner = Runner.__new__(Runner)
+    runner._info_file = input_dir / f"{job_name}.qqinfo"
+    runner._work_dir = work_dir
+
+    if archive:
+        archiver = MagicMock()
+        archiver.archive = archive
+        runner._archiver = archiver
+    else:
+        runner._archiver = None
+
+    informer = MagicMock()
+    informer.info = _make_info(
+        input_dir=input_dir,
+        job_name=job_name,
+        excluded_files=excluded_files,
+        ignored_files=ignored_files,
+        included_files=included_files,
+    )
+    runner._informer = informer
+
+    return runner
+
+
+def test_runner_get_excluded_from_work_dir_collects_all_sources(tmp_path: Path) -> None:
+    input_dir = tmp_path / "input"
+
+    runner = _make_runner(
+        input_dir=input_dir,
+        work_dir=tmp_path / "scratch" / "main",
+        excluded_files=[input_dir / "old.log"],
+        ignored_files=[input_dir / "core.dump"],
+    )
+
+    assert runner._get_excluded_from_work_dir() == [
+        input_dir / "old.log",
+        input_dir / "core.dump",
+        input_dir / "job.qqinfo",
+        (input_dir / "job").with_suffix(CFG.suffixes.qq_out),
+    ]
+
+
+def test_runner_get_excluded_from_work_dir_appends_archive(tmp_path: Path) -> None:
+    input_dir = tmp_path / "input"
+    archive = input_dir / "storage"
+
+    runner = _make_runner(
+        input_dir=input_dir,
+        work_dir=tmp_path / "scratch" / "main",
+        archive=archive,
+    )
+
+    assert runner._get_excluded_from_work_dir() == [
+        input_dir / "job.qqinfo",
+        (input_dir / "job").with_suffix(CFG.suffixes.qq_out),
+        archive,
+    ]
+
+
+def test_runner_get_excluded_from_work_dir_deduplicates(tmp_path: Path) -> None:
+    input_dir = tmp_path / "input"
+
+    runner = _make_runner(
+        input_dir=input_dir,
+        work_dir=tmp_path / "scratch" / "main",
+        excluded_files=[input_dir / "old.log", input_dir / "notes.md"],
+        ignored_files=[input_dir / "old.log", input_dir / "job.qqinfo"],
+    )
+
+    assert runner._get_excluded_from_work_dir() == [
+        input_dir / "old.log",
+        input_dir / "notes.md",
+        input_dir / "job.qqinfo",
+        (input_dir / "job").with_suffix(CFG.suffixes.qq_out),
+    ]
+
+
+def test_runner_get_excluded_from_work_dir_ignores_included_files(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+    shared = tmp_path / "shared"
+
+    runner = _make_runner(
+        input_dir=input_dir,
+        work_dir=tmp_path / "scratch" / "main",
+        included_files=[shared / "params.itp"],
+    )
+
+    assert shared / "params.itp" not in runner._get_excluded_from_work_dir()
+
+
+def test_runner_get_excluded_from_input_dir_relocates_to_work_dir(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+    shared = tmp_path / "shared"
+    work_dir = tmp_path / "scratch" / "main"
+
+    runner = _make_runner(
+        input_dir=input_dir,
+        work_dir=work_dir,
+        ignored_files=[input_dir / "core.dump"],
+        included_files=[shared / "params.itp"],
+    )
+
+    assert runner._get_excluded_from_input_dir() == [
+        work_dir / "params.itp",
+        work_dir / "core.dump",
+    ]
+
+
+def test_runner_get_excluded_from_input_dir_flattens_nested_paths(
+    tmp_path: Path,
+) -> None:
+    work_dir = tmp_path / "scratch" / "main"
+
+    runner = _make_runner(
+        input_dir=tmp_path / "input",
+        work_dir=work_dir,
+        included_files=[tmp_path / "shared" / "forcefield" / "deeper" / "params.itp"],
+    )
+
+    assert runner._get_excluded_from_input_dir() == [work_dir / "params.itp"]
+
+
+def test_runner_get_excluded_from_input_dir_appends_archive(tmp_path: Path) -> None:
+    input_dir = tmp_path / "input"
+    work_dir = tmp_path / "scratch" / "main"
+
+    runner = _make_runner(
+        input_dir=input_dir,
+        work_dir=work_dir,
+        ignored_files=[input_dir / "core.dump"],
+        archive=input_dir / "storage",
+    )
+
+    assert runner._get_excluded_from_input_dir() == [
+        work_dir / "core.dump",
+        work_dir / "storage",
+    ]
+
+
+def test_runner_get_excluded_from_input_dir_ignores_excluded_files(
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "input"
+
+    runner = _make_runner(
+        input_dir=input_dir,
+        work_dir=tmp_path / "scratch" / "main",
+        excluded_files=[input_dir / "old.log"],
+    )
+
+    assert runner._get_excluded_from_input_dir() == []
+
+
+def test_runner_get_excluded_from_input_dir_deduplicates(tmp_path: Path) -> None:
+    input_dir = tmp_path / "input"
+    shared = tmp_path / "shared"
+    work_dir = tmp_path / "scratch" / "main"
+
+    runner = _make_runner(
+        input_dir=input_dir,
+        work_dir=work_dir,
+        ignored_files=[shared / "params.itp", input_dir / "core.dump"],
+        included_files=[shared / "params.itp"],
+    )
+
+    assert runner._get_excluded_from_input_dir() == [
+        work_dir / "params.itp",
+        work_dir / "core.dump",
+    ]
+
+
+def test_runner_get_excluded_from_input_dir_deduplicates_after_relocating(
+    tmp_path: Path,
+) -> None:
+    work_dir = tmp_path / "scratch" / "main"
+
+    runner = _make_runner(
+        input_dir=tmp_path / "input",
+        work_dir=work_dir,
+        included_files=[
+            tmp_path / "first" / "params.itp",
+            tmp_path / "second" / "params.itp",
+        ],
+    )
+
+    assert runner._get_excluded_from_input_dir() == [work_dir / "params.itp"]

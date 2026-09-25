@@ -73,5 +73,5 @@ class Retryer:
 
         # should never get here
         raise QQError(
-            "Execution got into an unexpected part of the Retryer.run method. This is a bug, please report it."
+            "Execution got into an unexpected part of the Retryer.run method. This is a bug, please report it"
         )

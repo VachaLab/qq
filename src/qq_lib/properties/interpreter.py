@@ -93,7 +93,7 @@ class Interpreter:
 
         if not (full := shutil.which(self.executable)):
             raise QQError(
-                f"Interpreter '{self.executable}' is not available on node '{socket.getfqdn()}'."
+                f"Interpreter '{self.executable}' is not available on node '{socket.getfqdn()}'"
             )
 
         return [full] + self.arguments

@@ -24,23 +24,23 @@ class Syncer(Navigator):
         """
         if self._work_dir_is_input_dir():
             raise QQNotSuitableError(
-                "Working directory of the job is the input directory of the job: implicitly synchronized."
+                "Working directory of the job is the input directory of the job: implicitly synchronized"
             )
 
         if self._is_synchronized():
             raise QQNotSuitableError(
-                "Job has been completed and was synchronized: working directory no longer exists."
+                "Job has been completed and was synchronized: working directory no longer exists"
             )
 
         # killed jobs may not have working directory
         if self._is_killed() and not self.has_destination():
             raise QQNotSuitableError(
-                "Job has been killed and no working directory is available."
+                "Job has been killed and no working directory is available"
             )
 
         # queued jobs do not have working directory
         if self._is_queued():
-            raise QQNotSuitableError("Job is queued or booting: nothing to sync.")
+            raise QQNotSuitableError("Job is queued or booting: nothing to sync")
 
     def sync(self, files: list[str] | None = None) -> None:
         """
@@ -59,11 +59,11 @@ class Syncer(Navigator):
         """
         if not self.has_destination():
             raise QQError(
-                "Host ('main_node') or working directory ('work_dir') are not defined."
+                "Host ('main_node') or working directory ('work_dir') are not defined"
             )
 
         # hint for type checker
-        # work_dir and main_node must be set - we check that in self.hasDestination
+        # work_dir and main_node must be set - we check that in self.has_destination
         assert self._work_dir and self._main_node
 
         if files:
