@@ -648,7 +648,7 @@ def test_submitter_submit_calls_all_steps_and_returns_job_id(tmp_path):
         remote_host=None,
     )
     mock_info_class.assert_called_once()
-    mock_info_instance.to_file.assert_called_once_with(submitter._info_file)
+    mock_info_instance.to_file.assert_called_once_with(submitter._info_file, host=None)
     assert result == "jobid123"
 
 
@@ -733,7 +733,7 @@ def test_submitter_submit(tmp_path):
         interpreter=None,
         resubmit_from=[WorkHost()],
     )
-    mock_info_instance.to_file.assert_called_once_with(submitter._info_file)
+    mock_info_instance.to_file.assert_called_once_with(submitter._info_file, host=None)
     assert result == "jobid123"
 
 

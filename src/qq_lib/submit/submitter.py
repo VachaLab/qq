@@ -197,7 +197,7 @@ class Submitter:
             server=self._server,
             interpreter=self._interpreter,
             resubmit_from=self._resubmit_from,
-        ).to_file(self._info_file)
+        ).to_file(self._info_file, host=remote)
 
         return job_id
 
