@@ -1,6 +1,7 @@
 ## Version 0.13.1
 
 - Submission directories that cannot be accessed directly from the compute nodes are now handled more reliably. This also makes it possible to submit jobs from a local symbolic link that points to a shared directory.
+- The result of guessing a batch system is now cached.
 
 ## Version 0.13.0
 

@@ -3,6 +3,7 @@
 
 import os
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
 from typing import cast
 from unittest.mock import MagicMock, patch
@@ -13,6 +14,13 @@ from qq_lib.batch.interface import BatchInterface, BatchJobInterface
 from qq_lib.batch.interface.interface import CFG, _BatchMeta
 from qq_lib.batch.pbs import PBS
 from qq_lib.core.error import QQError
+
+
+@pytest.fixture(autouse=True)
+def clear_caches() -> Iterator[None]:
+    BatchInterface.guess.cache_clear()
+    yield
+    BatchInterface.guess.cache_clear()
 
 
 def test_translate_ssh_command():
@@ -56,12 +64,15 @@ def test_navigate_same_host_error():
         mock_run.assert_not_called()
 
 
-def test_guess_pbs():
-    _BatchMeta._registry.clear()
-    _BatchMeta._registry[PBS.env_name()] = PBS
+def test_guess_pbs(monkeypatch) -> None:
+    monkeypatch.setattr(_BatchMeta, "_registry", {PBS.env_name(): PBS})
 
     with patch.object(PBS, "is_available", return_value=True):
         assert BatchInterface.guess() is PBS
+
+
+def test_guess_raises_when_nothing_available(monkeypatch) -> None:
+    monkeypatch.setattr(_BatchMeta, "_registry", {PBS.env_name(): PBS})
 
     with (
         patch.object(PBS, "is_available", return_value=False),

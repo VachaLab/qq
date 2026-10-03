@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import functools
 import inspect
 import os
 import socket
@@ -76,6 +77,7 @@ class _BatchMeta(ABCMeta):
         except KeyError as e:
             raise QQError(f"No batch system registered as '{name}'.") from e
 
+    @functools.cache
     def guess(cls) -> type[BatchInterface]:
         """
         Return the first registered batch system that reports itself
