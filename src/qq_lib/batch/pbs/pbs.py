@@ -7,6 +7,7 @@ import shutil
 import socket
 import subprocess
 from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 
 from qq_lib.batch.interface import BatchInterface
@@ -33,6 +34,9 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
 
     # all standard scratch directory (excl. in RAM scratch) types supported by PBS
     SUPPORTED_SCRATCHES = ["scratch_local", "scratch_ssd", "scratch_shared"]
+
+    # indicates that an operation with shared storage failed
+    _shared_storage_failed: bool = False
 
     @classmethod
     def env_name(cls) -> str:
@@ -319,29 +323,35 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
 
     @classmethod
     def read_remote_file(cls, host: str, file: Path) -> str:
-        if os.environ.get(CFG.env_vars.shared_submit):
+        if cls._using_shared_storage():
             # file is on shared storage, we can read it directly
             # this assumes that this method is only used to read files in input_dir
             logger.debug(f"Reading a file '{file}' from shared storage.")
-            try:
-                return file.read_text()
-            except Exception as e:
-                raise QQError(f"Could not read file '{file}': {e}") from e
-        else:
-            # otherwise, we fall back to the default implementation
-            logger.debug(f"Reading a remote file '{file}' on '{host}'.")
-            return super().read_remote_file(host, file)
+            return cls._with_shared_fallback(
+                file.read_text,
+                partial(super().read_remote_file, host, file),
+                cls._disable_shared_storage,
+                f"read file '{file}'",
+                f"reading on '{host}'",
+            )
+
+        # otherwise, we fall back to the default implementation
+        logger.debug(f"Reading a remote file '{file}' on '{host}'.")
+        return super().read_remote_file(host, file)
 
     @classmethod
     def write_remote_file(cls, host: str, file: Path, content: str) -> None:
-        if os.environ.get(CFG.env_vars.shared_submit):
+        if cls._using_shared_storage():
             # file should be written to shared storage
             # this assumes that the method is only used to write files into input_dir
             logger.debug(f"Writing a file '{file}' to shared storage.")
-            try:
-                file.write_text(content)
-            except Exception as e:
-                raise QQError(f"Could not write file '{file}': {e}") from e
+            cls._with_shared_fallback(
+                partial(file.write_text, content),
+                partial(super().write_remote_file, host, file, content),
+                cls._disable_shared_storage,
+                f"write file '{file}'",
+                f"writing on '{host}'",
+            )
         else:
             # otherwise, we fall back to the default implementation
             logger.debug(f"Writing a remote file '{file}' on '{host}'.")
@@ -349,13 +359,16 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
 
     @classmethod
     def make_remote_dir(cls, host: str, directory: Path) -> None:
-        if os.environ.get(CFG.env_vars.shared_submit):
+        if cls._using_shared_storage():
             # assuming the directory is created in input_dir
             logger.debug(f"Creating a directory '{directory}' on shared storage.")
-            try:
-                directory.mkdir(exist_ok=True)
-            except Exception as e:
-                raise QQError(f"Could not create a directory '{directory}': {e}") from e
+            cls._with_shared_fallback(
+                partial(directory.mkdir, exist_ok=True),
+                partial(super().make_remote_dir, host, directory),
+                cls._disable_shared_storage,
+                f"create directory '{directory}'",
+                f"creating on '{host}'",
+            )
         else:
             # otherwise we fall back to the default implementation
             logger.debug(f"Creating a directory '{directory}' on '{host}'.")
@@ -363,17 +376,20 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
 
     @classmethod
     def list_remote_dir(cls, host: str, directory: Path) -> list[Path]:
-        if os.environ.get(CFG.env_vars.shared_submit):
+        if cls._using_shared_storage():
             # assuming we are listing input_dir or another directory on shared storage
             logger.debug(f"Listing a directory '{directory}' on shared storage.")
-            try:
-                return list(directory.iterdir())
-            except Exception as e:
-                raise QQError(f"Could not list a directory '{directory}': {e}") from e
-        else:
-            # otherwise we fall back to the default implementation
-            logger.debug(f"Listing a directory '{directory}' on '{host}'.")
-            return super().list_remote_dir(host, directory)
+            return cls._with_shared_fallback(
+                lambda: list(directory.iterdir()),
+                partial(super().list_remote_dir, host, directory),
+                cls._disable_shared_storage,
+                f"list directory '{directory}'",
+                f"listing on '{host}'",
+            )
+
+        # otherwise we fall back to the default implementation
+        logger.debug(f"Listing a directory '{directory}' on '{host}'.")
+        return super().list_remote_dir(host, directory)
 
     @classmethod
     def delete_remote_dir(cls, host: str, directory: Path) -> None:
@@ -398,13 +414,21 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
                 "The provided 'files' and 'moved_files' must have the same length."
             )
 
-        if os.environ.get(CFG.env_vars.shared_submit):
+        if cls._using_shared_storage():
             # assuming we are moving files inside input_dir or another directory on shared storage
             logger.debug(
                 f"Moving files '{files}' -> '{moved_files}' on a shared storage."
             )
-            for src, dst in zip(files, moved_files):
-                shutil.move(str(src), str(dst))
+            # only the files that were not moved on shared storage are passed to the fallback
+            done: list[Path] = []
+            remote_move = super().move_remote_files
+            cls._with_shared_fallback(
+                partial(cls._move_local_files, files, moved_files, done),
+                lambda: remote_move(host, files[len(done) :], moved_files[len(done) :]),
+                cls._disable_shared_storage,
+                f"move files '{files}' -> '{moved_files}'",
+                f"moving on '{host}'",
+            )
         else:
             # otherwise we fall back to the default implementation
             logger.debug(f"Moving files '{files}' -> '{moved_files}' on '{host}'.")
@@ -983,6 +1007,59 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         """
         return f"qdel {job_id}"
 
+    def _move_local_files(
+        files: list[Path], moved_files: list[Path], done: list[Path]
+    ) -> None:
+        """
+        Move files on a locally accessible filesystem, recording each source once it has been moved.
+
+        Args:
+            files (list[Path]): Files to move.
+            moved_files (list[Path]): Destinations, one per file in `files`.
+            done (list[Path]): Filled with the sources that were moved successfully,
+                so that the caller can resume after a failure.
+
+        Raises:
+            OSError: If any move fails. Files moved before the failure stay moved.
+        """
+        for src, dst in zip(files, moved_files):
+            shutil.move(str(src), str(dst))
+            done.append(src)
+
+    @classmethod
+    def _with_shared_fallback[T](
+        cls,
+        shared_op: Callable[[], T],
+        remote_op: Callable[[], T],
+        disable_shared: Callable[[], None],
+        description: str,
+        fallback: str,
+    ) -> T:
+        """
+        Run an operation on shared storage and fall back to a remote operation if it fails.
+
+        Args:
+            shared_op (Callable[[], T]): Operation performed directly on shared storage.
+            remote_op (Callable[[], T]): Operation performed through the remote host. Called only if `shared_op` fails.
+            disable_shared (Callable[[], None]): Called after `shared_op` fails, before `remote_op` is attempted.
+            description (str): What the operation does, used in the warning (e.g. "read file 'x'").
+            fallback (str): What the fallback does, used in the warning (e.g. "reading on 'host'").
+
+        Returns:
+            T: Result of `shared_op`, or of `remote_op` if `shared_op` failed.
+
+        Raises:
+            QQError: If `remote_op` fails. Any other exception raised by `remote_op` is propagated as well.
+        """
+        try:
+            return shared_op()
+        except Exception as e:
+            logger.warning(
+                f"Could not {description} on shared storage: {e}. Falling back to {fallback}."
+            )
+            disable_shared()
+            return remote_op()
+
     @classmethod
     def _sync_directories(
         cls,
@@ -1010,25 +1087,60 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             QQError: If both source and destination hosts are remote and cannot be
                 accessed simultaneously, or if syncing fails internally.
         """
-        if os.environ.get(CFG.env_vars.shared_submit):
+        if cls._using_shared_storage():
             # input_dir is on shared storage -> we can copy files from/to it without connecting to the remote host
             logger.debug("Syncing directories on local and shared filesystem.")
-            sync_function(src_dir, dest_dir, None, None, files)
+            cls._with_shared_fallback(
+                partial(sync_function, src_dir, dest_dir, None, None, files),
+                partial(
+                    cls._sync_remote_directories,
+                    src_dir,
+                    dest_dir,
+                    src_host,
+                    dest_host,
+                    files,
+                    sync_function,
+                ),
+                cls._disable_shared_storage,
+                "sync directories",
+                "remote synchronization",
+            )
         else:
-            # input_dir is not on shared storage -> fall back to the default implementation
+            # input_dir is not on shared storage
             logger.debug("Syncing directories on local filesystems.")
+            cls._sync_remote_directories(
+                src_dir, dest_dir, src_host, dest_host, files, sync_function
+            )
 
-            # convert local hosts to none
-            local_hostname = socket.getfqdn()
-            src = None if src_host == local_hostname else src_host
-            dest = None if dest_host == local_hostname else dest_host
+    @classmethod
+    def _sync_remote_directories(
+        cls,
+        src_dir: Path,
+        dest_dir: Path,
+        src_host: str | None,
+        dest_host: str | None,
+        files: list[Path] | None,
+        sync_function: Callable[
+            [Path, Path, str | None, str | None, list[Path] | None], None
+        ],
+    ) -> None:
+        """
+        Synchronize directories between remote hosts using the provided sync function.
 
-            if src is None or dest is None:
-                sync_function(src_dir, dest_dir, src, dest, files)
-            else:
-                raise QQError(
-                    f"The source '{src_host}' and destination '{dest_host}' cannot be both remote"
-                )
+        Raises:
+            QQError: If the source and destination hosts are both remote.
+        """
+        # convert local hosts to none
+        local_hostname = socket.getfqdn()
+        src = None if src_host == local_hostname else src_host
+        dest = None if dest_host == local_hostname else dest_host
+
+        if src is None or dest is None:
+            sync_function(src_dir, dest_dir, src, dest, files)
+        else:
+            raise QQError(
+                f"The source '{src_host}' and destination '{dest_host}' cannot both be remote"
+            )
 
     @classmethod
     def _get_batch_jobs_using_command(
@@ -1096,3 +1208,17 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             jobs.append(job)
 
         return jobs
+
+    @classmethod
+    def _using_shared_storage(cls) -> bool:
+        """Return whether we are working on shared storage."""
+        return (
+            # if an operation with shared storage already failed, return False
+            not cls._shared_storage_failed
+            and os.environ.get(CFG.env_vars.shared_submit) is not None
+        )
+
+    @classmethod
+    def _disable_shared_storage(cls) -> None:
+        """Stop using shared storage for the rest of this process after a failed operation."""
+        cls._shared_storage_failed = True

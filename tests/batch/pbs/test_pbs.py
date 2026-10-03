@@ -8,7 +8,7 @@ import shutil
 import socket
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -19,6 +19,12 @@ from qq_lib.batch.pbs.pbs import CFG
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend, DependType
 from qq_lib.properties.resources import Resources
+
+
+@pytest.fixture(autouse=True)
+def reset_shared_storage_failed(monkeypatch: pytest.MonkeyPatch) -> None:
+    # the fallback disables shared storage on the class, so it must not leak between tests
+    monkeypatch.setattr(PBS, "_shared_storage_failed", False)
 
 
 @pytest.fixture
@@ -210,7 +216,7 @@ def test_sync_with_exclusions_local_src(monkeypatch):
     exclude_files = [Path("file1")]
     local_host = "myhost"
 
-    monkeypatch.setenv(CFG.env_vars.shared_submit, "")
+    monkeypatch.delenv(CFG.env_vars.shared_submit, raising=False)
 
     with (
         patch.object(BatchInterface, "sync_with_exclusions") as mock_sync,
@@ -231,7 +237,7 @@ def test_sync_with_exclusions_local_dest(monkeypatch):
     exclude_files = []
     local_host = "myhost"
 
-    monkeypatch.setenv(CFG.env_vars.shared_submit, "")
+    monkeypatch.delenv(CFG.env_vars.shared_submit, raising=False)
 
     with (
         patch.object(BatchInterface, "sync_with_exclusions") as mock_sync,
@@ -252,7 +258,7 @@ def test_sync_with_exclusions_one_remote(monkeypatch):
     exclude_files = None
     local_host = "myhost"
 
-    monkeypatch.setenv(CFG.env_vars.shared_submit, "")
+    monkeypatch.delenv(CFG.env_vars.shared_submit, raising=False)
 
     with (
         patch.object(BatchInterface, "sync_with_exclusions") as mock_sync,
@@ -268,11 +274,11 @@ def test_sync_with_exclusions_both_remote_raises(monkeypatch):
     dest_dir = Path("/dest")
     exclude_files = None
 
-    monkeypatch.setenv(CFG.env_vars.shared_submit, "")
+    monkeypatch.delenv(CFG.env_vars.shared_submit, raising=False)
 
     with (
         patch("socket.getfqdn", return_value="localhost"),
-        pytest.raises(QQError, match="cannot be both remote"),
+        pytest.raises(QQError, match="cannot both be remote"),
     ):
         # both source and destination are remote and job directory is not shared
         PBS.sync_with_exclusions(src_dir, dest_dir, "remote1", "remote2", exclude_files)
@@ -298,7 +304,7 @@ def test_sync_selected_local_src(monkeypatch):
     include_files = [Path("file1")]
     local_host = "myhost"
 
-    monkeypatch.setenv(CFG.env_vars.shared_submit, "")
+    monkeypatch.delenv(CFG.env_vars.shared_submit, raising=False)
 
     with (
         patch.object(BatchInterface, "sync_selected") as mock_sync,
@@ -316,7 +322,7 @@ def test_sync_selected_local_dest(monkeypatch):
     include_files = []
     local_host = "myhost"
 
-    monkeypatch.setenv(CFG.env_vars.shared_submit, "")
+    monkeypatch.delenv(CFG.env_vars.shared_submit, raising=False)
 
     with (
         patch.object(BatchInterface, "sync_selected") as mock_sync,
@@ -334,7 +340,7 @@ def test_sync_selected_one_remote(monkeypatch):
     include_files = None
     local_host = "myhost"
 
-    monkeypatch.setenv(CFG.env_vars.shared_submit, "")
+    monkeypatch.delenv(CFG.env_vars.shared_submit, raising=False)
 
     with (
         patch.object(BatchInterface, "sync_selected") as mock_sync,
@@ -349,11 +355,11 @@ def test_sync_selected_both_remote_raises(monkeypatch):
     dest_dir = Path("/dest")
     include_files = None
 
-    monkeypatch.setenv(CFG.env_vars.shared_submit, "")
+    monkeypatch.delenv(CFG.env_vars.shared_submit, raising=False)
 
     with (
         patch("socket.getfqdn", return_value="localhost"),
-        pytest.raises(QQError, match="cannot be both remote"),
+        pytest.raises(QQError, match="cannot both be remote"),
     ):
         PBS.sync_selected(src_dir, dest_dir, "remote1", "remote2", include_files)
 
@@ -371,15 +377,59 @@ def test_read_remote_file_shared_storage(tmp_path, monkeypatch):
     monkeypatch.delenv(CFG.env_vars.shared_submit)
 
 
-def test_read_remote_file_shared_storage_file_missing(tmp_path, monkeypatch):
+def test_pbs_read_remote_file_shared_storage_falls_back_to_remote(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     file_path = tmp_path / "nonexistent.txt"
 
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
-    with pytest.raises(QQError, match="Could not read file"):
+    with patch.object(
+        BatchInterface, "read_remote_file", return_value="data"
+    ) as mock_read:
+        result = PBS.read_remote_file("remotehost", file_path)
+
+    mock_read.assert_called_once_with("remotehost", file_path)
+    assert result == "data"
+    assert not PBS._using_shared_storage()
+    # the environment variable is left untouched
+    assert os.environ[CFG.env_vars.shared_submit] == "true"
+
+
+def test_pbs_read_remote_file_shared_storage_fallback_error_propagates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    file_path = tmp_path / "nonexistent.txt"
+
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+
+    with (
+        patch.object(
+            BatchInterface, "read_remote_file", side_effect=QQError("remote failed")
+        ),
+        pytest.raises(QQError, match="remote failed"),
+    ):
         PBS.read_remote_file("remotehost", file_path)
 
-    monkeypatch.delenv(CFG.env_vars.shared_submit)
+
+def test_pbs_read_remote_file_uses_remote_after_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    missing = tmp_path / "nonexistent.txt"
+    existing = tmp_path / "testfile.txt"
+    existing.write_text("local")
+
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+
+    with patch.object(
+        BatchInterface, "read_remote_file", return_value="remote"
+    ) as mock_read:
+        PBS.read_remote_file("remotehost", missing)
+        # shared storage is no longer used, even though the file is readable locally
+        result = PBS.read_remote_file("remotehost", existing)
+
+    assert result == "remote"
+    assert mock_read.call_count == 2
 
 
 def test_read_remote_file_remote():
@@ -402,15 +452,20 @@ def test_write_remote_file_shared_storage(tmp_path, monkeypatch):
     assert file_path.read_text() == content
 
 
-def test_write_remote_file_shared_storage_exception(tmp_path, monkeypatch):
+def test_pbs_write_remote_file_shared_storage_falls_back_to_remote(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # using a directory instead of a file to cause write_text to fail
     dir_path = tmp_path / "dir"
     dir_path.mkdir()
 
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
-    with pytest.raises(QQError, match="Could not write file"):
+    with patch.object(BatchInterface, "write_remote_file") as mock_write:
         PBS.write_remote_file("remotehost", dir_path, "content")
+
+    mock_write.assert_called_once_with("remotehost", dir_path, "content")
+    assert not PBS._using_shared_storage()
 
 
 def test_write_remote_file_remote():
@@ -432,14 +487,20 @@ def test_make_remote_dir_shared_storage(tmp_path, monkeypatch):
     assert dir_path.exists() and dir_path.is_dir()
 
 
-def test_make_remote_dir_shared_storage_exception(tmp_path, monkeypatch):
+def test_pbs_make_remote_dir_shared_storage_falls_back_to_remote(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # a file with the same name causes mkdir to fail
     file_path = tmp_path / "conflict"
     file_path.write_text("dummy")
 
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
-    with pytest.raises(QQError, match="Could not create a directory"):
+    with patch.object(BatchInterface, "make_remote_dir") as mock_make:
         PBS.make_remote_dir("remotehost", file_path)
+
+    mock_make.assert_called_once_with("remotehost", file_path)
+    assert not PBS._using_shared_storage()
 
 
 def test_make_remote_dir_shared_storage_already_exists_ok(tmp_path, monkeypatch):
@@ -475,15 +536,23 @@ def test_list_remote_dir_shared_storage(tmp_path, monkeypatch):
     assert result_names == ["file1.txt", "file2.txt", "subdir"]
 
 
-def test_list_remote_dir_shared_storage_exception(tmp_path, monkeypatch):
+def test_pbs_list_remote_dir_shared_storage_falls_back_to_remote(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # use a file instead of directory -> .iterdir() should fail
     bad_path = tmp_path / "notadir"
     bad_path.write_text("oops")
 
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
-    with pytest.raises(QQError, match="Could not list a directory"):
-        PBS.list_remote_dir("remotehost", bad_path)
+    with patch.object(
+        BatchInterface, "list_remote_dir", return_value=[Path("a")]
+    ) as mock_list:
+        result = PBS.list_remote_dir("remotehost", bad_path)
+
+    mock_list.assert_called_once_with("remotehost", bad_path)
+    assert result == [Path("a")]
+    assert not PBS._using_shared_storage()
 
 
 def test_list_remote_dir_remote():
@@ -516,19 +585,26 @@ def test_move_remote_files_shared_storage(tmp_path, monkeypatch):
     assert not src2.exists()
 
 
-def test_move_remote_files_shared_storage_exception(tmp_path, monkeypatch):
-    bad_src = tmp_path / "dir"
-    bad_src.mkdir()
-    dst = tmp_path / "dest"
+def test_pbs_move_remote_files_shared_storage_falls_back_for_remaining_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    src1 = tmp_path / "file1.txt"
+    src1.write_text("one")
+    # does not exist -> moving it fails after src1 has been moved
+    src2 = tmp_path / "file2.txt"
+    dst1 = tmp_path / "dest1.txt"
+    dst2 = tmp_path / "dest2.txt"
 
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
 
-    # normally shutil.move would move a directory,
-    # so we force an error by making the destination a file
-    (dst).write_text("dummy")
+    with patch.object(BatchInterface, "move_remote_files") as mock_move:
+        PBS.move_remote_files("remotehost", [src1, src2], [dst1, dst2])
 
-    with pytest.raises(Exception):
-        PBS.move_remote_files("remotehost", [bad_src], [dst])
+    # the already moved file is not passed to the fallback
+    mock_move.assert_called_once_with("remotehost", [src2], [dst2])
+    assert dst1.read_text() == "one"
+    assert not src1.exists()
+    assert not PBS._using_shared_storage()
 
 
 def test_move_remote_files_length_mismatch(tmp_path, monkeypatch):
@@ -2360,3 +2436,118 @@ def test_pbs_get_all_batch_jobs_returns_result(mock_jobs):
         result = PBS.get_all_batch_jobs()
 
     assert result is mock_jobs
+
+
+@pytest.mark.parametrize("method", ["sync_with_exclusions", "sync_selected"])
+def test_pbs_sync_shared_storage_falls_back_to_remote(
+    method: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    src_dir = Path("/src")
+    dest_dir = Path("/dest")
+    files = [Path("file1")]
+    local_host = "myhost"
+
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+
+    with (
+        patch.object(
+            BatchInterface, method, side_effect=[QQError("sync failed"), None]
+        ) as mock_sync,
+        patch("socket.getfqdn", return_value=local_host),
+    ):
+        getattr(PBS, method)(src_dir, dest_dir, local_host, "remotehost", files)
+
+    assert mock_sync.call_args_list == [
+        call(src_dir, dest_dir, None, None, files),
+        call(src_dir, dest_dir, None, "remotehost", files),
+    ]
+    assert not PBS._using_shared_storage()
+
+
+@pytest.mark.parametrize(
+    "src_host, dest_host, expected_src, expected_dest",
+    [
+        ("node01.cluster.org", "remotehost", None, "remotehost"),
+        ("remotehost", "node01.cluster.org", "remotehost", None),
+        ("node01.cluster.org", "node01.cluster.org", None, None),
+        (None, "remotehost", None, "remotehost"),
+        ("remotehost", None, "remotehost", None),
+        (None, None, None, None),
+    ],
+)
+def test_pbs_sync_remote_directories_converts_local_host_to_none(
+    src_host: str | None,
+    dest_host: str | None,
+    expected_src: str | None,
+    expected_dest: str | None,
+) -> None:
+    src_dir = Path("/src")
+    dest_dir = Path("/dest")
+    files = [Path("file1")]
+    sync_function = MagicMock()
+
+    with patch(
+        "qq_lib.batch.pbs.pbs.socket.getfqdn", return_value="node01.cluster.org"
+    ):
+        PBS._sync_remote_directories(
+            src_dir, dest_dir, src_host, dest_host, files, sync_function
+        )
+
+    sync_function.assert_called_once_with(
+        src_dir, dest_dir, expected_src, expected_dest, files
+    )
+
+
+def test_pbs_sync_remote_directories_both_remote_raises() -> None:
+    sync_function = MagicMock()
+
+    with (
+        patch("qq_lib.batch.pbs.pbs.socket.getfqdn", return_value="node01.cluster.org"),
+        pytest.raises(QQError, match="cannot both be remote"),
+    ):
+        PBS._sync_remote_directories(
+            Path("/src"), Path("/dest"), "remote1", "remote2", None, sync_function
+        )
+
+    sync_function.assert_not_called()
+
+
+def test_with_shared_fallback_returns_shared_result_without_fallback() -> None:
+    remote_op = MagicMock()
+    disable = MagicMock()
+
+    result = PBS._with_shared_fallback(
+        lambda: "shared", remote_op, disable, "read file", "reading on 'host'"
+    )
+
+    assert result == "shared"
+    remote_op.assert_not_called()
+    disable.assert_not_called()
+
+
+def test_pbs_using_shared_storage_true_when_env_var_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+
+    assert PBS._using_shared_storage()
+
+
+def test_pbs_using_shared_storage_false_when_env_var_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(CFG.env_vars.shared_submit, raising=False)
+
+    assert not PBS._using_shared_storage()
+
+
+def test_pbs_disable_shared_storage_overrides_env_var(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+
+    PBS._disable_shared_storage()
+
+    assert not PBS._using_shared_storage()
+    # the environment variable is left untouched
+    assert os.environ[CFG.env_vars.shared_submit] == "true"

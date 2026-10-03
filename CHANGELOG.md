@@ -1,3 +1,7 @@
+## Version 0.13.1
+
+- Submission directories that cannot be accessed directly from the compute nodes are now handled more reliably. This also makes it possible to submit jobs from a local symbolic link that points to a shared directory.
+
 ## Version 0.13.0
 
 ### New environment variables for loop jobs
