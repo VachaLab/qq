@@ -394,6 +394,23 @@ def test_submitter_create_env_vars_dict_continuous_job(tmp_path, debug_mode):
         assert CFG.env_vars.debug_mode not in env
 
 
+def test_submitter_create_env_vars_dict_sets_remote(tmp_path):
+    script = tmp_path / "script.sh"
+    script.write_text("#!/usr/bin/env -S qq run\n")
+
+    submitter = Submitter.__new__(Submitter)
+    submitter._info_file = tmp_path / "job.qqinfo"
+    submitter._batch_system = PBS
+    submitter._loop_info = None
+    submitter._input_dir = tmp_path
+    submitter._resources = Resources(nnodes=2, ncpus=8, ngpus=2, walltime="1d")
+    submitter._job_type = JobType.STANDARD
+
+    env = submitter._create_env_vars_dict(remote="remote_host")
+
+    assert env[CFG.env_vars.input_machine] == "remote_host"
+
+
 def test_submitter_get_input_dir_returns_correct_path(tmp_path):
     submitter = Submitter.__new__(Submitter)
     submitter._input_dir = tmp_path

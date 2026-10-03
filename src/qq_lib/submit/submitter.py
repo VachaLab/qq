@@ -160,7 +160,7 @@ class Submitter:
             self._script,
             self._job_name,
             self._depend,
-            self._create_env_vars_dict(),
+            self._create_env_vars_dict(remote),
             self._account,
             self._server,
             remote_host=remote,
@@ -339,9 +339,13 @@ class Submitter:
         """Get the list of hosts to resubmit the job from."""
         return self._resubmit_from
 
-    def _create_env_vars_dict(self) -> dict[str, str]:
+    def _create_env_vars_dict(self, remote: str | None = None) -> dict[str, str]:
         """
         Create a dictionary of environment variables provided to qq runtime.
+
+        Args:
+            remote (str | None): Name of the machine from which the job is being submitted.
+                If `None`, the current machine is used.
 
         Returns
             dict[str, str]: Dictionary of environment variables and their values.
@@ -359,7 +363,9 @@ class Submitter:
         env_vars[CFG.env_vars.info_file] = str(self._info_file)
 
         # contains the name of the input host
-        env_vars[CFG.env_vars.input_machine] = socket.getfqdn()
+        env_vars[CFG.env_vars.input_machine] = (
+            socket.getfqdn() if remote is None else remote
+        )
 
         # contains the name of the used batch system
         env_vars[CFG.env_vars.batch_system] = str(self._batch_system)
