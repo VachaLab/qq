@@ -66,6 +66,7 @@ class Submitter:
         server: str | None = None,
         interpreter: Interpreter | None = None,
         resubmit_from: list[ResubmitHost] | None = None,
+        skip_checks: bool = False,
     ):
         """
         Initialize a Submitter instance.
@@ -96,6 +97,7 @@ class Submitter:
                 If not specified, the config default is used.
             resubmit_from (list[ResubmitHost] | None): List of hosts from which a loop/continuous job should be resubmitted.
                 Must only be specified for loop/continuous jobs!
+            skip_checks (bool): If `True`, the script is not checked for availability and validity before submitting the job.
 
         Raises:
             QQError: If the script does not exist or has an invalid shebang line.
@@ -124,11 +126,11 @@ class Submitter:
         self._resubmit_from = resubmit_from or []
 
         # script must exist
-        if not self._script.is_file():
+        if not skip_checks and not self._script.is_file():
             raise QQError(f"Script '{script}' does not exist or is not a file")
 
         # script must have a valid qq shebang
-        if not self._has_valid_shebang(self._script):
+        if not skip_checks and not self._has_valid_shebang(self._script):
             raise QQError(
                 f"Script '{self._script}' has an invalid shebang. The first line of the script should be '#!/usr/bin/env -S {CFG.binary_name} run'"
             )

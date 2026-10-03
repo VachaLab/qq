@@ -96,6 +96,9 @@ class Resubmitter(Operator):
             # fall back to batch system default
             # this is only needed to accommodate transition from loop jobs submitted using previous versions of qq
             or informer.batch_system.get_default_resubmit_hosts(),
+            # since the script may not be reachable on the current compute node, do not check it
+            # it's reasonable to assume the script is valid since it has already been submitted before
+            skip_checks=True,
         )
 
     @staticmethod

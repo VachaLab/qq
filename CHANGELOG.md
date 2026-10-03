@@ -2,6 +2,7 @@
 
 - Submission directories that cannot be accessed directly from the compute nodes are now handled more reliably. This also makes it possible to submit jobs from a local symbolic link that points to a shared directory.
 - The result of guessing a batch system is now cached.
+- Bug fix: Loop and continuous jobs can be now resubmitted even when the submitted script is not available from the compute node.
 
 ## Version 0.13.0
 
