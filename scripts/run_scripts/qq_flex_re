@@ -2,7 +2,7 @@
 ########################################
 #     Script for running Gromacs       #
 #   flexible-length replica exchange   #
-#         script version: 0.8          #
+#         script version: 0.9          #
 #     requires qq version: >=0.13      #
 #      support: ladmeb@gmail.com       #
 ########################################
@@ -289,16 +289,19 @@ if [[ "${QQ_BATCH_SYSTEM}" == *"Slurm"* ]]; then
     ${PLUMED} -ntomp ${NTOMP} ${APPEND} -nb ${NB} \
     -multidir ${CLIENTS[*]} ${REPLEX} ${HREX} -pin on -maxh ${MAX_TIME}
 else
+    # ranks per node
+    PPN=$(( MPI / QQ_NNODES ))
+
     mpirun \
     -display-allocation \
     -display-map \
+    -map-by ppr:${PPN}:node \
     -rank-by slot \
-    -map-by slot:PE=${NTOMP} \
-    -bind-to core \
+    -bind-to none \
     -np ${MPI} \
     gmx_mpi mdrun -v -deffnm ${CURR} ${CPI} \
     -cpo ${NEXT} -cpt 1 -pf ${CURR}_pf.xvg -px ${CURR}_px.xvg \
-    ${PLUMED} -ntomp ${NTOMP} ${APPEND} -nb ${NB} \
+    ${PLUMED} -ntomp ${NTOMP} ${APPEND} -nb ${NB} -pin on \
     -multidir ${CLIENTS[*]} ${REPLEX} ${HREX} -maxh ${MAX_TIME}
 fi
 
