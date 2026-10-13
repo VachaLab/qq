@@ -2,6 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 
+import os
 import threading
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
@@ -32,14 +33,18 @@ class Clearer:
     Handles detection and removal of qq runtime files from a directory.
     """
 
-    def __init__(self, directories: list[Path]):
+    def __init__(self, directories: list[Path], recursive: bool = False):
         """
         Initialize a Clearer for one or more directories.
 
         Args:
             directories (list[Path]): The directories to clear qq runtime files from.
+            recursive (bool): If True, also clear subdirectories, but do not descend
+                into subdirectories of directories containing qq runtime files.
+
         """
         self._directories = directories
+        self._recursive = recursive
 
     def clear(self, force: bool = False) -> None:
         """
@@ -63,7 +68,7 @@ class Clearer:
         with ThreadPoolExecutor(
             max_workers=CFG.parallelization_options.clear_max_threads
         ) as executor:
-            for directory in self._directories:
+            for directory in self._get_directories():
                 executor.submit(clear_single, directory)
 
         total_detected = sum(r.detected for r in results)
@@ -88,6 +93,60 @@ class Clearer:
                 f"{actually_excluded} qq file{'s' if actually_excluded > 1 else ''} could not be safely cleared. "
                 f"Rerun as '{CFG.binary_name} clear --force' to clear {'them' if actually_excluded > 1 else 'it'} forcibly."
             )
+
+    def _get_directories(self) -> list[Path]:
+        """
+        Return the directories to clear.
+
+        Without `recursive`, returns the given directories. With `recursive`,
+        walks each given directory top-down and returns every directory that
+        contains qq runtime files, without descending into the subdirectories
+        of such directories. Symlinked directories are not followed.
+
+        Each directory is returned at most once, even if the given directories
+        overlap, so no directory is cleared by two threads at once.
+
+        Returns:
+            list[Path]: The directories to clear.
+        """
+        seen: set[Path] = set()
+        result: list[Path] = []
+
+        def mark_seen(directory: Path) -> bool:
+            """Return True if the directory has not been seen before."""
+            key = directory.resolve()
+            if key in seen:
+                return False
+            seen.add(key)
+            return True
+
+        def on_error(error: OSError) -> None:
+            logger.warning(f"Could not search '{error.filename}': {error.strerror}")
+
+        for root in self._directories:
+            if not self._recursive:
+                if mark_seen(root):
+                    result.append(root)
+                continue
+
+            for dirpath, dirnames, _ in os.walk(
+                root,
+                onerror=on_error,
+                # do not follow links to avoid getting stuck in an infinite loop
+                followlinks=False,
+            ):
+                directory = Path(dirpath)
+                if not mark_seen(directory):
+                    dirnames.clear()
+                    continue
+
+                if Clearer._collect_runtime_files(directory):
+                    result.append(directory)
+                    dirnames.clear()
+                else:
+                    dirnames.sort()
+
+        return result
 
     @staticmethod
     def _clear_directory(directory: Path, force: bool) -> _ClearResult:

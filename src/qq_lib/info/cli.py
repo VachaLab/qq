@@ -61,6 +61,12 @@ You can combine JOB_IDs with directories. All JOB_IDs must be specified before t
     help="One or more directories to search for qq jobs in. Supports globs.",
 )
 @click.option(
+    "-r",
+    "--recursive",
+    is_flag=True,
+    help="Also search subdirectories, except those inside a qq job's directory.",
+)
+@click.option(
     "-a",
     "--all",
     is_flag=True,
@@ -82,6 +88,7 @@ You can combine JOB_IDs with directories. All JOB_IDs must be specified before t
 def info(
     jobs: tuple[str, ...],
     dir: tuple[Path, ...],
+    recursive: bool,
     all: bool,
     server: str | None,
     brief: bool,
@@ -98,6 +105,7 @@ def info(
         logger,
         brief,
         len(dir) > 0,
+        recursive=recursive,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     ).on_exception(QQError, handle_general_qq_error).run()
 

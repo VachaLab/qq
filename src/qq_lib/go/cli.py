@@ -61,6 +61,12 @@ it always opens a new shell at the destination.
     help="One or more directories to search for qq jobs in. Supports globs.",
 )
 @click.option(
+    "-r",
+    "--recursive",
+    is_flag=True,
+    help="Also search subdirectories, except those inside a qq job's directory.",
+)
+@click.option(
     "-a",
     "--all",
     is_flag=True,
@@ -73,7 +79,11 @@ it always opens a new shell at the destination.
     help="Operate on jobs on the specified batch server. If not specified, the current server is used. Only used with --all.",
 )
 def go(
-    jobs: tuple[str, ...], dir: tuple[Path, ...], all: bool, server: str | None
+    jobs: tuple[str, ...],
+    dir: tuple[Path, ...],
+    recursive: bool,
+    all: bool,
+    server: str | None,
 ) -> NoReturn:
     """
     Go to the working directory (directories) of the specified qq job(s)
@@ -86,6 +96,7 @@ def go(
         server,
         _go_to_job,
         logger,
+        recursive=recursive,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     ).on_exception(QQNotSuitableError, handle_not_suitable_error).on_exception(
         QQError, handle_general_qq_error

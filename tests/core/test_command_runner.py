@@ -1,6 +1,7 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
+import os
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -22,6 +23,8 @@ def make_runner(
     server: str | None = None,
     callback: Callable | None = None,
     n_threads: int = 1,
+    recursive: bool = False,
+    logger: MagicMock | None = None,
 ) -> CommandRunner:
     """Construct a CommandRunner with a patched batch system."""
     return CommandRunner(
@@ -30,7 +33,8 @@ def make_runner(
         all=all_jobs,
         server=server,
         callback=callback or MagicMock(),
-        logger=MagicMock(),
+        logger=logger or MagicMock(),
+        recursive=recursive,
         n_threads=n_threads,
     )
 
@@ -640,3 +644,264 @@ def test_command_runner_run_preserves_order_end_to_end():
 
     assert exc_info.value.code == 0
     assert execution_order == ["111", "222", "333"]
+
+
+def fake_get_info_files(directory: Path) -> list[Path]:
+    """Stand-in for get_info_files: every *.qqinfo file directly in `directory`."""
+    return sorted(directory.glob("*.qqinfo"))
+
+
+def make_job(directory: Path, name: str = "job") -> Path:
+    """Create a qq job directory with a single info file and return the file."""
+    directory.mkdir(parents=True, exist_ok=True)
+    info_file = directory / f"{name}.qqinfo"
+    info_file.touch()
+    return info_file
+
+
+@pytest.fixture
+def fake_info_files():
+    with patch(
+        "qq_lib.core.command_runner.get_info_files", side_effect=fake_get_info_files
+    ) as mock_get:
+        yield mock_get
+
+
+def collect(directories: list[Path], recursive: bool, logger=None) -> list[Path]:
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(
+            directories=tuple(directories), recursive=recursive, logger=logger
+        )
+    return runner._collect_info_files(directories)
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_collect_non_recursive_ignores_subdirectories(tmp_path):
+    make_job(tmp_path / "sub")
+
+    assert collect([tmp_path], recursive=False) == []
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_collect_recursive_finds_jobs_in_subdirectories(tmp_path):
+    job1 = make_job(tmp_path / "a")
+    job2 = make_job(tmp_path / "b" / "c" / "d")
+
+    assert collect([tmp_path], recursive=True) == [job1, job2]
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_collect_recursive_finds_job_in_root(tmp_path):
+    job = make_job(tmp_path)
+
+    assert collect([tmp_path], recursive=True) == [job]
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_collect_recursive_does_not_descend_into_job_directory(tmp_path):
+    outer = make_job(tmp_path / "job")
+    make_job(tmp_path / "job" / "nested")
+
+    assert collect([tmp_path], recursive=True) == [outer]
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_collect_recursive_does_not_descend_into_root_job_directory(
+    tmp_path,
+):
+    root_job = make_job(tmp_path)
+    make_job(tmp_path / "nested")
+
+    assert collect([tmp_path], recursive=True) == [root_job]
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_collect_recursive_pruning_does_not_affect_siblings(tmp_path):
+    job_a = make_job(tmp_path / "a")
+    make_job(tmp_path / "a" / "nested")
+    job_b = make_job(tmp_path / "b")
+
+    assert collect([tmp_path], recursive=True) == [job_a, job_b]
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_collect_recursive_returns_sorted_order(tmp_path):
+    # create in reverse order so filesystem order is unlikely to match sorted order
+    job_c = make_job(tmp_path / "c")
+    job_b = make_job(tmp_path / "b")
+    job_a = make_job(tmp_path / "a")
+
+    assert collect([tmp_path], recursive=True) == [job_a, job_b, job_c]
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_collect_recursive_multiple_jobs_in_one_directory(tmp_path):
+    job1 = make_job(tmp_path / "a", name="job1")
+    job2 = make_job(tmp_path / "a", name="job2")
+
+    assert collect([tmp_path], recursive=True) == [job1, job2]
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_collect_recursive_overlapping_directories_no_duplicates(
+    tmp_path,
+):
+    job1 = make_job(tmp_path / "a" / "b")
+    job2 = make_job(tmp_path / "a" / "c" / "d")
+
+    result = collect([tmp_path, tmp_path / "a" / "c"], recursive=True)
+
+    assert result == [job1, job2]
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_collect_recursive_nested_directory_given_first(tmp_path):
+    inner = make_job(tmp_path / "a" / "b")
+    other = make_job(tmp_path / "c")
+
+    result = collect([tmp_path / "a", tmp_path], recursive=True)
+
+    assert result == [inner, other]
+
+
+def test_command_runner_collect_recursive_overlap_does_not_rescan_directories(
+    tmp_path, fake_info_files
+):
+    (tmp_path / "a" / "b").mkdir(parents=True)
+
+    collect([tmp_path, tmp_path / "a"], recursive=True)
+
+    searched = [call.args[0].resolve() for call in fake_info_files.call_args_list]
+    assert len(searched) == len(set(searched))
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_collect_non_recursive_same_directory_twice(tmp_path):
+    job = make_job(tmp_path)
+
+    assert collect([tmp_path, tmp_path], recursive=False) == [job]
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_collect_recursive_does_not_follow_symlinks(tmp_path):
+    root = tmp_path / "root"
+    root.mkdir()
+    make_job(tmp_path / "outside")
+    try:
+        (root / "link").symlink_to(tmp_path / "outside", target_is_directory=True)
+    except OSError:
+        # symlinks not supported
+        pytest.skip()
+
+    assert collect([root], recursive=True) == []
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_collect_recursive_symlink_cycle_terminates(tmp_path):
+    job = make_job(tmp_path / "a")
+    try:
+        (tmp_path / "a" / "..loop").symlink_to(tmp_path, target_is_directory=True)
+        (tmp_path / "loop").symlink_to(tmp_path, target_is_directory=True)
+    except OSError:
+        # symlinks not supported
+        pytest.skip()
+
+    assert collect([tmp_path], recursive=True) == [job]
+
+
+@pytest.mark.skipif(
+    not hasattr(os, "geteuid") or os.geteuid() == 0,
+    reason="permission checks are bypassed for root",
+)
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_collect_recursive_unreadable_directory_logs_warning(tmp_path):
+    readable = make_job(tmp_path / "a")
+    locked = tmp_path / "b"
+    make_job(locked / "inner")
+    locked.chmod(0o000)
+    logger = MagicMock()
+
+    try:
+        result = collect([tmp_path], recursive=True, logger=logger)
+    finally:
+        locked.chmod(0o755)
+
+    assert result == [readable]
+    logger.warning.assert_called_once()
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_build_targets_recursive_from_cwd(tmp_path, monkeypatch):
+    make_job(tmp_path / "a")
+    make_job(tmp_path / "b")
+    monkeypatch.chdir(tmp_path)
+    logger = MagicMock()
+
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(recursive=True, logger=logger)
+
+    with patch("qq_lib.core.command_runner.Informer"):
+        targets = runner._build_targets()
+
+    assert len(targets) == 2
+    logger.warning.assert_not_called()
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_build_targets_recursive_with_directories(tmp_path):
+    make_job(tmp_path / "a" / "b")
+
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(directories=(tmp_path,), recursive=True)
+
+    with patch("qq_lib.core.command_runner.Informer"):
+        targets = runner._build_targets()
+
+    assert len(targets) == 1
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_build_targets_recursive_creates_informer_from_nested_file(
+    tmp_path,
+):
+    info_file = make_job(tmp_path / "a" / "b")
+
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(directories=(tmp_path,), recursive=True)
+
+    with patch("qq_lib.core.command_runner.Informer") as mock_informer:
+        targets = runner._build_targets()
+        targets[0]()
+
+    mock_informer.from_file.assert_called_once_with(info_file)
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_build_targets_recursive_with_job_ids_and_directories(tmp_path):
+    make_job(tmp_path / "a")
+    logger = MagicMock()
+
+    with patch("qq_lib.core.command_runner.BatchInterface") as mock_bi:
+        mock_bi.from_env_var_or_guess.return_value.get_batch_jobs_from_ids.return_value = [
+            make_mock_batch_job("111")
+        ]
+        runner = make_runner(
+            job_ids=("111",), directories=(tmp_path,), recursive=True, logger=logger
+        )
+
+        with patch("qq_lib.core.command_runner.Informer"):
+            targets = runner._build_targets()
+
+    assert len(targets) == 2
+    logger.warning.assert_not_called()
+
+
+@pytest.mark.usefixtures("fake_info_files")
+def test_command_runner_build_targets_recursive_raises_when_nothing_found(tmp_path):
+    (tmp_path / "a" / "b").mkdir(parents=True)
+
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(directories=(tmp_path,), recursive=True)
+
+    with pytest.raises(QQError, match="No qq job info file found"):
+        runner._build_targets()

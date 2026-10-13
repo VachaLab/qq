@@ -66,6 +66,12 @@ If the working directory matches the input directory, `{CFG.binary_name} wipe` w
     help="One or more directories to search for qq jobs in. Supports globs.",
 )
 @click.option(
+    "-r",
+    "--recursive",
+    is_flag=True,
+    help="Also search subdirectories, except those inside a qq job's directory.",
+)
+@click.option(
     "-y",
     "--yes",
     is_flag=True,
@@ -77,7 +83,11 @@ If the working directory matches the input directory, `{CFG.binary_name} wipe` w
     help="Delete the working directory of the job forcibly, ignoring its current state and without confirmation.",
 )
 def wipe(
-    jobs: tuple[str, ...], dir: tuple[Path, ...], yes: bool = False, force: bool = False
+    jobs: tuple[str, ...],
+    dir: tuple[Path, ...],
+    recursive: bool,
+    yes: bool,
+    force: bool,
 ) -> NoReturn:
     """
     Delete the working directory of the specified qq job or qq job(s) submitted from the current directory.
@@ -91,6 +101,7 @@ def wipe(
         logger,
         force,
         yes,
+        recursive=recursive,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     ).on_exception(QQNotSuitableError, handle_not_suitable_error).on_exception(
         QQError, handle_general_qq_error

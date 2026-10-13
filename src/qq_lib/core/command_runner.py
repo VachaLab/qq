@@ -4,6 +4,7 @@
 
 import getpass
 import logging
+import os
 import sys
 import threading
 from collections.abc import Callable
@@ -44,6 +45,7 @@ class CommandRunner:
         callback: Callable,
         logger: logging.Logger,
         *args: Any,
+        recursive: bool = False,
         n_threads: int = 1,
         **kwargs: Any,
     ):
@@ -62,6 +64,7 @@ class CommandRunner:
             logger (logging.Logger): Logger instance used for error and critical messages.
                 Should be the module-level logger of the calling CLI module.
             *args (Any): Additional positional arguments forwarded to `callback`.
+            recursive (bool): Search the directories recursively. Only relevant if `directories` are provided.
             n_threads (int): Number of threads for parallel informer resolution. Defaults to 1 (serial).
             **kwargs (Any): Additional keyword arguments forwarded to `callback`.
         """
@@ -72,6 +75,7 @@ class CommandRunner:
         self._server = translate_server(server) if server else None
         if not self._job_ids and not self._directories and not all:
             self._directories = [Path.cwd()]
+        self._recursive = recursive
 
         self._callback = callback
         self._args = args
@@ -215,11 +219,64 @@ class CommandRunner:
             informer.load_batch_info()
             return informer
 
-        info_files: list[Path] = []
-        for directory in directories:
-            info_files.extend(get_info_files(directory))
+        info_files = self._collect_info_files(directories)
 
         return [lambda f=info_file: _resolve_and_prepare(f) for info_file in info_files]
+
+    def _collect_info_files(self, directories: list[Path]) -> list[Path]:
+        """
+        Collect qq info files from the given directories.
+
+        Without `recursive`, only the given directories are searched.
+        With `recursive`, their subdirectories are searched too, top-down and
+        in sorted order, but the search does not descend into the directory
+        of a qq job (a directory containing at least one info file).
+        Each directory is searched at most once, even if the given directories
+        overlap. Symlinked directories are not followed.
+
+        Args:
+            directories (list[Path]): The directories to search.
+
+        Returns:
+            list[Path]: Paths to the info files found, in a deterministic order.
+        """
+        seen: set[Path] = set()
+        info_files: list[Path] = []
+
+        def search(directory: Path) -> bool:
+            """Search one directory. Returns True if it is a qq job directory."""
+            key = directory.resolve()
+            if key in seen:
+                # already searched; treat as a job dir only if it was one,
+                # which doesn't matter here since its subtree was handled then
+                return True
+            seen.add(key)
+            found = get_info_files(directory)
+            info_files.extend(found)
+            return bool(found)
+
+        def on_error(error: OSError) -> None:
+            self._logger.warning(
+                f"Could not search '{error.filename}': {error.strerror}"
+            )
+
+        for root in directories:
+            if not self._recursive:
+                search(root)
+                continue
+
+            for dirpath, dirnames, _ in os.walk(
+                root,
+                onerror=on_error,
+                # do not follow links to avoid getting stuck in an infinite loop
+                followlinks=False,
+            ):
+                if search(Path(dirpath)):
+                    dirnames.clear()
+                else:
+                    dirnames.sort()
+
+        return info_files
 
     def _run_pipeline(self, targets: list[Callable[[], Informer]]) -> None:
         """

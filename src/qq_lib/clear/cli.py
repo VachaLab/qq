@@ -36,12 +36,18 @@ To force deletion of all qq files regardless of job status, use the `--force` fl
     help="One or more directories from which to clear qq runtime files. Supports globs.",
 )
 @click.option(
+    "-r",
+    "--recursive",
+    is_flag=True,
+    help="Also search subdirectories, except those inside a qq job's directory.",
+)
+@click.option(
     "--force",
     is_flag=True,
     help="Force deletion of all qq runtime files, even if jobs are active or successfully completed.",
     default=False,
 )
-def clear(dir: tuple[Path, ...], force: bool) -> NoReturn:
+def clear(dir: tuple[Path, ...], recursive: bool, force: bool) -> NoReturn:
     """
     Delete qq runtime files in specified directories or the current directory.
 
@@ -50,7 +56,7 @@ def clear(dir: tuple[Path, ...], force: bool) -> NoReturn:
     unless the `force` option is used.
     """
     try:
-        clearer = Clearer(list(dir) if dir else [Path()])
+        clearer = Clearer(list(dir) if dir else [Path()], recursive=recursive)
         clearer.clear(force)
         sys.exit(0)
     except QQError as e:

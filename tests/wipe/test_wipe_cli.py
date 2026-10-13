@@ -113,6 +113,7 @@ def test_wipe_creates_command_runner_and_runs():
         logger,
         False,
         False,
+        recursive=False,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     )
     mock_cls.return_value.run.assert_called_once()
@@ -141,6 +142,36 @@ def test_wipe_creates_command_runner_with_dirs_and_runs(tmp_path):
         logger,
         False,
         False,
+        recursive=False,
+        n_threads=CFG.parallelization_options.job_info_max_threads,
+    )
+    mock_cls.return_value.run.assert_called_once()
+
+
+def test_wipe_creates_command_runner_with_dirs_and_recursive_and_runs(tmp_path):
+    dir1 = tmp_path / "dir1"
+    dir2 = tmp_path / "dir2"
+    dir1.mkdir()
+    dir2.mkdir()
+    runner = CliRunner()
+
+    with patch("qq_lib.wipe.cli.CommandRunner") as mock_cls:
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
+
+        result = runner.invoke(wipe, ["-d", str(dir1), str(dir2), "--recursive"])
+
+    assert result.exit_code == 0
+    mock_cls.assert_called_once_with(
+        (),
+        (dir1, dir2),
+        False,
+        None,
+        _wipe_work_dir,
+        logger,
+        False,
+        False,
+        recursive=True,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     )
     mock_cls.return_value.run.assert_called_once()

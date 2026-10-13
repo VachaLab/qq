@@ -62,6 +62,12 @@ Files are copied from the job's working directory to its input directory, not to
     help="One or more directories to search for qq jobs in. Supports globs.",
 )
 @click.option(
+    "-r",
+    "--recursive",
+    is_flag=True,
+    help="Also search subdirectories, except those inside a qq job's directory.",
+)
+@click.option(
     "-a",
     "--all",
     is_flag=True,
@@ -84,6 +90,7 @@ If not specified, the entire content of the working directory is fetched.""",
 def sync(
     jobs: tuple[str, ...],
     dir: tuple[Path, ...],
+    recursive: bool,
     all: bool,
     server: str | None,
     files: str | None,
@@ -100,6 +107,7 @@ def sync(
         _sync_job,
         logger,
         _split_files(files),
+        recursive=recursive,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     ).on_exception(QQNotSuitableError, handle_not_suitable_error).on_exception(
         QQError, handle_general_qq_error

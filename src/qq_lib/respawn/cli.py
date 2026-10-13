@@ -54,7 +54,13 @@ or various other types of premature termination.""",
     multiple=True,
     help="One or more directories to search for qq jobs in. Supports globs.",
 )
-def respawn(jobs: tuple[str, ...], dir: tuple[Path, ...]) -> NoReturn:
+@click.option(
+    "-r",
+    "--recursive",
+    is_flag=True,
+    help="Also search subdirectories, except those inside a qq job's directory.",
+)
+def respawn(jobs: tuple[str, ...], dir: tuple[Path, ...], recursive: bool) -> NoReturn:
     CommandRunner(
         jobs,
         dir,
@@ -62,6 +68,7 @@ def respawn(jobs: tuple[str, ...], dir: tuple[Path, ...]) -> NoReturn:
         None,
         _respawn_job,
         logger,
+        recursive=recursive,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     ).on_exception(QQNotSuitableError, handle_not_suitable_error).on_exception(
         QQError, handle_general_qq_error
