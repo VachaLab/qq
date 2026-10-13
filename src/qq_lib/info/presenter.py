@@ -17,6 +17,7 @@ from rich.text import Text
 from qq_lib.batch.interface.job import BatchJobInterface
 from qq_lib.core.common import format_duration_wdhhmmss, get_panel_width
 from qq_lib.core.config import CFG
+from qq_lib.core.logical_paths import logical_cwd, logical_resolve, to_logical
 from qq_lib.properties.states import RealState
 
 from .informer import Informer
@@ -143,32 +144,24 @@ class Presenter:
 
         return Group(Text(""), full_panel, Text(""))
 
-    def get_brief_info(self, print_dir: bool) -> Text:
+    def get_brief_info(self) -> Text:
         """
         Return a concise, colorized summary of the job's current state.
+
+        The job's input directory is shown at the end of the line, in the shortest
+        available form and abbreviated if it is too long.
 
         Returns:
             Text: A Rich `Text` object containing brief information about the job.
         """
         state = self._informer.get_real_state()
-        job_id = Text(
-            self._informer.info.job_id,
-            style=CFG.presenter.brief_info.job_id_color,
-        )
-        state_text = Text(str(state), style=state.color)
-
-        if print_dir:
-            dir_path = Text(
-                str(
-                    self._informer.info.input_dir.resolve().relative_to(
-                        Path.cwd(), walk_up=True
-                    )
-                ),
-                style=CFG.presenter.brief_info.dir_path_color,
+        full_text = (
+            Text(
+                self._informer.info.job_id, style=CFG.presenter.brief_info.job_id_color
             )
-            full_text = job_id + "   [" + dir_path + "]   " + state_text
-        else:
-            full_text = job_id + "   " + state_text
+            + "   "
+            + Text(str(state), style=state.color)
+        )
 
         if loop_info := self._informer.info.loop_info:
             full_text += (
@@ -180,10 +173,22 @@ class Presenter:
                 + "]"
             )
 
+        full_text += (
+            Text("   [")
+            + Text(
+                Presenter._format_dir(
+                    self._informer.info.input_dir,
+                    CFG.presenter.brief_info.max_dir_length,
+                ),
+                style=CFG.presenter.brief_info.dir_path_color,
+            )
+            + "]"
+        )
+
         return full_text
 
     @deprecated("This function has been deprecated, use get_brief_info instead.")
-    def get_short_info(self, print_dir: bool) -> Text:
+    def get_short_info(self) -> Text:
         """
         Return a concise, colorized summary of the job's current state.
 
@@ -192,7 +197,7 @@ class Presenter:
         Returns:
             Text: A Rich `Text` object containing brief information about the job.
         """
-        return self.get_brief_info(print_dir)
+        return self.get_brief_info()
 
     def _create_basic_info_table(self) -> Table:
         """
@@ -638,3 +643,45 @@ class Presenter:
             return "failed"
 
         return "completed"  # default option; should not happen
+
+    @staticmethod
+    def _format_dir(path: Path, max_length: int) -> str:
+        """
+        Format a directory for brief output.
+
+        Uses the shortest of the path relative to the current directory,
+        the path relative to the home directory (as `~/...`), and the absolute path.
+        If that is still longer than `max_length`, leading components are replaced
+        by `(...)`, keeping as many trailing components as fit (at least the last one).
+
+        Args:
+            path (Path): The directory to format.
+            max_length (int): The preferred maximal length of the result.
+
+        Returns:
+            str: The formatted directory.
+        """
+        path = to_logical(path)
+        cwd = logical_cwd()
+        home = logical_resolve(Path.home())
+
+        candidates: list[str] = [str(path.relative_to(cwd, walk_up=True)), str(path)]
+
+        if path == home:
+            candidates.append("~")
+        elif path.is_relative_to(home):
+            candidates.append(f"~/{path.relative_to(home)}")
+
+        best = min(candidates, key=lambda candidate: len(candidate))
+        if len(best) <= max_length:
+            return best
+
+        parts = path.parts
+        shortened = f"(...)/{parts[-1]}"
+        for i in range(len(parts) - 2, 0, -1):
+            candidate = f"(...)/{'/'.join(parts[i:])}"
+            if len(candidate) > max_length:
+                break
+            shortened = candidate
+
+        return shortened

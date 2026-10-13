@@ -532,179 +532,234 @@ def make_presenter(
     return Presenter(informer)
 
 
-@pytest.mark.parametrize("state", list(RealState))
-def test_presenter_get_brief_info_contains_job_id(state):
-    presenter = make_presenter(job_id="12345", state=state)
-
-    result = presenter.get_brief_info(print_dir=False)
-
-    assert "12345" in str(result)
+@pytest.fixture
+def cwd_is_parent(tmp_path):
+    """Make the logical current directory the parent of `tmp_path`."""
+    with patch("qq_lib.info.presenter.logical_cwd", return_value=tmp_path.parent):
+        yield
 
 
-@pytest.mark.parametrize("state", list(RealState))
-def test_presenter_get_brief_info_loop_job_contains_current_and_end_cycle(state):
-    presenter = make_presenter(
-        job_id="12345",
-        state=state,
-        loop_info=LoopInfo(
-            start=1, end=5, current=3, archive=Path("storage"), archive_format="job%04d"
-        ),
-    )
-
-    result = presenter.get_brief_info(print_dir=False)
-
-    assert "[3/5]" in str(result)
+LOOP_INFO = LoopInfo(
+    start=1, end=5, current=3, archive=Path("storage"), archive_format="job%04d"
+)
 
 
-@pytest.mark.parametrize("state", list(RealState))
-def test_presenter_get_brief_info_contains_state(state):
-    presenter = make_presenter(state=state)
+@pytest.mark.usefixtures("cwd_is_parent")
+def test_presenter_get_brief_info_returns_text(tmp_path):
+    presenter = make_presenter(input_dir=tmp_path)
 
-    result = presenter.get_brief_info(print_dir=False)
-
-    assert str(state) in str(result)
-
-
-@pytest.mark.parametrize("state", list(RealState))
-def test_presenter_get_brief_info_state_has_correct_color(state):
-    presenter = make_presenter(state=state)
-
-    result = presenter.get_brief_info(print_dir=False)
-
-    assert any(span.style == state.color for span in result.spans)
-
-
-def test_presenter_get_brief_info_returns_text():
-    presenter = make_presenter()
-
-    result = presenter.get_brief_info(print_dir=False)
+    result = presenter.get_brief_info()
 
     assert isinstance(result, Text)
 
 
-def test_presenter_get_brief_info_format_without_dir():
-    presenter = make_presenter(job_id="9999", state=RealState.RUNNING)
+@pytest.mark.usefixtures("cwd_is_parent")
+@pytest.mark.parametrize("state", list(RealState))
+def test_presenter_get_brief_info_contains_job_id(state, tmp_path):
+    presenter = make_presenter(job_id="12345", state=state, input_dir=tmp_path)
 
-    result = presenter.get_brief_info(print_dir=False)
-
-    assert str(result) == f"9999   {RealState.RUNNING}"
-
-
-def test_presenter_get_brief_info_does_not_contain_brackets_without_dir():
-    presenter = make_presenter()
-
-    result = presenter.get_brief_info(print_dir=False)
-
-    assert "[" not in str(result)
-    assert "]" not in str(result)
-
-
-def test_presenter_get_brief_info_calls_get_real_state_once():
-    presenter = make_presenter()
-
-    presenter.get_brief_info(print_dir=False)
-
-    presenter._informer.get_real_state.assert_called_once()  # type: ignore
-
-
-def test_presenter_get_brief_info_with_dir_contains_job_id(tmp_path):
-    presenter = make_presenter(job_id="12345", input_dir=tmp_path)
-
-    result = presenter.get_brief_info(print_dir=True)
+    result = presenter.get_brief_info()
 
     assert "12345" in str(result)
 
 
-def test_presenter_get_brief_info_with_dir_contains_state(tmp_path):
-    presenter = make_presenter(state=RealState.RUNNING, input_dir=tmp_path)
+@pytest.mark.usefixtures("cwd_is_parent")
+@pytest.mark.parametrize("state", list(RealState))
+def test_presenter_get_brief_info_contains_state(state, tmp_path):
+    presenter = make_presenter(state=state, input_dir=tmp_path)
 
-    result = presenter.get_brief_info(print_dir=True)
+    result = presenter.get_brief_info()
 
-    assert str(RealState.RUNNING) in str(result)
+    assert str(state) in str(result)
 
 
-def test_presenter_get_brief_info_with_dir_contains_brackets(tmp_path):
+@pytest.mark.usefixtures("cwd_is_parent")
+@pytest.mark.parametrize("state", list(RealState))
+def test_presenter_get_brief_info_state_has_correct_color(state, tmp_path):
+    presenter = make_presenter(state=state, input_dir=tmp_path)
+
+    result = presenter.get_brief_info()
+
+    assert any(span.style == state.color for span in result.spans)
+
+
+@pytest.mark.usefixtures("cwd_is_parent")
+@pytest.mark.parametrize("state", list(RealState))
+def test_presenter_get_brief_info_loop_job_contains_current_and_end_cycle(
+    state, tmp_path
+):
+    presenter = make_presenter(
+        job_id="12345", state=state, input_dir=tmp_path, loop_info=LOOP_INFO
+    )
+
+    result = presenter.get_brief_info()
+
+    assert "[3/5]" in str(result)
+
+
+@pytest.mark.usefixtures("cwd_is_parent")
+def test_presenter_get_brief_info_contains_relative_dir(tmp_path):
     presenter = make_presenter(input_dir=tmp_path)
 
-    result = presenter.get_brief_info(print_dir=True)
+    result = presenter.get_brief_info()
 
-    assert "[" in str(result)
-    assert "]" in str(result)
+    assert f"[{tmp_path.name}]" in str(result)
 
 
-def test_presenter_get_brief_info_with_dir_contains_relative_path(tmp_path):
+@pytest.mark.usefixtures("cwd_is_parent")
+def test_presenter_get_brief_info_dir_has_correct_color(tmp_path):
     presenter = make_presenter(input_dir=tmp_path)
 
-    with patch("qq_lib.info.presenter.Path.cwd", return_value=tmp_path.parent):
-        result = presenter.get_brief_info(print_dir=True)
-
-    assert tmp_path.name in str(result)
-
-
-def test_presenter_get_brief_info_with_dir_path_has_correct_color(tmp_path):
-    presenter = make_presenter(input_dir=tmp_path)
-
-    with patch("qq_lib.info.presenter.Path.cwd", return_value=tmp_path.parent):
-        result = presenter.get_brief_info(print_dir=True)
+    result = presenter.get_brief_info()
 
     assert any(
         span.style == CFG.presenter.brief_info.dir_path_color for span in result.spans
     )
 
 
-def test_presenter_get_brief_info_with_dir_format(tmp_path):
+def test_presenter_get_brief_info_dir_is_dot_in_input_dir(tmp_path):
+    presenter = make_presenter(input_dir=tmp_path)
+
+    with patch("qq_lib.info.presenter.logical_cwd", return_value=tmp_path):
+        result = presenter.get_brief_info()
+
+    assert str(result).endswith("   [.]")
+
+
+@pytest.mark.usefixtures("cwd_is_parent")
+def test_presenter_get_brief_info_format(tmp_path):
     presenter = make_presenter(
         job_id="9999", state=RealState.RUNNING, input_dir=tmp_path
     )
 
-    with patch("qq_lib.info.presenter.Path.cwd", return_value=tmp_path.parent):
-        result = presenter.get_brief_info(print_dir=True)
-        relative = tmp_path.resolve().relative_to(tmp_path.parent, walk_up=True)
+    result = presenter.get_brief_info()
 
-    assert str(result) == f"9999   [{relative}]   {RealState.RUNNING}"
+    assert str(result) == f"9999   {RealState.RUNNING}   [{tmp_path.name}]"
 
 
-def test_presenter_get_brief_info_with_loop_format(tmp_path):
+@pytest.mark.usefixtures("cwd_is_parent")
+def test_presenter_get_brief_info_loop_format(tmp_path):
     presenter = make_presenter(
-        job_id="9999",
-        state=RealState.RUNNING,
-        input_dir=tmp_path,
-        loop_info=LoopInfo(
-            start=1, end=5, current=3, archive=Path("storage"), archive_format="job%04d"
-        ),
+        job_id="9999", state=RealState.RUNNING, input_dir=tmp_path, loop_info=LOOP_INFO
     )
 
-    with patch("qq_lib.info.presenter.Path.cwd", return_value=tmp_path.parent):
-        result = presenter.get_brief_info(print_dir=False)
+    result = presenter.get_brief_info()
 
-    assert str(result) == f"9999   {RealState.RUNNING}   [3/5]"
-
-
-def test_presenter_get_brief_info_with_dir_and_loop_format(tmp_path):
-    presenter = make_presenter(
-        job_id="9999",
-        state=RealState.RUNNING,
-        input_dir=tmp_path,
-        loop_info=LoopInfo(
-            start=1, end=5, current=3, archive=Path("storage"), archive_format="job%04d"
-        ),
-    )
-
-    with patch("qq_lib.info.presenter.Path.cwd", return_value=tmp_path.parent):
-        result = presenter.get_brief_info(print_dir=True)
-        relative = tmp_path.resolve().relative_to(tmp_path.parent, walk_up=True)
-
-    assert str(result) == f"9999   [{relative}]   {RealState.RUNNING}   [3/5]"
+    assert str(result) == f"9999   {RealState.RUNNING}   [3/5]   [{tmp_path.name}]"
 
 
-@pytest.mark.parametrize("state", list(RealState))
-def test_presenter_get_brief_info_with_dir_state_has_correct_color(state, tmp_path):
-    presenter = make_presenter(state=state, input_dir=tmp_path)
+@pytest.mark.usefixtures("cwd_is_parent")
+def test_presenter_get_brief_info_calls_get_real_state_once(tmp_path):
+    presenter = make_presenter(input_dir=tmp_path)
 
-    with patch("qq_lib.info.presenter.Path.cwd", return_value=tmp_path.parent):
-        result = presenter.get_brief_info(print_dir=True)
+    presenter.get_brief_info()
 
-    assert any(span.style == state.color for span in result.spans)
+    presenter._informer.get_real_state.assert_called_once()  # type: ignore
+
+
+def format_dir(path: Path, cwd: Path, max_length: int = 1000) -> str:
+    with patch("qq_lib.info.presenter.logical_cwd", return_value=cwd):
+        return Presenter._format_dir(path, max_length)
+
+
+@pytest.fixture
+def home(tmp_path, monkeypatch):
+    """A home directory inside tmp_path."""
+    home_dir = tmp_path / "home" / "alice"
+    home_dir.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home_dir))
+    return home_dir
+
+
+@pytest.mark.usefixtures("home")
+def test_format_dir_same_as_cwd(tmp_path):
+    assert format_dir(tmp_path / "jobs", cwd=tmp_path / "jobs") == "."
+
+
+@pytest.mark.usefixtures("home")
+def test_format_dir_below_cwd_is_relative(tmp_path):
+    path = tmp_path / "jobs" / "LOWER" / "2_eq"
+
+    assert format_dir(path, cwd=tmp_path / "jobs") == "LOWER/2_eq"
+
+
+@pytest.mark.usefixtures("home")
+def test_format_dir_sibling_of_cwd_walks_up(tmp_path):
+    path = tmp_path / "jobs" / "b"
+
+    assert format_dir(path, cwd=tmp_path / "jobs" / "a") == "../b"
+
+
+def test_format_dir_home_itself(home, tmp_path):
+    cwd = tmp_path / "a" / "b" / "c" / "d" / "e"
+
+    assert format_dir(home, cwd=cwd) == "~"
+
+
+def test_format_dir_uses_home_when_shortest(home, tmp_path):
+    cwd = tmp_path / "a" / "b" / "c" / "d" / "e"
+
+    assert format_dir(home / "project", cwd=cwd) == "~/project"
+
+
+@pytest.mark.usefixtures("home")
+def test_format_dir_uses_absolute_when_shortest(tmp_path):
+    cwd = tmp_path / "a" / "b" / "c" / "d" / "e"
+
+    assert format_dir(Path("/x"), cwd=cwd) == "/x"
+
+
+def test_format_dir_prefers_relative_over_home(home):
+    assert format_dir(home / "project" / "run1", cwd=home / "project") == "run1"
+
+
+@pytest.mark.usefixtures("home")
+def test_format_dir_normalizes_path(tmp_path):
+    path = tmp_path / "jobs" / "a" / ".." / "b" / "."
+
+    assert format_dir(path, cwd=tmp_path / "jobs") == "b"
+
+
+@pytest.mark.usefixtures("home")
+def test_format_dir_relative_input_is_anchored_to_logical_cwd(tmp_path):
+    with patch("qq_lib.core.logical_paths._logical_cwd", tmp_path / "jobs"):
+        result = format_dir(Path("a/b"), cwd=tmp_path / "jobs")
+
+    assert result == "a/b"
+
+
+@pytest.mark.usefixtures("home")
+def test_format_dir_shortens_long_path(tmp_path):
+    cwd = tmp_path / "x" / "y" / "z"
+    path = Path("/very/long/path/to/some/project/directory/with/runs/run3")
+
+    assert format_dir(path, cwd=cwd, max_length=19) == "(...)/runs/run3"
+
+
+@pytest.mark.usefixtures("home")
+def test_format_dir_shortened_keeps_as_many_components_as_fit(tmp_path):
+    cwd = tmp_path / "x" / "y" / "z"
+    path = Path("/very/long/path/to/some/project/directory/with/runs/run3")
+
+    result = format_dir(path, cwd=cwd, max_length=26)
+
+    assert result == "(...)/with/runs/run3"
+    assert len(result) <= 26
+
+
+@pytest.mark.usefixtures("home")
+def test_format_dir_shortened_keeps_last_component_even_if_too_long(tmp_path):
+    cwd = tmp_path / "x" / "y" / "z"
+    path = Path("/a/" + "b" * 50)
+
+    assert format_dir(path, cwd=cwd, max_length=20) == f"(...)/{'b' * 50}"
+
+
+@pytest.mark.usefixtures("home")
+def test_format_dir_not_shortened_at_exact_length(tmp_path):
+    path = tmp_path / "jobs" / "abcd"
+
+    assert format_dir(path, cwd=tmp_path / "jobs", max_length=4) == "abcd"
 
 
 @pytest.mark.parametrize(

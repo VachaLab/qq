@@ -104,13 +104,12 @@ def info(
         _info_for_job,
         logger,
         brief,
-        len(dir) > 0,
         recursive=recursive,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     ).on_exception(QQError, handle_general_qq_error).run()
 
 
-def _info_for_job(informer: Informer, brief: bool, dirs_provided: bool) -> None:
+def _info_for_job(informer: Informer, brief: bool) -> None:
     """
     Display information about a qq job associated with the specified Informer.
 
@@ -125,7 +124,7 @@ def _info_for_job(informer: Informer, brief: bool, dirs_provided: bool) -> None:
     presenter = Presenter(informer)
     console = Console()
     if brief:
-        console.print(presenter.get_brief_info(dirs_provided))
+        console.print(presenter.get_brief_info())
     else:
         panel = presenter.create_full_info_panel(console)
         console.print(panel)

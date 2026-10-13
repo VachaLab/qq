@@ -20,7 +20,9 @@ accordingly. The logical cwd is initialized from $PWD at import time, which is
 the only moment the shell-maintained logical path is reliably available.
 """
 
+import functools
 import os
+from collections.abc import Iterable
 from pathlib import Path
 
 from qq_lib.core.logger import get_logger
@@ -63,6 +65,20 @@ def _chdir(path: str | Path) -> None:
 os.chdir = _chdir  # type: ignore
 
 
+def logical_cwd() -> Path:
+    """Return the logical current working directory (symlinks not expanded)."""
+    return _logical_cwd
+
+
+@functools.cache
+def _physical(path: Path) -> Path | None:
+    """Return the physical path of an existing logical path, or None if it cannot be resolved."""
+    try:
+        return path.resolve(strict=True)
+    except OSError:
+        return None
+
+
 def logical_resolve(path: Path, base: Path | None = None) -> Path:
     """
     Resolve a path to a logical absolute path without expanding symlinks.
@@ -94,3 +110,39 @@ def logical_resolve(path: Path, base: Path | None = None) -> Path:
             base = _logical_cwd
         path = base / path
     return Path(os.path.normpath(path))
+
+
+def to_logical(path: Path, anchors: Iterable[Path] | None = None) -> Path:
+    """
+    Convert a physical absolute path to a logical one, if possible.
+
+    Older qq versions stored physical paths (with symlinks expanded). This maps
+    such a path back to its logical form using known logical directories
+    (`anchors`, by default the logical cwd and $HOME): each anchor and its
+    ancestors are resolved physically, and if `path` lies below one of those
+    physical paths, that prefix is replaced by the logical directory.
+    The deepest matching ancestor of the first matching anchor is used.
+
+    Paths that do not match any anchor (including paths that are already
+    logical) are returned unchanged.
+
+    Args:
+        path (Path): The path to convert.
+        anchors (Iterable[Path] | None): Logical absolute directories to map through.
+
+    Returns:
+        Path: The logical form of `path`, or `path` itself if no mapping was found.
+    """
+    path = logical_resolve(path)
+    if anchors is None:
+        anchors = (logical_cwd(), logical_resolve(Path.home()))
+
+    for anchor in anchors:
+        for ancestor in (anchor, *anchor.parents):
+            physical = _physical(ancestor)
+            if physical is None or physical == ancestor:
+                continue  # unresolvable, or no symlink involved
+            if path.is_relative_to(physical):
+                return ancestor / path.relative_to(physical)
+
+    return path

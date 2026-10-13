@@ -169,3 +169,224 @@ def test_logical_resolve_uses_logical_cwd(path, logical_cwd, expected):
         assert logical_paths.logical_resolve(path) == expected
     finally:
         logical_paths._logical_cwd = original
+
+
+@pytest.fixture(autouse=True)
+def clear_physical_cache():
+    logical_paths._physical.cache_clear()
+    yield
+    logical_paths._physical.cache_clear()
+
+
+@pytest.fixture
+def fs(tmp_path):
+    """
+    Create a filesystem with a symlinked prefix:
+
+        <tmp>/real/home/alice/project/run1    (physical)
+        <tmp>/link -> <tmp>/real              (logical prefix)
+
+    Returns (physical_root, logical_root), both with all symlinks
+    in `tmp_path` itself resolved, so tests also work where the
+    temporary directory is behind a symlink (e.g. macOS).
+    """
+    base = tmp_path.resolve()
+    physical = base / "real"
+    (physical / "home" / "alice" / "project" / "run1").mkdir(parents=True)
+    logical = base / "link"
+    try:
+        logical.symlink_to(physical, target_is_directory=True)
+    except OSError:
+        # symlinks not supported
+        pytest.skip()
+    return physical, logical
+
+
+def test_physical_returns_same_path_without_symlinks(fs):
+    physical, _ = fs
+    directory = physical / "home" / "alice"
+    assert logical_paths._physical(directory) == directory
+
+
+def test_physical_resolves_symlinks(fs):
+    physical, logical = fs
+    assert (
+        logical_paths._physical(logical / "home" / "alice")
+        == physical / "home" / "alice"
+    )
+
+
+def test_physical_returns_none_for_missing_path(fs):
+    _, logical = fs
+    assert logical_paths._physical(logical / "missing") is None
+
+
+def test_physical_returns_none_for_broken_symlink(tmp_path):
+    broken = tmp_path / "broken"
+    try:
+        broken.symlink_to(tmp_path / "nowhere")
+    except OSError:
+        # symlinks not supported
+        pytest.skip()
+
+    assert logical_paths._physical(broken) is None
+
+
+def test_physical_caches_results(fs):
+    _, logical = fs
+    directory = logical / "home"
+
+    logical_paths._physical(directory)
+    logical_paths._physical(directory)
+
+    info = logical_paths._physical.cache_info()
+    assert info.misses == 1
+    assert info.hits == 1
+
+
+def test_logical_cwd_returns_logical_cwd():
+    assert logical_paths.logical_cwd() == Path("/mnt/shared/home/alice")
+
+
+def test_logical_cwd_follows_chdir():
+    logical_paths._chdir(Path("projects"))
+    assert logical_paths.logical_cwd() == Path("/mnt/shared/home/alice/projects")
+
+
+def test_to_logical_maps_physical_path_below_anchor(fs):
+    physical, logical = fs
+    anchor = logical / "home" / "alice"
+
+    result = logical_paths.to_logical(
+        physical / "home" / "alice" / "project" / "run1", anchors=[anchor]
+    )
+
+    assert result == anchor / "project" / "run1"
+
+
+def test_to_logical_maps_physical_anchor_itself(fs):
+    physical, logical = fs
+    anchor = logical / "home" / "alice"
+
+    result = logical_paths.to_logical(physical / "home" / "alice", anchors=[anchor])
+
+    assert result == anchor
+
+
+def test_to_logical_maps_through_ancestor_of_anchor(fs):
+    physical, logical = fs
+    (physical / "home" / "bob").mkdir()
+    anchor = logical / "home" / "alice" / "project"
+
+    result = logical_paths.to_logical(physical / "home" / "bob", anchors=[anchor])
+
+    assert result == logical / "home" / "bob"
+
+
+def test_to_logical_maps_path_that_no_longer_exists(fs):
+    physical, logical = fs
+    anchor = logical / "home" / "alice"
+
+    result = logical_paths.to_logical(
+        physical / "home" / "alice" / "deleted" / "run9", anchors=[anchor]
+    )
+
+    assert result == anchor / "deleted" / "run9"
+
+
+def test_to_logical_uses_existing_ancestor_of_missing_anchor(fs):
+    physical, logical = fs
+    anchor = logical / "home" / "alice" / "missing"
+
+    result = logical_paths.to_logical(
+        physical / "home" / "alice" / "project", anchors=[anchor]
+    )
+
+    assert result == logical / "home" / "alice" / "project"
+
+
+def test_to_logical_leaves_logical_path_unchanged(fs):
+    _, logical = fs
+    path = logical / "home" / "alice" / "project"
+
+    assert logical_paths.to_logical(path, anchors=[logical / "home"]) == path
+
+
+def test_to_logical_leaves_unrelated_path_unchanged(fs, tmp_path):
+    _, logical = fs
+    other = tmp_path.resolve() / "other"
+    other.mkdir()
+
+    assert logical_paths.to_logical(other, anchors=[logical / "home"]) == other
+
+
+def test_to_logical_leaves_path_unchanged_without_symlinked_anchor(fs):
+    physical, _ = fs
+    path = physical / "home" / "alice" / "project"
+
+    result = logical_paths.to_logical(path, anchors=[physical / "home" / "alice"])
+
+    assert result == path
+
+
+def test_to_logical_without_anchors_leaves_path_unchanged(fs):
+    physical, _ = fs
+    path = physical / "home" / "alice"
+
+    assert logical_paths.to_logical(path, anchors=[]) == path
+
+
+def test_to_logical_normalizes_path(fs):
+    physical, logical = fs
+    anchor = logical / "home" / "alice"
+
+    result = logical_paths.to_logical(
+        physical / "home" / "alice" / "project" / ".." / "project" / "." / "run1",
+        anchors=[anchor],
+    )
+
+    assert result == anchor / "project" / "run1"
+
+
+def test_to_logical_anchors_relative_path_to_logical_cwd(fs):
+    _, logical = fs
+    logical_paths._logical_cwd = logical / "home" / "alice"
+
+    result = logical_paths.to_logical(Path("project/run1"), anchors=[logical])
+
+    assert result == logical / "home" / "alice" / "project" / "run1"
+
+
+def test_to_logical_first_matching_anchor_wins(fs):
+    physical, _ = fs
+    second_link = physical.parent / "link2"
+    second_link.symlink_to(physical, target_is_directory=True)
+    first_link = physical.parent / "link"
+
+    result = logical_paths.to_logical(
+        physical / "home" / "alice", anchors=[second_link, first_link]
+    )
+
+    assert result == second_link / "home" / "alice"
+
+
+def test_to_logical_default_anchors_use_logical_cwd(fs, monkeypatch, tmp_path):
+    physical, logical = fs
+    logical_paths._logical_cwd = logical / "home" / "alice"
+    unrelated_home = tmp_path.resolve() / "unrelated_home"
+    unrelated_home.mkdir()
+    monkeypatch.setenv("HOME", str(unrelated_home))
+
+    result = logical_paths.to_logical(physical / "home" / "alice" / "project")
+
+    assert result == logical / "home" / "alice" / "project"
+
+
+def test_to_logical_default_anchors_use_home(fs, monkeypatch):
+    physical, logical = fs
+    logical_paths._logical_cwd = Path("/nonexistent/cwd")
+    monkeypatch.setenv("HOME", str(logical / "home" / "alice"))
+
+    result = logical_paths.to_logical(physical / "home" / "alice" / "project")
+
+    assert result == logical / "home" / "alice" / "project"
