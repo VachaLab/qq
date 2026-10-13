@@ -199,7 +199,7 @@ class BriefInfoSettings:
     # Color of the loop info in brief info.
     loop_info_color: str = "grey70"
     # Maximal length of a job directory path before shortening.
-    max_dir_length: int = 1000
+    max_dir_length: int = 80
 
 
 @dataclass(frozen=True)
