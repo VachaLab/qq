@@ -1,3 +1,13 @@
+## Version 0.14.0
+
+- **BREAKING CHANGE:** `qq killall` has been removed. Use `qq kill --all` instead.
+
+### Internal changes
+
+- **Python API breaking change:** `Repeater` has been removed.
+
+---
+
 ## Version 0.13.1
 
 - Submission directories that cannot be accessed directly from the compute nodes are now handled more reliably. This also makes it possible to submit jobs from a local symbolic link that points to a shared directory.
@@ -9,8 +19,8 @@
 ### New environment variables for loop jobs
 
 - Loop jobs now expose three additional environment variables:
-    - `QQ_LOOP_NEXT`, which specifies the index of the next loop cycle.
-    - `QQ_ARCHIVE_CURRENT` and `QQ_ARCHIVE_NEXT`, which specify strings expected in files archived by qq for the current and the next loop cycles, respectively. If the archive format is not a printf pattern, the values of these variables are empty strings.
+  - `QQ_LOOP_NEXT`, which specifies the index of the next loop cycle.
+  - `QQ_ARCHIVE_CURRENT` and `QQ_ARCHIVE_NEXT`, which specify strings expected in files archived by qq for the current and the next loop cycles, respectively. If the archive format is not a printf pattern, the values of these variables are empty strings.
 
 ### `--include` and `--exclude` revisited
 
