@@ -9,7 +9,9 @@ YAML I/O, string normalization, user prompts, path manipulation, and job-name co
 """
 
 import re
-from collections.abc import Iterable
+import threading
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
 from datetime import timedelta
 from functools import lru_cache
 from pathlib import Path
@@ -840,3 +842,42 @@ def relocate_by_name(files: Iterable[Path], directory: Path) -> list[Path]:
         list[Path]: Logical absolute paths to the files inside `directory`.
     """
     return [logical_resolve(directory / file.name) for file in files]
+
+
+@contextmanager
+def delayed_spinner(
+    message: str, delay: float = 1.0, console: Console | None = None
+) -> Iterator[None]:
+    """
+    Show a spinner with `message` if the enclosed block takes longer than `delay` seconds.
+
+    Nothing is shown if the block finishes in time or if the output is not a terminal.
+    """
+    console = console or Console(stderr=True)
+    if not console.is_terminal:
+        yield
+        return
+
+    status = console.status(message, spinner="dots")
+    lock = threading.Lock()
+    started = False
+    finished = False
+
+    def start() -> None:
+        nonlocal started
+        with lock:
+            if not finished:
+                status.start()
+                started = True
+
+    timer = threading.Timer(delay, start)
+    timer.daemon = True
+    timer.start()
+    try:
+        yield
+    finally:
+        timer.cancel()
+        with lock:
+            finished = True
+            if started:
+                status.stop()

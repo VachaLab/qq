@@ -8,12 +8,12 @@ import os
 import sys
 import threading
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from pathlib import Path
 from typing import Any, NoReturn, Self
 
 from qq_lib.batch.interface import BatchInterface, BatchJobInterface
-from qq_lib.core.common import get_info_files, translate_server
+from qq_lib.core.common import delayed_spinner, get_info_files, translate_server
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.info import Informer
@@ -125,7 +125,9 @@ class CommandRunner:
             - Exit code `CFG.exit_codes.unexpected_error` on any other exception.
         """
         try:
-            targets = self._build_targets()
+            with delayed_spinner("Collecting jobs..."):
+                targets = self._build_targets()
+
             self._run_pipeline(targets)
             sys.exit(0)
         except QQError as e:
@@ -228,11 +230,14 @@ class CommandRunner:
         Collect qq info files from the given directories.
 
         Without `recursive`, only the given directories are searched.
-        With `recursive`, their subdirectories are searched too, top-down and
-        in sorted order, but the search does not descend into the directory
-        of a qq job (a directory containing at least one info file).
-        Each directory is searched at most once, even if the given directories
-        overlap. Symlinked directories are not followed.
+        With `recursive`, their subdirectories are searched too, in parallel,
+        but the search does not descend into the directory of a qq job
+        (a directory containing at least one info file). Each directory is
+        searched at most once, even if the given directories overlap.
+        Symlinked directories are not followed.
+
+        The result is in the same order as a sorted top-down walk would give,
+        regardless of the order in which the directories were searched.
 
         Args:
             directories (list[Path]): The directories to search.
@@ -241,42 +246,66 @@ class CommandRunner:
             list[Path]: Paths to the info files found, in a deterministic order.
         """
         seen: set[Path] = set()
-        info_files: list[Path] = []
+        found: list[tuple[int, tuple[str, ...], list[Path]]] = []
 
-        def search(directory: Path) -> bool:
-            """Search one directory. Returns True if it is a qq job directory."""
-            key = directory.resolve()
-            if key in seen:
-                # already searched; treat as a job dir only if it was one,
-                # which doesn't matter here since its subtree was handled then
-                return True
-            seen.add(key)
-            found = get_info_files(directory)
-            info_files.extend(found)
-            return bool(found)
+        def visit(directory: Path) -> tuple[list[Path], list[Path]]:
+            """Return the info files in a directory and, if it is not a job directory, its subdirectories."""
+            info_files = get_info_files(directory)
+            if info_files or not self._recursive:
+                return info_files, []
+            try:
+                with os.scandir(directory) as entries:
+                    subdirs = [
+                        directory / entry.name
+                        for entry in entries
+                        # do not follow links to avoid getting stuck in an infinite loop
+                        if entry.is_dir(follow_symlinks=False)
+                    ]
+            except OSError as e:
+                self._logger.warning(f"Could not search '{directory}': {e.strerror}")
+                return [], []
+            return [], subdirs
 
-        def on_error(error: OSError) -> None:
-            self._logger.warning(
-                f"Could not search '{error.filename}': {error.strerror}"
-            )
+        with ThreadPoolExecutor(
+            max_workers=CFG.parallelization_options.search_max_threads
+        ) as executor:
+            # roots are processed one after another so that overlapping roots
+            # are deduplicated in favour of the earlier one
+            for root_index, root in enumerate(directories):
+                root_key = root.resolve()
+                if root_key in seen:
+                    continue
+                seen.add(root_key)
 
-        for root in directories:
-            if not self._recursive:
-                search(root)
-                continue
+                pending: dict[Future, tuple[Path, Path]] = {
+                    executor.submit(visit, root): (root, root_key)
+                }
 
-            for dirpath, dirnames, _ in os.walk(
-                root,
-                onerror=on_error,
-                # do not follow links to avoid getting stuck in an infinite loop
-                followlinks=False,
-            ):
-                if search(Path(dirpath)):
-                    dirnames.clear()
-                else:
-                    dirnames.sort()
+                while pending:
+                    done, _ = wait(pending, return_when=FIRST_COMPLETED)
+                    for future in done:
+                        directory, key = pending.pop(future)
+                        info_files, subdirs = future.result()
+                        if info_files:
+                            found.append(
+                                (
+                                    root_index,
+                                    directory.relative_to(root).parts,
+                                    info_files,
+                                )
+                            )
+                        for subdir in subdirs:
+                            # symlinks are not followed, so no resolve() is needed
+                            subdir_key = key / subdir.name
+                            if subdir_key not in seen:
+                                seen.add(subdir_key)
+                                pending[executor.submit(visit, subdir)] = (
+                                    subdir,
+                                    subdir_key,
+                                )
 
-        return info_files
+        found.sort(key=lambda item: (item[0], item[1]))
+        return [file for _, _, files in found for file in files]
 
     def _run_pipeline(self, targets: list[Callable[[], Informer]]) -> None:
         """

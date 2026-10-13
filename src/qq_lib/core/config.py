@@ -497,6 +497,9 @@ class ParallelizationOptions:
     # Maximal number of threads used to clear runtime files in parallel.
     clear_max_threads: int = 8
 
+    # Maximal number of threads used to walk the directory tree when searching for jobs.
+    search_max_threads: int = 8
+
 
 @dataclass(frozen=True)
 class Config:
