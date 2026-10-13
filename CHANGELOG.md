@@ -3,6 +3,7 @@
 - **BREAKING CHANGE:** `qq killall` has been removed. Use `qq kill --all` instead.
 - Added the `-r`/`--recursive` option to `qq clear`, `qq go`, `qq info`, `qq kill`, `qq respawn`, `qq sync`, and `qq wipe`. With this option, the command also searches all subdirectories of the directories given with `-d`, or of the current directory if neither `-d` nor a job ID is given.
   - Subdirectories of a directory containing a qq job are not searched. Nesting qq jobs is not recommended, and this prevents reading archived info files of loop jobs.
+- Tweaked the output format of `qq info -b`.
 
 ### Internal changes
 
