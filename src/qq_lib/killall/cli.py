@@ -19,6 +19,7 @@ logger = get_logger(__name__)
         "allow_extra_args": True,
     },
     add_help_option=False,
+    hidden=True,
 )
 @click.argument("args", nargs=-1, type=click.UNPROCESSED)
 def killall(args: Any) -> NoReturn:
