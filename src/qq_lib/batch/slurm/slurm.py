@@ -326,6 +326,30 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         return nodes
 
     @classmethod
+    def is_valid_dependency(cls, job_id: str) -> bool:
+        # only slurmctld's view matters here; sacct would also report
+        # jobs that slurmctld has already purged and sbatch would reject
+        command = f"scontrol show job {job_id} -o"
+        logger.debug(command)
+
+        result = subprocess.run(
+            ["bash"],
+            input=command,
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
+        )
+
+        if result.returncode != 0:
+            logger.debug(
+                f"Job '{job_id}' is not known to slurmctld and is not a valid dependency: {result.stderr.strip()}"
+            )
+            return False
+
+        return True
+
+    @classmethod
     def read_remote_file(cls, host: str, file: Path) -> str:
         return PBS.read_remote_file(host, file)
 

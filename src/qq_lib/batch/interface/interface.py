@@ -449,6 +449,24 @@ class BatchInterface[
         )
 
     @classmethod
+    def is_valid_dependency(cls, job_id: str) -> bool:
+        """
+        Check whether a job can still be used as a dependency of a newly submitted job.
+
+        A job is a valid dependency if the batch system still tracks it and would
+        accept it in a dependency specification at submission time.
+
+        Args:
+            job_id (str): Identifier of the job.
+
+        Returns:
+            bool: True if the job can be used as a dependency, False otherwise.
+        """
+        raise NotImplementedError(
+            f"is_valid_dependency method is not implemented for {cls.__name__}"
+        )
+
+    @classmethod
     def navigate_to_destination(cls, host: str, directory: Path) -> None:
         """
         Open a new terminal on the specified host and change the working directory

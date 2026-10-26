@@ -10,9 +10,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qq_lib.batch.interface import BatchInterface, BatchJobInterface
+from qq_lib.batch.interface import AnyBatchClass, BatchInterface, BatchJobInterface
 from qq_lib.batch.interface.interface import CFG, _BatchMeta
 from qq_lib.batch.pbs import PBS
+from qq_lib.batch.slurm import Slurm
+from qq_lib.batch.slurmit4i import SlurmIT4I
+from qq_lib.batch.slurmlumi import SlurmLumi
 from qq_lib.core.error import QQError
 
 
@@ -712,3 +715,25 @@ def test_batch_interface_delete_remote_dir_raises_error(mock_run):
         BatchInterface.delete_remote_dir("remote_host", Path("/remote/dir"))
 
     mock_run.assert_called_once()
+
+
+@pytest.mark.parametrize("batch_class", [PBS, Slurm, SlurmIT4I, SlurmLumi])
+def test_batch_interface_is_valid_dependency_true_for_tracked_job(
+    batch_class: AnyBatchClass,
+) -> None:
+    result = MagicMock(
+        returncode=0, stdout="Job Id: 123\n    job_state = R\n", stderr=""
+    )
+
+    with patch("subprocess.run", return_value=result):
+        assert batch_class.is_valid_dependency("123")
+
+
+@pytest.mark.parametrize("batch_class", [PBS, Slurm])
+def test_batch_interface_is_valid_dependency_false_for_unknown_job(
+    batch_class: AnyBatchClass,
+) -> None:
+    result = MagicMock(returncode=1, stdout="", stderr="Unknown Job Id")
+
+    with patch("subprocess.run", return_value=result):
+        assert not batch_class.is_valid_dependency("123")

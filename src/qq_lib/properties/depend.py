@@ -194,9 +194,7 @@ def filter_dependencies(
     for depend in dependencies:
         # get jobs that are still present in the batch system
         valid_jobs = [
-            job_id
-            for job_id in depend.jobs
-            if not (batch_system.get_batch_job(job_id)).is_empty()
+            job_id for job_id in depend.jobs if batch_system.is_valid_dependency(job_id)
         ]
 
         if valid_jobs:

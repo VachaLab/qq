@@ -322,6 +322,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         ]
 
     @classmethod
+    def is_valid_dependency(cls, job_id: str) -> bool:
+        return not cls.get_batch_job(job_id).is_empty()
+
+    @classmethod
     def read_remote_file(cls, host: str, file: Path) -> str:
         if cls._using_shared_storage():
             # file is on shared storage, we can read it directly
