@@ -2,8 +2,9 @@
 
 - **BREAKING CHANGE:** `qq killall` has been removed. Use `qq kill --all` instead.
 - Added the `-r`/`--recursive` option to `qq clear`, `qq go`, `qq info`, `qq kill`, `qq respawn`, `qq sync`, and `qq wipe`. With this option, the command also searches all subdirectories of the directories given with `-d`, or of the current directory if neither `-d` nor a job ID is given.
-  - Subdirectories of a directory containing a qq job are not searched. Nesting qq jobs is not recommended, and this prevents reading archived info files of loop jobs.
+    - Subdirectories of a directory containing a qq job are not searched. Nesting qq jobs is not recommended, and this prevents reading archived info files of loop jobs.
 - Tweaked the output format of `qq info -b`.
+- Job resubmission no longer hangs when the input directory is unavailable. It now fails after a 120-second timeout.
 - Bug fix: Fixed filtering old dependencies on Slurm.
 
 ### Internal changes
@@ -23,8 +24,8 @@
 ### New environment variables for loop jobs
 
 - Loop jobs now expose three additional environment variables:
-  - `QQ_LOOP_NEXT`, which specifies the index of the next loop cycle.
-  - `QQ_ARCHIVE_CURRENT` and `QQ_ARCHIVE_NEXT`, which specify strings expected in files archived by qq for the current and the next loop cycles, respectively. If the archive format is not a printf pattern, the values of these variables are empty strings.
+    - `QQ_LOOP_NEXT`, which specifies the index of the next loop cycle.
+    - `QQ_ARCHIVE_CURRENT` and `QQ_ARCHIVE_NEXT`, which specify strings expected in files archived by qq for the current and the next loop cycles, respectively. If the archive format is not a printf pattern, the values of these variables are empty strings.
 
 ### `--include` and `--exclude` revisited
 

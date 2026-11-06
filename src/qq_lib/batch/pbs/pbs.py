@@ -14,7 +14,7 @@ from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
 from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.batch.pbs.queue import PBSQueue
-from qq_lib.core.common import equals_normalized
+from qq_lib.core.common import equals_normalized, run_with_timeout
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -110,35 +110,34 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         )
         logger.debug(command)
 
-        if not remote_host:
-            # submit the script from the current host
-            result = subprocess.run(
-                ["bash"],
-                input=command,
-                text=True,
-                check=False,
-                capture_output=True,
-                errors="replace",
-            )
-        else:
-            # submit the script from the remote host
-            logger.debug(
-                f"Navigating to '{remote_host}' to execute the submission command '{command}'."
-            )
-            result = subprocess.run(
-                [
-                    "ssh",
-                    "-o PasswordAuthentication=no",
-                    "-o GSSAPIAuthentication=yes",
-                    "-o StrictHostKeyChecking=no",  # allow unknown hosts
-                    f"-o ConnectTimeout={CFG.timeouts.ssh}",
-                    "-q",  # suppress some SSH messages
-                    remote_host,
-                    command,
-                ],
-                capture_output=True,
-                text=True,
-            )
+        try:
+            if not remote_host:
+                # submit the script from the current host
+                result = run_with_timeout(["bash"], CFG.timeouts.submit, input=command)
+            else:
+                # submit the script from the remote host
+                logger.debug(
+                    f"Navigating to '{remote_host}' to execute the submission command '{command}'."
+                )
+                result = run_with_timeout(
+                    [
+                        "ssh",
+                        "-o PasswordAuthentication=no",
+                        "-o GSSAPIAuthentication=yes",
+                        "-o StrictHostKeyChecking=no",  # allow unknown hosts
+                        f"-o ConnectTimeout={CFG.timeouts.ssh}",
+                        "-q",  # suppress some SSH messages
+                        remote_host,
+                        command,
+                    ],
+                    CFG.timeouts.submit,
+                )
+        except subprocess.TimeoutExpired as e:
+            raise QQError(
+                f"Submission of script '{str(script)}' timed out after {CFG.timeouts.submit} seconds. "
+                "The job may or may not have been submitted. "
+                "Check that the input directory is accessible and that the batch server is responding."
+            ) from e
 
         if result.returncode != 0:
             raise QQError(

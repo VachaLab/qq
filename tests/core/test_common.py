@@ -1,8 +1,14 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
+import contextlib
+import os
 import re
+import signal
+import subprocess
+import sys
 import tempfile
+import time
 import types
 from datetime import timedelta
 from pathlib import Path
@@ -16,6 +22,7 @@ from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.core.common import (
     CFG,
+    _kill_process_group,
     available_work_dirs,
     construct_info_file_path,
     construct_loop_job_name,
@@ -40,6 +47,7 @@ from qq_lib.core.common import (
     load_yaml_loader,
     printf_to_regex,
     relocate_by_name,
+    run_with_timeout,
     split_string_list,
     to_snake_case,
     translate_server,
@@ -1421,3 +1429,194 @@ def test_relocate_by_name_returns_absolute_paths(tmp_path: Path) -> None:
 
     assert result
     assert all(path.is_absolute() for path in result)
+
+
+def _wait_for_process_exit(pid: int, timeout: float = 5.0) -> bool:
+    """
+    Wait until a process is no longer running.
+
+    Zombie processes count as exited, since they are dead and only waiting to be reaped.
+
+    Args:
+        pid (int): ID of the process to watch.
+        timeout (float): Maximum time in seconds to wait.
+
+    Returns:
+        bool: True if the process exited within `timeout`, False otherwise.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            stat = Path(f"/proc/{pid}/stat").read_text()
+        except FileNotFoundError:
+            return True
+        if stat.rsplit(")", 1)[1].split()[0] == "Z":
+            return True
+        time.sleep(0.05)
+    return False
+
+
+@pytest.mark.parametrize(
+    ("args", "returncode", "stdout", "stderr"),
+    [
+        (["bash", "-c", "echo out"], 0, "out\n", ""),
+        (["bash", "-c", "echo err >&2; exit 3"], 3, "", "err\n"),
+        (["bash", "-c", "echo out; echo err >&2"], 0, "out\n", "err\n"),
+    ],
+)
+def test_run_with_timeout_captures_output_and_return_code(
+    args: list[str], returncode: int, stdout: str, stderr: str
+) -> None:
+    result = run_with_timeout(args, timeout=5)
+
+    assert result.returncode == returncode
+    assert result.stdout == stdout
+    assert result.stderr == stderr
+
+
+def test_run_with_timeout_does_not_raise_on_nonzero_return_code() -> None:
+    result = run_with_timeout(["false"], timeout=5)
+
+    assert result.returncode == 1
+
+
+def test_run_with_timeout_returns_args() -> None:
+    args = ["echo", "hello"]
+
+    result = run_with_timeout(args, timeout=5)
+
+    assert result.args == args
+
+
+def test_run_with_timeout_passes_input_to_stdin() -> None:
+    result = run_with_timeout(["bash"], timeout=5, input="echo from stdin\nexit 4\n")
+
+    assert result.stdout == "from stdin\n"
+    assert result.returncode == 4
+
+
+def test_run_with_timeout_empty_input_closes_stdin() -> None:
+    result = run_with_timeout(["cat"], timeout=5, input="")
+
+    assert result.returncode == 0
+    assert result.stdout == ""
+
+
+def test_run_with_timeout_connects_stdin_to_devnull_without_input() -> None:
+    result = run_with_timeout(["readlink", "/proc/self/fd/0"], timeout=5)
+
+    assert result.stdout.strip() == "/dev/null"
+
+
+def test_run_with_timeout_replaces_invalid_utf8() -> None:
+    result = run_with_timeout(
+        ["bash", "-c", r"printf 'a\xffb'; printf 'c\xffd' >&2"], timeout=5
+    )
+
+    assert result.stdout == "a\ufffdb"
+    assert result.stderr == "c\ufffdd"
+
+
+def test_run_with_timeout_runs_command_in_own_process_group() -> None:
+    result = run_with_timeout(
+        [sys.executable, "-c", "import os; print(os.getpid(), os.getpgrp())"],
+        timeout=5,
+    )
+
+    pid, pgid = (int(x) for x in result.stdout.split())
+    assert pgid == pid
+    assert pgid != os.getpgrp()
+
+
+def test_run_with_timeout_raises_on_timeout() -> None:
+    args = ["sleep", "30"]
+
+    start = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired) as e:
+        run_with_timeout(args, timeout=0.5)
+    elapsed = time.monotonic() - start
+
+    assert e.value.timeout == 0.5
+    assert e.value.cmd == args
+    assert elapsed < 5
+
+
+def test_run_with_timeout_kills_child_and_grandchildren_on_timeout(
+    tmp_path: Path,
+) -> None:
+    bash_pid_file = tmp_path / "bash_pid"
+    sleep_pid_file = tmp_path / "sleep_pid"
+    command = (
+        f"echo $$ > {bash_pid_file}\nsleep 30 &\necho $! > {sleep_pid_file}\nwait\n"
+    )
+
+    with pytest.raises(subprocess.TimeoutExpired):
+        run_with_timeout(["bash"], timeout=1, input=command)
+
+    assert _wait_for_process_exit(int(bash_pid_file.read_text()))
+    assert _wait_for_process_exit(int(sleep_pid_file.read_text()))
+
+
+def test_run_with_timeout_does_not_wait_for_grandchild_holding_pipes(
+    tmp_path: Path,
+) -> None:
+    # the grandchild escapes the process group via setsid, so it survives the kill
+    # and keeps stdout/stderr open; this simulates a process stuck on unavailable NFS
+    pid_file = tmp_path / "pid"
+    command = f"setsid sleep 30 &\necho $! > {pid_file}\nwait\n"
+
+    try:
+        start = time.monotonic()
+        with pytest.raises(subprocess.TimeoutExpired):
+            run_with_timeout(["bash"], timeout=1, input=command)
+        elapsed = time.monotonic() - start
+
+        assert elapsed < 5
+    finally:
+        with contextlib.suppress(FileNotFoundError, ProcessLookupError):
+            os.kill(int(pid_file.read_text()), signal.SIGKILL)
+
+
+def test_run_with_timeout_kills_process_group_on_keyboard_interrupt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pid_file = tmp_path / "pid"
+    tmp_pid_file = tmp_path / "pid.tmp"
+    command = (
+        f"sleep 30 & echo $! > {tmp_pid_file} && mv {tmp_pid_file} {pid_file}; wait"
+    )
+
+    def interrupted_communicate(
+        self: subprocess.Popen[str],
+        input: str | None = None,
+        timeout: float | None = None,
+    ) -> tuple[str, str]:
+        _ = self, input, timeout
+        deadline = time.monotonic() + 5
+        while not pid_file.exists() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(subprocess.Popen, "communicate", interrupted_communicate)
+
+    with pytest.raises(KeyboardInterrupt):
+        run_with_timeout(["bash", "-c", command], timeout=30)
+
+    assert _wait_for_process_exit(int(pid_file.read_text()))
+
+
+def test_kill_process_group_kills_all_processes_in_group() -> None:
+    proc = subprocess.Popen(
+        ["bash", "-c", "sleep 30 & sleep 30 & wait"], process_group=0
+    )
+
+    _kill_process_group(proc.pid)
+
+    assert proc.wait(timeout=5) == -signal.SIGKILL
+
+
+def test_kill_process_group_ignores_missing_group() -> None:
+    proc = subprocess.Popen(["true"], process_group=0)
+    proc.wait()
+
+    _kill_process_group(proc.pid)

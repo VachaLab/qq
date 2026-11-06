@@ -96,6 +96,8 @@ class TimeoutSettings:
     ssh: int = 60
     # Timeout for rsync in seconds.
     rsync: int = 600
+    # Timeout for job submission in seconds.
+    submit: int = 120
 
 
 @dataclass(frozen=True)

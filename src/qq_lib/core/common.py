@@ -8,10 +8,13 @@ This module provides helpers for working with qq job files, time durations,
 YAML I/O, string normalization, user prompts, path manipulation, and job-name construction.
 """
 
+import os
 import re
+import signal
+import subprocess
 import threading
 from collections.abc import Iterable, Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from datetime import timedelta
 from functools import lru_cache
 from pathlib import Path
@@ -881,3 +884,54 @@ def delayed_spinner(
             finished = True
             if started:
                 status.stop()
+
+
+def run_with_timeout(
+    args: list[str], timeout: float, input: str | None = None
+) -> subprocess.CompletedProcess[str]:
+    """
+    Run a command and kill its whole process group if it does not finish in time.
+
+    Unlike `subprocess.run(timeout=...)`, this does not wait for the output pipes
+    to close after the timeout. A grandchild process blocked on an unavailable
+    filesystem would otherwise keep them open indefinitely.
+
+    Args:
+        args (list[str]): Command to run.
+        timeout (float): Maximum time in seconds to wait for the command.
+        input (str | None): Text passed to the standard input of the command.
+            If None, standard input is not connected.
+
+    Returns:
+        subprocess.CompletedProcess[str]: The finished process with captured output.
+
+    Raises:
+        subprocess.TimeoutExpired: If the command does not finish within `timeout`.
+    """
+    proc = subprocess.Popen(
+        args,
+        stdin=subprocess.PIPE if input is not None else subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        errors="replace",
+        process_group=0,
+    )
+    try:
+        stdout, stderr = proc.communicate(input=input, timeout=timeout)
+    except (subprocess.TimeoutExpired, KeyboardInterrupt):
+        _kill_process_group(proc.pid)
+        raise
+
+    return subprocess.CompletedProcess(args, proc.returncode, stdout, stderr)
+
+
+def _kill_process_group(pgid: int) -> None:
+    """
+    Send SIGKILL to all processes in a process group, ignoring already finished groups.
+
+    Args:
+        pgid (int): ID of the process group to kill.
+    """
+    with suppress(ProcessLookupError):
+        os.killpg(pgid, signal.SIGKILL)

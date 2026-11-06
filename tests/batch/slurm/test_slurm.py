@@ -726,7 +726,7 @@ def test_slurm_get_batch_job_creates_slurmjob(mock_job):
     mock_job.assert_called_once_with("1234")
 
 
-@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+@patch("qq_lib.batch.slurm.slurm.run_with_timeout")
 @patch("qq_lib.batch.slurm.slurm.Slurm._translate_submit", return_value="sbatch cmd")
 @patch("qq_lib.batch.slurm.slurm.PBS._shared_guard")
 def test_slurm_job_submit_success(mock_guard, mock_translate, mock_run):
@@ -744,7 +744,7 @@ def test_slurm_job_submit_success(mock_guard, mock_translate, mock_run):
     assert result == "56789"
 
 
-@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+@patch("qq_lib.batch.slurm.slurm.run_with_timeout")
 @patch("qq_lib.batch.slurm.slurm.Slurm._translate_submit", return_value="sbatch fail")
 @patch("qq_lib.batch.slurm.slurm.PBS._shared_guard")
 def test_slurm_job_submit_raises_on_error(mock_guard, mock_translate, mock_run):
