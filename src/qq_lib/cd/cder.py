@@ -34,8 +34,8 @@ class Cder:
         Initialize the Cder instance with a batch system interface and job ID.
 
         Args:
-            BatchSystem (AnyBatchClass): The batch system which manages the job.
-            job_id (str): Identifier of the job to query.
+            BatchSystem: The batch system which manages the job.
+            job_id: Identifier of the job to query.
         """
         self._job_id = job_id
         self._BatchSystem = BatchSystem
@@ -45,7 +45,7 @@ class Cder:
         Retrieve the input directory for the job and return it as a string.
 
         Returns:
-            str: Path to the input directory of the job.
+            Path to the input directory of the job.
 
         Raises:
             QQError: If the job does not exist.
@@ -67,11 +67,11 @@ class Cder:
         Query the batch system for the input directory of a job.
 
         Args:
-            BatchSystem (type[BatchInterface]): The batch system which manages the job.
-            job_id (str): Identifier of the job to query.
+            BatchSystem: The batch system which manages the job.
+            job_id: Identifier of the job to query.
 
         Returns:
-            Path: Path object pointing to the job's input directory.
+            Path object pointing to the job's input directory.
 
         Raises:
             QQError: If the specified job does not exist.

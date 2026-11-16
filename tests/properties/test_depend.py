@@ -336,11 +336,11 @@ def _run_with_one_tracked_job(*args: Any, **kwargs: Any) -> MagicMock:
     that slurmctld has already purged from memory.
 
     Args:
-        *args (Any): Ignored positional arguments of `subprocess.run`.
-        **kwargs (Any): Keyword arguments of `subprocess.run`; `input` holds the command.
+        *args: Ignored positional arguments of `subprocess.run`.
+        **kwargs: Keyword arguments of `subprocess.run`; `input` holds the command.
 
     Returns:
-        MagicMock: A fake `CompletedProcess`.
+        A fake `CompletedProcess`.
     """
     _ = args
     command: str = kwargs["input"]

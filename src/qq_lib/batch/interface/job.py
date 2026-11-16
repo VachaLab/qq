@@ -32,7 +32,7 @@ class BatchJobInterface(ABC):
         This should return True if the job does not exist in the batch system.
 
         Returns:
-            bool: True if the job contains no information.
+            True if the job contains no information.
         """
 
     @abstractmethod
@@ -41,7 +41,7 @@ class BatchJobInterface(ABC):
         Return the ID of the job.
 
         Returns:
-            str: The ID of the job.
+            The ID of the job.
         """
 
     @abstractmethod
@@ -50,7 +50,7 @@ class BatchJobInterface(ABC):
         Return the account under which the job is submitted.
 
         Returns:
-            str | None: Account associated with the job or None if no
+            Account associated with the job or None if no
             account is defined.
         """
 
@@ -71,7 +71,7 @@ class BatchJobInterface(ABC):
         If the job information is no longer available, return `BatchState.UNKNOWN`.
 
         Returns:
-            BatchState: The job state according to the batch system.
+            The job state according to the batch system.
         """
 
     @abstractmethod
@@ -80,7 +80,7 @@ class BatchJobInterface(ABC):
         Retrieve the batch system-provided comment for the job.
 
         Returns:
-            str | None: The job's comment string if available, or None if the
+            The job's comment string if available, or None if the
             batch system has not attached a comment.
         """
 
@@ -90,9 +90,9 @@ class BatchJobInterface(ABC):
         Retrieve the batch system's estimated job start time and execution node.
 
         Returns:
-            tuple[datetime, str] | None: A tuple containing:
-                - datetime: The estimated start time of the job.
-                - str: The name of the node where the job is expected to run.
+            A tuple containing:
+                - The estimated start time of the job.
+                - The name of the node where the job is expected to run.
             Returns None if either estimate is unavailable.
         """
 
@@ -102,7 +102,7 @@ class BatchJobInterface(ABC):
         Retrieve the hostname of the main execution node for the job.
 
         Returns:
-            str | None: The hostname of the main execution node, or ``None``
+            The hostname of the main execution node, or ``None``
             if unavailable or not applicable.
         """
 
@@ -112,9 +112,8 @@ class BatchJobInterface(ABC):
         Retrieve the hostnames of all execution nodes allocated for the job.
 
         Returns:
-            list[str] | None:
-                A list of hostnames or node identifiers used by the job,
-                or `None` if node information is not available.
+            A list of hostnames or node identifiers used by the job,
+            or `None` if node information is not available.
         """
 
     @abstractmethod
@@ -123,9 +122,8 @@ class BatchJobInterface(ABC):
         Retrieve the short hostnames of all execution nodes allocated for the job.
 
         Returns:
-            list[str] | None:
-                A list of short hostnames used by the job, or `None` if node information
-                is not available.
+            A list of short hostnames used by the job, or `None` if node information
+            is not available.
         """
 
     @abstractmethod
@@ -134,7 +132,7 @@ class BatchJobInterface(ABC):
         Return the username of the job owner.
 
         Returns:
-            str | None: Username of the user who owns the job or `None` if not available.
+            Username of the user who owns the job or `None` if not available.
         """
 
     @abstractmethod
@@ -143,7 +141,7 @@ class BatchJobInterface(ABC):
         Return the number of CPU cores allocated for the job.
 
         Returns:
-            int | None: Number of CPUs allocated for the job or `None` if not available.
+            Number of CPUs allocated for the job or `None` if not available.
         """
 
     @abstractmethod
@@ -152,7 +150,7 @@ class BatchJobInterface(ABC):
         Return the number of GPUs allocated for the job.
 
         Returns:
-            int | None: Number of GPUs allocated for the job or `None` if not available.
+            Number of GPUs allocated for the job or `None` if not available.
         """
 
     @abstractmethod
@@ -161,7 +159,7 @@ class BatchJobInterface(ABC):
         Return the number of compute nodes assigned to the job.
 
         Returns:
-            int | None: Number of nodes used by the job or `None` if not available.
+            Number of nodes used by the job or `None` if not available.
         """
 
     @abstractmethod
@@ -170,7 +168,7 @@ class BatchJobInterface(ABC):
         Return the amount of memory allocated for the job.
 
         Returns:
-            Size | None: Amount of memory allocated for the job or `None` if not available.
+            Amount of memory allocated for the job or `None` if not available.
         """
 
     @abstractmethod
@@ -179,7 +177,7 @@ class BatchJobInterface(ABC):
         Return the name of the job.
 
         Returns:
-            str | None: The name of the submitted job or `None` if not available.
+            The name of the submitted job or `None` if not available.
         """
 
     @abstractmethod
@@ -188,7 +186,7 @@ class BatchJobInterface(ABC):
         Return the timestamp when the job was submitted.
 
         Returns:
-            datetime | None: Time when the job was submitted to the batch system
+            Time when the job was submitted to the batch system
             or `None` if not available.
         """
 
@@ -198,7 +196,7 @@ class BatchJobInterface(ABC):
         Return the timestamp when the job started execution.
 
         Returns:
-            datetime | None: Time when the job began running or
+            Time when the job began running or
             `None` if the job has not yet started.
         """
 
@@ -208,7 +206,7 @@ class BatchJobInterface(ABC):
         Return the timestamp when the job was completed.
 
         Returns:
-            datetime | None: Time when the job completed or
+            Time when the job completed or
             `None` if the job has not yet completed.
         """
 
@@ -218,7 +216,7 @@ class BatchJobInterface(ABC):
         Return the timestamp at which the job was last modified.
 
         Returns:
-            datetime | None: Time when the job was last modified or `None`
+            Time when the job was last modified or `None`
             if the information is not available.
         """
 
@@ -228,7 +226,7 @@ class BatchJobInterface(ABC):
         Return the walltime limit of the job.
 
         Returns:
-            timedelta | None: Walltime for the job or `None` if not available.
+            Walltime for the job or `None` if not available.
         """
 
     @abstractmethod
@@ -237,7 +235,7 @@ class BatchJobInterface(ABC):
         Return the submission queue of the job.
 
         Returns:
-            str | None: The queue this job is part of or `None` if not available.
+            The queue this job is part of or `None` if not available.
         """
 
     @abstractmethod
@@ -246,7 +244,7 @@ class BatchJobInterface(ABC):
         Return the utilization of requested CPUs in percents (0-100).
 
         Returns:
-            int | None: Utilization of requested CPUs or `None` if not available.
+            Utilization of requested CPUs or `None` if not available.
         """
 
     @abstractmethod
@@ -255,7 +253,7 @@ class BatchJobInterface(ABC):
         Return the utilization of requested memory in percents (0-100).
 
         Returns:
-            int | None: Utilization of requested memory or `None` if not available.
+            Utilization of requested memory or `None` if not available.
         """
 
     @abstractmethod
@@ -264,7 +262,7 @@ class BatchJobInterface(ABC):
         Return the exit code of the job.
 
         Returns:
-            int | None: Exit code of the job or `None` if exit code is not assigned.
+            Exit code of the job or `None` if exit code is not assigned.
         """
 
     @abstractmethod
@@ -273,7 +271,7 @@ class BatchJobInterface(ABC):
         Return path to the directory from which the job was submitted.
 
         Returns:
-            Path | None: Path to the submission directory or `None` if not available.
+            Path to the submission directory or `None` if not available.
         """
 
     @abstractmethod
@@ -282,7 +280,7 @@ class BatchJobInterface(ABC):
         Return the hostname of the submission machine.
 
         Returns:
-            str | None: Hostname of the submission machine or `None` if not available.
+            Hostname of the submission machine or `None` if not available.
         """
 
     @abstractmethod
@@ -291,7 +289,7 @@ class BatchJobInterface(ABC):
         Return path to the info file associated with this job.
 
         Returns:
-            Path | None: Path to the qq info file or `None` if
+            Path to the qq info file or `None` if
             this is not a qq job.
         """
 
@@ -301,7 +299,7 @@ class BatchJobInterface(ABC):
         Return all information about the job from the batch system in YAML format.
 
         Returns:
-            str: YAML-formatted string of job metadata.
+            YAML-formatted string of job metadata.
         """
 
     @abstractmethod
@@ -313,7 +311,7 @@ class BatchJobInterface(ABC):
         may not contain all the values that a proper BatchJobInterface contains.
 
         Returns:
-            Sequence[BatchJobInterface]: List of job steps. An empty list if there are none.
+            List of job steps. An empty list if there are none.
         """
 
     @abstractmethod
@@ -322,7 +320,7 @@ class BatchJobInterface(ABC):
         Return the step index if this job is a job step.
 
         Returns:
-            str | None: Job step index or `None` if this is not a job step.
+            Job step index or `None` if this is not a job step.
         """
 
     @abstractmethod
@@ -331,7 +329,7 @@ class BatchJobInterface(ABC):
         Return `True` if the job is a top-level array job (not a sub-job).
 
         Returns:
-            bool: `True` if the job is a top-level array job, else `False`.
+            `True` if the job is a top-level array job, else `False`.
         """
 
     def is_completed(self) -> bool:
@@ -341,6 +339,6 @@ class BatchJobInterface(ABC):
         By default, a completed job is a job that is FINISHED or FAILED.
 
         Returns:
-            bool: `True` if the job is completed, else `False`.
+            `True` if the job is completed, else `False`.
         """
         return self.get_state() in {BatchState.FINISHED, BatchState.FAILED}

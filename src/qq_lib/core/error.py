@@ -24,10 +24,10 @@ def terminate(message: str) -> str:
     Add a terminal dot to a message unless it already ends with punctuation.
 
     Args:
-        message (str): Message to terminate.
+        message: Message to terminate.
 
     Returns:
-        str: The message ending with a single punctuation mark. An empty or
+        The message ending with a single punctuation mark. An empty or
             blank message is returned as an empty string.
     """
     stripped = message.rstrip()

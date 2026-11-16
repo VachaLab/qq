@@ -38,11 +38,11 @@ class ACLData:
         """
         Retrieve the cached group memberships for a user, initializing them if needed.
         Args:
-            user (str): The username whose group memberships should be retrieved.
+            user: The username whose group memberships should be retrieved.
 
         Returns:
-            list[str]: A list of group names the user belongs to.
-                       Returns an empty list if the system command fails.
+            A list of group names the user belongs to.
+            Returns an empty list if the system command fails.
         """
         if groups := ACLData._groups.get(user):
             return groups
@@ -71,7 +71,7 @@ class ACLData:
         Retrieve the cached hostname, initializing it if not already set.
 
         Returns:
-            str: The local machine's hostname.
+            The local machine's hostname.
         """
         if host := ACLData._host:
             return host
@@ -221,10 +221,10 @@ class PBSQueue(BatchQueueInterface):
         Retrieve an integer value from the provided dictionary.
 
         Args:
-            key (str): The key to look up in the dictionary.
+            key: The key to look up in the dictionary.
 
         Returns:
-            int | None: The integer value if conversion succeeds, otherwise `None`.
+            The integer value if conversion succeeds, otherwise `None`.
         """
         if not (raw := dict.get(key)):
             return None
@@ -253,12 +253,12 @@ class PBSQueue(BatchQueueInterface):
 
 
         Args:
-            name (str): The unique name of the queue.
-            server (str | None): Server on which the queue is located. If `None`, assumes the current server.
-            info (dict[str, str]): A dictionary containing PBS queue metadata as key-value pairs.
+            name: The unique name of the queue.
+            server: Server on which the queue is located. If `None`, assumes the current server.
+            info: A dictionary containing PBS queue metadata as key-value pairs.
 
         Returns:
-            Self: A new instance of PBSQueue.
+            A new instance of PBSQueue.
 
         Note:
             This method does not perform any validation or processing of the provided dictionary.

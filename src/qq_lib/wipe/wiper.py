@@ -55,7 +55,7 @@ class Wiper(Navigator):
         Delete the working directory on the computing node.
 
         Returns:
-            str: The identifier of the job which working directory was deleted.
+            The identifier of the job which working directory was deleted.
 
         Raises:
             QQError: If the working directory of the job does not exist or cannot be deleted.

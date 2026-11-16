@@ -41,7 +41,7 @@ class Respawner(Operator):
         Respawn the job by cleaning up and submitting a fresh copy.
 
         Returns:
-            str: The job ID of the newly submitted job.
+            The job ID of the newly submitted job.
 
         Raises:
             QQError: If the submitter cannot be built or the job cannot be submitted.
@@ -77,10 +77,10 @@ class Respawner(Operator):
         the archive directory is checked for consistency before proceeding.
 
         Args:
-            informer (Informer): The informer instance holding job metadata.
+            informer: The informer instance holding job metadata.
 
         Returns:
-            Submitter: A configured Submitter ready to submit the job.
+            A configured Submitter ready to submit the job.
 
         Raises:
             QQError: If the loop job archive is inconsistent with the current cycle.
@@ -113,7 +113,7 @@ class Respawner(Operator):
         Verify that the current loop cycle matches the archive contents.
 
         Args:
-            loop_info (LoopInfo): Loop job metadata.
+            loop_info: Loop job metadata.
 
         Raises:
             QQError: If the cycle determined from the archive does not match

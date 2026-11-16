@@ -590,11 +590,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         but the input directory is not shared, a `QQError` is raised.
 
         Args:
-            input_dir (Path): Path to the input directory of the job.
-            res (Resources): The job's resource configuration.
-            env_vars (dict[str, str]): Dictionary of environment variables to propagate to the job.
-            server (str | None): The target PBS server, or None if submitting to the default server.
-            remote_host (str | None): Host from which the submission is performed, or None if sumitting from the current machine.
+            input_dir: Path to the input directory of the job.
+            res: The job's resource configuration.
+            env_vars: Dictionary of environment variables to propagate to the job.
+            server: The target PBS server, or None if submitting to the default server.
+            remote_host: Host from which the submission is performed, or None if sumitting from the current machine.
 
         Raises:
             QQError: If the job is set to run directly in the submission
@@ -638,17 +638,17 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Generate the PBS submission command for a job.
 
         Args:
-            res (Resources): The resources requested for the job.
-            queue (str): The queue name to submit to.
-            server (str): Optional name of the server to submit the job to.
-            input_dir (Path): The directory from which the job is being submitted.
-            script (str): Path to the job script.
-            job_name (str): Name of the job.
-            depend (list[Depend]): List of dependencies of the job.
-            env_vars (dict[str, str]): Dictionary of environment variables to set.
+            res: The resources requested for the job.
+            queue: The queue name to submit to.
+            server: Optional name of the server to submit the job to.
+            input_dir: The directory from which the job is being submitted.
+            script: Path to the job script.
+            job_name: Name of the job.
+            depend: List of dependencies of the job.
+            env_vars: Dictionary of environment variables to set.
 
         Returns:
-            str: The fully constructed qsub command string.
+            The fully constructed qsub command string.
         """
         command = f"qsub -N {job_name} {cls._translate_queue_server(queue, server)} {cls._translate_output_server(input_dir, job_name, server)} "
 
@@ -700,11 +700,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         otherwise only the queue name is used.
 
         Args:
-            queue (str): The name of the target queue.
-            server (str | None): The target PBS server, or None if submitting to the default server.
+            queue: The name of the target queue.
+            server: The target PBS server, or None if submitting to the default server.
 
         Returns:
-            str: The PBS queue destination argument, e.g. `-q queue@server` or `-q queue`.
+            The PBS queue destination argument, e.g. `-q queue@server` or `-q queue`.
         """
         if server:
             return f"-q {queue}@{server}"
@@ -724,12 +724,12 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         delivering the output file to the submitting host.
 
         Args:
-            input_dir (Path): Directory in which the output file will be placed.
-            job_name (str): Name of the job, used to construct the output filename.
-            server (str | None): The target PBS server, or None if submitting to the default server.
+            input_dir: Directory in which the output file will be placed.
+            job_name: Name of the job, used to construct the output filename.
+            server: The target PBS server, or None if submitting to the default server.
 
         Returns:
-            str: The PBS output redirection arguments.
+            The PBS output redirection arguments.
         """
         qq_output = str((input_dir / job_name).with_suffix(CFG.suffixes.qq_out))
         if server:
@@ -753,11 +753,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Convert a dictionary of environment variables into a formatted string.
 
         Args:
-            env_vars (dict[str, str]): A mapping of environment variable names
+            env_vars: A mapping of environment variable names
                 to their corresponding values.
 
         Returns:
-            str: A comma-separated string of environment variable assignments,
+            A comma-separated string of environment variable assignments,
                 suitable for inclusion in the qsub command.
         """
         converted = []
@@ -775,11 +775,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         accordingly.
 
         Args:
-            res (Resources): The resource specification for the job.
+            res: The resource specification for the job.
 
         Returns:
-            list[str]: A list of per-node resource strings suitable for inclusion
-                    in a PBS submission command.
+            A list of per-node resource strings suitable for inclusion
+            in a PBS submission command.
 
         Raises:
             QQError: If sanity checks fail or required memory attributes are missing.
@@ -855,10 +855,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Translate the working directory and its requested size into a PBS resource string.
 
         Args:
-            res (Resources): The resources requested for the job.
+            res: The resources requested for the job.
 
         Returns:
-            str | None: Resource string specifying the working directory, or None if input_dir is used.
+            Resource string specifying the working directory, or None if input_dir is used.
         """
         assert res.nnodes is not None
 
@@ -892,11 +892,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Convert a list of `Depend` objects into a PBS-compatible dependency string.
 
         Args:
-            depend (list[Depend]): List of dependency objects to translate.
+            depend: List of dependency objects to translate.
 
         Returns:
-            str | None: PBS-style dependency string (e.g., "after:12345,afterok:1:2:3"),
-                        or None if the input list is empty.
+            PBS-style dependency string (e.g., "after:12345,afterok:1:2:3"),
+            or None if the input list is empty.
         """
         if not depend:
             return None
@@ -910,7 +910,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         This allows importing Infinity AMS modules in qq jobs.
 
         Returns:
-            dict[str, str]: Dictionary of AMS environment variables and their values.
+            Dictionary of AMS environment variables and their values.
         """
         ams_vars = {
             key: value
@@ -980,7 +980,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Return a Resources object representing the default resources for a batch job.
 
         Returns:
-            Resources: Default batch job resources with predefined settings.
+            Default batch job resources with predefined settings.
         """
         return Resources(
             nnodes=1,
@@ -997,10 +997,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Generate the PBS force kill command for a job.
 
         Args:
-            job_id (str): The ID of the job to kill.
+            job_id: The ID of the job to kill.
 
         Returns:
-            str: The qdel command with force flag.
+            The qdel command with force flag.
         """
         return f"qdel -W force {job_id}"
 
@@ -1010,10 +1010,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Generate the standard PBS kill command for a job.
 
         Args:
-            job_id (str): The ID of the job to kill.
+            job_id: The ID of the job to kill.
 
         Returns:
-            str: The qdel command without force flag.
+            The qdel command without force flag.
         """
         return f"qdel {job_id}"
 
@@ -1024,9 +1024,9 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Move files on a locally accessible filesystem, recording each source once it has been moved.
 
         Args:
-            files (list[Path]): Files to move.
-            moved_files (list[Path]): Destinations, one per file in `files`.
-            done (list[Path]): Filled with the sources that were moved successfully,
+            files: Files to move.
+            moved_files: Destinations, one per file in `files`.
+            done: Filled with the sources that were moved successfully,
                 so that the caller can resume after a failure.
 
         Raises:
@@ -1049,14 +1049,14 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Run an operation on shared storage and fall back to a remote operation if it fails.
 
         Args:
-            shared_op (Callable[[], T]): Operation performed directly on shared storage.
-            remote_op (Callable[[], T]): Operation performed through the remote host. Called only if `shared_op` fails.
-            disable_shared (Callable[[], None]): Called after `shared_op` fails, before `remote_op` is attempted.
-            description (str): What the operation does, used in the warning (e.g. "read file 'x'").
-            fallback (str): What the fallback does, used in the warning (e.g. "reading on 'host'").
+            shared_op: Operation performed directly on shared storage.
+            remote_op: Operation performed through the remote host. Called only if `shared_op` fails.
+            disable_shared: Called after `shared_op` fails, before `remote_op` is attempted.
+            description: What the operation does, used in the warning (e.g. "read file 'x'").
+            fallback: What the fallback does, used in the warning (e.g. "reading on 'host'").
 
         Returns:
-            T: Result of `shared_op`, or of `remote_op` if `shared_op` failed.
+            Result of `shared_op`, or of `remote_op` if `shared_op` failed.
 
         Raises:
             QQError: If `remote_op` fails. Any other exception raised by `remote_op` is propagated as well.
@@ -1086,12 +1086,12 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Synchronize directories either locally or across remote hosts, depending on the environment and setup.
 
         Args:
-            src_dir (Path): Source directory to sync from.
-            dest_dir (Path): Destination directory to sync to.
-            src_host (str | None): Hostname of the source machine if remote; None if local.
-            dest_host (str | None): Hostname of the destination machine if remote; None if local.
-            files (list[Path] | None): Optional list of file paths to include or exclude, depending on `sync_function`.
-            sync_function (Callable): Function to perform the actual synchronization.
+            src_dir: Source directory to sync from.
+            dest_dir: Destination directory to sync to.
+            src_host: Hostname of the source machine if remote; None if local.
+            dest_host: Hostname of the destination machine if remote; None if local.
+            files: Optional list of file paths to include or exclude, depending on `sync_function`.
+            sync_function: Function to perform the actual synchronization.
 
         Raises:
             QQError: If both source and destination hosts are remote and cannot be
@@ -1164,17 +1164,17 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Execute a shell command to retrieve information about PBS jobs and parse it.
 
         Args:
-            command (str): The shell command to execute, typically a PBS query command.
-            include_completed (bool): Include both completed and uncompleted jobs.
+            command: The shell command to execute, typically a PBS query command.
+            include_completed: Include both completed and uncompleted jobs.
                 If `False`, completed jobs are filtered out from the output.
-            include_top_level_array (bool): Include top-level array jobs in the output.
+            include_top_level_array: Include top-level array jobs in the output.
                 If `False`, top-level array jobs are filtered out from the output.
-            ignore_exit_code (bool): Ignore the exit code of the command.
+            ignore_exit_code: Ignore the exit code of the command.
                 If `False`, the command must return a zero exit code.
 
         Returns:
-            list[PBSJob]: A list of `PBSJob` instances corresponding to the jobs
-                            returned by the command.
+            A list of `PBSJob` instances corresponding to the jobs
+            returned by the command.
 
         Raises:
             QQError: If the command fails (non-zero return code) or if the output

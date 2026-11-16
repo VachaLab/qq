@@ -30,7 +30,7 @@ class Resubmitter(Operator):
         Resubmit the job to the next cycle.
 
         Returns:
-            str: The job ID of the newly submitted job.
+            The job ID of the newly submitted job.
 
         Raises:
             QQError: If the main node is not defined or if resubmission fails
@@ -75,11 +75,11 @@ class Resubmitter(Operator):
         cycle has already run, so its original dependencies must have been satisfied.
 
         Args:
-            informer (Informer): The informer instance holding job metadata.
-            input_dir (Path): Path to the directory containing the job's input files.
+            informer: The informer instance holding job metadata.
+            input_dir: Path to the directory containing the job's input files.
 
         Returns:
-            Submitter: A configured submitter ready to submit the job.
+            A configured submitter ready to submit the job.
         """
         return Submitter(
             batch_system=informer.batch_system,
@@ -115,12 +115,12 @@ class Resubmitter(Operator):
         Attempt resubmission on each candidate host in order.
 
         Args:
-            submitter (Submitter): The configured submitter to use for job submission.
-            informer (Informer): The informer instance holding job metadata.
-            hosts (list[ResubmitHost]): Ordered list of candidate resubmission hosts to try.
+            submitter: The configured submitter to use for job submission.
+            informer: The informer instance holding job metadata.
+            hosts: Ordered list of candidate resubmission hosts to try.
 
         Returns:
-            str: The job ID of the newly submitted job.
+            The job ID of the newly submitted job.
 
         Raises:
             QQError: If the main node is not defined in the job metadata.

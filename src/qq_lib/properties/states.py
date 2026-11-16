@@ -38,7 +38,7 @@ class NaiveState(Enum):
         Return the lowercase string representation of the enum variant.
 
         Returns:
-            str: The name of the state in lowercase.
+            The name of the state in lowercase.
         """
         return self.name.lower()
 
@@ -48,10 +48,10 @@ class NaiveState(Enum):
         Convert a string to the corresponding NaiveState enum variant.
 
         Args:
-            s (str): String representation of the state (case-insensitive).
+            s: String representation of the state (case-insensitive).
 
         Returns:
-            NaiveState: Corresponding enum variant. Returns UNKNOWN if no match is found.
+            Corresponding enum variant. Returns UNKNOWN if no match is found.
         """
         try:
             return cls[s.upper()]
@@ -80,7 +80,7 @@ class BatchState(Enum):
         Return the lowercase string representation of the enum variant.
 
         Returns:
-            str: The name of the batch state in lowercase.
+            The name of the batch state in lowercase.
         """
         return self.name.lower()
 
@@ -90,7 +90,7 @@ class BatchState(Enum):
         Internal mapping from one-letter codes to batch state names.
 
         Returns:
-            dict[str, str]: Mapping of codes to corresponding batch state names.
+            Mapping of codes to corresponding batch state names.
         """
         return {
             "E": "exiting",
@@ -110,10 +110,10 @@ class BatchState(Enum):
         Convert a one-letter batch system code to a BatchState enum variant.
 
         Args:
-            code (str): One-letter code representing the batch system state.
+            code: One-letter code representing the batch system state.
 
         Returns:
-            BatchState: Corresponding enum variant, or UNKNOWN if the code is invalid.
+            Corresponding enum variant, or UNKNOWN if the code is invalid.
         """
         code = code.upper()
         if code not in cls._code_to_state():
@@ -127,7 +127,7 @@ class BatchState(Enum):
         Return the one-letter code corresponding to this BatchState.
 
         Returns:
-            str: One-letter code representing the batch state. Returns '?' if unknown.
+            One-letter code representing the batch state. Returns '?' if unknown.
         """
         for k, v in self._code_to_state().items():
             if v.upper() == self.name:
@@ -141,7 +141,7 @@ class BatchState(Enum):
         Return the display color associated with this BatchState.
 
         Returns:
-            str: A string representing the color for presentation purposes.
+            A string representing the color for presentation purposes.
         """
         if self is BatchState.MOVING:
             return RealState.QUEUED.color
@@ -171,7 +171,7 @@ class RealState(Enum):
         Return the human-readable string representation of the state.
 
         Returns:
-            str: Lowercase string with underscores replaced by spaces.
+            Lowercase string with underscores replaced by spaces.
         """
         return self.name.lower().replace("_", " ")
 
@@ -181,11 +181,11 @@ class RealState(Enum):
         Determine the RealState of a job based on its NaiveState and BatchState.
 
         Args:
-            naive_state (NaiveState): The naive state of the job from qqinfo.
-            batch_state (BatchState): The state of the job according to the batch system.
+            naive_state: The naive state of the job from qqinfo.
+            batch_state: The state of the job according to the batch system.
 
         Returns:
-            RealState: The corresponding RealState.
+            The corresponding RealState.
         """
         logger.debug(
             f"Converting to RealState from '{naive_state}' and '{batch_state}'."
@@ -253,6 +253,6 @@ class RealState(Enum):
         Return the display color associated with this RealState.
 
         Returns:
-            str: A string representing the color for presentation purposes.
+            A string representing the color for presentation purposes.
         """
         return getattr(CFG.state_colors, self.name.lower())

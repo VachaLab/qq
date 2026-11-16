@@ -55,8 +55,8 @@ class Runner:
         Initialize a new Runner instance.
 
         Args:
-            info_file (Path): Path to the qq info file that contains job metadata.
-            host (str): The hostname of the input machine from which the job was submitted.
+            info_file: Path to the qq info file that contains job metadata.
+            host: The hostname of the input machine from which the job was submitted.
 
         Raises:
             QQRunFatalError: If loading the QQ info file fails fatally during initialization.
@@ -187,7 +187,7 @@ class Runner:
         Execute the job script in the working directory.
 
         Returns:
-            int: The exit code from the executed script.
+            The exit code from the executed script.
 
         Raises:
             QQError: If execution fails or info file cannot be updated.
@@ -324,7 +324,7 @@ class Runner:
         Record a failure state into the qq info file and exit the program.
 
         Args:
-            exception (BaseException): The exception to log.
+            exception: The exception to log.
 
         Raises:
             SystemExit: Always exits with the exit code associated with the given exception.
@@ -471,7 +471,7 @@ class Runner:
         `socket.getfqdn()` instead and prints warning.
 
         Returns:
-            list[str]: Names of nodes used to execute the job.
+            Names of nodes used to execute the job.
 
         Raises:
             QQError: If the batch system is unable to provide information about the nodes after retries
@@ -526,7 +526,7 @@ class Runner:
         Update the qq info file to mark the job as failed.
 
         Args:
-            return_code (int): Exit code from the failed job.
+            return_code: Exit code from the failed job.
 
         Logs errors as warnings if updating fails.
 
@@ -577,7 +577,7 @@ class Runner:
         Copy .out and .err runtime files from the working directory to the input directory.
 
         Args:
-            retry (bool): Retry the copying if it fails.
+            retry: Retry the copying if it fails.
 
         Raises:
             QQError: If the files could not be copied after retrying.
@@ -614,7 +614,7 @@ class Runner:
         Reload the qq job info file for this job.
 
         Args:
-            retry (bool): Retry the loading operation if it fails.
+            retry: Retry the loading operation if it fails.
 
         Raises:
             QQError: If the qq info file cannot be reach or read after retrying.
@@ -662,7 +662,7 @@ class Runner:
         Then check the job's state and ensure it is not killed.
 
         Args:
-            retry (bool): Retry the loading operation if it fails.
+            retry: Retry the loading operation if it fails.
 
         Raises:
             QQJobMismatchError: If the info file corresponds to a different job.
@@ -776,7 +776,7 @@ class Runner:
         Duplicates are removed, preserving the order of first occurrence.
 
         Returns:
-            list[Path]: Paths that should not be copied to the working directory.
+            Paths that should not be copied to the working directory.
         """
         info = self._informer.info
 
@@ -803,7 +803,7 @@ class Runner:
         preserving the order of first occurrence.
 
         Returns:
-            list[Path]: Paths that should not be copied to the input directory.
+            Paths that should not be copied to the input directory.
         """
         info = self._informer.info
 
@@ -861,7 +861,7 @@ def log_fatal_error_and_exit(exception: BaseException) -> NoReturn:
     the job info file (e.g., if the info file path is missing or corrupted).
 
     Args:
-        exception (BaseException): The error to log.
+        exception: The error to log.
 
     Raises:
         SystemExit: Exits with an exit code associated with the exception.

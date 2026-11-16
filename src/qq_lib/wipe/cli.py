@@ -115,10 +115,10 @@ def _wipe_work_dir(informer: Informer, force: bool, yes: bool) -> None:
     Attempt to delete the working directory of the job associated with the specified Informer.
 
     Args:
-        informer (Informer): Informer associated with the job.
-        force (bool): Whether to forcibly delete the working directory regardless of the job's state.
-        yes (bool): Whether to skip confirmation before deleting.
-        job (str | None): Optional job ID for matching the target job.
+        informer: Informer associated with the job.
+        force: Whether to forcibly delete the working directory regardless of the job's state.
+        yes: Whether to skip confirmation before deleting.
+        job: Optional job ID for matching the target job.
 
     Raises:
         QQNotSuitableError: If the job does (or should) not have a working directory.

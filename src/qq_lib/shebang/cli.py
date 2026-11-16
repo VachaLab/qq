@@ -59,7 +59,7 @@ def _replace_or_add_shebang(file: Path) -> None:
     Replaces or adds a shebang line to a file.
 
     Args:
-        file (Path): The path to the file to modify.
+        file: The path to the file to modify.
 
     Raises:
         QQError: If the specified file does not exist or is not a regular file.

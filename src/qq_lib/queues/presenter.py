@@ -32,11 +32,11 @@ class QueuesPresenter:
         Initialize the presenter with a list of queues.
 
         Args:
-            queues (list[BatchQueueInterface]): List of queue information objects
+            queues: List of queue information objects
                 to be presented.
-            user (str): Name of the user for which the queues are displayed.
-            all (bool): Display all queues or only those available to the user.
-            server (str | None): Batch server for which the queues were collected.
+            user: Name of the user for which the queues are displayed.
+            all: Display all queues or only those available to the user.
+            server: Batch server for which the queues were collected.
                 `None` = default server.
         """
         self._queues = queues
@@ -59,11 +59,11 @@ class QueuesPresenter:
         Create a Rich panel displaying queue information.
 
         Args:
-            console (Console | None): Optional Rich Console instance.
+            console: Optional Rich Console instance.
                 If None, a new Console will be created.
 
         Returns:
-            Group: Rich Group containing the queues table.
+            Rich Group containing the queues table.
         """
         console = console or Console()
         queues_table = self._create_queues_table()
@@ -100,7 +100,7 @@ class QueuesPresenter:
         Construct and return a formatted Rich Table containing queue information.
 
         Returns:
-            Table: A Rich Table object populated with formatted queue data.
+            A Rich Table object populated with formatted queue data.
         """
         table = Table(
             show_header=True,
@@ -233,13 +233,13 @@ class QueuesPresenter:
         Add a formatted row representing a single queue to the given table.
 
         Args:
-            queue (BatchQueueInterface): The queue to display.
-            table (Table): The Rich Table instance to modify.
-            user (str): The username used to determine queue availability.
-            from_route (bool, optional): Indicates whether the queue is a rerouted destination.
+            queue: The queue to display.
+            table: The Rich Table instance to modify.
+            user: The username used to determine queue availability.
+            from_route: Indicates whether the queue is a rerouted destination.
                 Defaults to False.
-            dangling (bool, optional): Marks the queue as unbound destination (no parent route). Defaults to False.
-            available (bool | None, optional): Manually overrides queue availability. If None,
+            dangling: Marks the queue as unbound destination (no parent route). Defaults to False.
+            available: Manually overrides queue availability. If None,
                 availability is determined automatically. Defaults to None.
         """
         mark = (
@@ -288,11 +288,11 @@ class QueuesPresenter:
         Format the queue's maximum walltime for display.
 
         Args:
-            queue (BatchQueueInterface): The queue whose walltime is being formatted.
-            style (str): The Rich text style to apply.
+            queue: The queue whose walltime is being formatted.
+            style: The Rich text style to apply.
 
         Returns:
-            Text: A styled Rich Text object containing the formatted walltime,
+            A styled Rich Text object containing the formatted walltime,
             or an empty string if no walltime is defined.
         """
         if not (walltime := queue.get_max_walltime()):
@@ -305,7 +305,7 @@ class QueuesPresenter:
         Determine whether the Comment column should be displayed.
 
         Returns:
-            bool: True if any node has a comment, False otherwise.
+            True if any node has a comment, False otherwise.
         """
         return any(queue.get_comment() is not None for queue in self._queues)
 
@@ -314,7 +314,7 @@ class QueuesPresenter:
         Determine whether the Max Nodes column should be displayed.
 
         Returns:
-            bool: True if any node has a defined maximal number of nodes that
+            True if any node has a defined maximal number of nodes that
             can be requested, False otherwise.
         """
         return any(queue.get_max_n_nodes() is not None for queue in self._queues)

@@ -41,8 +41,8 @@ class Clearer:
         Initialize a Clearer for one or more directories.
 
         Args:
-            directories (list[Path]): The directories to clear qq runtime files from.
-            recursive (bool): If True, also clear subdirectories, but do not descend
+            directories: The directories to clear qq runtime files from.
+            recursive: If True, also clear subdirectories, but do not descend
                 into subdirectories of directories containing qq runtime files.
 
         """
@@ -58,7 +58,7 @@ class Clearer:
         unless `force` is set to True. A combined summary is logged at the end.
 
         Args:
-            force (bool): If True, remove all qq runtime files, even if unsafe.
+            force: If True, remove all qq runtime files, even if unsafe.
         """
         results: list[_ClearResult] = []
         lock = threading.Lock()
@@ -108,7 +108,7 @@ class Clearer:
         overlap, so no directory is cleared by two threads at once.
 
         Returns:
-            list[Path]: The directories to clear.
+            The directories to clear.
         """
         seen: set[Path] = set()
         result: list[Path] = []
@@ -155,11 +155,11 @@ class Clearer:
         Clear qq runtime files from a single directory and return the result.
 
         Args:
-            directory (Path): The directory to clear.
-            force (bool): If True, remove all qq runtime files, even if unsafe.
+            directory: The directory to clear.
+            force: If True, remove all qq runtime files, even if unsafe.
 
         Returns:
-            _ClearResult: The number of deleted and excluded files.
+            The number of deleted and excluded files.
         """
         files = Clearer._collect_runtime_files(directory)
         logger.debug(f"All qq runtime files in '{directory}': {files}.")
@@ -185,7 +185,7 @@ class Clearer:
         Collect all qq runtime files in the directory.
 
         Returns:
-            set[Path]: Paths to all files matching qq-specific suffixes.
+            Paths to all files matching qq-specific suffixes.
         """
         return set(get_runtime_files(directory))
 
@@ -197,7 +197,7 @@ class Clearer:
         Runtime files corresponding to active or successfully finished jobs are included.
 
         Returns:
-            set[Path]: Paths to qq runtime files that should not be deleted.
+            Paths to qq runtime files that should not be deleted.
         """
         excluded = []
 
@@ -233,7 +233,7 @@ class Clearer:
         Delete all specified files.
 
         Args:
-            files (Iterable[Path]): The list of files to delete.
+            files: The list of files to delete.
         """
         for file in files:
             logger.debug(f"Removing file '{file}'.")

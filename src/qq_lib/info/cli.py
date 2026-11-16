@@ -116,12 +116,12 @@ def _info_for_job(informer: Informer, brief: bool) -> None:
     Display information about a qq job associated with the specified Informer.
 
     Args:
-        informer (Informer): Informer associated with the job.
-        brief (bool): If True, print only the job ID, its directory
-                      relative to the current directory (if `dirs_provided`),
-                      and the current job state.
-                      If False, print the full formatted information panel.
-        dirs_provided (bool): If true, at least one directory was provided.
+        informer: Informer associated with the job.
+        brief: If True, print only the job ID, its directory
+               relative to the current directory (if `dirs_provided`),
+               and the current job state.
+               If False, print the full formatted information panel.
+        dirs_provided: If true, at least one directory was provided.
     """
     presenter = Presenter(informer)
     console = Console()

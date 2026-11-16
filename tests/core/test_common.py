@@ -1140,8 +1140,8 @@ def _touch(directory: Path, *relative: str) -> None:
     Create empty files under a directory, making parent directories as needed.
 
     Args:
-        directory (Path): Directory to create the files in.
-        *relative (str): Paths of the files, relative to `directory`.
+        directory: Directory to create the files in.
+        *relative: Paths of the files, relative to `directory`.
     """
     for rel in relative:
         path = directory / rel
@@ -1437,11 +1437,11 @@ def _wait_for_process_exit(pid: int, timeout: float = 5.0) -> bool:
     Zombie processes count as exited, since they are dead and only waiting to be reaped.
 
     Args:
-        pid (int): ID of the process to watch.
-        timeout (float): Maximum time in seconds to wait.
+        pid: ID of the process to watch.
+        timeout: Maximum time in seconds to wait.
 
     Returns:
-        bool: True if the process exited within `timeout`, False otherwise.
+        True if the process exited within `timeout`, False otherwise.
     """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:

@@ -26,7 +26,7 @@ def parse_slurm_dump_to_dictionary(
     Parse a Slurm info dump into a dictionary.
 
     Returns:
-        dict[str, str]: Dictionary mapping keys to values.
+        Dictionary mapping keys to values.
     """
     result: dict[str, str] = {}
 
@@ -46,11 +46,11 @@ def default_resources_from_dict(res: dict[str, str]) -> Resources:
     Extract and convert default resource settings from a parsed Slurm info dump.
 
     Args:
-        res (dict[str, str]): A dictionary containing default resource values
+        res: A dictionary containing default resource values
             parsed from Slurm info dump.
 
     Returns:
-        Resources: An instance representing the default resource settings.
+        An instance representing the default resource settings.
     """
 
     converter = {

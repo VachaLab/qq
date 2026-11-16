@@ -47,7 +47,7 @@ class Syncer(Navigator):
         Synchronize files from the remote working directory to the local input directory.
 
         Args:
-            files (list[str] | None): Optional list of specific filenames to fetch.
+            files: Optional list of specific filenames to fetch.
                 If omitted, all files are synchronized except those excluded by the batch system.
 
         Behavior:

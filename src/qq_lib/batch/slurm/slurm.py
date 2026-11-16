@@ -426,10 +426,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Generate the Slurm kill command for a job using SIGTERM.
 
         Args:
-            job_id (str): The ID of the job to kill.
+            job_id: The ID of the job to kill.
 
         Returns:
-            str: The scancel command sending SIGTERM.
+            The scancel command sending SIGTERM.
         """
         return f"scancel {job_id}"
 
@@ -439,10 +439,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Generate the Slurm kill command for a job using SIGKILL.
 
         Args:
-            job_id (str): The ID of the job to kill.
+            job_id: The ID of the job to kill.
 
         Returns:
-            str: The scancel command sending SIGKILL.
+            The scancel command sending SIGKILL.
         """
         return f"scancel --signal=KILL {job_id}"
 
@@ -462,17 +462,17 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Generate the Slurm submission command for a job.
 
         Args:
-            res (Resources): The resources requested for the job.
-            queue (str): The queue name to submit to.
-            input_dir (Path): The directory from which the job is being submitted.
-            script (str): Path to the job script.
-            job_name (str): Name of the job.
-            depend (list[Depend]): List of dependencies of the job.
-            env_vars (dict[str, str]): Dictionary of environment variables and their values to propagate to the job's environment.
-            account (str | None): Optional name of the account to use for the job.
+            res: The resources requested for the job.
+            queue: The queue name to submit to.
+            input_dir: The directory from which the job is being submitted.
+            script: Path to the job script.
+            job_name: Name of the job.
+            depend: List of dependencies of the job.
+            env_vars: Dictionary of environment variables and their values to propagate to the job's environment.
+            account: Optional name of the account to use for the job.
 
         Returns:
-            str: The fully constructed sbatch command string.
+            The fully constructed sbatch command string.
         """
         qq_output = str((input_dir / job_name).with_suffix(CFG.suffixes.qq_out))
         command = f"sbatch -J {job_name} -p {queue} -e {qq_output} -o {qq_output} "
@@ -525,11 +525,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Convert a dictionary of environment variables into a formatted string.
 
         Args:
-            env_vars (dict[str, str]): A mapping of environment variable names
+            env_vars: A mapping of environment variable names
                 to their corresponding values.
 
         Returns:
-            str: A comma-separated string of environment variable assignments,
+            A comma-separated string of environment variable assignments,
                 suitable for inclusion in the sbatch command.
         """
         converted = []
@@ -547,11 +547,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         accordingly.
 
         Args:
-            res (Resources): The resource specification for the job.
+            res: The resource specification for the job.
 
         Returns:
-            list[str]: A list of per-node resource strings suitable for inclusion
-                    in the sbatch command.
+            A list of per-node resource strings suitable for inclusion
+            in the sbatch command.
 
         Raises:
             QQError: If sanity checks fail or required memory attributes are missing.
@@ -612,11 +612,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Convert a list of `Depend` objects into a Slurm-compatible dependency string.
 
         Args:
-            depend (list[Depend]): List of dependency objects to translate.
+            depend: List of dependency objects to translate.
 
         Returns:
-            str | None: Slurm-style dependency string (e.g., "after:12345,afterok:1:2:3"),
-                        or None if the input list is empty.
+            Slurm-style dependency string (e.g., "after:12345,afterok:1:2:3"),
+            or None if the input list is empty.
         """
         if not depend:
             return None
@@ -629,7 +629,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Return a Resources object representing the default resources for a batch job.
 
         Returns:
-            Resources: Default batch job resources obtained from `slurm.conf`.
+            Default batch job resources obtained from `slurm.conf`.
         """
         command = "scontrol show config"
 
@@ -671,11 +671,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Execute `sacct` to retrieve information about Slurm jobs and parse it.
 
         Args:
-            command (str): A Slurm command to get the relevant jobs.
+            command: A Slurm command to get the relevant jobs.
 
         Returns:
-            list[SlurmJob]: A list of `SlurmJob` instances corresponding to the jobs
-                            returned by the command.
+            A list of `SlurmJob` instances corresponding to the jobs
+            returned by the command.
 
         Raises:
             QQError: If the command fails (non-zero return code) or if the output
@@ -715,11 +715,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Note that the jobs are returned in an arbitrary order.
 
         Args:
-            command (str): A Slurm command to get the relevant job IDs.
+            command: A Slurm command to get the relevant job IDs.
 
         Returns:
-            list[SlurmJob]: A list of `SlurmJob` instances corresponding to the jobs
-                            returned by the command.
+            A list of `SlurmJob` instances corresponding to the jobs
+            returned by the command.
 
         Raises:
             QQError: If the command fails (non-zero return code) or if the output
@@ -749,10 +749,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Constructs Slurm jobs in parallel.
 
         Args:
-            job_ids (list[str]): A list of job IDs to collect.
+            job_ids: A list of job IDs to collect.
 
         Returns:
-            list[SlurmJob]: A list of SlurmJob objects.
+            A list of SlurmJob objects.
         """
 
         def get_job(job_id: str) -> SlurmJob:

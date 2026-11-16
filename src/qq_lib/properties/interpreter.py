@@ -42,7 +42,7 @@ class Interpreter:
         and any remaining tokens become arguments.
 
         Args:
-            s (str): Space-separated string of the interpreter executable followed by
+            s: Space-separated string of the interpreter executable followed by
                 optional arguments. For example: "python3 -u" or "/usr/bin/bash".
 
         Returns:
@@ -57,11 +57,11 @@ class Interpreter:
         Create an Interpreter from a dictionary.
 
         Args:
-            d (dict[str, Any]): Dictionary with keys matching the dataclass fields
+            d: Dictionary with keys matching the dataclass fields
                 (`executable` and `arguments`).
 
         Returns:
-            Interpreter: An Interpreter instance constructed from the dictionary values.
+            An Interpreter instance constructed from the dictionary values.
         """
         return cls(**d)
 
@@ -82,7 +82,7 @@ class Interpreter:
         The returned list is suitable for use with `subprocess` calls.
 
         Returns:
-            list[str]: A list containing the resolved absolute path of the executable
+            A list containing the resolved absolute path of the executable
             followed by any configured arguments.
 
         Raises:

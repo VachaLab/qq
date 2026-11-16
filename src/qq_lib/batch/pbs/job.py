@@ -326,11 +326,11 @@ class PBSJob(BatchJobInterface):
         attributes of the new instance.
 
         Args:
-            job_id (str): The unique identifier of the job.
-            info (dict[str, str]): A dictionary containing PBS job metadata as key-value pairs.
+            job_id: The unique identifier of the job.
+            info: A dictionary containing PBS job metadata as key-value pairs.
 
         Returns:
-            Self: A new instance of PBSJob.
+            A new instance of PBSJob.
 
         Note:
             This method does not perform any validation or processing of the provided dictionary.
@@ -346,7 +346,7 @@ class PBSJob(BatchJobInterface):
         Extract the leading numeric portion of the job ID and return it as an integer.
 
         Returns:
-            int | None: The integer value of the leading digits in the job ID,
+            The integer value of the leading digits in the job ID,
             or `None` if no valid digits are found or conversion fails.
         """
         match = re.match(r"\d+", self.get_id())
@@ -357,7 +357,7 @@ class PBSJob(BatchJobInterface):
         Retrieve environment variables associated with the job.
 
         Returns:
-            dict[str, str] | None: A dictionary of environment variables, or None
+            A dictionary of environment variables, or None
             if no variable list is available.
         """
         if not (variable_list := self._info.get("Variable_List")):
@@ -374,11 +374,11 @@ class PBSJob(BatchJobInterface):
         If the property is missing or cannot be converted, `None` is returned.
 
         Args:
-            property (str): The key identifying the property in the job information.
-            property_name (str): A human-readable name of the property for logging.
+            property: The key identifying the property in the job information.
+            property_name: A human-readable name of the property for logging.
 
         Returns:
-            int | None: The integer value of the property, or `None` if unavailable or invalid.
+            The integer value of the property, or `None` if unavailable or invalid.
         """
         try:
             return int(self._info[property])
@@ -395,11 +395,11 @@ class PBSJob(BatchJobInterface):
         Retrieve and parse a datetime property from the job information.
 
         Args:
-            property (str): The key identifying the property in the job information.
-            property_name (str): A human-readable name of the property for logging.
+            property: The key identifying the property in the job information.
+            property_name: A human-readable name of the property for logging.
 
         Returns:
-            datetime | None: A datetime object if parsing succeeds, otherwise None.
+            A datetime object if parsing succeeds, otherwise None.
         """
         if not (raw_datetime := self._info.get(property)):
             return None
@@ -418,9 +418,9 @@ class PBSJob(BatchJobInterface):
         Normalize a raw node string to extract the clean hostname.
 
         Args:
-            raw (str): Raw node string reported by the batch system.
+            raw: Raw node string reported by the batch system.
 
         Returns:
-            str: Cleaned node name.
+            Cleaned node name.
         """
         return raw.split(":", 1)[0].split("/", 1)[0].replace("(", "").replace(")", "")

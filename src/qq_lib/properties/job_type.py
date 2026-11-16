@@ -32,7 +32,7 @@ class JobType(Enum):
         Convert a string to the corresponding JobType enum variant.
 
         Args:
-            s (str): String representation of the job type (case-insensitive).
+            s: String representation of the job type (case-insensitive).
 
         Returns:
             JobType variant.

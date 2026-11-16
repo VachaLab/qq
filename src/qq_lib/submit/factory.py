@@ -37,7 +37,7 @@ class SubmitterFactory:
         Initialize the factory with the script, command-line parameters, and additional options.
 
         Args:
-            script (Path): Path to the script to submit.
+            script: Path to the script to submit.
             **kwargs: Keyword arguments from the command line.
         """
         from qq_lib.submit.cli import submit
@@ -52,7 +52,7 @@ class SubmitterFactory:
         Construct and return a Submitter instance.
 
         Returns:
-            Submitter: A fully initialized submitter object ready to submit a job.
+            A fully initialized submitter object ready to submit a job.
 
         Raises:
             QQError: If required information, such as the submission queue, is missing.
@@ -108,7 +108,7 @@ class SubmitterFactory:
             4. Guessed batch system
 
         Returns:
-            type[BatchInterface]: The selected batch system class.
+            The selected batch system class.
         """
         if batch_system := self._kwargs.get("batch_system"):
             return BatchInterface.from_str(batch_system)
@@ -124,7 +124,7 @@ class SubmitterFactory:
             3. Default to `JobType.STANDARD`
 
         Returns:
-            JobType: The determined job type.
+            The determined job type.
         """
         if job_type := self._kwargs.get("job_type"):
             return JobType.from_str(job_type)
@@ -139,7 +139,7 @@ class SubmitterFactory:
             2. Queue specified in the script
 
         Returns:
-            str: Name of the submission queue.
+            Name of the submission queue.
 
         Raises:
             QQError: If no queue is specified either in kwargs or in the script.
@@ -158,12 +158,12 @@ class SubmitterFactory:
         The resources are then further modified to conform to the provided `BatchSystem` and submission `queue`.
 
         Args:
-            BatchSystem (type[BatchInterface]): The batch system class to use.
-            queue (str): The submission queue.
-            server (str | None): The submission server. `None` = the current main server.
+            BatchSystem: The batch system class to use.
+            queue: The submission queue.
+            server: The submission server. `None` = the current main server.
 
         Returns:
-            Resources: A merged Resources object containing the final resource requirements.
+            A merged Resources object containing the final resource requirements.
         """
         field_names = {f.name for f in fields(Resources)}
         command_line_resources = Resources(
@@ -183,7 +183,7 @@ class SubmitterFactory:
         Construct LoopInfo holding information about the loop job.
 
         Returns:
-            LoopInfo: An object containing loop job parameters.
+            An object containing loop job parameters.
 
         Raises:
             QQError: If required loop job parameters are missing or invalid.
@@ -248,7 +248,7 @@ class SubmitterFactory:
         The lists are NOT merged.
 
         Returns:
-            list[str]: List of files or glob patterns to exclude.
+            List of files or glob patterns to exclude.
         """
         return (
             split_string_list(self._kwargs.get("exclude")) or self._parser.get_exclude()
@@ -265,7 +265,7 @@ class SubmitterFactory:
         The lists are NOT merged.
 
         Returns:
-            list[str]: List of files or glob patterns to include.
+            List of files or glob patterns to include.
         """
         return (
             split_string_list(self._kwargs.get("include")) or self._parser.get_include()
@@ -282,7 +282,7 @@ class SubmitterFactory:
         The lists are NOT merged.
 
         Returns:
-            list[str]: List of files or glob patterns to ignore.
+            List of files or glob patterns to ignore.
         """
         return (
             split_string_list(self._kwargs.get("ignore")) or self._parser.get_ignore()
@@ -299,7 +299,7 @@ class SubmitterFactory:
         The lists are NOT merged.
 
         Returns:
-            list[Depend]: List of job dependencies.
+            List of job dependencies.
         """
         return (
             Depend.multi_from_str(self._kwargs.get("depend") or "")
@@ -311,7 +311,7 @@ class SubmitterFactory:
         Determine the account name to use for the job.
 
         Returns:
-            str | None: The account name or None if not defined.
+            The account name or None if not defined.
         """
         return self._kwargs.get("account") or self._parser.get_account()
 
@@ -327,7 +327,7 @@ class SubmitterFactory:
         The lists are NOT merged.
 
         Returns:
-            list[TransferMode]: List of transfer modes.
+            List of transfer modes.
         """
         return (
             TransferMode.multi_from_str(self._kwargs.get("transfer_mode") or "")
@@ -344,7 +344,7 @@ class SubmitterFactory:
             3. None - the current batch server
 
         Returns:
-            str | None: The full name of the batch server to use,
+            The full name of the batch server to use,
                 or `None` for the current batch server.
         """
         if raw := (self._kwargs.get("server") or self._parser.get_server()):
@@ -362,7 +362,7 @@ class SubmitterFactory:
             3. None - the default intepreter
 
         Returns:
-            Interpreter | None: The interpreter to use for running the script
+            The interpreter to use for running the script
                 or `None` to use the default intepreter.
         """
         if (raw := self._kwargs.get("interpreter")) is not None:
@@ -383,10 +383,10 @@ class SubmitterFactory:
         The lists are NOT merged.
 
         Args:
-            BatchSystem (AnyBatchClass): The batch system used for job submission.
+            BatchSystem: The batch system used for job submission.
 
         Returns:
-            list[ResubmitHost]: List of resubmission hosts.
+            List of resubmission hosts.
         """
         return (
             ResubmitHost.multi_from_str(self._kwargs.get("resubmit_from") or "")

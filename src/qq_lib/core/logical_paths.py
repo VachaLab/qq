@@ -51,7 +51,7 @@ def _chdir(path: str | Path) -> None:
     before delegating to the real os.chdir.
 
     Args:
-        path (str | Path): The directory to change to. May be relative or absolute.
+        path: The directory to change to. May be relative or absolute.
     """
     global _logical_cwd
     path = Path(path)
@@ -99,13 +99,13 @@ def logical_resolve(path: Path, base: Path | None = None) -> Path:
     performed, so symlinks are never followed.
 
     Args:
-        path (Path): The path to resolve. May be relative or absolute.
-        base (Path | None): The base directory to anchor relative paths to. Must be a
+        path: The path to resolve. May be relative or absolute.
+        base: The base directory to anchor relative paths to. Must be a
             logical absolute path. Defaults to the logical current working
             directory maintained by the os.chdir patch.
 
     Returns:
-        Path: A logical absolute path with `.` and `..` components resolved
+        A logical absolute path with `.` and `..` components resolved
         but symlinks left intact.
     """
     if not path.is_absolute():
@@ -130,11 +130,11 @@ def to_logical(path: Path, anchors: Iterable[Path] | None = None) -> Path:
     logical) are returned unchanged.
 
     Args:
-        path (Path): The path to convert.
-        anchors (Iterable[Path] | None): Logical absolute directories to map through.
+        path: The path to convert.
+        anchors: Logical absolute directories to map through.
 
     Returns:
-        Path: The logical form of `path`, or `path` itself if no mapping was found.
+        The logical form of `path`, or `path` itself if no mapping was found.
     """
     path = logical_resolve(path)
     if anchors is None:

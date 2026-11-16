@@ -32,14 +32,13 @@ class QueuesAvailability:
         Retrieve the availability of a queue for the given user.
 
         Args:
-            queue (str): The name of the queue to check.
-            user (str): The username to check access for.
-            server (str | None): Server on which the queue is located.
+            queue: The name of the queue to check.
+            user: The username to check access for.
+            server: Server on which the queue is located.
 
         Returns:
-            bool:
-                True if the queue is available to the current user,
-                False otherwise.
+            True if the queue is available to the current user,
+            False otherwise.
         """
         # check whether the availability is cached
         if (
@@ -72,12 +71,12 @@ class QueuesAvailability:
         Format a queue name with an optional server qualifier.
 
         Args:
-            queue (str): The name of the queue.
-            server (str | None): The server the queue resides on,
+            queue: The name of the queue.
+            server: The server the queue resides on,
                 or `None` to address the queue without a server qualifier.
 
         Returns:
-            str: The full queue name as `queue@server`, or just `queue` if
+            The full queue name as `queue@server`, or just `queue` if
             `server` is `None`.
         """
         if server:
@@ -193,12 +192,12 @@ class PBSNode(BatchNodeInterface):
         Construct a new instance of PBSNode from node name and a dictionary of node information.
 
         Args:
-            name (str): The unique name of the node.
-            server (str | None): Server on which the node is located. If `None`, assumes the current server.
-            info (dict[str, str]): A dictionary containing PBS node metadata as key-value pairs.
+            name: The unique name of the node.
+            server: Server on which the node is located. If `None`, assumes the current server.
+            info: A dictionary containing PBS node metadata as key-value pairs.
 
         Returns:
-            Self: A new instance of PBSNode.
+            A new instance of PBSNode.
 
         Note:
             This method does not perform any validation or processing of the provided dictionary.
@@ -222,10 +221,10 @@ class PBSNode(BatchNodeInterface):
         Retrieve an integer-valued resource from the node information.
 
         Args:
-            res (str): The resource key to retrieve (e.g., "resources_available.ncpus").
+            res: The resource key to retrieve (e.g., "resources_available.ncpus").
 
         Returns:
-            int: The integer value of the resource, or `None` if unavailable or invalid.
+            The integer value of the resource, or `None` if unavailable or invalid.
         """
         if not (val := self._info.get(res)):
             return None
@@ -244,10 +243,10 @@ class PBSNode(BatchNodeInterface):
         difference is negative, returns 0. If the information is not available, returns None.
 
         Args:
-            res (str): The base resource name (e.g., "ncpus", "ngpus").
+            res: The base resource name (e.g., "ncpus", "ngpus").
 
         Returns:
-            int | None: The number of unallocated (free) resource units, or None if unavailable.
+            The number of unallocated (free) resource units, or None if unavailable.
         """
         if not (full := self._get_int_resource(f"resources_available.{res}")):
             return None
@@ -265,10 +264,10 @@ class PBSNode(BatchNodeInterface):
         Retrieve a Size resource from the node information.
 
         Args:
-            res (str): The resource key to retrieve (e.g., "resources_available.mem").
+            res: The resource key to retrieve (e.g., "resources_available.mem").
 
         Returns:
-            Size | None: The parsed Size, or `None` if unavailable or invalid.
+            The parsed Size, or `None` if unavailable or invalid.
         """
         if not (val := self._info.get(res)):
             return None
@@ -288,10 +287,10 @@ class PBSNode(BatchNodeInterface):
         returns a zero-size object. If the information are not available, returns None.
 
         Args:
-            res (str): The base resource name (e.g., "mem", "scratch_local").
+            res: The base resource name (e.g., "mem", "scratch_local").
 
         Returns:
-            Size | None: The available (free) size for the resource, or `None` if unavailable.
+            The available (free) size for the resource, or `None` if unavailable.
         """
         if not (full := self._get_size_resource(f"resources_available.{res}")):
             return None

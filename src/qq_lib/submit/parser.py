@@ -35,8 +35,8 @@ class Parser:
         Initialize the parser.
 
         Args:
-            script (Path): Path to the qq job script to parse.
-            params (list[Parameter]): List of click Parameter objects defining
+            script: Path to the qq job script to parse.
+            params: List of click Parameter objects defining
                 valid options. Only `GroupedOption` names are considered.
         """
         self._script = script
@@ -120,7 +120,7 @@ class Parser:
         Return the batch system class specified in the script.
 
         Returns:
-            type[BatchInterface] | None: The batch system class if specified, otherwise None.
+            The batch system class if specified, otherwise None.
         """
         if (batch_system := self._options.get("batch_system")) is not None:
             return BatchInterface.from_str(str(batch_system))
@@ -132,7 +132,7 @@ class Parser:
         Return the queue specified for the job.
 
         Returns:
-            str | None: Queue name, or None if not set.
+            Queue name, or None if not set.
         """
         if (queue := self._options.get("queue")) is not None:
             return str(queue)
@@ -143,7 +143,7 @@ class Parser:
         Return the job type specified in the script.
 
         Returns:
-            JobType | None: Enum value representing the job type, or None if not set.
+            Enum value representing the job type, or None if not set.
         """
         if (job_type := self._options.get("job_type")) is not None:
             return JobType.from_str(str(job_type))
@@ -155,7 +155,7 @@ class Parser:
         Return the job resource specifications parsed from the script.
 
         Returns:
-            Resources: Resource requirements for the job.
+            Resource requirements for the job.
         """
         field_names = {f.name for f in fields(Resources)}
         # only select fields that are part of Resources
@@ -166,7 +166,7 @@ class Parser:
         Determine the files to exclude from being copied to the job's working directory.
 
         Returns:
-            list[str]: List of excluded files or glob patterns.
+            List of excluded files or glob patterns.
                 Returns an empty list if none specified.
         """
         if (exclude := self._options.get("exclude")) is not None:
@@ -179,7 +179,7 @@ class Parser:
         Determine the files to explicitly copy to the job's working directory.
 
         Returns:
-            list[Path]: List of included files or glob patterns. Returns an empty list if none specified.
+            List of included files or glob patterns. Returns an empty list if none specified.
         """
         if (include := self._options.get("include")) is not None:
             return split_string_list(str(include))
@@ -191,7 +191,7 @@ class Parser:
         Determine the files to completely ignore during transfer operations.
 
         Returns:
-            list[Path]: List of ignored files or glob patterns. Returns an empty list if none specified.
+            List of ignored files or glob patterns. Returns an empty list if none specified.
         """
         if (ignore := self._options.get("ignore")) is not None:
             return split_string_list(str(ignore))
@@ -203,7 +203,7 @@ class Parser:
         Return the starting cycle number for loop jobs.
 
         Returns:
-            int | None: Start cycle, or None if not specified.
+            Start cycle, or None if not specified.
         """
         if isinstance(loop_start := self._options.get("loop_start"), int):
             return loop_start
@@ -214,7 +214,7 @@ class Parser:
         Return the ending cycle number for loop jobs.
 
         Returns:
-            int | None: End cycle, or None if not specified.
+            End cycle, or None if not specified.
         """
         if isinstance(loop_end := self._options.get("loop_end"), int):
             return loop_end
@@ -225,7 +225,7 @@ class Parser:
         Return the archive directory path specified in the script.
 
         Returns:
-            Path | None: Archive directory path, or None if not set.
+            Archive directory path, or None if not set.
         """
         if (archive := self._options.get("archive")) is not None:
             return Path(str(archive))
@@ -237,7 +237,7 @@ class Parser:
         Return the file naming format used for archived files.
 
         Returns:
-            str | None: Archive filename format string, or None if not set.
+            Archive filename format string, or None if not set.
         """
         if (archive_format := self._options.get("archive_format")) is not None:
             return str(archive_format)
@@ -248,7 +248,7 @@ class Parser:
         Get the mode specifying when the files should be archived.
 
         Returns:
-            list[TransferMode]: List of transfer modes.
+            List of transfer modes.
         """
         if (raw := self._options.get("archive_mode")) is not None:
             return TransferMode.multi_from_str(str(raw))
@@ -260,7 +260,7 @@ class Parser:
         Return the list of job dependencies.
 
         Returns:
-            list[Depend]: List of job dependencies.
+            List of job dependencies.
         """
         if (raw := self._options.get("depend")) is not None:
             return Depend.multi_from_str(str(raw))
@@ -272,7 +272,7 @@ class Parser:
         Get the account name to use for the job.
 
         Returns:
-            str | None: The account name or None if not defined.
+            The account name or None if not defined.
         """
         if (account := self._options.get("account")) is not None:
             return str(account)
@@ -285,7 +285,7 @@ class Parser:
         from the working directory to the input directory.
 
         Returns:
-            list[TransferMode]: List of transfer modes.
+            List of transfer modes.
         """
         if (raw := self._options.get("transfer_mode")) is not None:
             return TransferMode.multi_from_str(str(raw))
@@ -301,7 +301,7 @@ class Parser:
         the `translate_server` function.
 
         Returns:
-            str | None: The name or shortcut of the batch server or `None` if not specified.
+            The name or shortcut of the batch server or `None` if not specified.
         """
         if (server := self._options.get("server")) is not None:
             return str(server)
@@ -313,7 +313,7 @@ class Parser:
         Get the interpreter that should be used to run the script.
 
         Returns:
-            Interpreter | None: The interpreter or `None` if not specified.
+            The interpreter or `None` if not specified.
         """
         if (raw := self._options.get("interpreter")) is not None:
             return Interpreter.from_str(str(raw))
@@ -325,7 +325,7 @@ class Parser:
         Return the list of resubmission hosts.
 
         Returns:
-            list[ResubmitHost]: List of job dependencies.
+            List of job dependencies.
         """
         if (raw := self._options.get("resubmit_from")) is not None:
             return ResubmitHost.multi_from_str(str(raw))
@@ -339,10 +339,10 @@ class Parser:
         (if any), and split the remaining content.
 
         Args:
-            string (str): Input line to process.
+            string: Input line to process.
 
         Returns:
-            list[str]: A list with one or two elements depending on whether a split occurred.
+            A list with one or two elements depending on whether a split occurred.
         """
         match = re.search(
             r"^#\s*qq\s*(.*?)\s*(?:#|$)", string.strip(), flags=re.IGNORECASE

@@ -21,7 +21,7 @@ class TransferMode(ABC):
         Convert a string to the corresponding TransferMode.
 
         Args:
-            s (str): String representation of the transfer mode.
+            s: String representation of the transfer mode.
 
         Returns:
             TransferMode variant.
@@ -55,7 +55,7 @@ class TransferMode(ABC):
                 Example: "success:42", "1,2,3", or "failure success".
 
         Returns:
-            list[TransferMode]: A list of parsed transfer modes.
+            A list of parsed transfer modes.
 
         Raises:
             QQError: If any of the individual mode strings cannot be recognized.

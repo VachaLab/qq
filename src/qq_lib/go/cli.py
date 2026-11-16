@@ -108,7 +108,7 @@ def _go_to_job(informer: Informer) -> None:
     Navigate to the working directory of a qq job if it is accessible.
 
     Args:
-        informer (Informer): Informer associated with the job.
+        informer: Informer associated with the job.
 
     Raises:
         QQError: If the navigation fails.

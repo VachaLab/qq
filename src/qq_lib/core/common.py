@@ -77,11 +77,11 @@ def get_files_with_suffix(directory: Path, suffix: str) -> list[Path]:
     Retrieve all files in a directory that have the specified file suffix.
 
     Args:
-        directory (Path): The directory to search in.
-        suffix (str): The file suffix to match (including the dot, e.g., '.txt').
+        directory: The directory to search in.
+        suffix: The file suffix to match (including the dot, e.g., '.txt').
 
     Returns:
-        list[Path]: A list of Path objects representing files with the given suffix.
+        A list of Path objects representing files with the given suffix.
     """
     files = []
     for file in directory.iterdir():
@@ -96,10 +96,10 @@ def get_runtime_files(directory: Path) -> list[Path]:
     Retrieve all qq runtime files in a directory.
 
     Args:
-        directory (Path): The directory to search in.
+        directory: The directory to search in.
 
     Returns:
-        list[Path]: A list of Path objects representing qq runtime files.
+        A list of Path objects representing qq runtime files.
     """
     files = []
     for suffix in CFG.suffixes.all_suffixes:
@@ -116,10 +116,10 @@ def get_info_file(directory: Path) -> Path:
     provided directory. It raises an error if none or multiple info files are found.
 
     Args:
-        directory (Path): The directory to search in.
+        directory: The directory to search in.
 
     Returns:
-        Path: The Path object of the detected qq job info file.
+        The Path object of the detected qq job info file.
 
     Raises:
         QQError: If no info file is found or multiple info files are detected.
@@ -142,10 +142,10 @@ def get_info_files(directory: Path) -> list[Path]:
     (with the newest modified file being last in the list).
 
     Args:
-        directory (Path): The directory to search in.
+        directory: The directory to search in.
 
     Returns:
-        list[Path]: A list of Path objects representing the detected qq job info files.
+        A list of Path objects representing the detected qq job info files.
     """
     info_files = get_files_with_suffix(directory, CFG.suffixes.qq_info)
     logger.debug(f"Detected the following qq info files: {info_files}.")
@@ -159,10 +159,10 @@ def get_info_file_from_job_id(job_id: str) -> Path:
     The batch system to use is obtained from the environment variable or guessed.
 
     Args:
-        job_id (str): The ID of the job for which to retrieve the info file.
+        job_id: The ID of the job for which to retrieve the info file.
 
     Returns:
-        Path: Absolute path to the qq job info file.
+        Absolute path to the qq job info file.
 
     Raises:
         QQError: If the batch system could not be guessed,
@@ -188,11 +188,11 @@ def get_info_files_from_job_id_or_dir(job_id: str | None) -> list[Path]:
     Retrieve qq job info files based on a job ID or from the current directory.
 
     Args:
-        job_id (str | None): The ID of the qq job to retrieve the info file for.
+        job_id: The ID of the qq job to retrieve the info file for.
             If None, the function searches for qq job info files in the current directory.
 
     Returns:
-        list[Path]: A list containing the qq job info file(s). If a job ID is provided,
+        A list containing the qq job info file(s). If a job ID is provided,
             the list contains a single Path. If not, it contains all detected info files
             in the current directory.
 
@@ -232,10 +232,10 @@ def yes_or_no_prompt(prompt: str) -> bool:
     and defaults to 'No' if the user presses any key other than 'y'.
 
     Args:
-        prompt (str): The text to display as the question.
+        prompt: The text to display as the question.
 
     Returns:
-        bool: True if the user selects 'yes' (presses 'y'), False otherwise.
+        True if the user selects 'yes' (presses 'y'), False otherwise.
     """
     prompt = f"   {prompt} "
     text = (
@@ -276,10 +276,10 @@ def format_duration(td: timedelta) -> str:
     units that are zero.
 
     Args:
-        td (timedelta): The duration to format.
+        td: The duration to format.
 
     Returns:
-        str: A formatted string representing the duration, e.g., '1d 2h 3m 4s'.
+        A formatted string representing the duration, e.g., '1d 2h 3m 4s'.
     """
     total_seconds = int(td.total_seconds())
 
@@ -316,10 +316,10 @@ def format_duration_wdhhmmss(td: timedelta) -> str:
         10 days, 5:06:07 -> "1w 3d 05:06:07"
 
     Args:
-        td (timedelta): The duration to format.
+        td: The duration to format.
 
     Returns:
-        str: Formatted string in "Xw Yd HH:MM:SS" format.
+        Formatted string in "Xw Yd HH:MM:SS" format.
     """
     total_seconds = int(td.total_seconds())
 
@@ -349,10 +349,10 @@ def hhmmss_to_duration(timestr: str) -> timedelta:
         "100:00:00" -> 100 hours
 
     Args:
-        timestr (str): Input string in HH:MM:SS format.
+        timestr: Input string in HH:MM:SS format.
 
     Returns:
-        timedelta: The corresponding duration.
+        The corresponding duration.
 
     Raises:
         QQError: If the input string is not in a valid HH:MM:SS format or contains
@@ -379,10 +379,10 @@ def dhhmmss_to_duration(timestr: str) -> timedelta:
         "2-12:34:56"   -> 2 days, 12 hours, 34 minutes, 56 seconds
 
     Args:
-        timestr (str): Input string in optional D-HH:MM:SS format.
+        timestr: Input string in optional D-HH:MM:SS format.
 
     Returns:
-        timedelta: The corresponding duration.
+        The corresponding duration.
 
     Raises:
         QQError: If the input string is not in a valid format or contains invalid numeric values.
@@ -408,10 +408,10 @@ def normalize(s: str) -> str:
     The string is converted to lowercase and all hyphens and underscores are removed.
 
     Args:
-        s (str): The input string to normalize.
+        s: The input string to normalize.
 
     Returns:
-        str: The normalized string.
+        The normalized string.
     """
     return s.lower().replace("-", "").replace("_", "")
 
@@ -421,11 +421,11 @@ def equals_normalized(a: str, b: str) -> bool:
     Compare two strings for equality, ignoring case, hyphens, and underscores.
 
     Args:
-        a (str): First string to compare.
-        b (str): Second string to compare.
+        a: First string to compare.
+        b: Second string to compare.
 
     Returns:
-        bool: True if the normalized strings are equal, False otherwise.
+        True if the normalized strings are equal, False otherwise.
     """
 
     return normalize(a) == normalize(b)
@@ -441,11 +441,11 @@ def convert_absolute_to_relative(files: list[Path], target: Path) -> list[Path]:
     This function works even for remote files or paths to non-existent files.
 
     Args:
-        files (list[Path]): A list of absolute file paths to convert.
-        target (Path): The target directory against which paths are made relative.
+        files: A list of absolute file paths to convert.
+        target: The target directory against which paths are made relative.
 
     Returns:
-        list[Path]: A list of paths relative to `target`.
+        A list of paths relative to `target`.
 
     Raises:
         QQError: If any file in `files` is not located within `target`.
@@ -550,10 +550,10 @@ def hhmmss_to_wdhms(timestr: str) -> str:
         "49:00:00"  -> "2d1h"
 
     Args:
-        timestr (str): Input time string in (H)HH:MM:SS format.
+        timestr: Input time string in (H)HH:MM:SS format.
 
     Returns:
-        str: Time duration converted into the compact wdhms format.
+        Time duration converted into the compact wdhms format.
 
     Raises:
         QQError: If the input string is malformed or does not conform
@@ -595,10 +595,10 @@ def printf_to_regex(pattern: str) -> str:
     Convert a simple printf-style pattern to an equivalent regular expression pattern.
 
     Args:
-        pattern (str): A printf-style pattern (e.g., "md%04d", "file%03d_part%02d").
+        pattern: A printf-style pattern (e.g., "md%04d", "file%03d_part%02d").
 
     Returns:
-        str: A string representing the equivalent regex pattern.
+        A string representing the equivalent regex pattern.
     """
     regex = re.escape(pattern)
     regex = re.sub(r"%0(\d+)d", r"\\d{\1}", regex)  # double backslash
@@ -610,10 +610,10 @@ def is_printf_pattern(pattern: str) -> bool:
     Detect whether a string pattern uses printf-style numeric placeholders.
 
     Args:
-        pattern (str): The pattern string to check.
+        pattern: The pattern string to check.
 
     Returns:
-        bool: True if the pattern contains printf-style placeholders, False otherwise.
+        True if the pattern contains printf-style placeholders, False otherwise.
     """
     return bool(re.search(r"%0?\d*d", pattern))
 
@@ -626,12 +626,12 @@ def split_string_list(string: str | None) -> list[str]:
     any whitespace characters (space, tab, newline).
 
     Args:
-        string (str | None): The string containing substrings. If None or empty,
-                             an empty list is returned.
+        string: The string containing substrings. If None or empty,
+                an empty list is returned.
 
     Returns:
-        list[str]: A list of strings corresponding to the individual
-                    substrings in the input string.
+        A list of strings corresponding to the individual
+        substrings in the input string.
     """
     if not string:
         return []
@@ -644,10 +644,10 @@ def to_snake_case(s: str) -> str:
     Convert a string from PascalCase or kebab-case to snake_case.
 
     Args:
-        s (str): Input string in PascalCase or kebab-case.
+        s: Input string in PascalCase or kebab-case.
 
     Returns:
-        str: Converted string in snake_case.
+        Converted string in snake_case.
     """
     # replace hyphens with underscores
     s = s.replace("-", "_")
@@ -664,13 +664,13 @@ def get_panel_width(
     optional minimum and maximum width values.
 
     Args:
-        console (Console): A rich Console-like object that provides terminal size.
-        factor (int): A divisor used to scale down the terminal width.
-        min_width (int): The minimum allowable panel width. If None, no lower bound is applied.
-        max_width (int): The maximum allowable panel width. If None, no upper bound is applied.
+        console: A rich Console-like object that provides terminal size.
+        factor: A divisor used to scale down the terminal width.
+        min_width: The minimum allowable panel width. If None, no lower bound is applied.
+        max_width: The maximum allowable panel width. If None, no upper bound is applied.
 
     Returns:
-        int: The computed panel width after applying scaling and bounds.
+        The computed panel width after applying scaling and bounds.
     """
 
     term_width = console.size.width
@@ -688,11 +688,11 @@ def construct_loop_job_name(script_name: str, cycle: int) -> str:
     Construct a job name for a loop job.
 
     Args:
-        script_name (str): Filename of the submitted script.
-        cycle (int): The current cycle of the loop job.
+        script_name: Filename of the submitted script.
+        cycle: The current cycle of the loop job.
 
     Returns:
-        str: The name of the loop job in the current cycle.
+        The name of the loop job in the current cycle.
     """
     try:
         # if the script has an extension, put the cycle number BEFORE the extension
@@ -708,11 +708,11 @@ def construct_info_file_path(input_dir: Path, job_name: str) -> Path:
     Construct the absolute path to a job's qq info file.
 
     Args:
-        input_dir (Path): The directory containing the job script.
-        job_name (str): The name of the job.
+        input_dir: The directory containing the job script.
+        job_name: The name of the job.
 
     Returns:
-        Path: The absolute path to the job's qq info file.
+        The absolute path to the job's qq info file.
     """
     return logical_resolve((input_dir / job_name).with_suffix(CFG.suffixes.qq_info))
 
@@ -726,7 +726,7 @@ def available_work_dirs() -> str:
     returned as a comma-separated string formatted for display in help text.
 
     Returns:
-        str: A comma-separated list of supported work directory types, each
+        A comma-separated list of supported work directory types, each
         wrapped in quotes.
     """
     from qq_lib.batch.interface import BatchInterface
@@ -744,7 +744,7 @@ def available_job_types() -> str:
     Return the supported job types.
 
     Returns:
-        str: A comma-separated list of supported job types, each wrapped in quotes.
+        A comma-separated list of supported job types, each wrapped in quotes.
     """
     from qq_lib.properties.job_type import JobType
 
@@ -757,7 +757,7 @@ def translate_server(raw: str) -> str:
     If the shortcut is not recognized, the original value is returned unchanged.
 
     Returns:
-        str: Full name the the batch server.
+        Full name the the batch server.
     """
     return CFG.batch_servers_options.known_servers.get(raw, raw)
 
@@ -767,7 +767,7 @@ def default_resubmit_from_hosts() -> str:
     Returns the default resubmission hosts as a string.
 
     Returns:
-            str: A comma-separated list of the default resubmission hosts.
+            A comma-separated list of the default resubmission hosts.
     """
     from qq_lib.batch.interface import BatchInterface
 
@@ -786,11 +786,11 @@ def expand_paths(patterns: Iterable[str], directory: Path) -> list[Path]:
     Convert paths to absolute paths, expanding glob patterns along the way.
 
     Args:
-        patterns (Iterable[str]): Paths or glob patterns, relative or absolute.
-        directory (Path): Directory to resolve relative patterns against.
+        patterns: Paths or glob patterns, relative or absolute.
+        directory: Directory to resolve relative patterns against.
 
     Returns:
-        list[Path]: Absolute paths, with glob patterns expanded.
+        Absolute paths, with glob patterns expanded.
 
     Raises:
         QQError: If a pattern cannot be expanded.
@@ -807,11 +807,11 @@ def expand_pattern(pattern: str, directory: Path) -> list[Path]:
     Expand a single path or glob pattern into absolute paths.
 
     Args:
-        pattern (str): Path or glob pattern, relative or absolute.
-        directory (Path): Directory to resolve a relative pattern against.
+        pattern: Path or glob pattern, relative or absolute.
+        directory: Directory to resolve a relative pattern against.
 
     Returns:
-        list[Path]: Absolute paths matching the pattern, sorted. A pattern
+        Absolute paths matching the pattern, sorted. A pattern
         without glob metacharacters yields exactly one path.
 
     Raises:
@@ -841,11 +841,11 @@ def relocate_by_name(files: Iterable[Path], directory: Path) -> list[Path]:
     Map paths to their counterparts in another directory, matching by file name.
 
     Args:
-        files (Iterable[Path]): Original paths of the files.
-        directory (Path): Directory the files were placed in.
+        files: Original paths of the files.
+        directory: Directory the files were placed in.
 
     Returns:
-        list[Path]: Logical absolute paths to the files inside `directory`.
+        Logical absolute paths to the files inside `directory`.
     """
     return [logical_resolve(directory / file.name) for file in files]
 
@@ -900,13 +900,13 @@ def run_with_timeout(
     filesystem would otherwise keep them open indefinitely.
 
     Args:
-        args (list[str]): Command to run.
-        timeout (float): Maximum time in seconds to wait for the command.
-        input (str | None): Text passed to the standard input of the command.
+        args: Command to run.
+        timeout: Maximum time in seconds to wait for the command.
+        input: Text passed to the standard input of the command.
             If None, standard input is not connected.
 
     Returns:
-        subprocess.CompletedProcess[str]: The finished process with captured output.
+        The finished process with captured output.
 
     Raises:
         subprocess.TimeoutExpired: If the command does not finish within `timeout`.
@@ -934,7 +934,7 @@ def _kill_process_group(pgid: int) -> None:
     Send SIGKILL to all processes in a process group, ignoring already finished groups.
 
     Args:
-        pgid (int): ID of the process group to kill.
+        pgid: ID of the process group to kill.
     """
     with suppress(ProcessLookupError):
         os.killpg(pgid, signal.SIGKILL)

@@ -82,7 +82,7 @@ def _respawn_job(informer: Informer) -> None:
     Attempt to respawn a qq job associated with the specified informer.
 
     Args:
-        informer (Informer): Informer associated with the job.
+        informer: Informer associated with the job.
 
     Raises:
         QQNotSuitableError: If the job is not suitable for respawn.

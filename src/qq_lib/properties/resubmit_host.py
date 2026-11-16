@@ -28,10 +28,10 @@ class ResubmitHost(ABC):
         Parses a single resubmission host from a string.
 
         Args:
-            s (str): String representation of the resubmission host.
+            s: String representation of the resubmission host.
 
         Returns:
-            ResubmitHost: The corresponding `ResubmitHost` variant.
+            The corresponding `ResubmitHost` variant.
         """
         match s.lower().strip():
             case "input":
@@ -47,12 +47,12 @@ class ResubmitHost(ABC):
         Parses multiple resubmission hosts from a delimited string.
 
         Args:
-            raw (str): String containing one or more host specifiers separated by
+            raw: String containing one or more host specifiers separated by
                 colons, commas, or spaces.
                 Examples: "input:node132.random.server.org", "work,input", or "node123 node234".
 
         Returns:
-            list[ResubmitHost]: A list of parsed `ResubmitHost` instances.
+            A list of parsed `ResubmitHost` instances.
         """
         host_strings = re.split(r"[:,\s]+", raw.strip())
         host_strings = [hs for hs in host_strings if hs]
@@ -65,7 +65,7 @@ class ResubmitHost(ABC):
         Convert the resubmission host into its string representation.
 
         Returns:
-            str: String, unresolved representation of the resubmission host.
+            String, unresolved representation of the resubmission host.
         """
 
     @abstractmethod
@@ -74,12 +74,12 @@ class ResubmitHost(ABC):
         Resolves this resubmission host to a concrete hostname.
 
         Args:
-            input_host (str): The name of the machine from which the job was originally submitted.
-            working_node (str): The name of the node on which the job is currently running.
+            input_host: The name of the machine from which the job was originally submitted.
+            working_node: The name of the node on which the job is currently running.
                 For multi-node jobs, use the main node.
 
         Returns:
-            str: The resolved hostname string.
+            The resolved hostname string.
         """
 
 

@@ -52,15 +52,15 @@ class LoopInfo:
         Initialize loop job information with validation checks.
 
         Args:
-            start (int): The starting cycle number.
-            end (int | None): The ending cycle number. Must be provided and >= `start`.
-            archive (Path): Path to the archive directory.
-            input_dir (Path | None): The job submission directory. Used to validate archive.
+            start: The starting cycle number.
+            end: The ending cycle number. Must be provided and >= `start`.
+            archive: Path to the archive directory.
+            input_dir: The job submission directory. Used to validate archive.
                 If `None`, no validation is performed.
-            archive_format (str): File naming pattern used for archived files.
-            current (int | None): The current cycle number. Defaults to `start`
+            archive_format: File naming pattern used for archived files.
+            current: The current cycle number. Defaults to `start`
                 if not provided.
-            archive_mode (list[TransferMode] | None): When should the files be archived?
+            archive_mode: When should the files be archived?
                 Defaults to [Success()], meaning that archival should only be performed for
                 successfully completed jobs.
 
@@ -103,10 +103,10 @@ class LoopInfo:
         Reconstruct a LoopInfo instance from a dictionary produced by to_dict.
 
         Args:
-            data (dict[str, object]): A dictionary as returned by `to_dict()`.
+            data: A dictionary as returned by `to_dict()`.
 
         Returns:
-            LoopInfo: A new instance with fields populated from the dictionary.
+            A new instance with fields populated from the dictionary.
         """
         start = data.get("start")
         end = data.get("end")
@@ -161,7 +161,7 @@ class LoopInfo:
         Determine the current cycle number based on files in the archive directory.
 
         Returns:
-            int: The detected maximum cycle number, or `self.start` if no valid cycle
+            The detected maximum cycle number, or `self.start` if no valid cycle
                 can be inferred.
 
         Notes:

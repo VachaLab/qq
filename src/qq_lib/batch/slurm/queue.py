@@ -39,11 +39,11 @@ class UserGroups:
         Retrieve the cached group memberships for a user, initializing them if needed.
 
         Args:
-            user (str): The username whose group memberships should be retrieved.
+            user: The username whose group memberships should be retrieved.
 
         Returns:
-            list[str]: A list of group names the user belongs to.
-                       Returns an empty list if the system command fails.
+            A list of group names the user belongs to.
+            Returns an empty list if the system command fails.
         """
         if groups := UserGroups._groups.get(user):
             return groups
@@ -232,11 +232,11 @@ class SlurmQueue(BatchQueueInterface):
 
 
         Args:
-            name (str): The unique name of the queue.
-            info (dict[str, str]): A dictionary containing Slurm queue metadata as key-value pairs.
+            name: The unique name of the queue.
+            info: A dictionary containing Slurm queue metadata as key-value pairs.
 
         Returns:
-            Self: A new instance of SlurmQueue.
+            A new instance of SlurmQueue.
 
         Note:
             This method does not perform any validation or processing of the provided dictionary.

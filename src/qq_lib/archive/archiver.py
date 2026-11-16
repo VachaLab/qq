@@ -41,16 +41,16 @@ class Archiver:
         Initialize the Archiver.
 
         Args:
-            archive (Path): Absolute path to the job's archive directory.
-            archive_format (str): Printf-style or regex pattern describing archived filenames.
-            input_machine (str): The hostname from which the job was submitted.
-            input_dir (Path): The directory from which the job was submitted.
-            batch_system (AnyBatchClass): The batch system which manages the job.
-            included_files (list[Path]): List that were explicitly included
+            archive: Absolute path to the job's archive directory.
+            archive_format: Printf-style or regex pattern describing archived filenames.
+            input_machine: The hostname from which the job was submitted.
+            input_dir: The directory from which the job was submitted.
+            batch_system: The batch system which manages the job.
+            included_files: List that were explicitly included
                 in the working directory and should not be archived.
-            excluded_files (list[Path]): List of files that were explicitly excluded
+            excluded_files: List of files that were explicitly excluded
                 from the working directory and should not be fetched from archive.
-            ignored_files (list[Path]): List of files that are ignored and should be neither
+            ignored_files: List of files that are ignored and should be neither
                 archived nor fetched from archive.
         """
         self._batch_system = batch_system
@@ -91,8 +91,8 @@ class Archiver:
         Files that were explicitly excluded via the `exclude` submission option are not fetched.
 
         Args:
-            dir (Path): The directory where files will be copied to.
-            cycle (int | None): The cycle number to filter files for.
+            dir: The directory where files will be copied to.
+            cycle: The cycle number to filter files for.
                 Only relevant for printf-style patterns. If `None`, all
                 matching files are fetched. Defaults to `None`.
 
@@ -139,7 +139,7 @@ class Archiver:
         Files that were explicitly included via the `include` submission option are not archived.
 
         Args:
-            work_dir (Path): The directory containing files to archive.
+            work_dir: The directory containing files to archive.
 
         Raises:
             QQError: If file transfer or removal fails.
@@ -194,8 +194,8 @@ class Archiver:
         of whether they have any qq-specific suffixes.
 
         Args:
-            job_name (str): The name of the job.
-            cycle (int): Cycle number for which the files should be archived.
+            job_name: The name of the job.
+            cycle: Cycle number for which the files should be archived.
 
         Raises:
             QQError: If moving the runtime files fails.
@@ -243,17 +243,17 @@ class Archiver:
         Determine which files in a directory match a given pattern.
 
         Args:
-            directory (Path): Directory to search for files.
-            host (str | None): Hostname if the directory is remote,
+            directory: Directory to search for files.
+            host: Hostname if the directory is remote,
                 or None if it is available from the current machine.
-            pattern (str): A printf-style or regex pattern to match file stems.
-            cycle (int | None): Optional cycle number for printf-style patterns.
+            pattern: A printf-style or regex pattern to match file stems.
+            cycle: Optional cycle number for printf-style patterns.
                 If provided, only files corresponding to that loop are returned.
                 If `None`, all matching files are returned. Defaults to `None`.
-            include_qq_files (bool): Whether to include qq runtime files. Defaults to False.
+            include_qq_files: Whether to include qq runtime files. Defaults to False.
 
         Returns:
-            list[Path]: A list of absolute (logical) paths to matching files.
+            A list of absolute (logical) paths to matching files.
         """
         if cycle and is_printf_pattern(pattern):
             try:
@@ -305,10 +305,10 @@ class Archiver:
         preserving the order of first occurrence.
 
         Args:
-            dir (Path): The directory from which we are archiving the files.
+            dir: The directory from which we are archiving the files.
 
         Returns:
-            list[Path]: Paths that should not be copied to the archive.
+            Paths that should not be copied to the archive.
         """
 
         return list(
@@ -332,7 +332,7 @@ class Archiver:
         Duplicates are removed, preserving the order of first occurrence.
 
         Returns:
-            list[Path]: Paths that should not be copied from the archive.
+            Paths that should not be copied from the archive.
         """
 
         return list(
@@ -350,7 +350,7 @@ class Archiver:
         Used as a fallback when no valid archive file is produced, ensuring
         the next iteration of the loop job can proceed normally.
         Args:
-            cycle (int): The index of the next cycle of the loop job.
+            cycle: The index of the next cycle of the loop job.
         """
         Path(f"{self._archive_format % cycle}.init").touch()
 
@@ -360,10 +360,10 @@ class Archiver:
         Convert a printf-style pattern or regex string into a compiled regex.
 
         Args:
-            pattern (str): The pattern to convert.
+            pattern: The pattern to convert.
 
         Returns:
-            re.Pattern[str]: Compiled regex pattern that can be used for matching.
+            Compiled regex pattern that can be used for matching.
         """
         if is_printf_pattern(pattern):
             pattern = printf_to_regex(pattern)
@@ -376,7 +376,7 @@ class Archiver:
         Remove a list of files or directories from the filesystem.
 
         Args:
-            files (Iterable[Path]): Files or directories to delete.
+            files: Files or directories to delete.
 
         Raises:
             OSError: If file or directory removal fails for any file.

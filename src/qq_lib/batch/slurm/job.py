@@ -358,11 +358,11 @@ class SlurmJob(BatchJobInterface):
         attributes of the new instance.
 
         Args:
-            job_id (str): The unique identifier of the job.
-            info (dict[str, str]): A dictionary containing Slurm job metadata as key-value pairs.
+            job_id: The unique identifier of the job.
+            info: A dictionary containing Slurm job metadata as key-value pairs.
 
         Returns:
-            Self: A new instance of SlurmJob.
+            A new instance of SlurmJob.
 
         Note:
             This method does not perform any validation or processing of the provided dictionary.
@@ -379,10 +379,10 @@ class SlurmJob(BatchJobInterface):
         Construct a new instance of SlurmJob using a string from sacct.
 
         Args:
-            string (str): String describing the job properties obtained using sacct.
+            string: String describing the job properties obtained using sacct.
 
         Returns:
-            Self: A new instance of SlurmJob.
+            A new instance of SlurmJob.
         """
         fields: list[str] = [
             "JobId",
@@ -430,10 +430,10 @@ class SlurmJob(BatchJobInterface):
         Construct a new instance of SlurmJob step using a string from sacct.
 
         Args:
-            string (str): String describing the job properties obtained using sacct.
+            string: String describing the job properties obtained using sacct.
 
         Returns:
-            Self: A new instance of SlurmJob for a job step.
+            A new instance of SlurmJob for a job step.
         """
         fields: list[str] = [
             "JobId",
@@ -465,7 +465,7 @@ class SlurmJob(BatchJobInterface):
         when a non-digit and non-underscore character is encountered.
 
         Returns:
-            list[int]: A list of integer components extracted from the job ID,
+            A list of integer components extracted from the job ID,
                 or [0] if no valid numeric portion is found.
         """
         # get the numerical portion of the job ID (may contain underscores)
@@ -487,10 +487,10 @@ class SlurmJob(BatchJobInterface):
         If the expansion fails, the original compact string is returned as a single-element list.
 
         Args:
-            compact (str): The compact Slurm node list expression to expand.
+            compact: The compact Slurm node list expression to expand.
 
         Returns:
-            list[str]: A list of fully expanded node hostnames. If expansion fails,
+            A list of fully expanded node hostnames. If expansion fails,
                 returns a list containing the original input string.
         """
         command = f"scontrol show hostnames {compact}"
@@ -523,11 +523,11 @@ class SlurmJob(BatchJobInterface):
         `None` is returned.
 
         Args:
-            property (str): The key identifying the property in the job information.
-            property_name (str): A human-readable name of the property for logging.
+            property: The key identifying the property in the job information.
+            property_name: A human-readable name of the property for logging.
 
         Returns:
-            int: The integer value of the property, or `None` if unavailable or invalid.
+            The integer value of the property, or `None` if unavailable or invalid.
         """
         try:
             # we split by '-' because pending jobs may have this property shown as MIN-MAX
@@ -549,11 +549,11 @@ class SlurmJob(BatchJobInterface):
         A warning is logged if parsing fails.
 
         Args:
-            property (str): The key identifying the property in the job information.
-            property_name (str): A human-readable name of the property for logging.
+            property: The key identifying the property in the job information.
+            property_name: A human-readable name of the property for logging.
 
         Returns:
-            datetime | None: A datetime object if parsing succeeds, otherwise None.
+            A datetime object if parsing succeeds, otherwise None.
         """
         if not (raw_datetime := self._info.get(property)) or raw_datetime.lower() in [
             "unknown",
@@ -591,10 +591,10 @@ class SlurmJob(BatchJobInterface):
         if it exists and is valid; otherwise, falls back to the requested value.
 
         Args:
-            info (dict[str, str]): The dictionary containing allocation and request data.
-            alloc_key (str): The key for the allocated resource (e.g., "AllocCPUs").
-            req_key (str): The key for the requested resource (e.g., "ReqCPUs").
-            target_key (str): The key under which the resolved value should be stored (e.g., "NumCPUs").
+            info: The dictionary containing allocation and request data.
+            alloc_key: The key for the allocated resource (e.g., "AllocCPUs").
+            req_key: The key for the requested resource (e.g., "ReqCPUs").
+            target_key: The key under which the resolved value should be stored (e.g., "NumCPUs").
 
         Notes:
             - A value is considered invalid if it is `None`, an empty string `""`, or `"0"`.

@@ -179,11 +179,11 @@ class GlobDirectoryMixin:
         one -d <path> pair per expanded result.
 
         Args:
-            ctx (click.Context): The current Click context.
-            args (list[str]): The raw argument list.
+            ctx: The current Click context.
+            args: The raw argument list.
 
         Returns:
-            list[str]: The remaining unparsed arguments after delegation to the
+            The remaining unparsed arguments after delegation to the
                 parent parser.
         """
         rewritten: list[str] = []

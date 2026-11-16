@@ -85,11 +85,11 @@ class JobsPresenter:
         Initialize the presenter with a list of jobs.
 
         Args:
-            jobs (list[BatchJobInterface]): List of job information objects
+            jobs: List of job information objects
                 to be presented.
-            extra (bool): Should show additional info about jobs.
-            all (bool): Show all jobs, not just queued and running.
-            server (str | None): Batch server for which the jobs were collected.
+            extra: Should show additional info about jobs.
+            all: Show all jobs, not just queued and running.
+            server: Batch server for which the jobs were collected.
                 `None` = default server.
         """
         self._batch_system = batch_system
@@ -104,11 +104,11 @@ class JobsPresenter:
         Create a Rich panel displaying job information and statistics.
 
         Args:
-            console (Console | None): Optional Rich Console instance.
+            console: Optional Rich Console instance.
                 If None, a new Console will be created.
 
         Returns:
-            Group: Rich Group containing the jobs table and stats panel.
+            Rich Group containing the jobs table and stats panel.
         """
         console = console or Console()
 
@@ -162,7 +162,7 @@ class JobsPresenter:
         Build a compact tabulated string representation of the job list.
 
         Returns:
-            str: Tabulated job information with ANSI color codes applied.
+            Tabulated job information with ANSI color codes applied.
 
         Notes:
             - Uses `tabulate` with `_COMPACT_TABLE` format because
@@ -213,11 +213,11 @@ class JobsPresenter:
         Create a single row of job data.
 
         Args:
-            job (BatchJobInterface): Job to show information for.
-            headers (list[str]): List of headers to include in the row
+            job: Job to show information for.
+            headers: List of headers to include in the row
 
         Returns:
-            list[str]: List of formatted cell values.
+            List of formatted cell values.
         """
         state = job.get_state()
         start_time, end_time = self._get_job_times(job, state)
@@ -266,11 +266,11 @@ class JobsPresenter:
         Get start and end times for a job based on its state.
 
         Args:
-            job (BatchJobInterface): Job to get times for.
-            state (BatchState): The current job state.
+            job: Job to get times for.
+            state: The current job state.
 
         Returns:
-            tuple[datetime | None, datetime | None]: Tuple of (start_time, end_time).
+            Tuple of (start_time, end_time).
         """
         if state in {BatchState.QUEUED, BatchState.HELD, BatchState.WAITING}:
             start_time = job.get_submission_time()
@@ -289,10 +289,10 @@ class JobsPresenter:
         Apply formatting to table headers.
 
         Args:
-            headers (list[str]): List of headers to format.
+            headers: List of headers to format.
 
         Returns:
-            list[str]: List of formatted and colored headers.
+            List of formatted and colored headers.
         """
         return [
             JobsPresenter._color(
@@ -308,10 +308,10 @@ class JobsPresenter:
         Lines where job attributes are missing are skipped.
 
         Args:
-            table (str): The formatted table string containing one line per job.
+            table: The formatted table string containing one line per job.
 
         Returns:
-            str: A new table string including the extra job information lines.
+            A new table string including the extra job information lines.
         """
         split_table = table.splitlines()
         table_with_extra_info = split_table[0] + "\n"
@@ -351,13 +351,13 @@ class JobsPresenter:
         Format the job running time, queued time or completion time with color coding.
 
         Args:
-            state (BatchState): Current job state.
-            start_time (datetime | None): Job submission or start time.
-            end_time (datetime | None): Job completion or current time.
-            walltime (timedelta | None): Scheduled walltime for the job.
+            state: Current job state.
+            start_time: Job submission or start time.
+            end_time: Job completion or current time.
+            walltime: Scheduled walltime for the job.
 
         Returns:
-            str: ANSI-colored string representing elapsed or finished time.
+            ANSI-colored string representing elapsed or finished time.
         """
         # return an empty string if any of the required times is missing
         if start_time is None or end_time is None or walltime is None:
@@ -399,11 +399,11 @@ class JobsPresenter:
         Format CPU utilization with color coding.
 
         Args:
-            util (int | None): CPU usage percentage.
+            util: CPU usage percentage.
 
         Returns:
-            str: ANSI-colored string representation of CPU utilization,
-                 or empty string if `util` is None.
+            ANSI-colored string representation of CPU utilization,
+            or empty string if `util` is None.
         """
         if util is None:
             return ""
@@ -425,11 +425,11 @@ class JobsPresenter:
         Format memory utilization with color coding.
 
         Args:
-            util (int | None): Memory usage percentage.
+            util: Memory usage percentage.
 
         Returns:
-            str: ANSI-colored string representation of memory utilization,
-                 or empty string if `util` is None.
+            ANSI-colored string representation of memory utilization,
+            or empty string if `util` is None.
         """
         if util is None:
             return ""
@@ -454,11 +454,11 @@ class JobsPresenter:
         If the job is not completed, returns an empty string.
 
         Args:
-            job (BatchJobInterface): Job to get the exit code for.
-            state (BatchState): The current job state.
+            job: Job to get the exit code for.
+            state: The current job state.
 
         Returns:
-            str: ANSI-colored exit code. Empty string if the job is not completed
+            ANSI-colored exit code. Empty string if the job is not completed
             or the exit code is undefined.
         """
         if (exit_code := job.get_exit_code()) is None:
@@ -480,12 +480,12 @@ class JobsPresenter:
         Format node information or an estimated runtime comment.
 
         Args:
-            state (BatchState): Current job state.
-            job (BatchJobInterface): Job information object.
+            state: Current job state.
+            job: Job information object.
 
         Returns:
-            str: ANSI-colored string for working node(s) or estimated start,
-                 or an empty string if neither information is available.
+            ANSI-colored string for working node(s) or estimated start,
+            or an empty string if neither information is available.
         """
         if nodes := job.get_short_nodes():
             return JobsPresenter._main_color(
@@ -510,10 +510,10 @@ class JobsPresenter:
         Shorten the job ID to its primary component (before the first dot).
 
         Args:
-            job_id (str): Full job identifier.
+            job_id: Full job identifier.
 
         Returns:
-            str: Shortened job ID.
+            Shortened job ID.
         """
         return job_id.split(".", 1)[0]
 
@@ -523,10 +523,10 @@ class JobsPresenter:
         Truncate a job name if it exceeds the maximum allowed display length.
 
         Args:
-            job_name (str): The original job name string.
+            job_name: The original job name string.
 
         Returns:
-            str: The possibly shortened job name. If the original name length is
+            The possibly shortened job name. If the original name length is
                 less than or equal to the configured limit, it is returned unchanged.
         """
         if len(job_name) > CFG.jobs_presenter.max_job_name_length:
@@ -540,10 +540,10 @@ class JobsPresenter:
         Truncate a list of nodes if it exceeds the maximum allowed display length.
 
         Args:
-            nodes (str): The original nodes string.
+            nodes: The original nodes string.
 
         Returns:
-            str: The possibly shortened list of nodes. If the original string length
+            The possibly shortened list of nodes. If the original string length
                 is less than or equal to the configured limit, it is returned unchanged.
         """
         if len(nodes) > CFG.jobs_presenter.max_nodes_length:
@@ -557,12 +557,12 @@ class JobsPresenter:
         Apply ANSI color codes and optional bold styling to a string.
 
         Args:
-            string (str): The string to colorize.
-            color (str | None): Optional color.
-            bold (bool): Whether to apply bold formatting.
+            string: The string to colorize.
+            color: Optional color.
+            bold: Whether to apply bold formatting.
 
         Returns:
-            str: ANSI-colored and optionally bolded string.
+            ANSI-colored and optionally bolded string.
         """
         return f"{JobsPresenter._ANSI_COLORS['bold'] if bold else ''}{JobsPresenter._ANSI_COLORS[color] if color else ''}{string}{JobsPresenter._ANSI_COLORS['reset'] if color or bold else ''}"
 
@@ -572,11 +572,11 @@ class JobsPresenter:
         Apply the main presenter color with optional bold styling.
 
         Args:
-            string (str): String to format.
-            bold (bool): Whether to apply bold formatting.
+            string: String to format.
+            bold: Whether to apply bold formatting.
 
         Returns:
-            str: ANSI-colored string in the main presenter color.
+            ANSI-colored string in the main presenter color.
         """
         return JobsPresenter._color(string, CFG.jobs_presenter.main_style, bold)
 
@@ -586,11 +586,11 @@ class JobsPresenter:
         Apply the secondary presenter color with optional bold styling.
 
         Args:
-            string (str): String to format.
-            bold (bool): Whether to apply bold formatting.
+            string: String to format.
+            bold: Whether to apply bold formatting.
 
         Returns:
-            Text: ANSI-colored Rich Text object in secondary color.
+            ANSI-colored Rich Text object in secondary color.
         """
         return JobsPresenter._color(string, CFG.jobs_presenter.secondary_style, bold)
 
@@ -636,10 +636,10 @@ class JobsStatistics:
         Update the collected resources based on the state of the job.
 
         Args:
-            state (BatchState): State of the job according to the batch system.
-            cpus (int): Number of CPUs requested by the job.
-            gpus (int): Number of GPUs requested by the job.
-            nodes (int): Number of nodes requested by the job.
+            state: State of the job according to the batch system.
+            cpus: Number of CPUs requested by the job.
+            gpus: Number of GPUs requested by the job.
+            nodes: Number of nodes requested by the job.
 
         Notes:
             - Resources of QUEUED and HELD jobs are counted as REQUESTED.
@@ -670,7 +670,7 @@ class JobsStatistics:
         Build a Rich Group containing job statistics sections.
 
         Returns:
-            Group: Rich Group with job state counts and resource usage.
+            Rich Group with job state counts and resource usage.
         """
         jobs_text = self._create_job_states_stats()
         resources_table = self._create_resources_stats_table()
@@ -690,7 +690,7 @@ class JobsStatistics:
         Generate Rich Text summarizing the number of jobs in each state.
 
         Returns:
-            Text: Rich Text object listing job states and counts.
+            Rich Text object listing job states and counts.
         """
         spacing = "    "
         line = Text(spacing)
@@ -730,7 +730,7 @@ class JobsStatistics:
         Create a Rich Table summarizing requested and allocated resources.
 
         Returns:
-            Table: Rich Table showing CPU, GPU, and node usage for jobs.
+            Rich Table showing CPU, GPU, and node usage for jobs.
         """
         table = Table(
             show_header=True,
@@ -778,12 +778,12 @@ class JobsStatistics:
         Create Rich Text with optional color and bold formatting.
 
         Args:
-            string (str): The string to colorize.
-            color (str | None): Optional color.
-            bold (bool): Whether to apply bold formatting.
+            string: The string to colorize.
+            color: Optional color.
+            bold: Whether to apply bold formatting.
 
         Returns:
-            Text: Rich Text object with applied style.
+            Rich Text object with applied style.
         """
         return Text(string, style=f"{color if color else ''} {'bold' if bold else ''}")
 
@@ -793,11 +793,11 @@ class JobsStatistics:
         Apply the secondary presenter color with optional bold style.
 
         Args:
-            string (str): String to format.
-            bold (bool): Whether to apply bold formatting.
+            string: String to format.
+            bold: Whether to apply bold formatting.
 
         Returns:
-            str: Rich Text in main color.
+            Rich Text in main color.
         """
         return JobsStatistics._color_text(
             string, color=CFG.jobs_presenter.secondary_style, bold=bold

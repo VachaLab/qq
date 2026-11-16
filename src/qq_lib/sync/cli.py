@@ -131,8 +131,8 @@ def _sync_job(informer: Informer, files: list[str] | None) -> None:
     Perform synchronization of job files from a remote working directory to the local input directory.
 
     Args:
-        informer (Informer): Informer associated with the job.
-        files (list[str] | None): Optional list of specific file names to synchronize.
+        informer: Informer associated with the job.
+        files: Optional list of specific file names to synchronize.
             If not provided, all files are fetched from the job's working directory
             except those excluded by the batch system.
 

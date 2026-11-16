@@ -37,7 +37,7 @@ class Presenter:
         Initialize the presenter with an Informer.
 
         Args:
-            informer (Informer): The informer object that provides
+            informer: The informer object that provides
                 access to qq job metadata and runtime details.
         """
         self._informer = informer
@@ -47,11 +47,11 @@ class Presenter:
         Create a standalone status panel for the job.
 
         Args:
-            console (Console | None): Optional Rich console.
+            console: Optional Rich console.
                 If not provided, a new Console is created.
 
         Returns:
-            Group: A Rich Group containing the status panel.
+            A Rich Group containing the status panel.
         """
         console = console or Console()
 
@@ -79,11 +79,11 @@ class Presenter:
         Create a full job information panel.
 
         Args:
-            console (Console | None): Optional Rich console.
+            console: Optional Rich console.
                 If not provided, a new Console is created.
 
         Returns:
-            Group: A Rich Group containing the full job info panel.
+            A Rich Group containing the full job info panel.
         """
 
         console = console or Console()
@@ -156,7 +156,7 @@ class Presenter:
         available form and abbreviated if it is too long.
 
         Returns:
-            Text: A Rich `Text` object containing brief information about the job.
+            A Rich `Text` object containing brief information about the job.
         """
         state = self._informer.get_real_state()
         full_text = (
@@ -199,7 +199,7 @@ class Presenter:
         This function is deprecated, use `get_brief_info` instead.
 
         Returns:
-            Text: A Rich `Text` object containing brief information about the job.
+            A Rich `Text` object containing brief information about the job.
         """
         return self.get_brief_info()
 
@@ -208,7 +208,7 @@ class Presenter:
         Create a table with basic job information.
 
         Returns:
-            Table: A Rich table with key-value pairs of basic job details.
+            A Rich table with key-value pairs of basic job details.
         """
         table = Table(show_header=False, box=None, padding=(0, 1))
         table.add_column(justify="right", style=CFG.presenter.key_style)
@@ -251,11 +251,11 @@ class Presenter:
         Create a table displaying job resource requirements.
 
         Args:
-            term_width (int): Width of the current terminal, used
+            term_width: Width of the current terminal, used
                 to size the spacer column.
 
         Returns:
-            Table: A Rich table summarizing resource allocations.
+            A Rich table summarizing resource allocations.
         """
         resources = self._informer.info.resources
         table = Table(show_header=False, box=None, padding=(0, 1))
@@ -314,10 +314,10 @@ class Presenter:
         Create a table summarizing the job timeline.
 
         Args:
-            state (RealState): State of the job.
+            state: State of the job.
 
         Returns:
-            Table: A Rich table showing the chronological job history.
+            A Rich table showing the chronological job history.
         """
         submitted = self._informer.info.submission_time
         started = self._informer.info.start_time
@@ -380,10 +380,10 @@ class Presenter:
         Create a table summarizing the current job status.
 
         Args:
-            state (RealState): The current real state of the job.
+            state: The current real state of the job.
 
         Returns:
-            Table: A Rich table with job state and details.
+            A Rich table with job state and details.
         """
         (message, details) = self._get_state_messages(
             state,
@@ -422,10 +422,10 @@ class Presenter:
         to be used within full-info job panels.
 
         Args:
-            steps (Sequence[BatchJobInterface]): A list of batch-system step objects belonging to the job.
+            steps: A list of batch-system step objects belonging to the job.
 
         Returns:
-            Table: A Rich table containing the formatted step information.
+            A Rich table containing the formatted step information.
         """
         table = Table(show_header=True, box=None, padding=(0, 1))
 
@@ -472,7 +472,7 @@ class Presenter:
         contains more than one step; for single-step jobs, an empty block is returned.
 
         Returns:
-            Group: A Rich group representing the job-steps section, or an empty group
+            A Rich group representing the job-steps section, or an empty group
             if no multi-step information should be displayed.
         """
 
@@ -502,12 +502,12 @@ class Presenter:
         Map a RealState to human-readable messages.
 
         Args:
-            state (RealState): The current job state.
-            start_time (datetime): Start time of the relevant state period.
-            end_time (datetime): End time of the relevant state period.
+            state: The current job state.
+            start_time: Start time of the relevant state period.
+            end_time: End time of the relevant state period.
 
         Returns:
-            tuple[str, str]: A tuple containing:
+            A tuple containing:
                 - A short status message (e.g., "Job is running").
                 - Additional details, such as elapsed time or error info.
         """
@@ -602,14 +602,13 @@ class Presenter:
         For jobs in other states, return (None, None).
 
         Args:
-            state (RealState): The current job state.
+            state: The current job state.
 
         Returns:
-            tuple[str | None, tuple[datetime, str] | None]:
-                A tuple containing:
-                - The job comment as a string, or None if unavailable.
-                - A tuple with the estimated start time (datetime) and execution node (str),
-                    or None if unavailable or not applicable.
+            A tuple containing:
+            - The job comment as a string, or None if unavailable.
+            - A tuple with the estimated start time (datetime) and execution node (str),
+                or None if unavailable or not applicable.
         """
         if state in {
             RealState.QUEUED,
@@ -631,7 +630,7 @@ class Presenter:
         Translates a RealState and optional exit code into a human-readable completion message.
 
         Returns:
-            str: A string representing the final status of the job/process.
+            A string representing the final status of the job/process.
         """
         if state == RealState.FINISHED or (
             state == RealState.EXITING and exit_code == 0
@@ -659,11 +658,11 @@ class Presenter:
         by `(...)`, keeping as many trailing components as fit (at least the last one).
 
         Args:
-            path (Path): The directory to format.
-            max_length (int): The preferred maximal length of the result.
+            path: The directory to format.
+            max_length: The preferred maximal length of the result.
 
         Returns:
-            str: The formatted directory.
+            The formatted directory.
         """
         path = to_logical(path)
         cwd = logical_cwd()

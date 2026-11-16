@@ -365,11 +365,11 @@ def _submit_job(script: str, kwargs: dict[str, Any]) -> str | None:
     Submit a single qq job and return the job ID on success, or None on failure.
 
     Args:
-        script (str): Path to the script to submit.
-        kwargs (dict): Parsed Click options forwarded to SubmitterFactory.
+        script: Path to the script to submit.
+        kwargs: Parsed Click options forwarded to SubmitterFactory.
 
     Returns:
-        str | None: The job ID if submission succeeded, None otherwise.
+        The job ID if submission succeeded, None otherwise.
     """
     try:
         if not (script_path := Path(script)).is_file():

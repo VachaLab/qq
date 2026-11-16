@@ -31,7 +31,7 @@ class BatchNodeInterface(ABC):
         Retrieve the name of the node.
 
         Returns:
-            str: The name identifying the node in the batch system.
+            The name identifying the node in the batch system.
         """
 
     @abstractmethod
@@ -40,7 +40,7 @@ class BatchNodeInterface(ABC):
         Retrieve the total number of CPU cores available on the node.
 
         Returns:
-            int | None: Total CPU core count or `None` if not available.
+            Total CPU core count or `None` if not available.
         """
 
     @abstractmethod
@@ -49,7 +49,7 @@ class BatchNodeInterface(ABC):
         Retrieve the number of currently available (unallocated) CPU cores.
 
         Returns:
-            int | None: Number of free CPU cores or `None` if not available.
+            Number of free CPU cores or `None` if not available.
         """
 
     @abstractmethod
@@ -58,7 +58,7 @@ class BatchNodeInterface(ABC):
         Retrieve the total number of GPUs available on the node.
 
         Returns:
-            int | None: Total GPU count or `None` if not available..
+            Total GPU count or `None` if not available..
         """
 
     @abstractmethod
@@ -67,7 +67,7 @@ class BatchNodeInterface(ABC):
         Retrieve the number of currently available (unallocated) GPUs.
 
         Returns:
-            int | None: Number of free GPUs or `None` if not available.
+            Number of free GPUs or `None` if not available.
         """
 
     @abstractmethod
@@ -76,7 +76,7 @@ class BatchNodeInterface(ABC):
         Retrieve the total CPU memory capacity of the node.
 
         Returns:
-            Size | None: Total CPU memory available on the node or `None` if not available.
+            Total CPU memory available on the node or `None` if not available.
         """
 
     @abstractmethod
@@ -85,7 +85,7 @@ class BatchNodeInterface(ABC):
         Retrieve the currently available CPU memory.
 
         Returns:
-            Size | None: Free (unused) CPU memory or `None` if not available.
+            Free (unused) CPU memory or `None` if not available.
         """
 
     @abstractmethod
@@ -94,7 +94,7 @@ class BatchNodeInterface(ABC):
         Retrieve the total GPU memory capacity of the node.
 
         Returns:
-            Size | None: Total GPU memory available or `None` if not available.
+            Total GPU memory available or `None` if not available.
         """
 
     @abstractmethod
@@ -103,7 +103,7 @@ class BatchNodeInterface(ABC):
         Retrieve the currently available GPU memory.
 
         Returns:
-            Size | None: Free (unused) GPU memory or `None` if not available.
+            Free (unused) GPU memory or `None` if not available.
         """
 
     @abstractmethod
@@ -112,7 +112,7 @@ class BatchNodeInterface(ABC):
         Retrieve the total local scratch storage capacity of the node.
 
         Returns:
-            Size | None: Total size of local scratch space or `None` if not available.
+            Total size of local scratch space or `None` if not available.
         """
 
     @abstractmethod
@@ -121,7 +121,7 @@ class BatchNodeInterface(ABC):
         Retrieve the available local scratch storage space.
 
         Returns:
-            Size | None: Free local scratch space or `None` if not available.
+            Free local scratch space or `None` if not available.
         """
 
     @abstractmethod
@@ -130,7 +130,7 @@ class BatchNodeInterface(ABC):
         Retrieve the total SSD-based scratch storage capacity.
 
         Returns:
-            Size | None: Total SSD scratch capacity or `None` if not available.
+            Total SSD scratch capacity or `None` if not available.
         """
 
     @abstractmethod
@@ -139,7 +139,7 @@ class BatchNodeInterface(ABC):
         Retrieve the currently available SSD-based scratch storage space.
 
         Returns:
-            Size | None: Free SSD scratch space or `None` if not available.
+            Free SSD scratch space or `None` if not available.
         """
 
     @abstractmethod
@@ -148,7 +148,7 @@ class BatchNodeInterface(ABC):
         Retrieve the total capacity of shared scratch storage accessible from the node.
 
         Returns:
-            Size | None: Total shared scratch capacity or `None` if not available.
+            Total shared scratch capacity or `None` if not available.
         """
 
     @abstractmethod
@@ -157,7 +157,7 @@ class BatchNodeInterface(ABC):
         Retrieve the available space in shared scratch storage.
 
         Returns:
-            Size | None: Free shared scratch space or `None` if not available.
+            Free shared scratch space or `None` if not available.
         """
 
     @abstractmethod
@@ -166,7 +166,7 @@ class BatchNodeInterface(ABC):
         Get the list of properties or labels assigned to the node.
 
         Returns:
-            list[str]: List of node property strings.
+            List of node property strings.
         """
 
     @abstractmethod
@@ -175,10 +175,10 @@ class BatchNodeInterface(ABC):
         Check if the node is available to the specified user.
 
         Args:
-            user (str): The username to check access for.
+            user: The username to check access for.
 
         Returns:
-            bool: True if the node is up and schedulable, False otherwise.
+            True if the node is up and schedulable, False otherwise.
         """
 
     @abstractmethod
@@ -187,5 +187,5 @@ class BatchNodeInterface(ABC):
         Return all information about the node in YAML format.
 
         Returns:
-            str: YAML-formatted string of node metadata.
+            YAML-formatted string of node metadata.
         """

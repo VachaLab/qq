@@ -145,9 +145,9 @@ def kill_job(informer: Informer, force: bool, yes: bool) -> None:
     Attempt to terminate a qq job associated with the specified informer.
 
     Args:
-        informer (Informer): Informer associated with the job.
-        force (bool): Whether to forcibly kill the job regardless of its state.
-        yes (bool): Whether to skip confirmation before termination.
+        informer: Informer associated with the job.
+        force: Whether to forcibly kill the job regardless of its state.
+        yes: Whether to skip confirmation before termination.
 
     Raises:
         QQNotSuitableError: If the job is not suitable for termination.

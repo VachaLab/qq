@@ -31,13 +31,13 @@ class Navigator(Operator):
     Base class for performing operations with job's working directory.
 
     Attributes:
-        _informer (Informer): The underlying informer object that provides job details.
-        _info_file (Path): The path to the qq info file associated with this job.
-        _input_machine (str | None): Hostname of the machine on which the qq info file is stored.
-        _batch_system (str): The batch system type as reported by the informer.
-        _state (RealState): The current real state of the qq job.
-        _work_dir (Path | None): Path to the job's working directory. None if it does not exist.
-        _main_node (str | None): Main node on which the job is running. None if main node is not known.
+        _informer: The underlying informer object that provides job details.
+        _info_file: The path to the qq info file associated with this job.
+        _input_machine: Hostname of the machine on which the qq info file is stored.
+        _batch_system: The batch system type as reported by the informer.
+        _state: The current real state of the qq job.
+        _work_dir: Path to the job's working directory. None if it does not exist.
+        _main_node: Main node on which the job is running. None if main node is not known.
     """
 
     def __init__(self, info_file: Path, host: str | None = None):
@@ -45,8 +45,8 @@ class Navigator(Operator):
         Initialize a Navigator instance from a qq info file.
 
         Args:
-            info_file (Path): Path to the qq info file describing the job.
-            host (str | None, optional): Optional hostname of a machine from
+            info_file: Path to the qq info file describing the job.
+            host: Optional hostname of a machine from
                 which to load job information. Defaults to None meaning 'current machine'.
         """
         super().__init__(info_file, host)
@@ -60,10 +60,10 @@ class Navigator(Operator):
         Path to info file is set based on the information in the Informer, even if it does not exist.
 
         Args:
-            informer (Informer): Initialized informer instance containing information about the job.
+            informer: Initialized informer instance containing information about the job.
 
         Returns:
-            Navigator: Initialized Navigator.
+            Initialized Navigator.
         """
         navigator = super().from_informer(informer)
         navigator._set_destination()
@@ -79,7 +79,7 @@ class Navigator(Operator):
         Check that the job has an assigned host and working directory.
 
         Returns:
-            bool: True if the job has both a host and a working directory,
+            True if the job has both a host and a working directory,
             False otherwise.
         """
         return self._work_dir is not None and self._main_node is not None
@@ -89,7 +89,7 @@ class Navigator(Operator):
         Get the hostname of the main node where the job is running.
 
         Returns:
-            str | None: Hostname of the main node or None if undefined.
+            Hostname of the main node or None if undefined.
         """
         return self._main_node
 
@@ -98,7 +98,7 @@ class Navigator(Operator):
         Get the absolute path to the working directory of the job.
 
         Returns:
-            Path | None: Absolute path to the working directory or None if undefined.
+            Absolute path to the working directory or None if undefined.
         """
         return self._work_dir
 
@@ -127,7 +127,7 @@ class Navigator(Operator):
         Check if the current process is already in the job's working directory.
 
         Returns:
-            bool: True if the current directory matches the job's work_dir and:
+            True if the current directory matches the job's work_dir and:
               a) either an input_dir was used to run the job, or
               b) local hostname matches the job's main node
         """

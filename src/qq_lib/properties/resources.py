@@ -155,7 +155,7 @@ class Resources(HasCouplingMethods):
         Determine if the job uses a scratch directory.
 
         Returns:
-            bool: True if a work_dir is not 'job_dir' or 'input_dir', otherwise False.
+            True if a work_dir is not 'job_dir' or 'input_dir', otherwise False.
         """
         return not equals_normalized(
             str(self.work_dir), "job_dir"
@@ -175,10 +175,10 @@ class Resources(HasCouplingMethods):
         even though `mem` is a dominant attribute and `mem-per-cpu` is recessive.)
 
         Args:
-            *resources (Resources): One or more Resources objects, in order of precedence.
+            *resources: One or more Resources objects, in order of precedence.
 
         Returns:
-            Resources: A new Resources object with merged fields.
+            A new Resources object with merged fields.
         """
         merged_data = {}
         processed_couplings: set[FieldCoupling] = set()
@@ -224,10 +224,10 @@ class Resources(HasCouplingMethods):
         Convert a raw value into a `Size` instance if possible.
 
         Args:
-            value (object): A Size object or a raw size value (a string or a dictionary).
+            value: A Size object or a raw size value (a string or a dictionary).
 
         Returns:
-            Size | None: A `Size` object if the input could be parsed,
+            A `Size` object if the input could be parsed,
             otherwise `None`.
         """
         if isinstance(value, str):
@@ -250,10 +250,10 @@ class Resources(HasCouplingMethods):
         - "^key"      - stored as {"key": "false"}
 
         Args:
-            props (str): A string containing job properties.
+            props: A string containing job properties.
 
         Returns:
-            dict[str, str]: Parsed properties as key/value pairs.
+            Parsed properties as key/value pairs.
 
         Raises:
             QQError: If a property key is defined multiple times.
@@ -284,10 +284,10 @@ class Resources(HasCouplingMethods):
         Convert a properties dictionary into a command-line raw value string.
 
         Args:
-            props (dict[str, str]): Mapping of property names to their string values.
+            props: Mapping of property names to their string values.
 
         Returns:
-            str | None: A comma-separated command-line representation of the property definitions
+            A comma-separated command-line representation of the property definitions
             or None if the dictionary is empty.
         """
         if not self.props:

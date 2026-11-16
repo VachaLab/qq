@@ -55,10 +55,10 @@ class Size:
         Create a Size object from a string.
 
         Args:
-            s (str): A string representation of the size, e.g., "10mb", "10 mb", "10m", "10M".
+            s: A string representation of the size, e.g., "10mb", "10 mb", "10m", "10M".
 
         Returns:
-            Size: A Size instance with parsed value and unit.
+            A Size instance with parsed value and unit.
 
         Raises:
             QQError: If the string cannot be parsed or contains an invalid unit.
@@ -80,10 +80,10 @@ class Size:
         Multiply the Size by an integer.
 
         Args:
-            n (int): The multiplier.
+            n: The multiplier.
 
         Returns:
-            Size: A new Size object with the scaled value.
+            A new Size object with the scaled value.
 
         Raises:
             TypeError: If the multiplier is not an integer.
@@ -127,10 +127,10 @@ class Size:
         Divide the Size by an integer.
 
         Args:
-            n (int): The divisor.
+            n: The divisor.
 
         Returns:
-            Size: A new Size object representing the divided size.
+            A new Size object representing the divided size.
 
         Raises:
             TypeError: If n is not an integer.
@@ -150,10 +150,10 @@ class Size:
         Computes the ratio of this Size to another, expressed as a float.
 
         Args:
-            other (Size): The divisor Size instance.
+            other: The divisor Size instance.
 
         Returns:
-            float: The ratio of self to other, based on total kilobytes.
+            The ratio of self to other, based on total kilobytes.
 
         Raises:
             TypeError:
@@ -176,10 +176,10 @@ class Size:
         Subtract one Size from another.
 
         Args:
-            other (Size): The Size instance to subtract.
+            other: The Size instance to subtract.
 
         Returns:
-            Size: A new Size instance representing the difference.
+            A new Size instance representing the difference.
 
         Raises:
             TypeError: If `other` is not a Size instance.
