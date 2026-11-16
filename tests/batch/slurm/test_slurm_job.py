@@ -223,7 +223,7 @@ def test_slurm_job_get_main_node_returns_batchhost_when_valid():
 def test_slurm_job_get_main_node_returns_none_when_batchhost_contains_none(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"BatchHost": "None"}
-    monkeypatch.setattr(job, "get_nodes", lambda: [])
+    monkeypatch.setattr(job, "get_nodes", list)
     assert job.get_main_node() is None
 
 
@@ -239,7 +239,7 @@ def test_slurm_job_get_main_node_returns_none_when_no_batchhost_and_no_nodes(
 ):
     job = SlurmJob.__new__(SlurmJob)
     job._info = {}
-    monkeypatch.setattr(job, "get_nodes", lambda: [])
+    monkeypatch.setattr(job, "get_nodes", list)
     assert job.get_main_node() is None
 
 

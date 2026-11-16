@@ -3,6 +3,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, ClassVar
 
 from rich.console import Console, Group
 from rich.panel import Panel
@@ -10,13 +11,15 @@ from rich.table import Table
 from rich.text import Text
 from tabulate import Line, TableFormat, tabulate
 
-from qq_lib.batch.interface import AnyBatchClass, BatchJobInterface
 from qq_lib.core.common import (
     format_duration_wdhhmmss,
     get_panel_width,
 )
 from qq_lib.core.config import CFG
 from qq_lib.properties.states import BatchState
+
+if TYPE_CHECKING:
+    from qq_lib.batch.interface import AnyBatchClass, BatchJobInterface
 
 
 class JobsPresenter:
@@ -25,7 +28,7 @@ class JobsPresenter:
     """
 
     # Mapping of human-readable color names to ANSI escape codes.
-    _ANSI_COLORS = {
+    _ANSI_COLORS: ClassVar[dict[str, str]] = {
         # default
         "default": "",
         # standard colors
@@ -59,7 +62,7 @@ class JobsPresenter:
     }
 
     # Table formatting configuration for `tabulate`.
-    _COMPACT_TABLE = TableFormat(
+    _COMPACT_TABLE: ClassVar[TableFormat] = TableFormat(
         lineabove=Line("", "", "", ""),
         linebelowheader="",
         linebetweenrows="",
@@ -324,7 +327,7 @@ class JobsPresenter:
 
             if input_dir := job.get_input_dir():
                 table_with_extra_info += JobsPresenter._color(
-                    f" >   Input directory: {str(input_dir)}\n",
+                    f" >   Input directory: {input_dir!s}\n",
                     CFG.jobs_presenter.extra_info_style,
                 )
 

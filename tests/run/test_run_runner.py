@@ -838,7 +838,7 @@ def test_runner_log_failure_and_exit_calls_update_and_exits():
     runner = Runner.__new__(Runner)
     runner._update_info_failed = MagicMock()
     exc = RuntimeError("fatal error")
-    exc.exit_code = 42  # ty: ignore[unresolved-attribute]
+    exc.exit_code = 42  # ty: ignore[missing-attribute]
 
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
@@ -855,7 +855,7 @@ def test_runner_log_failure_and_exit_calls_fallback_on_exception():
     runner = Runner.__new__(Runner)
     runner._update_info_failed = MagicMock(side_effect=Exception("update failed"))
     exc = RuntimeError("fatal error")
-    exc.exit_code = 42  # ty: ignore[unresolved-attribute]
+    exc.exit_code = 42  # ty: ignore[missing-attribute]
 
     with patch("qq_lib.run.runner.log_fatal_error_and_exit") as mock_fatal:
         runner.log_failure_and_exit(exc)
@@ -1293,7 +1293,7 @@ def test_runner_prepare_with_scratch_and_archiver():
     runner._informer = MagicMock()
     runner._informer.info.loop_info.current = 2
     runner._informer.info.script_name = "run_job"
-    runner._work_dir = "/tmp/work"
+    runner._work_dir = Path("/tmp/work")
 
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
@@ -1308,7 +1308,7 @@ def test_runner_prepare_with_scratch_and_archiver():
     )
     runner._set_up_scratch_dir.assert_called_once()
     runner._set_up_shared_dir.assert_not_called()
-    runner._archiver.from_archive.assert_called_once_with("/tmp/work", 2)
+    runner._archiver.from_archive.assert_called_once_with(Path("/tmp/work"), 2)
     mock_logger.debug.assert_any_call("Archiving run time files from cycle 1.")
 
 
@@ -1334,7 +1334,7 @@ def test_runner_prepare_without_scratch_and_with_archiver():
     runner._informer = MagicMock()
     runner._informer.info.loop_info.current = 5
     runner._informer.info.script_name = "task"
-    runner._work_dir = "/tmp/work_shared"
+    runner._work_dir = Path("/tmp/work_shared")
 
     with (
         patch("qq_lib.run.runner.logger"),
@@ -1391,7 +1391,7 @@ def test_log_fatal_error_and_exit_unknown_exception():
     mock_logger.error.assert_any_call(
         "Failure state was NOT logged into the job info file."
     )
-    mock_logger.critical.assert_called_once_with(exc, exc_info=True, stack_info=True)
+    mock_logger.critical.assert_called_once_with(exc, stack_info=True)
     assert e.value.code == CFG.exit_codes.unexpected_error
 
 
@@ -1404,14 +1404,14 @@ def test_runner_reload_info_with_retry(mock_informer_cls, mock_retryer_cls):
     mock_retryer_cls.return_value = mock_retryer
 
     runner = Runner.__new__(Runner)
-    runner._info_file = "job.qqinfo"
+    runner._info_file = Path("job.qqinfo")
     runner._input_machine = "host"
 
     runner._reload_info(retry=True)
 
     mock_retryer_cls.assert_called_once_with(
         mock_informer_cls.from_file,
-        "job.qqinfo",
+        Path("job.qqinfo"),
         host="host",
         max_tries=CFG.runner.retry_tries,
         wait_seconds=CFG.runner.retry_wait,
@@ -1427,12 +1427,12 @@ def test_runner_reload_info_without_retry(mock_informer_cls, mock_retryer_cls):
     mock_informer_cls.from_file.return_value = mock_informer
 
     runner = Runner.__new__(Runner)
-    runner._info_file = "job.qqinfo"
+    runner._info_file = Path("job.qqinfo")
     runner._input_machine = "host"
 
     runner._reload_info(retry=False)
 
-    mock_informer_cls.from_file.assert_called_once_with("job.qqinfo", "host")
+    mock_informer_cls.from_file.assert_called_once_with(Path("job.qqinfo"), "host")
     mock_retryer_cls.assert_not_called()
     assert runner._informer == mock_informer
 
@@ -1446,7 +1446,7 @@ def test_runner_ensure_matches_job_with_matching_numeric_id():
 
     runner = Runner.__new__(Runner)
     runner._informer = informer
-    runner._info_file = "job.qqinfo"
+    runner._info_file = Path("job.qqinfo")
 
     runner._ensure_matches_job("12345")
 
@@ -1460,7 +1460,7 @@ def test_runner_ensure_matches_job_with_different_numeric_id_raises():
 
     runner = Runner.__new__(Runner)
     runner._informer = informer
-    runner._info_file = "job.qqinfo"
+    runner._info_file = Path("job.qqinfo")
 
     with pytest.raises(QQJobMismatchError, match="job.qqinfo"):
         runner._ensure_matches_job("12345")
@@ -1475,7 +1475,7 @@ def test_runner_ensure_matches_job_with_partial_suffix_matching():
 
     runner = Runner.__new__(Runner)
     runner._informer = informer
-    runner._info_file = "job.qqinfo"
+    runner._info_file = Path("job.qqinfo")
 
     runner._ensure_matches_job("5678")
 
@@ -1562,8 +1562,8 @@ def test_runner_copy_runtime_files_to_input_dir_retry_true():
     runner = Runner.__new__(Runner)
     runner._informer = informer
     runner._batch_system = batch_system
-    runner._work_dir = "/work"
-    runner._input_dir = "/input"
+    runner._work_dir = Path("/work")
+    runner._input_dir = Path("/input")
 
     with (
         patch("qq_lib.run.runner.socket.getfqdn", return_value="host"),
@@ -1581,8 +1581,8 @@ def test_runner_copy_runtime_files_to_input_dir_retry_true():
 
     mock_retryer.assert_called_once_with(
         batch_system.sync_selected,
-        "/work",
-        "/input",
+        Path("/work"),
+        Path("/input"),
         "host",
         "machineA",
         include_files=expected_files,
@@ -1605,8 +1605,8 @@ def test_runner_copy_runtime_files_to_input_dir_retry_false():
     runner = Runner.__new__(Runner)
     runner._informer = informer
     runner._batch_system = batch_system
-    runner._work_dir = "/work"
-    runner._input_dir = "/input"
+    runner._work_dir = Path("/work")
+    runner._input_dir = Path("/input")
 
     with patch("qq_lib.run.runner.socket.getfqdn", return_value="host"):
         runner._copy_runtime_files_to_input_dir(retry=False)
@@ -1617,8 +1617,8 @@ def test_runner_copy_runtime_files_to_input_dir_retry_false():
     ]
 
     batch_system.sync_selected.assert_called_once_with(
-        "/work",
-        "/input",
+        Path("/work"),
+        Path("/input"),
         "host",
         "machineA",
         expected_files,

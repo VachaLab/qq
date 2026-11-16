@@ -13,15 +13,13 @@ import re
 import signal
 import subprocess
 import threading
-from collections.abc import Iterable, Iterator
 from contextlib import contextmanager, suppress
 from datetime import timedelta
 from functools import lru_cache
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
 
 import readchar
-import yaml
 from rich.console import Console
 from rich.live import Live
 from rich.text import Text
@@ -31,6 +29,11 @@ from qq_lib.core.logical_paths import logical_resolve
 from .config import CFG
 from .error import QQError
 from .logger import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterable
+
+    import yaml
 
 logger = get_logger(__name__)
 
@@ -745,7 +748,7 @@ def available_job_types() -> str:
     """
     from qq_lib.properties.job_type import JobType
 
-    return ", ".join([f"'{str(job_type)}'" for job_type in JobType])
+    return ", ".join([f"'{job_type!s}'" for job_type in JobType])
 
 
 def translate_server(raw: str) -> str:
@@ -850,7 +853,7 @@ def relocate_by_name(files: Iterable[Path], directory: Path) -> list[Path]:
 @contextmanager
 def delayed_spinner(
     message: str, delay: float = 1.0, console: Console | None = None
-) -> Iterator[None]:
+) -> Generator[None]:
     """
     Show a spinner with `message` if the enclosed block takes longer than `delay` seconds.
 
@@ -919,7 +922,7 @@ def run_with_timeout(
     )
     try:
         stdout, stderr = proc.communicate(input=input, timeout=timeout)
-    except (subprocess.TimeoutExpired, KeyboardInterrupt):
+    except subprocess.TimeoutExpired, KeyboardInterrupt:
         _kill_process_group(proc.pid)
         raise
 

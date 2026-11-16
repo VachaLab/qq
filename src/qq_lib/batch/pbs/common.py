@@ -1,7 +1,6 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-
 import re
 
 from qq_lib.core.error import QQError
@@ -79,11 +78,12 @@ def parse_multi_pbs_dump_to_dictionaries(
     if not text.strip():
         return []
 
-    data = []
-    block, identifier = [], None
-    pattern = pattern = (
-        re.compile(rf"^\s*(?:.*?{keyword}[:\s]+)(.*)$") if keyword else None
-    )
+    data: list[tuple[dict[str, str], str]] = []
+    # identifier is always assigned on the first line of a block,
+    # so the empty string never reaches `data`
+    block: list[str] = []
+    identifier: str = ""
+    pattern = re.compile(rf"^\s*(?:.*?{keyword}[:\s]+)(.*)$") if keyword else None
 
     for line in text.splitlines():
         # lines reporting unknown objects are parsed into empty dictionaries
@@ -93,7 +93,7 @@ def parse_multi_pbs_dump_to_dictionaries(
                 data.append(
                     (parse_pbs_dump_to_dictionary("\n".join(block)), identifier)
                 )
-                block, identifier = [], None
+                block, identifier = [], ""
             data.append(({}, unknown))
             continue
 
@@ -103,7 +103,7 @@ def parse_multi_pbs_dump_to_dictionaries(
                 data.append(
                     (parse_pbs_dump_to_dictionary("\n".join(block)), identifier)
                 )
-                block, identifier = [], None
+                block, identifier = [], ""
             continue
 
         if not block:

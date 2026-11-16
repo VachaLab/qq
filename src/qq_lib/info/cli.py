@@ -2,7 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 from pathlib import Path
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import click
 from rich.console import Console
@@ -13,8 +13,10 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.error_handlers import handle_general_qq_error
 from qq_lib.core.logger import get_logger
-from qq_lib.info.informer import Informer
 from qq_lib.info.presenter import Presenter
+
+if TYPE_CHECKING:
+    from qq_lib.info.informer import Informer
 
 logger = get_logger(__name__)
 

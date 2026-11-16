@@ -1,7 +1,6 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-# ruff: noqa: W291
 
 import os
 import shutil
@@ -62,7 +61,8 @@ def test_navigate_success(tmp_path):
                 "fake.host.org",
                 "-t",
                 f"cd {directory} || exit {BatchInterface._CD_FAIL} && exec bash -l",
-            ]
+            ],
+            check=False,
         )
 
         # should not raise

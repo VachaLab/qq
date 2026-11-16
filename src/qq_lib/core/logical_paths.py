@@ -22,10 +22,13 @@ the only moment the shell-maintained logical path is reliably available.
 
 import functools
 import os
-from collections.abc import Iterable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from qq_lib.core.logger import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 logger = get_logger(__name__)
 

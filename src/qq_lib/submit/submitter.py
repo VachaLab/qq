@@ -6,9 +6,9 @@ import os
 import socket
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import qq_lib
-from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.core.common import (
     construct_info_file_path,
     construct_loop_job_name,
@@ -22,15 +22,18 @@ from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.info.informer import Informer
-from qq_lib.properties.depend import Depend
 from qq_lib.properties.info import Info
-from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
-from qq_lib.properties.loop import LoopInfo
-from qq_lib.properties.resources import Resources
-from qq_lib.properties.resubmit_host import ResubmitHost
 from qq_lib.properties.states import NaiveState
 from qq_lib.properties.transfer_mode import TransferMode
+
+if TYPE_CHECKING:
+    from qq_lib.batch.interface import AnyBatchClass
+    from qq_lib.properties.depend import Depend
+    from qq_lib.properties.interpreter import Interpreter
+    from qq_lib.properties.loop import LoopInfo
+    from qq_lib.properties.resources import Resources
+    from qq_lib.properties.resubmit_host import ResubmitHost
 
 logger = get_logger(__name__)
 

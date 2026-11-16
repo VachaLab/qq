@@ -1,8 +1,6 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-from __future__ import annotations
-
 import functools
 import inspect
 import os
@@ -10,7 +8,7 @@ import socket
 import subprocess
 from abc import ABC, ABCMeta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from qq_lib.core.common import convert_absolute_to_relative
 from qq_lib.core.config import CFG
@@ -48,7 +46,7 @@ class _BatchMeta(ABCMeta):
         BatchSystem = BatchInterface.from_str("PBS")
     """
 
-    _registry: dict[str, AnyBatchClass] = {}
+    _registry: ClassVar[dict[str, AnyBatchClass]] = {}
 
     def __init__(cls, name: str, bases: tuple[type, ...], namespace: dict) -> None:
         super().__init__(name, bases, namespace)
@@ -59,7 +57,7 @@ class _BatchMeta(ABCMeta):
             batch_cls = cast("type[BatchInterface]", cls)
             _BatchMeta._registry[batch_cls.env_name()] = batch_cls
 
-    def __str__(cls: type[BatchInterface]) -> str:
+    def __str__(cls: type[BatchInterface]) -> str:  # ty: ignore[incompatible-method-override]
         """
         Get the string representation of the batch system class.
         """
@@ -77,7 +75,8 @@ class _BatchMeta(ABCMeta):
         except KeyError as e:
             raise QQError(f"No batch system registered as '{name}'.") from e
 
-    @functools.cache
+    # this is a class method, so B019 is not relevant
+    @functools.cache  # noqa: B019
     def guess(cls) -> type[BatchInterface]:
         """
         Return the first registered batch system that reports itself
@@ -495,7 +494,7 @@ class BatchInterface[
         # the directory is on an another node
         ssh_command = cls._translate_ssh_command(host, directory)
         logger.debug(f"Using ssh: '{' '.join(ssh_command)}'")
-        result = subprocess.run(ssh_command)
+        result = subprocess.run(ssh_command, check=False)
 
         # the subprocess exit code can come from:
         # - SSH itself failing - returns _SSH_FAIL
@@ -505,11 +504,11 @@ class BatchInterface[
         # we ignore user exit codes entirely and only treat _SSH_FAIL and _CD_FAIL as errors
         if result.returncode == cls._SSH_FAIL:
             raise QQError(
-                f"Could not reach '{host}:{str(directory)}': could not connect to host"
+                f"Could not reach '{host}:{directory!s}': could not connect to host"
             )
         if result.returncode == cls._CD_FAIL:
             raise QQError(
-                f"Could not reach '{host}:{str(directory)}': could not change directory"
+                f"Could not reach '{host}:{directory!s}': could not change directory"
             )
 
     @classmethod
@@ -547,6 +546,7 @@ class BatchInterface[
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
 
         if result.returncode != 0:
@@ -589,6 +589,7 @@ class BatchInterface[
             input=content,
             capture_output=True,
             text=True,
+            check=False,
         )
 
         if result.returncode != 0:
@@ -628,6 +629,7 @@ class BatchInterface[
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
 
         if result.returncode != 0:
@@ -670,6 +672,7 @@ class BatchInterface[
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
 
         if result.returncode != 0:
@@ -715,6 +718,7 @@ class BatchInterface[
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
 
         if result.returncode != 0:
@@ -760,6 +764,7 @@ class BatchInterface[
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
 
         if result.returncode != 0:
@@ -898,6 +903,7 @@ class BatchInterface[
             ["df", "-l", directory],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            check=False,
         )
 
         return result.returncode != 0
@@ -997,10 +1003,14 @@ class BatchInterface[
         logger.debug("Current host is the same as target host. Using 'cd'.")
         if not directory.is_dir():
             raise QQError(
-                f"Could not reach '{socket.getfqdn()}:{str(directory)}': could not change directory"
+                f"Could not reach '{socket.getfqdn()}:{directory!s}': could not change directory"
             )
 
-        subprocess.run(["bash"], cwd=directory)
+        subprocess.run(
+            ["bash"],
+            cwd=directory,
+            check=False,
+        )
 
         # if the directory exists, always report success,
         # no matter what the user does inside the terminal
@@ -1132,7 +1142,7 @@ class BatchInterface[
             command.extend(["--include", str(file)])
             # if `file` is a directory
             # it's okay to include both patterns - if it is invalid, it's ignored
-            command.extend(["--include", f"{str(file)}/***"])
+            command.extend(["--include", f"{file!s}/***"])
         # exclude all files not specifically included
         command.extend(["--exclude", "*"])
 
@@ -1170,12 +1180,16 @@ class BatchInterface[
             QQError: If the rsync command fails (non-zero exit code) or
                 if the command times out after `CFG.timeouts.rsync` seconds.
         """
-        src = f"{src_host}:{str(src_dir)}" if src_host else str(src_dir)
-        dest = f"{dest_host}:{str(dest_dir)}" if dest_host else str(dest_dir)
+        src = f"{src_host}:{src_dir!s}" if src_host else str(src_dir)
+        dest = f"{dest_host}:{dest_dir!s}" if dest_host else str(dest_dir)
 
         try:
             result = subprocess.run(
-                command, capture_output=True, text=True, timeout=CFG.timeouts.rsync
+                command,
+                capture_output=True,
+                text=True,
+                timeout=CFG.timeouts.rsync,
+                check=False,
             )
         except subprocess.TimeoutExpired as e:
             raise QQError(

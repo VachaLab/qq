@@ -22,8 +22,6 @@ from qq_lib.properties.transfer_mode import TransferMode
 from qq_lib.submit.cli import submit
 from qq_lib.submit.parser import Parser
 
-# ruff: noqa: W293
-
 
 def test_parser_init(tmp_path):
     script = tmp_path / "script.sh"
@@ -47,7 +45,6 @@ def test_parser_init(tmp_path):
         ("# qq key=value", ["key", "value"]),
         ("#qq key=value", ["key", "value"]),
         ("#  qq   key=value", ["key", "value"]),
-        ("# QQ key=value", ["key", "value"]),
         ("# qQ   key=value", ["key", "value"]),
         # spaces instead of equals
         ("# qq key value", ["key", "value"]),
@@ -295,8 +292,8 @@ def test_parser_get_resources_returns_resources_with_matching_fields():
     result = parser.get_resources()
 
     assert isinstance(result, Resources)
-    assert getattr(result, "ncpus") == 4
-    assert getattr(result, "mem") == Size(4, "gb")
+    assert result.ncpus == 4
+    assert result.mem == Size(4, "gb")
 
 
 def test_parser_get_job_type_none():

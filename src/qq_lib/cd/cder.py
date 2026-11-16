@@ -2,7 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from qq_lib.batch.interface import (
     AnyBatchClass,
@@ -13,6 +13,9 @@ from qq_lib.batch.interface import (
 )
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = get_logger(__name__)
 

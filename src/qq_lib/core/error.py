@@ -58,13 +58,9 @@ class QQError(QQTerminatedMixin, Exception):
 class QQJobMismatchError(QQError):
     """Raised when the specified job ID does not match the qq info file."""
 
-    pass
-
 
 class QQNotSuitableError(QQError):
     """Raised when a job is unsuitable for an operation."""
-
-    pass
 
 
 class QQRunFatalError(QQTerminatedMixin, Exception):

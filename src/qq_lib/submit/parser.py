@@ -4,8 +4,8 @@
 import re
 from dataclasses import fields
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from click import Parameter
 from click_option_group import GroupedOption
 
 from qq_lib.batch.interface import BatchInterface
@@ -18,6 +18,9 @@ from qq_lib.properties.job_type import JobType
 from qq_lib.properties.resources import Resources
 from qq_lib.properties.resubmit_host import ResubmitHost
 from qq_lib.properties.transfer_mode import TransferMode
+
+if TYPE_CHECKING:
+    from click import Parameter
 
 logger = get_logger(__name__)
 
@@ -88,7 +91,7 @@ class Parser:
                 parts = Parser._strip_and_split(line)
                 if len(parts) < 2:
                     raise QQError(
-                        f"Invalid qq submit option line in '{str(self._script)}': {line}"
+                        f"Invalid qq submit option line in '{self._script!s}': {line}"
                     )
 
                 key, value = parts[-2], parts[-1]
@@ -107,7 +110,7 @@ class Parser:
                         self._options[snake_case_key] = value
                 else:
                     raise QQError(
-                        f"Unknown qq submit option '{key}' in '{str(self._script)}': {line.strip()}.\nKnown options are '{' '.join(self._known_options)}'"
+                        f"Unknown qq submit option '{key}' in '{self._script!s}': {line.strip()}.\nKnown options are '{' '.join(self._known_options)}'"
                     )
 
         logger.debug(f"Parsed options from '{self._script}': {self._options}.")

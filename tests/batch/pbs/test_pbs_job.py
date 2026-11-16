@@ -1,8 +1,6 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-# ruff: noqa: W291
-
 
 from datetime import datetime, timedelta
 from pathlib import Path

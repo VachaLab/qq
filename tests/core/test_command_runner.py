@@ -3,8 +3,8 @@
 
 import os
 import time
-from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,6 +14,9 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError, QQNotSuitableError
 from qq_lib.core.error_handlers import handle_not_suitable_error
 from qq_lib.info import Informer
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def make_runner(

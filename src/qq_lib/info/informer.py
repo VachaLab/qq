@@ -1,8 +1,6 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Self
 
 from qq_lib.batch.interface import BatchInterface, BatchJobInterface

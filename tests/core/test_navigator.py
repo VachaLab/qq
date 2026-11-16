@@ -57,7 +57,7 @@ def test_navigator_has_destination_false(work_dir, main_node):
 
 def test_navigator_has_destination_true():
     navigator = Navigator.__new__(Navigator)
-    navigator._work_dir = "/work/dir"
+    navigator._work_dir = "/work/dir"  # ty: ignore[invalid-assignment]
     navigator._main_node = "main-node"
     assert navigator.has_destination() is True
 

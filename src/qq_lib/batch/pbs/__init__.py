@@ -24,8 +24,8 @@ from .pbs import PBS
 from .queue import PBSQueue
 
 __all__ = [
+    "PBS",
     "PBSJob",
     "PBSNode",
-    "PBS",
     "PBSQueue",
 ]

@@ -9,12 +9,15 @@ help text using GNU-style formatting with customizable colors, headings, and
 option layouts.
 """
 
-from collections.abc import Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 from click import Context, HelpFormatter
 from click_help_colors import HelpColorsCommand
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 class GNUHelpColorsCommand(HelpColorsCommand):
@@ -33,7 +36,7 @@ class GNUHelpColorsCommand(HelpColorsCommand):
 
             def write_usage(
                 self, prog_name: str, args: str | None, prefix: str | None = None
-            ) -> None:  # ty: ignore[invalid-method-override]
+            ) -> None:  # ty: ignore[incompatible-method-override]
                 """Override to make Usage: header bold"""
                 if prefix is None:
                     prefix = "Usage:"
@@ -51,7 +54,7 @@ class GNUHelpColorsCommand(HelpColorsCommand):
                 rows: Sequence[tuple[str, str | None]],
                 _col_max: int = 30,
                 _col_spacing: int = 2,
-            ) -> None:  # ty: ignore[invalid-method-override]
+            ) -> None:  # ty: ignore[incompatible-method-override]
                 for term, definition in rows:
                     colored_term = click.style(term, fg=self.options_color, bold=True)
                     self.write(f"  {colored_term}\n")
@@ -205,10 +208,8 @@ class GlobDirectoryMixin:
             else:
                 rewritten.append(args[i])
                 i += 1
-        return super().parse_args(ctx, rewritten)  # ty:ignore[unresolved-attribute]
+        return super().parse_args(ctx, rewritten)  # ty: ignore[missing-attribute]
 
 
 class QQOperatorCommand(GlobDirectoryMixin, GNUHelpColorsCommand):
     """GNUHelpColorsCommand with glob-expanding -d/--dir support."""
-
-    pass

@@ -329,7 +329,7 @@ class Info:
                 init_kwargs[name] = JobType.from_str(value)
             # convert optional loop job info
             elif f.type == LoopInfo | None and isinstance(value, dict):
-                init_kwargs[name] = LoopInfo.from_dict(value)  # ty: ignore[invalid-argument-type]
+                init_kwargs[name] = LoopInfo.from_dict(value)
             # convert resources
             elif f.type == Resources:
                 init_kwargs[name] = Resources(**value)  # ty: ignore[invalid-argument-type]
@@ -351,13 +351,13 @@ class Info:
                 ]
             # convert transfer modes
             elif f.type == list[TransferMode] and isinstance(value, list):
-                init_kwargs[name] = [TransferMode.from_str(x) for x in value]  # ty: ignore[invalid-argument-type]
+                init_kwargs[name] = [TransferMode.from_str(x) for x in value]
             # convert dependencies
             elif f.type == list[Depend] and isinstance(value, list):
-                init_kwargs[name] = [Depend.from_str(x) for x in value]  # ty: ignore[invalid-argument-type]
+                init_kwargs[name] = [Depend.from_str(x) for x in value]
             # convert resubmit hosts
             elif f.type == list[ResubmitHost] and isinstance(value, list):
-                init_kwargs[name] = [ResubmitHost.from_str(x) for x in value]  # ty: ignore[invalid-argument-type]
+                init_kwargs[name] = [ResubmitHost.from_str(x) for x in value]
             # convert interpreter from string (legacy)
             elif (f.type == Interpreter or f.type == Interpreter | None) and isinstance(
                 value, str
@@ -367,7 +367,7 @@ class Info:
             elif (f.type == Interpreter or f.type == Interpreter | None) and isinstance(
                 value, dict
             ):
-                init_kwargs[name] = Interpreter.from_dict(value)  # ty: ignore[invalid-argument-type]
+                init_kwargs[name] = Interpreter.from_dict(value)
             # convert timestamp
             elif (f.type == datetime or f.type == datetime | None) and isinstance(
                 value, str
@@ -376,4 +376,4 @@ class Info:
             else:
                 init_kwargs[name] = value
 
-        return cls(**init_kwargs)
+        return cls(**init_kwargs)  # ty: ignore[invalid-argument-type]

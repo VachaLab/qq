@@ -6,9 +6,9 @@ import os
 import shutil
 import socket
 import subprocess
-from collections.abc import Callable
 from functools import partial
 from pathlib import Path
+from typing import TYPE_CHECKING, ClassVar
 
 from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
@@ -24,6 +24,9 @@ from qq_lib.properties.resources import Resources
 
 from .job import PBSJob
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 logger = get_logger(__name__)
 
 
@@ -33,7 +36,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
     """
 
     # all standard scratch directory (excl. in RAM scratch) types supported by PBS
-    SUPPORTED_SCRATCHES = ["scratch_local", "scratch_ssd", "scratch_shared"]
+    SUPPORTED_SCRATCHES: ClassVar[list[str]] = [
+        "scratch_local",
+        "scratch_ssd",
+        "scratch_shared",
+    ]
 
     # indicates that an operation with shared storage failed
     _shared_storage_failed: bool = False
@@ -62,7 +69,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         # (the allocated scratch dir cannot be deleted)
         work_dir = logical_resolve(scratch_dir / CFG.pbs_options.scratch_dir_inner)
 
-        logger.debug(f"Creating working directory '{str(work_dir)}'.")
+        logger.debug(f"Creating working directory '{work_dir!s}'.")
         work_dir.mkdir(exist_ok=True)
 
         return work_dir
@@ -84,7 +91,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         _ = account
 
         input_dir = script.parent
-        logger.debug(f"Job submission: input directory is '{str(input_dir)}'.")
+        logger.debug(f"Job submission: input directory is '{input_dir!s}'.")
 
         cls._shared_guard(input_dir, res, env_vars, server, remote_host)
 
@@ -134,14 +141,14 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
                 )
         except subprocess.TimeoutExpired as e:
             raise QQError(
-                f"Submission of script '{str(script)}' timed out after {CFG.timeouts.submit} seconds. "
+                f"Submission of script '{script!s}' timed out after {CFG.timeouts.submit} seconds. "
                 "The job may or may not have been submitted. "
                 "Check that the input directory is accessible and that the batch server is responding."
             ) from e
 
         if result.returncode != 0:
             raise QQError(
-                f"Failed to submit script '{str(script)}': {result.stderr.strip()}"
+                f"Failed to submit script '{script!s}': {result.stderr.strip()}"
             )
 
         return result.stdout.strip()
@@ -1173,7 +1180,6 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             QQError: If the command fails (non-zero return code) or if the output
                     cannot be parsed into valid job information.
         """
-        ...
         result = subprocess.run(
             # -oL (line-buffer stdout), -eL (line-buffer stderr)
             # necessary for stdout and stderr merging

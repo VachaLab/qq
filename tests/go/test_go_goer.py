@@ -534,7 +534,7 @@ def test_goer_go_queued_state_not_in_work_dir_navigates(state):
         goer.go()
         goer._wait_queued.assert_called_once()
         mock_logger.info.assert_called_with(
-            f"Navigating to '{str(goer._work_dir)}' on '{goer._main_node}'."
+            f"Navigating to '{goer._work_dir!s}' on '{goer._main_node}'."
         )
         goer._batch_system.navigate_to_destination.assert_called_once_with(
             goer._main_node, goer._work_dir
@@ -570,7 +570,7 @@ def test_goer_go_navigates_when_suitable():
     with patch("qq_lib.go.goer.logger") as mock_logger:
         goer.go()
         mock_logger.info.assert_called_with(
-            f"Navigating to '{str(goer._work_dir)}' on '{goer._main_node}'."
+            f"Navigating to '{goer._work_dir!s}' on '{goer._main_node}'."
         )
         goer._batch_system.navigate_to_destination.assert_called_once_with(
             goer._main_node, goer._work_dir

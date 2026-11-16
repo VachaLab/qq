@@ -1,15 +1,19 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
+from typing import TYPE_CHECKING
+
 from rich.console import Console, Group
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from qq_lib.batch.interface.queue import BatchQueueInterface
 from qq_lib.core.common import format_duration_wdhhmmss, get_panel_width
 from qq_lib.core.config import CFG
 from qq_lib.properties.states import BatchState
+
+if TYPE_CHECKING:
+    from qq_lib.batch.interface.queue import BatchQueueInterface
 
 
 class QueuesPresenter:

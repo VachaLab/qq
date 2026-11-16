@@ -16,7 +16,7 @@ class TransferMode(ABC):
     """
 
     @classmethod
-    def from_str(cls, s: str) -> "TransferMode":
+    def from_str(cls, s: str) -> TransferMode:
         """
         Convert a string to the corresponding TransferMode.
 
@@ -46,7 +46,7 @@ class TransferMode(ABC):
                 raise QQError(f"Could not recognize a transfer mode variant '{s}'")
 
     @classmethod
-    def multi_from_str(cls, raw: str) -> list["TransferMode"]:
+    def multi_from_str(cls, raw: str) -> list[TransferMode]:
         """
         Parse a string containing multiple transfer modes.
 

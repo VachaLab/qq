@@ -16,4 +16,5 @@ from .slurm import Slurm as _Slurm
 from .slurmit4i import SlurmIT4I as _SlurmIT4I
 from .slurmlumi import SlurmLumi as _SlurmLumi
 
-_PBS, _Slurm, _SlurmIT4I, _SlurmLumi
+# intentional, otherwise we get linter warnings for the above imports
+_PBS, _Slurm, _SlurmIT4I, _SlurmLumi  # noqa: B018

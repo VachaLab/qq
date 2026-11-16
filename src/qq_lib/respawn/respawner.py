@@ -1,16 +1,20 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
+from typing import TYPE_CHECKING
+
 from qq_lib.clear import Clearer
 from qq_lib.core.error import QQError, QQNotSuitableError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.operator import Operator
-from qq_lib.info import Informer
 from qq_lib.properties.depend import filter_dependencies
-from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.states import RealState
 from qq_lib.submit import Submitter
 from qq_lib.wipe import Wiper
+
+if TYPE_CHECKING:
+    from qq_lib.info import Informer
+    from qq_lib.properties.loop import LoopInfo
 
 logger = get_logger(__name__)
 
@@ -30,9 +34,7 @@ class Respawner(Operator):
             QQNotSuitableError: If the job is in any other state than failed or killed.
         """
         if self._state not in {RealState.FAILED, RealState.KILLED}:
-            raise QQNotSuitableError(
-                f"Job cannot be respawned. Job is {str(self._state)}"
-            )
+            raise QQNotSuitableError(f"Job cannot be respawned. Job is {self._state!s}")
 
     def respawn(self) -> str:
         """

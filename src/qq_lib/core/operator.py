@@ -9,13 +9,15 @@ working with qq jobs. It loads job information, tracks job state, refreshes
 metadata, and renders formatted status output using Rich presenters.
 """
 
-from pathlib import Path
-from typing import Self
-
-from rich.console import Console
+from typing import TYPE_CHECKING, Self
 
 from qq_lib.info.informer import Informer
 from qq_lib.info.presenter import Presenter
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from rich.console import Console
 
 
 class Operator:

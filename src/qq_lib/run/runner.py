@@ -10,8 +10,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from time import sleep
-from types import FrameType
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import qq_lib
 from qq_lib.archive.archiver import Archiver
@@ -33,6 +32,9 @@ from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.states import NaiveState
 from qq_lib.resubmit.resubmitter import Resubmitter
+
+if TYPE_CHECKING:
+    from types import FrameType
 
 logger = get_logger(__name__, show_time=True)
 
@@ -75,7 +77,7 @@ class Runner:
         try:
             # get the batch system from the environment variable (or guess it)
             self._batch_system = BatchInterface.from_env_var_or_guess()
-            logger.debug(f"Batch system: {str(self._batch_system)}.")
+            logger.debug(f"Batch system: {self._batch_system!s}.")
 
             # get the id of the job from the batch system
             if not (job_id := self._batch_system.get_job_id()):
@@ -99,7 +101,7 @@ class Runner:
             # check that the batch system in info file matches the one loaded from the environment variable
             if self._batch_system != self._informer.batch_system:
                 raise QQError(
-                    f"Batch system mismatch - env var: '{str(self._batch_system)}', info file: '{self._informer.batch_system}'"
+                    f"Batch system mismatch - env var: '{self._batch_system!s}', info file: '{self._informer.batch_system}'"
                 )
 
         except Exception as e:
@@ -108,7 +110,7 @@ class Runner:
             ) from e
 
         logger.info(
-            f"[qq-{str(self._batch_system)} v{qq_lib.__version__}] Initializing "
+            f"[qq-{self._batch_system!s} v{qq_lib.__version__}] Initializing "
             f"job '{self._informer.info.job_id}' on host '{socket.getfqdn()}'."
         )
 
@@ -870,5 +872,5 @@ def log_fatal_error_and_exit(exception: BaseException) -> NoReturn:
     if isinstance(exception, (QQRunFatalError, QQRunCommunicationError, QQError)):
         sys.exit(exception.exit_code)
 
-    logger.critical(exception, exc_info=True, stack_info=True)
+    logger.critical(exception, stack_info=True)
     sys.exit(CFG.exit_codes.unexpected_error)

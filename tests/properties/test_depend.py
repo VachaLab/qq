@@ -2,18 +2,20 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.batch.pbs import PBS
 from qq_lib.batch.slurm import Slurm
 from qq_lib.batch.slurmit4i import SlurmIT4I
 from qq_lib.batch.slurmlumi import SlurmLumi
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend, DependType, filter_dependencies
+
+if TYPE_CHECKING:
+    from qq_lib.batch.interface import AnyBatchClass
 
 
 @pytest.mark.parametrize(

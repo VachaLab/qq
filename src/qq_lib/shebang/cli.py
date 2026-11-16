@@ -66,7 +66,7 @@ def _replace_or_add_shebang(file: Path) -> None:
     """
 
     if not file.is_file():
-        raise QQError(f"File '{str(file)}' does not exist")
+        raise QQError(f"File '{file!s}' does not exist")
 
     content = file.read_text().splitlines()
 

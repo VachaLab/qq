@@ -10,12 +10,14 @@ logged with timing information, and the final exception is re-raised with
 context when retries are exhausted.
 """
 
-from collections.abc import Callable
 from time import sleep
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .error import QQError
 from .logger import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = get_logger(__name__, show_time=True)
 

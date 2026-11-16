@@ -5,7 +5,7 @@ import os
 import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.pbs.pbs import PBS
@@ -25,6 +25,9 @@ from .common import (
 from .job import SlurmJob
 from .node import SlurmNode
 from .queue import SlurmQueue
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -68,7 +71,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
             logger.warning("The 'server' option is ignored for Slurm.")
 
         input_dir = script.parent
-        logger.debug(f"Job submission: input directory is '{str(input_dir)}'.")
+        logger.debug(f"Job submission: input directory is '{input_dir!s}'.")
 
         # intentionally using PBS
         PBS._shared_guard(input_dir, res, env_vars, server, remote_host)
@@ -101,14 +104,14 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
                 )
         except subprocess.TimeoutExpired as e:
             raise QQError(
-                f"Submission of script '{str(script)}' timed out after {CFG.timeouts.submit} seconds. "
+                f"Submission of script '{script!s}' timed out after {CFG.timeouts.submit} seconds. "
                 "The job may or may not have been submitted. "
                 "Check that the input directory is accessible and that the batch server is responding."
             ) from e
 
         if result.returncode != 0:
             raise QQError(
-                f"Failed to submit script '{str(script)}': {result.stderr.strip()}"
+                f"Failed to submit script '{script!s}': {result.stderr.strip()}"
             )
 
         return result.stdout.split()[-1]
@@ -509,7 +512,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
             command += f"--dependency={converted_depend} "
 
         # set input directory for the job
-        command += f"--chdir={str(input_dir)} "
+        command += f"--chdir={input_dir!s} "
 
         # add script
         command += str(input_dir / script)

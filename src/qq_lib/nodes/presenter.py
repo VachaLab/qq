@@ -5,6 +5,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import zip_longest
+from typing import TYPE_CHECKING
 
 from rich.console import Console, Group
 from rich.panel import Panel
@@ -12,10 +13,12 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-from qq_lib.batch.interface.node import BatchNodeInterface
 from qq_lib.core.common import get_panel_width
 from qq_lib.core.config import CFG
 from qq_lib.properties.size import Size
+
+if TYPE_CHECKING:
+    from qq_lib.batch.interface.node import BatchNodeInterface
 
 
 class NodeGroup:
@@ -371,7 +374,7 @@ class NodeGroupStats:
         return table
 
     @staticmethod
-    def sum_stats(*stats: "NodeGroupStats") -> "NodeGroupStats":
+    def sum_stats(*stats: NodeGroupStats) -> NodeGroupStats:
         """
         Combine multiple `NodeGroupStats` objects into a single aggregate.
 

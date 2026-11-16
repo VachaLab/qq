@@ -34,7 +34,7 @@ class Interpreter:
             object.__setattr__(self, "arguments", arguments)
 
     @classmethod
-    def from_str(cls, s: str) -> "Interpreter":
+    def from_str(cls, s: str) -> Interpreter:
         """
         Create an Interpreter from a string containing the executable and optional arguments.
 
@@ -52,7 +52,7 @@ class Interpreter:
         return cls(executable=executable, arguments=arguments)
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "Interpreter":
+    def from_dict(cls, d: dict[str, Any]) -> Interpreter:
         """
         Create an Interpreter from a dictionary.
 

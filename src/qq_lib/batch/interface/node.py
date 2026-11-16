@@ -2,8 +2,10 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
-from qq_lib.properties.size import Size
+if TYPE_CHECKING:
+    from qq_lib.properties.size import Size
 
 
 class BatchNodeInterface(ABC):

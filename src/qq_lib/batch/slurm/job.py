@@ -3,10 +3,9 @@
 
 import re
 import subprocess
-from collections.abc import Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Self
+from typing import TYPE_CHECKING, ClassVar, Self
 
 import yaml
 
@@ -21,6 +20,9 @@ from qq_lib.properties.states import BatchState
 
 from .common import SACCT_FIELDS, SACCT_STEP_FIELDS, parse_slurm_dump_to_dictionary
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
 logger = get_logger(__name__)
 
 Dumper: type[yaml.Dumper] = load_yaml_dumper()
@@ -33,7 +35,7 @@ class SlurmJob(BatchJobInterface):
     """
 
     # converts from Slurm state names to qq BatchStates
-    _STATE_CONVERTER: dict[str, BatchState] = {
+    _STATE_CONVERTER: ClassVar[dict[str, BatchState]] = {
         "BOOT_FAIL": BatchState.FAILED,
         "CANCELLED": BatchState.FAILED,
         "COMPLETED": BatchState.FINISHED,
@@ -187,7 +189,7 @@ class SlurmJob(BatchJobInterface):
     def get_n_gpus(self) -> int | None:
         tres = self._get_tres()
         for item in tres.split(","):
-            if item.startswith("gpu") or item.startswith("gres/gpu"):
+            if item.startswith(("gpu", "gres/gpu")):
                 try:
                     return int(item.split("=")[1])
                 except ValueError as e:
@@ -308,7 +310,7 @@ class SlurmJob(BatchJobInterface):
             self._info, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
-    def get_steps(self) -> Sequence[Self]:
+    def get_steps(self) -> Sequence[SlurmJob]:
         command = f"sacct -j {self._job_id} --parsable2 --format={SACCT_STEP_FIELDS}"
         logger.debug(command)
 

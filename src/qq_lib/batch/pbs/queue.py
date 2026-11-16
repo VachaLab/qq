@@ -4,8 +4,7 @@
 import socket
 import subprocess
 from dataclasses import fields
-from datetime import timedelta
-from typing import Self
+from typing import TYPE_CHECKING, ClassVar, Self
 
 import yaml
 
@@ -15,6 +14,9 @@ from qq_lib.core.common import hhmmss_to_duration, load_yaml_dumper
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.resources import Resources
+
+if TYPE_CHECKING:
+    from datetime import timedelta
 
 logger = get_logger(__name__)
 
@@ -28,8 +30,8 @@ class ACLData:
     Improves performance when multiple ACL checks are performed repeatedly during queue evaluations.
     """
 
-    _groups: dict[str, list[str]] = {}
-    _host: str | None = None
+    _groups: ClassVar[dict[str, list[str]]] = {}
+    _host: ClassVar[str | None] = None
 
     @staticmethod
     def get_groups_or_init(user: str) -> list[str]:

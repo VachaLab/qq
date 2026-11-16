@@ -2,7 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 import subprocess
-from typing import Self
+from typing import ClassVar, Self
 
 import yaml
 
@@ -24,7 +24,7 @@ class QueuesAvailability:
     Utility class for obtaining and caching the availability status of batch queues.
     """
 
-    _queues: dict[str, dict[str, bool]] = {}
+    _queues: ClassVar[dict[str, dict[str, bool]]] = {}
 
     @staticmethod
     def get_or_init(queue: str, user: str, server: str | None) -> bool:
@@ -178,7 +178,7 @@ class PBSNode(BatchNodeInterface):
 
         if any(
             disabled_state in state
-            for disabled_state in {"down", "unknown", "unresolvable", "resv-exclusive"}
+            for disabled_state in ("down", "unknown", "unresolvable", "resv-exclusive")
         ):
             return False
 

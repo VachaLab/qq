@@ -20,7 +20,7 @@ from qq_lib.core.error_handlers import (
 )
 from qq_lib.core.logger import get_logger
 from qq_lib.go.goer import Goer
-from qq_lib.info.informer import Informer
+lazy from qq_lib.info.informer import Informer
 
 logger = get_logger(__name__)
 console = Console()

@@ -4,15 +4,19 @@
 import re
 import shutil
 import socket
-from collections.abc import Iterable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.core.common import is_printf_pattern, printf_to_regex, relocate_by_name
 from qq_lib.core.config import CFG
 from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.core.retryer import Retryer
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from qq_lib.batch.interface import AnyBatchClass
 
 logger = get_logger(__name__, show_time=True)
 

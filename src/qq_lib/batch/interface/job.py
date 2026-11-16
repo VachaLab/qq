@@ -1,15 +1,17 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
-from qq_lib.properties.size import Size
 from qq_lib.properties.states import BatchState
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from datetime import datetime, timedelta
+    from pathlib import Path
+
+    from qq_lib.properties.size import Size
 
 
 class BatchJobInterface(ABC):

@@ -5,6 +5,7 @@ import getpass
 import os
 import shutil
 from pathlib import Path
+from typing import ClassVar
 
 from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.slurm import Slurm
@@ -25,7 +26,7 @@ class SlurmIT4I(Slurm):
     """
 
     # all scratch directory types supported by SlurmIT4I
-    SUPPORTED_SCRATCHES = ["scratch"]
+    SUPPORTED_SCRATCHES: ClassVar[list[str]] = ["scratch"]
 
     @classmethod
     def env_name(cls) -> str:

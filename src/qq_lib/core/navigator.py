@@ -12,14 +12,16 @@ the working directory, and inspecting job state in the context of directory navi
 
 import socket
 from pathlib import Path
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
-from qq_lib.info.informer import Informer
 from qq_lib.properties.states import RealState
 
 from .operator import Operator
+
+if TYPE_CHECKING:
+    from qq_lib.info.informer import Informer
 
 logger = get_logger(__name__)
 

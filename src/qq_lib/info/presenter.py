@@ -1,9 +1,9 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from warnings import deprecated
 
 from rich.align import Align
@@ -14,13 +14,17 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-from qq_lib.batch.interface.job import BatchJobInterface
 from qq_lib.core.common import format_duration_wdhhmmss, get_panel_width
 from qq_lib.core.config import CFG
 from qq_lib.core.logical_paths import logical_cwd, logical_resolve, to_logical
 from qq_lib.properties.states import RealState
 
-from .informer import Informer
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from qq_lib.batch.interface.job import BatchJobInterface
+
+    from .informer import Informer
 
 
 class Presenter:

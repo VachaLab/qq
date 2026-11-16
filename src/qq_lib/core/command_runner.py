@@ -3,20 +3,22 @@
 
 
 import getpass
-import logging
 import os
 import sys
 import threading
-from collections.abc import Callable
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from pathlib import Path
-from typing import Any, NoReturn, Self
+from typing import TYPE_CHECKING, Any, NoReturn, Self
 
 from qq_lib.batch.interface import BatchInterface, BatchJobInterface
 from qq_lib.core.common import delayed_spinner, get_info_files, translate_server
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.info import Informer
+
+if TYPE_CHECKING:
+    import logging
+    from collections.abc import Callable
 
 
 class CommandRunner:
@@ -370,7 +372,7 @@ class CommandRunner:
                     elif isinstance(result, Informer):
                         self._execute(result)
                     else:
-                        raise ValueError(
+                        raise TypeError(
                             f"Unexpected result type: {type(result)}. This is a bug, please report it"
                         )
 

@@ -12,11 +12,13 @@ and referenced job IDs.
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
-from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+
+if TYPE_CHECKING:
+    from qq_lib.batch.interface import AnyBatchClass
 
 logger = get_logger(__name__)
 
@@ -39,7 +41,7 @@ class DependType(Enum):
     AFTER_COMPLETION = 3
 
     @classmethod
-    def from_str(cls, string: str) -> "DependType":
+    def from_str(cls, string: str) -> DependType:
         """
         Convert a dependency string keyword to a `DependType`.
 

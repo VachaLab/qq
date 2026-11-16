@@ -2,8 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 import subprocess
-from datetime import timedelta
-from typing import Self
+from typing import TYPE_CHECKING, ClassVar, Self
 
 import yaml
 
@@ -15,7 +14,11 @@ from qq_lib.batch.slurm.common import (
 from qq_lib.core.common import dhhmmss_to_duration, load_yaml_dumper
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.properties.resources import Resources
+
+if TYPE_CHECKING:
+    from datetime import timedelta
+
+    from qq_lib.properties.resources import Resources
 
 logger = get_logger(__name__)
 
@@ -27,8 +30,8 @@ class UserGroups:
     Utility class for caching and retrieving user groups and QOS.
     """
 
-    _groups: dict[str, list[str]] = {}
-    _qos: dict[str, str] = {}
+    _groups: ClassVar[dict[str, list[str]]] = {}
+    _qos: ClassVar[dict[str, str]] = {}
 
     @staticmethod
     def get_groups_or_init(user: str) -> list[str]:

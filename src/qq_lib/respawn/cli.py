@@ -2,7 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 from pathlib import Path
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import click
 from rich.console import Console
@@ -16,8 +16,10 @@ from qq_lib.core.error_handlers import (
     handle_not_suitable_error,
 )
 from qq_lib.core.logger import get_logger
-from qq_lib.info import Informer
 from qq_lib.respawn.respawner import Respawner
+
+if TYPE_CHECKING:
+    from qq_lib.info import Informer
 
 logger = get_logger(__name__)
 console = Console()

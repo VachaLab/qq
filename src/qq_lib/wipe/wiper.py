@@ -76,7 +76,7 @@ class Wiper(Navigator):
             )
 
         logger.info(
-            f"Deleting working directory '{str(self._work_dir)}' on '{self._main_node}'."
+            f"Deleting working directory '{self._work_dir!s}' on '{self._main_node}'."
         )
         self._batch_system.delete_remote_dir(self._main_node, self._work_dir)
 

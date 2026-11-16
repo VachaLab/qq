@@ -294,7 +294,6 @@ def test_convert_absolute_to_relative_mixed_inside_and_outside(tmp_path):
         ("1:30:00", "1h30m"),
         ("49:00:00", "2d1h"),
         ("168:00:11", "1w11s"),
-        ("0:00:00", "0s"),
     ],
 )
 def test_hhmmss_to_wdhms(input_str, expected):

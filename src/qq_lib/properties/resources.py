@@ -142,7 +142,7 @@ class Resources(HasCouplingMethods):
         self.props = props
 
         # enforce coupling rules
-        self.__post_init__()  # ty: ignore[unresolved-attribute]
+        self.__post_init__()
 
         logger.debug(f"Resources: {self}")
 
@@ -162,7 +162,7 @@ class Resources(HasCouplingMethods):
         ) and not equals_normalized(str(self.work_dir), "input_dir")
 
     @staticmethod
-    def merge_resources(*resources: "Resources") -> "Resources":
+    def merge_resources(*resources: Resources) -> Resources:
         """
         Merge multiple Resources objects.
 
@@ -233,7 +233,7 @@ class Resources(HasCouplingMethods):
         if isinstance(value, str):
             return Size.from_string(value)
         if isinstance(value, dict):
-            return Size(**value)  # ty: ignore[invalid-argument-type]
+            return Size(**value)
         if isinstance(value, Size):
             return value
         return None

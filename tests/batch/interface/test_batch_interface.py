@@ -3,9 +3,8 @@
 
 import os
 import subprocess
-from collections.abc import Iterator
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,6 +16,9 @@ from qq_lib.batch.slurm import Slurm
 from qq_lib.batch.slurmit4i import SlurmIT4I
 from qq_lib.batch.slurmlumi import SlurmLumi
 from qq_lib.core.error import QQError
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 @pytest.fixture(autouse=True)
@@ -48,7 +50,7 @@ def test_navigate_same_host_success(tmp_path):
     with patch("subprocess.run") as mock_run:
         BatchInterface._navigate_same_host(directory)
         # check that subprocess was called properly
-        mock_run.assert_called_once_with(["bash"], cwd=directory)
+        mock_run.assert_called_once_with(["bash"], cwd=directory, check=False)
 
         # should not raise
 
@@ -261,10 +263,11 @@ def test_sync_with_exclusions_rsync_failure(tmp_path, monkeypatch):
     (src / "file.txt").write_text("data")
 
     # patch subprocess.run to simulate rsync failure
-    def fake_run(_command, capture_output=True, text=True, timeout=0.0):
+    def fake_run(_command, capture_output=True, text=True, timeout=0.0, check=False):
         _ = capture_output
         _ = text
         _ = timeout
+        _ = check
 
         class Result:
             returncode = 1
@@ -437,10 +440,11 @@ def test_sync_selected_rsync_failure(tmp_path, monkeypatch):
     dest.mkdir()
     (src / "file.txt").write_text("data")
 
-    def fake_run(_command, capture_output=True, text=True, timeout=0.0):
+    def fake_run(_command, capture_output=True, text=True, timeout=0.0, check=False):
         _ = capture_output
         _ = text
         _ = timeout
+        _ = check
 
         class Result:
             returncode = 1
@@ -701,6 +705,7 @@ def test_batch_interface_delete_remote_dir_success(mock_run):
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
 
 

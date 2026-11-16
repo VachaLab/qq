@@ -43,7 +43,7 @@ class NaiveState(Enum):
         return self.name.lower()
 
     @classmethod
-    def from_str(cls, s: str) -> "NaiveState":
+    def from_str(cls, s: str) -> NaiveState:
         """
         Convert a string to the corresponding NaiveState enum variant.
 
@@ -105,7 +105,7 @@ class BatchState(Enum):
         }
 
     @classmethod
-    def from_code(cls, code: str) -> "BatchState":
+    def from_code(cls, code: str) -> BatchState:
         """
         Convert a one-letter batch system code to a BatchState enum variant.
 
@@ -176,9 +176,7 @@ class RealState(Enum):
         return self.name.lower().replace("_", " ")
 
     @classmethod
-    def from_states(
-        cls, naive_state: NaiveState, batch_state: BatchState
-    ) -> "RealState":
+    def from_states(cls, naive_state: NaiveState, batch_state: BatchState) -> RealState:
         """
         Determine the RealState of a job based on its NaiveState and BatchState.
 

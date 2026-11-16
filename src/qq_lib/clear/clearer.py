@@ -4,10 +4,10 @@
 
 import os
 import threading
-from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from qq_lib.core.common import get_info_files, get_runtime_files
 from qq_lib.core.config import CFG
@@ -15,6 +15,9 @@ from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.info.informer import Informer
 from qq_lib.properties.states import RealState
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 logger = get_logger(__name__)
 
@@ -85,9 +88,7 @@ class Clearer:
             )
 
         if total_excluded > 0 and total_detected > 0:
-            actually_excluded = (
-                total_excluded if total_excluded <= total_detected else total_detected
-            )
+            actually_excluded = min(total_excluded, total_detected)
 
             logger.info(
                 f"{actually_excluded} qq file{'s' if actually_excluded > 1 else ''} could not be safely cleared. "
@@ -205,7 +206,7 @@ class Clearer:
             try:
                 informer = Informer.from_file(file)
                 state = informer.get_real_state()
-                logger.debug(f"Job state: {str(state)}.")
+                logger.debug(f"Job state: {state!s}.")
             except QQError:
                 # ignore the file if it cannot be read
                 continue

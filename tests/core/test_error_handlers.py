@@ -88,7 +88,7 @@ def test_job_mismatch_logs_and_exits(n_jobs):
 def test_job_general_qq_error_single_item_logs_and_exits():
     metadata = CommandRunner.__new__(CommandRunner)
     metadata.n_jobs = 1
-    metadata.encountered_errors = {RuntimeError("general error")}
+    metadata.encountered_errors = {RuntimeError("general error")}  # ty: ignore[invalid-assignment]
     exc = RuntimeError("general error")
 
     with (

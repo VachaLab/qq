@@ -23,7 +23,7 @@ class ResubmitHost(ABC):
     """
 
     @classmethod
-    def from_str(cls, s: str) -> "ResubmitHost":
+    def from_str(cls, s: str) -> ResubmitHost:
         """
         Parses a single resubmission host from a string.
 
@@ -42,7 +42,7 @@ class ResubmitHost(ABC):
                 return ExplicitHost(s.strip())
 
     @classmethod
-    def multi_from_str(cls, raw: str) -> list["ResubmitHost"]:
+    def multi_from_str(cls, raw: str) -> list[ResubmitHost]:
         """
         Parses multiple resubmission hosts from a delimited string.
 

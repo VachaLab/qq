@@ -11,13 +11,14 @@ and exit with appropriate qq exit codes when necessary.
 """
 
 import sys
-from typing import NoReturn
-
-from qq_lib.core.command_runner import CommandRunner
+from typing import TYPE_CHECKING, NoReturn
 
 from .config import CFG
 from .error import QQNotSuitableError, terminate
 from .logger import get_logger
+
+if TYPE_CHECKING:
+    from qq_lib.core.command_runner import CommandRunner
 
 logger = get_logger(__name__)
 
@@ -70,4 +71,3 @@ def ignore_error(
     _runner: CommandRunner,
 ) -> None:
     """Ignore the error."""
-    pass

@@ -142,7 +142,7 @@ class LoopInfo:
             archive=Path(archive),
             archive_format=archive_format,
             current=current,
-            archive_mode=[TransferMode.from_str(mode) for mode in archive_mode],  # ty: ignore[invalid-argument-type]
+            archive_mode=[TransferMode.from_str(mode) for mode in archive_mode],
         )
 
     def to_dict(self) -> dict[str, object]:

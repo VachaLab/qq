@@ -2,7 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 from dataclasses import fields
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from qq_lib.batch.interface import AnyBatchClass, BatchInterface
 from qq_lib.core.common import split_string_list, translate_server
@@ -19,6 +19,9 @@ from qq_lib.properties.transfer_mode import TransferMode
 
 from .parser import Parser
 from .submitter import Submitter
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -222,7 +225,7 @@ class SubmitterFactory:
         ):
             if self._kwargs.get(option) or parser_func():
                 logger.warning(
-                    f"Option '{option}' is specified but job type is '{str(job_type)}', not 'loop' - '{option}' will be ignored."
+                    f"Option '{option}' is specified but job type is '{job_type!s}', not 'loop' - '{option}' will be ignored."
                 )
 
     def _print_warning_if_resubmit_from_defined(self, job_type: JobType) -> None:
@@ -231,7 +234,7 @@ class SubmitterFactory:
         """
         if self._kwargs.get("resubmit_from") or self._parser.get_resubmit_from():
             logger.warning(
-                f"Option 'resubmit_from' is specified but job type is '{str(job_type)}', not 'loop' or 'continuous' - 'resubmit_from' will be ignored."
+                f"Option 'resubmit_from' is specified but job type is '{job_type!s}', not 'loop' or 'continuous' - 'resubmit_from' will be ignored."
             )
 
     def _get_exclude(self) -> list[str]:

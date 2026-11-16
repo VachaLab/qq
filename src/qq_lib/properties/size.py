@@ -11,7 +11,7 @@ qq to express quantities such as memory limits and scratch allocations.
 import math
 import re
 from dataclasses import dataclass
-from typing import Self
+from typing import ClassVar, Self
 
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -29,7 +29,7 @@ class Size:
 
     value: int
 
-    _unit_map = {
+    _unit_map: ClassVar[dict[str, int]] = {
         "kb": 1,
         "mb": 1024,
         "gb": 1024 * 1024,
@@ -75,7 +75,7 @@ class Size:
 
         return cls(int(value), unit)
 
-    def __mul__(self, n: int) -> "Size":
+    def __mul__(self, n: int) -> Size:
         """
         Multiply the Size by an integer.
 
@@ -122,7 +122,7 @@ class Size:
         """Convert the Size to string while keeping it in kilobytes. Use K for the unit."""
         return f"{self.value}K"
 
-    def __floordiv__(self, n: int) -> "Size":
+    def __floordiv__(self, n: int) -> Size:
         """
         Divide the Size by an integer.
 
@@ -143,7 +143,7 @@ class Size:
 
         return Size(math.ceil(self.value / n), "kb")
 
-    def __truediv__(self, other: "Size") -> float:
+    def __truediv__(self, other: Size) -> float:
         """
         Perform true division (/) between two Size instances.
 
@@ -171,7 +171,7 @@ class Size:
 
         return self.value / other.value
 
-    def __sub__(self, other: "Size") -> "Size":
+    def __sub__(self, other: Size) -> Size:
         """
         Subtract one Size from another.
 
