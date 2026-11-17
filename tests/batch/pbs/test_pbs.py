@@ -2139,10 +2139,21 @@ def test_modify_ams_env_vars_warns_for_unknown_server():
         assert "unknown-server.example.com" in mock_warning.call_args[0][0]
 
 
-def test_modify_ams_env_vars_raises_for_unknown_server_with_ams_vars():
-    env_vars = {"AMS_SITE": "old-value"}
-    with pytest.raises(KeyError):
+def test_modify_ams_env_vars_keeps_vars_for_unknown_server():
+    env_vars = {
+        "AMS_SITE": "old-value",
+        "AMS_SITE_SUPPORT": "old-support",
+        "AMS_GROUPNS": "old-ns",
+    }
+    with patch("qq_lib.batch.pbs.pbs.logger.warning") as mock_warning:
         PBS._modify_ams_env_vars(env_vars, "unknown-server.example.com")
+
+    mock_warning.assert_called_once()
+    assert env_vars == {
+        "AMS_SITE": "old-value",
+        "AMS_SITE_SUPPORT": "old-support",
+        "AMS_GROUPNS": "old-ns",
+    }
 
 
 @pytest.mark.parametrize(

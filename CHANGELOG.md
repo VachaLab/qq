@@ -28,6 +28,7 @@
 - Fixed a crash when attempting to access an unreadable directory during a recursive search for qq jobs.
 - Fixed `qq clear` swallowing file removal errors.
 - Better Slurm->qq state conversions.
+- Submitting to servers unknown to AMS no longer raises an error.
 
 ### Internal changes
 

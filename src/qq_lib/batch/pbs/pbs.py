@@ -952,6 +952,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             logger.warning(
                 f"Server '{server}' is not supported by the qq-AMS translation layer. The job will not have access to AMS modules. Please report this issue."
             )
+            return
 
         if "AMS_SITE" in env_vars:
             env_vars["AMS_SITE"] = ams_site_converter[server]
