@@ -18,6 +18,7 @@
 - More reliable information about the availability of computing nodes.
 - Fixed `qq info` with an unknown Slurm job id failing with an "This is a bug" error.
 - Fixed `MaxTime=UNLIMITED` in Slurm partition properties leading to a crash.
+- Working directories on Karolina/LUMI are now properly normalized.
 
 ### Internal changes
 

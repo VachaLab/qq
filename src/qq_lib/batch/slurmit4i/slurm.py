@@ -196,14 +196,22 @@ class SlurmIT4I(Slurm):
                 "Setting work-size is not supported in this environment. Working directory has a virtually unlimited capacity"
             )
 
-        if not any(
-            equals_normalized(resources.work_dir, dir)
-            for dir in cls.get_supported_work_dir_types()
+        if not (
+            work_dir := next(
+                (
+                    dir
+                    for dir in cls.get_supported_work_dir_types()
+                    if equals_normalized(resources.work_dir, dir)
+                ),
+                None,
+            )
         ):
             raise QQError(
                 f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.env_name()} are: {' '.join(cls.get_supported_work_dir_types())}"
             )
 
+        # use the canonical name (it is used e.g. to construct the scratch path on LUMI)
+        resources.work_dir = work_dir
         return resources
 
     @classmethod
