@@ -999,3 +999,18 @@ def test_slurm_get_jobs_in_parallel_raises_on_failure(mock_slurm_job):
 
     with pytest.raises(QQError, match="Failed to load job 999"):
         Slurm._get_jobs_in_parallel(["999"])
+
+
+def test_slurm_get_batch_jobs_from_ids_returns_empty_job_for_unknown_id():
+    def fake_run(*_args, **kwargs):
+        command = kwargs["input"]
+        if command.startswith("scontrol"):
+            return MagicMock(returncode=1, stdout="", stderr="Invalid job id specified")
+        # sacct prints nothing for unknown jobs
+        return MagicMock(returncode=0, stdout="", stderr="")
+
+    with patch("subprocess.run", side_effect=fake_run):
+        jobs = Slurm.get_batch_jobs_from_ids(["999"])
+
+    assert [job.get_id() for job in jobs] == ["999"]
+    assert jobs[0].is_empty()

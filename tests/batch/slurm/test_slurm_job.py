@@ -1001,3 +1001,44 @@ def test_slurm_job_update_scontrol_success_is_not_unreachable(mock_run):
 
     assert job.get_state() == BatchState.RUNNING
     assert job.is_unreachable() is False
+
+
+_SACCT_LINE = (
+    "123+0|acc|COMPLETED|user|job|cpu|/dir|4|4|cpu=4,mem=4G,node=1|cpu=4,mem=4G,node=1|1|1|"
+    "2025-01-01T10:00:00|2025-01-01T10:01:00|2025-01-01T11:00:00|01:00:00|node1|None|0:0"
+)
+
+
+@patch("qq_lib.batch.slurm.job.subprocess.run")
+def test_slurm_job_update_unknown_job_gives_empty_job(mock_run):
+    mock_run.side_effect = [
+        MagicMock(
+            returncode=1, stderr="slurm_load_jobs error: Invalid job id specified"
+        ),
+        # sacct prints nothing and exits with zero for unknown jobs
+        MagicMock(returncode=0, stdout="", stderr=""),
+    ]
+
+    job = SlurmJob("99999")
+
+    assert mock_run.call_count == 2
+    assert job.is_empty()
+    assert job.is_unreachable() is False
+    assert job.get_state() == BatchState.UNKNOWN
+
+
+@patch("qq_lib.batch.slurm.job.subprocess.run")
+def test_slurm_job_update_sacct_multiple_lines_uses_first(mock_run):
+    mock_run.side_effect = [
+        MagicMock(
+            returncode=1, stderr="slurm_load_jobs error: Invalid job id specified"
+        ),
+        MagicMock(
+            returncode=0,
+            stdout=f"{_SACCT_LINE}\n{_SACCT_LINE.replace('123+0', '123+1')}\n",
+        ),
+    ]
+
+    job = SlurmJob("123")
+
+    assert job.get_state() == BatchState.FINISHED

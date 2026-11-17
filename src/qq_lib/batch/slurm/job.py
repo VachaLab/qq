@@ -115,8 +115,16 @@ class SlurmJob(BatchJobInterface):
             # sacct prints nothing and exits with zero for jobs it does not know,
             # so a failure means that the batch system could not be asked
             self._unreachable = True
+        elif not (lines := result.stdout.strip().splitlines()):
+            # sacct prints nothing and exits with zero for jobs it does not know
+            logger.debug(
+                f"both scontrol and sacct have no information about job '{self._job_id}'"
+            )
+            self._info: dict[str, str] = {}
+            self._unreachable = False
         else:
-            job: SlurmJob = SlurmJob.from_sacct_string(result.stdout.strip())
+            # sacct prints one line per component for heterogeneous and array jobs
+            job: SlurmJob = SlurmJob.from_sacct_string(lines[0])
             self._info: dict[str, str] = job._info
             self._unreachable = False
 
