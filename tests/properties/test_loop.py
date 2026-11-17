@@ -413,3 +413,25 @@ def test_from_dict_raises_on_invalid_archive_mode(archive_mode):
                 "archive_mode": archive_mode,
             }
         )
+
+
+@pytest.mark.parametrize(
+    "archive_format, files, expected",
+    [
+        ("step7_%d", ["step7_1.gro", "step7_2.gro", "step7_3.gro"], 3),
+        ("md2_%04d", ["md2_0001.gro", "md2_0005.gro"], 5),
+        ("r1_md%03d_p2", ["r1_md004_p2.xtc", "r1_md011_p2.xtc"], 11),
+        ("md%04d", ["md0001.gro", "md0012.gro"], 12),
+    ],
+)
+def test_loop_info_determine_cycle_from_archive_ignores_digits_outside_placeholder(
+    tmp_path, archive_format, files, expected
+):
+    for file in files:
+        (tmp_path / file).touch()
+
+    loop_info = LoopInfo(
+        start=1, end=20, archive=tmp_path, archive_format=archive_format
+    )
+
+    assert loop_info.current == expected
