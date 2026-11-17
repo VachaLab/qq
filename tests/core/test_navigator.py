@@ -9,8 +9,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from qq_lib.batch.pbs.pbs import PBS
+from qq_lib.core.config import CFG
 from qq_lib.core.navigator import Navigator
 from qq_lib.properties.states import RealState
+from qq_lib.properties.transfer_mode import Always
 
 
 def test_navigator_init(tmp_path):
@@ -317,3 +319,22 @@ def test_wiper_workdir_is_inputdir_various_conditions(
 
     result = wiper._work_dir_is_input_dir()
     assert result is expected
+
+
+@pytest.mark.parametrize(
+    "exit_code, expected",
+    [
+        (0, True),
+        (1, True),
+        # qq run itself failed (e.g., while copying files back), files were not synchronized
+        (CFG.exit_codes.default, False),
+        (CFG.exit_codes.unexpected_error, False),
+    ],
+)
+def test_navigator_is_synchronized_with_always_transfer_mode(exit_code, expected):
+    navigator = Navigator.__new__(Navigator)
+    navigator._informer = MagicMock()
+    navigator._informer.info.job_exit_code = exit_code
+    navigator._informer.info.transfer_mode = [Always()]
+
+    assert navigator._is_synchronized() is expected

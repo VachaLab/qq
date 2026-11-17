@@ -14,6 +14,7 @@ import socket
 from pathlib import Path
 from typing import TYPE_CHECKING, Self
 
+from qq_lib.core.config import CFG
 from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.properties.states import RealState
@@ -154,6 +155,11 @@ class Navigator(Operator):
         # if exit code is not defined, then the job was never synchronized
         # (it was either never run or it was killed)
         if (exit_code := self._informer.info.job_exit_code) is None:
+            return False
+
+        # if `qq run` itself failed (e.g., while copying files back to the input directory),
+        # the working directory was not synchronized and was kept
+        if exit_code in {CFG.exit_codes.default, CFG.exit_codes.unexpected_error}:
             return False
 
         return any(

@@ -32,6 +32,7 @@
 - Submitting to servers unknown to AMS no longer raises an error.
 - Fixed handling paths with spaces and/or quotes.
 - SIGTERM handler now finishes cleanup properly even if the info file cannot be updated.
+- Job should not be considered synchronized if `qq run` itself failed.
 
 ### Internal changes
 
