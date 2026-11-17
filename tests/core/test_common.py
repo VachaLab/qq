@@ -1636,3 +1636,11 @@ def test_kill_process_group_ignores_missing_group() -> None:
     proc.wait()
 
     _kill_process_group(proc.pid)
+
+
+@pytest.mark.parametrize(
+    "td", [timedelta(seconds=-1), timedelta(seconds=-65), timedelta(days=-3)]
+)
+def test_format_duration_wdhhmmss_negative_is_zero(td):
+    # e.g. a planned start time of a pending job that is already in the past
+    assert format_duration_wdhhmmss(td) == "00:00:00"

@@ -334,9 +334,12 @@ def format_duration_wdhhmmss(td: timedelta) -> str:
         td: The duration to format.
 
     Returns:
-        Formatted string in "Xw Yd HH:MM:SS" format.
+        Formatted string in "Xw Yd HH:MM:SS" format. Negative durations
+        are formatted as zero.
     """
-    total_seconds = int(td.total_seconds())
+    # negative durations (e.g., planned start times in the past or clock skew
+    # between machines) would otherwise be shown as almost a week
+    total_seconds = max(0, int(td.total_seconds()))
 
     weeks, remainder = divmod(total_seconds, 7 * 24 * 3600)
     days, remainder = divmod(remainder, 24 * 3600)
