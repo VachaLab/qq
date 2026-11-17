@@ -191,7 +191,11 @@ class SlurmIT4I(Slurm):
                 "Work-dir is not set after filling in default attributes. This is a bug, please report it"
             )
 
-        if provided_resources.work_size_per_cpu or provided_resources.work_size:
+        if (
+            provided_resources.work_size
+            or provided_resources.work_size_per_cpu
+            or provided_resources.work_size_per_node
+        ):
             logger.warning(
                 "Setting work-size is not supported in this environment. Working directory has a virtually unlimited capacity"
             )

@@ -504,7 +504,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             resources.work_dir, "input_dir"
         ):
             # work-size should not be used with job_dir
-            if provided_resources.work_size:
+            if (
+                provided_resources.work_size
+                or provided_resources.work_size_per_cpu
+                or provided_resources.work_size_per_node
+            ):
                 logger.warning(
                     "Setting work-size is not supported for work-dir='job_dir' or 'input_dir'.\n"
                     "Job will run in the submission directory with unlimited capacity.\n"
@@ -514,12 +518,17 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             resources.work_dir = "input_dir"
             resources.work_size = None
             resources.work_size_per_cpu = None
+            resources.work_size_per_node = None
             return resources
 
         # scratch in RAM (https://docs.metacentrum.cz/en/docs/computing/infrastructure/scratch-storages#scratch-in-ram)
         if equals_normalized(resources.work_dir, "scratch_shm"):
             # work-size should not be used with scratch_shm
-            if provided_resources.work_size:
+            if (
+                provided_resources.work_size
+                or provided_resources.work_size_per_cpu
+                or provided_resources.work_size_per_node
+            ):
                 logger.warning(
                     "Setting work-size is not supported for work-dir='scratch_shm'.\n"
                     "Size of the in-RAM scratch is specified using the --mem property.\n"
@@ -529,6 +538,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             resources.work_dir = "scratch_shm"
             resources.work_size = None
             resources.work_size_per_cpu = None
+            resources.work_size_per_node = None
             return resources
 
         # if work-dir matches any of the "standard" scratches supported by PBS

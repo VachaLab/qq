@@ -2595,3 +2595,27 @@ def test_pbs_translate_submit_quotes_paths_with_spaces(server):
     assert args[args.index("-e") + 1].endswith(
         f"/home/user/my sims/run me{CFG.suffixes.qq_out}"
     )
+
+
+@pytest.mark.parametrize("work_dir", ["input_dir", "job_dir", "scratch_shm"])
+@pytest.mark.parametrize(
+    "work_size_field", ["work_size", "work_size_per_cpu", "work_size_per_node"]
+)
+def test_pbs_transform_resources_clears_all_work_sizes_without_scratch(
+    work_dir, work_size_field
+):
+    provided = Resources(work_dir=work_dir, **{work_size_field: "10gb"})
+    with (
+        patch("qq_lib.batch.pbs.pbs.PBSQueue") as mock_queue,
+        patch.object(PBS, "_get_default_server_resources", return_value=Resources()),
+        patch("qq_lib.batch.pbs.pbs.logger.warning") as mock_warning,
+    ):
+        mock_queue.return_value.get_default_resources.return_value = Resources()
+
+        res = PBS.transform_resources("gpu", None, provided)
+
+    assert res.work_size is None
+    assert res.work_size_per_cpu is None
+    assert res.work_size_per_node is None
+    mock_warning.assert_called_once()
+    assert "Setting work-size is not supported" in mock_warning.call_args.args[0]

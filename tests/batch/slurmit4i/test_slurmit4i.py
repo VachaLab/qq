@@ -378,3 +378,22 @@ def test_slurmit4i_delete_remote_dir_raises_error_on_local_failure(
 def test_slurmit4i_get_supported_work_dir_types_returns_combined_list():
     expected = ["scratch", "input_dir", "job_dir"]
     assert SlurmIT4I.get_supported_work_dir_types() == expected
+
+
+@pytest.mark.parametrize(
+    "work_size_field", ["work_size", "work_size_per_cpu", "work_size_per_node"]
+)
+def test_slurmit4i_transform_resources_warns_for_any_work_size(work_size_field):
+    provided = Resources(work_dir="scratch", **{work_size_field: Size(10, "gb")})  # ty: ignore[invalid-argument-type]
+    with (
+        patch("qq_lib.batch.slurmit4i.slurm.SlurmQueue") as mock_queue,
+        patch.object(
+            SlurmIT4I, "_get_default_server_resources", return_value=Resources()
+        ),
+        patch("qq_lib.batch.slurmit4i.slurm.logger.warning") as mock_warning,
+    ):
+        mock_queue.return_value.get_default_resources.return_value = Resources()
+
+        SlurmIT4I.transform_resources("default", None, provided)
+
+    mock_warning.assert_called_once()
