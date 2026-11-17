@@ -32,9 +32,35 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+
+def _initial_logical_cwd() -> Path:
+    """
+    Determine the logical current working directory at import time.
+
+    $PWD is only used if it points to the actual current working directory.
+    It may be stale if the process was started by another program than a shell,
+    e.g. by `subprocess.run(..., cwd=...)` in Python, which changes the working
+    directory but keeps the $PWD of the parent process.
+
+    Returns:
+        $PWD if it is an absolute path to the current working directory,
+        otherwise the physical current working directory.
+    """
+    physical = Path.cwd()
+    pwd = os.environ.get("PWD")
+
+    try:
+        if pwd and Path(pwd).is_absolute() and Path(pwd).samefile(physical):
+            return Path(pwd)
+    except OSError:
+        pass
+
+    return physical
+
+
 # initialized from $PWD at import time, while the shell-maintained logical path
 # is still valid; after this point, _chdir keeps it in sync
-_logical_cwd = Path(os.environ.get("PWD", Path.cwd()))
+_logical_cwd = _initial_logical_cwd()
 
 _real_chdir = os.chdir
 

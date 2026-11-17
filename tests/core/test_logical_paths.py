@@ -2,6 +2,9 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 
+import os
+import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -390,3 +393,38 @@ def test_to_logical_default_anchors_use_home(fs, monkeypatch):
     result = logical_paths.to_logical(physical / "home" / "alice" / "project")
 
     assert result == logical / "home" / "alice" / "project"
+
+
+def _logical_cwd_in_subprocess(cwd: Path, pwd: Path) -> Path:
+    # a fresh interpreter is needed since the logical cwd is initialized at import time
+    src_dir = Path(logical_paths.__file__).parents[2]
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from qq_lib.core.logical_paths import logical_cwd; print(logical_cwd())",
+        ],
+        cwd=cwd,
+        env={**os.environ, "PWD": str(pwd), "PYTHONPATH": str(src_dir)},
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return Path(result.stdout.strip())
+
+
+def test_logical_cwd_ignores_stale_pwd(tmp_path):
+    # e.g. `subprocess.run(["qq", "submit", "job.sh"], cwd=sub)` keeps the parent's PWD
+    sub = tmp_path / "sub"
+    sub.mkdir()
+
+    assert _logical_cwd_in_subprocess(sub, tmp_path) == sub.resolve()
+
+
+def test_logical_cwd_keeps_symlinked_pwd(tmp_path):
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real)
+
+    assert _logical_cwd_in_subprocess(real, link) == link
