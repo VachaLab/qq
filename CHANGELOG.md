@@ -8,7 +8,7 @@
 - qq now uses, and `qq_lib` requires, Python 3.15.
 - `.out` and `.err` files are only treated as qq runtime files if a `.qqinfo` or `.qqout` file with the same stem exists in the same directory, so output files of other programs are no longer deleted. A `.out` or `.err` file left behind after its `.qqinfo` and `.qqout` files were removed is no longer recognized and has to be deleted manually.
 
-### Bug fixes
+### Bug fixes and small changes
 
 - Fixed resolving files excluded from copying to the input directory.
 - Fixed filtering old dependencies on Slurm.
@@ -27,6 +27,7 @@
 - Fixed unexpected aborting of multi-job commands.
 - Fixed a crash when attempting to access an unreadable directory during a recursive search for qq jobs.
 - Fixed `qq clear` swallowing file removal errors.
+- Better Slurm->qq state conversions.
 
 ### Internal changes
 

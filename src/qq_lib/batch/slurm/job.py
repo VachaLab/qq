@@ -35,17 +35,30 @@ class SlurmJob(BatchJobInterface):
     """
 
     # converts from Slurm state names to qq BatchStates
+    # (Slurm reports some job flags instead of the base state, e.g. COMPLETING or CONFIGURING)
     _STATE_CONVERTER: ClassVar[dict[str, BatchState]] = {
         "BOOT_FAIL": BatchState.FAILED,
         "CANCELLED": BatchState.FAILED,
         "COMPLETED": BatchState.FINISHED,
+        "COMPLETING": BatchState.EXITING,
+        "CONFIGURING": BatchState.RUNNING,
         "DEADLINE": BatchState.FAILED,
         "FAILED": BatchState.FAILED,
         "NODE_FAIL": BatchState.FAILED,
         "OUT_OF_MEMORY": BatchState.FAILED,
         "PENDING": BatchState.QUEUED,
-        "PREEMPTED": BatchState.SUSPENDED,
+        # PREEMPTED is a terminal state; suspended jobs are reported as SUSPENDED
+        "PREEMPTED": BatchState.FAILED,
+        "REQUEUED": BatchState.QUEUED,
+        "REQUEUE_FED": BatchState.QUEUED,
+        "REQUEUE_HOLD": BatchState.HELD,
+        "RESIZING": BatchState.RUNNING,
+        "RESV_DEL_HOLD": BatchState.HELD,
         "RUNNING": BatchState.RUNNING,
+        "SIGNALING": BatchState.RUNNING,
+        "SPECIAL_EXIT": BatchState.FAILED,
+        "STAGE_OUT": BatchState.EXITING,
+        "STOPPED": BatchState.SUSPENDED,
         "SUSPENDED": BatchState.SUSPENDED,
         "TIMEOUT": BatchState.FAILED,
     }
@@ -134,11 +147,12 @@ class SlurmJob(BatchJobInterface):
 
         converted_state = SlurmJob._STATE_CONVERTER.get(raw_state) or BatchState.UNKNOWN
 
-        # if the job is queued due to depending on another job, it should be considered "held"
+        # if the job is queued due to depending on another job or due to a user/admin hold,
+        # it should be considered "held"
         if (
             converted_state == BatchState.QUEUED
             and (comment := self.get_comment())
-            and "Dependency" in comment
+            and ("Dependency" in comment or "JobHeld" in comment)
         ):
             return BatchState.HELD
 

@@ -109,27 +109,42 @@ def test_slurm_job_get_state_returns_unknown_when_no_jobstate():
 
 
 @pytest.mark.parametrize(
-    "raw_state,expected_state",
+    "raw_state, reason, expected_state",
     [
-        ("BOOT_FAIL", BatchState.FAILED),
-        ("CANCELLED", BatchState.FAILED),
-        ("COMPLETED", BatchState.FINISHED),
-        ("DEADLINE", BatchState.FAILED),
-        ("FAILED", BatchState.FAILED),
-        ("NODE_FAIL", BatchState.FAILED),
-        ("OUT_OF_MEMORY", BatchState.FAILED),
-        ("PENDING", BatchState.QUEUED),
-        ("PREEMPTED", BatchState.SUSPENDED),
-        ("RUNNING", BatchState.RUNNING),
-        ("SUSPENDED", BatchState.SUSPENDED),
-        ("TIMEOUT", BatchState.FAILED),
+        ("BOOT_FAIL", "None", BatchState.FAILED),
+        ("CANCELLED", "None", BatchState.FAILED),
+        ("COMPLETED", "None", BatchState.FINISHED),
+        ("DEADLINE", "None", BatchState.FAILED),
+        ("FAILED", "None", BatchState.FAILED),
+        ("NODE_FAIL", "None", BatchState.FAILED),
+        ("OUT_OF_MEMORY", "None", BatchState.FAILED),
+        ("PENDING", "None", BatchState.QUEUED),
+        ("PREEMPTED", "None", BatchState.FAILED),
+        ("RUNNING", "None", BatchState.RUNNING),
+        ("SUSPENDED", "None", BatchState.SUSPENDED),
+        ("TIMEOUT", "None", BatchState.FAILED),
+        ("COMPLETING", "None", BatchState.EXITING),
+        ("STAGE_OUT", "None", BatchState.EXITING),
+        ("CONFIGURING", "None", BatchState.RUNNING),
+        ("RESIZING", "None", BatchState.RUNNING),
+        ("SIGNALING", "None", BatchState.RUNNING),
+        ("REQUEUED", "None", BatchState.QUEUED),
+        ("REQUEUE_FED", "None", BatchState.QUEUED),
+        ("REQUEUE_HOLD", "None", BatchState.HELD),
+        ("RESV_DEL_HOLD", "None", BatchState.HELD),
+        ("STOPPED", "None", BatchState.SUSPENDED),
+        ("SPECIAL_EXIT", "None", BatchState.FAILED),
+        ("PENDING", "JobHeldUser", BatchState.HELD),
+        ("PENDING", "JobHeldAdmin", BatchState.HELD),
     ],
 )
 def test_slurm_job_get_state_returns_converted_value_for_all_states(
-    raw_state, expected_state
+    raw_state, reason, expected_state
 ):
     job = SlurmJob.__new__(SlurmJob)
-    job._info = {"JobState": raw_state}
+    job._job_id = "123"
+    job._info = {"JobState": raw_state, "Reason": reason}
+
     assert job.get_state() == expected_state
 
 
