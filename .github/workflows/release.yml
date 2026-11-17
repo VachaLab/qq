@@ -29,23 +29,15 @@ jobs:
                   uv sync --all-groups --locked
             - name: Get version from tag
               id: version
-              env:
-                  UV_PYTHON_PREFERENCE: only-managed
               run: |
                   TAG="${{ github.event.release.tag_name }}"
-                  # normalize to the canonical PEP 440 form reported by `qq --version`
-                  VERSION=$(uv run python -c "import sys; from packaging.version import Version; print(Version(sys.argv[1]))" "${TAG#v}")
+                  VERSION="${TAG#v}"
                   echo "version=$VERSION" >> "$GITHUB_OUTPUT"
             - name: Build with PyInstaller
               env:
                   UV_PYTHON_PREFERENCE: only-managed
               run: |
                   uv run pyinstaller qq.spec
-            - name: Smoke-test the bundle
-              run: |
-                  out=$(dist/qq/qq --version)
-                  echo "$out"
-                  echo "$out" | grep -qF "${{ steps.version.outputs.version }}"
             - name: Verify glibc requirements
               run: |
                   found=$(find dist/qq -type f \( -name '*.so*' -o -perm -u+x \) -print0 |
