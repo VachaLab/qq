@@ -32,6 +32,7 @@ class UserGroups:
 
     _groups: ClassVar[dict[str, list[str]]] = {}
     _qos: ClassVar[dict[str, str]] = {}
+    _accounts: ClassVar[dict[str, list[str]]] = {}
 
     @staticmethod
     def get_groups_or_init(user: str) -> list[str]:
@@ -91,6 +92,45 @@ class UserGroups:
             return qos_list[0]
 
         return "normal"
+
+    @staticmethod
+    def get_accounts_or_init(user: str) -> list[str]:
+        """
+        Retrieve the cached Slurm accounts of a user, initializing them if needed.
+
+        Args:
+            user: The username whose Slurm accounts should be retrieved.
+
+        Returns:
+            A list of lowercase names of accounts the user has an association with.
+            Returns an empty list if the accounts could not be determined.
+        """
+        if (accounts := UserGroups._accounts.get(user)) is not None:
+            return accounts
+
+        result = subprocess.run(
+            ["bash"],
+            input=f"sacctmgr show assoc user={user} format=account -n -P",
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
+        )
+
+        if result.returncode != 0:
+            UserGroups._accounts[user] = []
+            return []
+
+        accounts = list(
+            dict.fromkeys(
+                line.strip().lower()
+                for line in result.stdout.splitlines()
+                if line.strip()
+            )
+        )
+        UserGroups._accounts[user] = accounts
+        logger.debug(f"Initialized Slurm accounts for user '{user}': {accounts}.")
+        return accounts
 
 
 class SlurmQueue(BatchQueueInterface):
@@ -183,15 +223,21 @@ class SlurmQueue(BatchQueueInterface):
                 return None
             return [item.strip() for item in value.split(",")]
 
-        # check allowed accounts
+        # check allowed and denied accounts
+        # AllowAccounts and DenyAccounts list Slurm accounts (projects), not users;
+        # the user needs at least one account that is allowed and not denied
         allow_accounts = parse_list(self._info.get("AllowAccounts", "ALL"))
-        if allow_accounts and user not in allow_accounts:
-            return False
-
-        # check denied accounts
         deny_accounts = parse_list(self._info.get("DenyAccounts", "(null)"))
-        if deny_accounts and user in deny_accounts:
-            return False
+        if (allow_accounts or deny_accounts) and (
+            user_accounts := UserGroups.get_accounts_or_init(user)
+        ):
+            allowed = {a.lower() for a in allow_accounts or []}
+            denied = {a.lower() for a in deny_accounts or []}
+            if not any(
+                (not allowed or account in allowed) and account not in denied
+                for account in user_accounts
+            ):
+                return False
 
         # check allowed groups
         user_groups = UserGroups.get_groups_or_init(user)
