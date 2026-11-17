@@ -53,7 +53,7 @@ class LoopInfo:
         Initialize loop job information with validation checks.
 
         Args:
-            start: The starting cycle number.
+            start: The starting cycle number. Must be at least 1.
             end: The ending cycle number. Must be provided and >= `start`.
             archive: Path to the archive directory.
             input_dir: The job submission directory. Used to validate archive.
@@ -66,8 +66,8 @@ class LoopInfo:
                 successfully completed jobs.
 
         Raises:
-            QQError: If `end` is not provided, if `start > end`, if `current > end`,
-                or if the archive path is invalid.
+            QQError: If `end` is not provided, if `start < 1`, if `start > end`,
+                if `current > end`, or if the archive path is invalid.
         """
         if not end:
             raise QQError("Attribute 'loop-end' is undefined")
@@ -85,8 +85,8 @@ class LoopInfo:
         self.end = end
         self.current = current or self.determine_cycle_from_archive()
 
-        if self.start < 0:
-            raise QQError(f"Attribute 'loop-start' ({self.start}) cannot be negative")
+        if self.start < 1:
+            raise QQError(f"Attribute 'loop-start' ({self.start}) must be at least 1")
 
         if self.start > self.end:
             raise QQError(

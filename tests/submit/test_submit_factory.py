@@ -1123,3 +1123,26 @@ def test_submitter_factory_print_warning_if_resubmit_from_defined_silent(mock_lo
     factory._print_warning_if_resubmit_from_defined(JobType.STANDARD)
 
     mock_logger.warning.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "cli_start, parser_start",
+    [(0, None), (None, 0), (0, 5)],
+)
+def test_submitter_factory_get_loop_info_rejects_zero_loop_start(
+    tmp_path, cli_start, parser_start
+):
+    mock_parser = MagicMock()
+    mock_parser.get_loop_start.return_value = parser_start
+    mock_parser.get_loop_end.return_value = 5
+    mock_parser.get_archive.return_value = None
+    mock_parser.get_archive_format.return_value = None
+    mock_parser.get_archive_mode.return_value = []
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._input_dir = tmp_path
+    factory._parser = mock_parser
+    factory._kwargs = {"loop_start": cli_start}
+
+    with pytest.raises(QQError, match="loop-start"):
+        factory._get_loop_info()

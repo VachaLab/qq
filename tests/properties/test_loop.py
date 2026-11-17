@@ -233,9 +233,9 @@ def test_get_cycle_non_numeric_files_are_ignored_but_numeric_stems_count(temp_di
 @pytest.mark.parametrize(
     "start, end, current, archive_format",
     [
-        (0, 10, 3, "md%04d"),
+        (1, 10, 3, "md%04d"),
         (5, 20, 5, "job%03d"),
-        (0, 1, 0, "test*"),
+        (1, 1, 1, "test*"),
         (99, 100, 99, "md%5d"),
     ],
 )
@@ -265,7 +265,7 @@ def test_to_dict_scalar_fields(tmp_path, start, end, current, archive_format):
 )
 def test_to_dict_archive_is_string(tmp_path, archive_subdir):
     info = LoopInfo(
-        start=0,
+        start=1,
         end=10,
         archive=tmp_path / archive_subdir,
         archive_format="md%004d",
@@ -294,7 +294,7 @@ def test_to_dict_archive_is_string(tmp_path, archive_subdir):
 )
 def test_to_dict_archive_mode_serialization(tmp_path, archive_mode, expected_strings):
     info = LoopInfo(
-        start=0,
+        start=1,
         end=10,
         archive=tmp_path / "storage",
         archive_format="md%04d",
@@ -435,3 +435,16 @@ def test_loop_info_determine_cycle_from_archive_ignores_digits_outside_placehold
     )
 
     assert loop_info.current == expected
+
+
+def test_loop_info_rejects_zero_start(tmp_path):
+    input_dir = tmp_path / "job"
+
+    with pytest.raises(QQError, match="loop-start"):
+        LoopInfo(
+            start=0,
+            end=5,
+            archive=input_dir / "archive",
+            input_dir=input_dir,
+            archive_format="md%04d",
+        )

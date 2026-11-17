@@ -188,9 +188,15 @@ class SubmitterFactory:
         Raises:
             QQError: If required loop job parameters are missing or invalid.
         """
+        # `or` cannot be used here, since an invalid zero would be silently replaced
+        start = _first_not_none(
+            self._kwargs.get("loop_start"), self._parser.get_loop_start()
+        )
+        end = _first_not_none(self._kwargs.get("loop_end"), self._parser.get_loop_end())
+
         return LoopInfo(
-            self._kwargs.get("loop_start") or self._parser.get_loop_start() or 1,
-            self._kwargs.get("loop_end") or self._parser.get_loop_end(),
+            1 if start is None else start,
+            end,
             self._input_dir
             / (
                 self._kwargs.get("archive")
@@ -394,3 +400,18 @@ class SubmitterFactory:
             or ResubmitHost.multi_from_str(CFG.resubmitter.default_resubmit_hosts or "")
             or BatchSystem.get_default_resubmit_hosts()
         )
+
+
+def _first_not_none[T](*values: T | None) -> T | None:
+    """
+    Return the first value that is not `None`.
+
+    Unlike chaining with `or`, falsy values such as `0` are kept.
+
+    Args:
+        *values: Values in the order of precedence.
+
+    Returns:
+        The first value that is not `None`, or `None` if all values are `None`.
+    """
+    return next((value for value in values if value is not None), None)
