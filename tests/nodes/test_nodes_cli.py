@@ -172,3 +172,19 @@ def test_nodes_command_handles_unexpected_exception_and_exits_99():
 
     assert result.exit_code == CFG.exit_codes.unexpected_error
     mock_logger.critical.assert_called_once()
+
+
+def test_nodes_command_without_available_nodes_exits_zero():
+    runner = CliRunner()
+    mock_node = MagicMock()
+    mock_node.is_available_to_user.return_value = False
+
+    with (
+        patch("qq_lib.nodes.cli.BatchInterface.from_env_var_or_guess") as mock_meta,
+        patch("qq_lib.nodes.cli.getpass.getuser", return_value="user"),
+    ):
+        mock_meta.return_value.get_nodes.return_value = [mock_node]
+
+        result = runner.invoke(nodes, [])
+
+    assert result.exit_code == 0

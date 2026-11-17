@@ -38,6 +38,7 @@
 - Empty items in file lists can no longer be interpreted as the input directory.
 - Made handling errors in multi-job operations more robust.
 - Potentially more responsive CTRL+C when performing multi-job operations.
+- `qq nodes` no longer crashes if there are no available nodes.
 
 ### Internal changes
 

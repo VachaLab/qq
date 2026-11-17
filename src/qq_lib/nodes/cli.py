@@ -59,6 +59,10 @@ def nodes(all: bool, server: str | None, yaml: bool) -> NoReturn:
         if not all:
             nodes = [n for n in nodes if n.is_available_to_user(user)]
 
+        if not nodes:
+            logger.info("No nodes found.")
+            sys.exit(0)
+
         presenter = NodesPresenter(nodes, user, all, server)
         if yaml:
             presenter.dump_yaml()
