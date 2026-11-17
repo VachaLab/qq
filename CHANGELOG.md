@@ -24,6 +24,7 @@
 - `.init` file should not be created for a failing loop job even if the archive mode includes the failed state.
 - `loop-start` 0 is now properly rejected, not silently overwritten with 1.
 - Numeric size or walltime directives now raise an error instead of being silently dropped.
+- Fixed unexpected aborting of multi-job commands.
 
 ### Internal changes
 

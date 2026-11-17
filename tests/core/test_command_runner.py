@@ -11,7 +11,7 @@ import pytest
 
 from qq_lib.core.command_runner import CommandRunner
 from qq_lib.core.config import CFG
-from qq_lib.core.error import QQError, QQNotSuitableError
+from qq_lib.core.error import QQError, QQJobMismatchError, QQNotSuitableError
 from qq_lib.core.error_handlers import handle_not_suitable_error
 from qq_lib.info import Informer
 
@@ -908,3 +908,31 @@ def test_command_runner_build_targets_recursive_raises_when_nothing_found(tmp_pa
 
     with pytest.raises(QQError, match="No qq job info file found"):
         runner._build_targets()
+
+
+def test_command_runner_handle_error_uses_handler_of_parent_exception_type():
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner()
+
+    handler = MagicMock()
+    runner.on_exception(QQError, handler)
+    error = QQJobMismatchError("info file belongs to a different job")
+    runner._handle_error(error)
+
+    handler.assert_called_once_with(error, runner)
+
+
+def test_command_runner_handle_error_prefers_most_specific_handler():
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner()
+
+    general_handler = MagicMock()
+    specific_handler = MagicMock()
+    runner.on_exception(QQNotSuitableError, specific_handler).on_exception(
+        QQError, general_handler
+    )
+    error = QQNotSuitableError("not suitable")
+    runner._handle_error(error)
+
+    specific_handler.assert_called_once_with(error, runner)
+    general_handler.assert_not_called()

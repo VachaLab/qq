@@ -399,8 +399,11 @@ class CommandRunner:
             Exception: If no handler is registered for the exception type.
         """
         self.encountered_errors[self.current_iteration] = error
-        handler = self._exception_handlers.get(type(error))
-        if handler:
-            handler(error, self)
-        else:
-            raise error
+        # use the handler registered for the most specific type of the exception,
+        # including its parent classes (e.g., QQError for QQJobMismatchError)
+        for exception_type in type(error).__mro__:
+            if handler := self._exception_handlers.get(exception_type):
+                handler(error, self)
+                return
+
+        raise error
