@@ -6,7 +6,6 @@
 - Tweaked the output format of `qq info -b`.
 - Job resubmission no longer hangs when the input directory is unavailable. It now fails after a 120-second timeout.
 - qq now uses, and `qq_lib` requires, Python 3.15.
-- Removed unnecessary typing information from function and method doc strings.
 
 ### Bug fixes
 
@@ -30,6 +29,7 @@
 ### Internal changes
 
 - **Python API breaking change:** `Repeater` has been removed.
+- Removed unnecessary typing information from function and method doc strings.
 
 ---
 
