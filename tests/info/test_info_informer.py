@@ -817,3 +817,16 @@ def test_informer_get_real_state_without_batch_information(unreachable, expected
     informer.set_batch_info(batch_info)
 
     assert informer.get_real_state() == expected
+
+
+@pytest.mark.parametrize("host", [None, "input.example.org"])
+def test_informer_from_file_remembers_host(host):
+    with patch("qq_lib.info.informer.Info.from_file") as mock_from_file:
+        informer = Informer.from_file(Path("/data/job.qqinfo"), host)
+
+    mock_from_file.assert_called_once_with(Path("/data/job.qqinfo"), host)
+    assert informer.get_host() == host
+
+
+def test_informer_created_from_info_has_no_host():
+    assert Informer(MagicMock()).get_host() is None

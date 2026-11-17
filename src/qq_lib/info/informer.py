@@ -31,6 +31,8 @@ class Informer:
         """
         self.info = info
         self._batch_info: BatchJobInterface | None = None
+        # machine from which the info file was read, `None` if read from the current machine
+        self._host: str | None = None
 
     @property
     def batch_system(self) -> type[BatchInterface]:
@@ -59,7 +61,9 @@ class Informer:
         Raises:
             QQError: If the file cannot be read, reached, or parsed correctly.
         """
-        return cls(Info.from_file(file, host))
+        informer = cls(Info.from_file(file, host))
+        informer._host = host
+        return informer
 
     @classmethod
     def from_job_id(cls, job_id: str) -> Self:
@@ -396,6 +400,16 @@ class Informer:
             Absolute path to the info file.
         """
         return construct_info_file_path(self.info.input_dir, self.info.job_name)
+
+    def get_host(self) -> str | None:
+        """
+        Get the machine from which the info file of this job was read.
+
+        Returns:
+            Hostname of the machine, or `None` if the info file was read from
+            the current machine or the informer was not created from a file.
+        """
+        return self._host
 
     def should_transfer_files(self, exit_code: int) -> bool:
         """

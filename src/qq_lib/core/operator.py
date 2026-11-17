@@ -72,8 +72,10 @@ class Operator:
     def update(self) -> None:
         """
         Refresh the internal informer and job state from the qq info file.
+
+        The info file is read from the same machine as the current informer read it.
         """
-        self._informer = Informer.from_file(self._info_file, self._input_machine)
+        self._informer = Informer.from_file(self._info_file, self._informer.get_host())
         self._state = self._informer.get_real_state()
 
     def get_informer(self) -> Informer:
