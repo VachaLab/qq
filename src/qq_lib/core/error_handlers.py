@@ -45,6 +45,10 @@ def handle_not_suitable_error(
         logger.error("No suitable qq job.\n")
         sys.exit(CFG.exit_codes.default)
 
+    # all jobs failed, but some of them with a different error
+    elif len(runner.encountered_errors) == runner.n_jobs:
+        sys.exit(CFG.exit_codes.default)
+
 
 def handle_job_mismatch_error(
     exception: Exception,

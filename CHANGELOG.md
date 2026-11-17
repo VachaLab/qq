@@ -36,6 +36,7 @@
 - Negative duration is now shown as 0.
 - `qq go` will now never read the info file remotely from the submission machine.
 - Empty items in file lists can no longer be interpreted as the input directory.
+- Made handling errors in multi-job operations more robust.
 
 ### Internal changes
 
