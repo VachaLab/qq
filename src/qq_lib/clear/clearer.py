@@ -5,7 +5,7 @@
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -30,6 +30,12 @@ class _ClearResult:
     deleted: int = 0
     excluded: int = 0
 
+    # files that could not be removed, with the reason
+    failed_files: list[tuple[Path, str]] = field(default_factory=list)
+
+    # directories that could not be searched, with the reason
+    failed_directories: list[tuple[Path, str]] = field(default_factory=list)
+
 
 class Clearer:
     """
@@ -49,7 +55,7 @@ class Clearer:
         self._directories = directories
         self._recursive = recursive
 
-    def clear(self, force: bool = False) -> None:
+    def clear(self, force: bool = False) -> bool:
         """
         Remove all qq runtime files from all directories that are safe to be removed.
 
@@ -57,8 +63,15 @@ class Clearer:
         correspond to an active or successfully finished job will be removed,
         unless `force` is set to True. A combined summary is logged at the end.
 
+        Files that cannot be removed and directories that cannot be searched
+        do not stop the clearing. They are logged together after the summary.
+
         Args:
             force: If True, remove all qq runtime files, even if unsafe.
+
+        Returns:
+            True if all qq runtime files that were to be removed were removed,
+            False if some files could not be removed or some directories could not be searched.
         """
         results: list[_ClearResult] = []
         lock = threading.Lock()
@@ -71,16 +84,29 @@ class Clearer:
         with ThreadPoolExecutor(
             max_workers=CFG.parallelization_options.clear_max_threads
         ) as executor:
-            for directory in self._get_directories():
+            futures = [
                 executor.submit(clear_single, directory)
+                for directory in self._get_directories()
+            ]
+
+        # unexpected errors raised in the worker threads are only available through the futures
+        for future in futures:
+            future.result()
 
         total_detected = sum(r.detected for r in results)
         total_deleted = sum(r.deleted for r in results)
         total_excluded = sum(r.excluded for r in results)
+        failed_files = sorted(f for r in results for f in r.failed_files)
+        failed_directories = sorted(d for r in results for d in r.failed_directories)
 
-        if total_deleted == 0 and total_excluded == 0:
+        if (
+            total_deleted == 0
+            and total_excluded == 0
+            and not failed_files
+            and not failed_directories
+        ):
             logger.info("Nothing to clear.")
-            return
+            return True
 
         if total_deleted > 0:
             logger.info(
@@ -94,6 +120,9 @@ class Clearer:
                 f"{actually_excluded} qq file{'s' if actually_excluded > 1 else ''} could not be safely cleared. "
                 f"Rerun as '{CFG.binary_name} clear --force' to clear {'them' if actually_excluded > 1 else 'it'} forcibly."
             )
+
+        _log_failures(failed_files, failed_directories)
+        return not failed_files and not failed_directories
 
     def _get_directories(self) -> list[Path]:
         """
@@ -159,24 +188,34 @@ class Clearer:
             force: If True, remove all qq runtime files, even if unsafe.
 
         Returns:
-            The number of deleted and excluded files.
+            The numbers of detected, deleted and excluded files, the files that
+            could not be deleted, and the directory if it could not be searched.
         """
-        files = Clearer._collect_runtime_files(directory)
-        logger.debug(f"All qq runtime files in '{directory}': {files}.")
-        if not files:
-            return _ClearResult(detected=0)
+        try:
+            files = Clearer._collect_runtime_files(directory)
+            logger.debug(f"All qq runtime files in '{directory}': {files}.")
+            if not files:
+                return _ClearResult(detected=0)
 
-        excluded = Clearer._collect_excluded_files(directory) if not force else set()
-        logger.debug(f"Files excluded from clearing in '{directory}': {excluded}.")
+            excluded = (
+                Clearer._collect_excluded_files(directory) if not force else set()
+            )
+            logger.debug(f"Files excluded from clearing in '{directory}': {excluded}.")
+        except OSError as e:
+            return _ClearResult(
+                detected=0, failed_directories=[(directory, _os_error_reason(e))]
+            )
 
         to_delete = files - excluded
         logger.debug(f"Files to delete in '{directory}': {to_delete}.")
 
-        if to_delete:
-            Clearer._delete_files(to_delete)
+        failed = Clearer._delete_files(to_delete) if to_delete else []
 
         return _ClearResult(
-            detected=len(files), deleted=len(to_delete), excluded=len(excluded)
+            detected=len(files),
+            deleted=len(to_delete) - len(failed),
+            excluded=len(excluded),
+            failed_files=failed,
         )
 
     @staticmethod
@@ -228,13 +267,62 @@ class Clearer:
         return set(excluded)
 
     @staticmethod
-    def _delete_files(files: Iterable[Path]) -> None:
+    def _delete_files(files: Iterable[Path]) -> list[tuple[Path, str]]:
         """
         Delete all specified files.
 
+        A file that cannot be deleted does not stop the deletion of the other files.
+        Files that no longer exist are considered deleted.
+
         Args:
             files: The list of files to delete.
+
+        Returns:
+            The files that could not be deleted, with the reason.
         """
+        failed: list[tuple[Path, str]] = []
         for file in files:
             logger.debug(f"Removing file '{file}'.")
-            file.unlink()
+            try:
+                file.unlink(missing_ok=True)
+            except OSError as e:
+                logger.debug(f"Could not remove file '{file}': {e}.")
+                failed.append((file, _os_error_reason(e)))
+
+        return failed
+
+
+def _os_error_reason(error: OSError) -> str:
+    """
+    Return a short, user-facing reason of an OS error.
+
+    Args:
+        error: The error to describe.
+
+    Returns:
+        The error's description (e.g., 'Permission denied').
+    """
+    return error.strerror or str(error)
+
+
+def _log_failures(
+    failed_files: list[tuple[Path, str]], failed_directories: list[tuple[Path, str]]
+) -> None:
+    """
+    Log all files that could not be removed and all directories that could not be searched.
+
+    Args:
+        failed_files: Files that could not be removed, with the reason.
+        failed_directories: Directories that could not be searched, with the reason.
+    """
+    if failed_files:
+        n = len(failed_files)
+        lines = "\n".join(f"  {path}: {reason}" for path, reason in failed_files)
+        logger.error(f"Could not remove {n} qq file{'s' if n > 1 else ''}:\n{lines}")
+
+    if failed_directories:
+        n = len(failed_directories)
+        lines = "\n".join(f"  {path}: {reason}" for path, reason in failed_directories)
+        logger.error(
+            f"Could not search {n} director{'ies' if n > 1 else 'y'}:\n{lines}"
+        )

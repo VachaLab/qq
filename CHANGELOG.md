@@ -26,6 +26,7 @@
 - Numeric size or walltime directives now raise an error instead of being silently dropped.
 - Fixed unexpected aborting of multi-job commands.
 - Fixed a crash when attempting to access an unreadable directory during a recursive search for qq jobs.
+- Fixed `qq clear` swallowing file removal errors.
 
 ### Internal changes
 

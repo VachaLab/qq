@@ -839,3 +839,185 @@ def test_clearer_get_directories_recursive_output_files_of_other_programs_do_not
     job_info = make_job(tmp_path / "gaussian" / "qq_job")
 
     assert get_directories([tmp_path], recursive=True) == [job_info.parent]
+
+
+def _unlink_failing_for(*failing: Path):
+    """Return a replacement of `Path.unlink` that fails for the given paths."""
+    real_unlink = Path.unlink
+
+    def unlink(self: Path, missing_ok: bool = False) -> None:
+        if self in failing:
+            raise PermissionError(13, "Permission denied", str(self))
+        real_unlink(self, missing_ok=missing_ok)
+
+    return unlink
+
+
+def test_clearer_delete_files_continues_after_failure(tmp_path):
+    files = [tmp_path / f"job{suffix}" for suffix in (".out", ".err", ".qqout")]
+    for file in files:
+        file.touch()
+
+    with patch.object(Path, "unlink", _unlink_failing_for(files[1])):
+        failed = Clearer._delete_files(files)
+
+    assert failed == [(files[1], "Permission denied")]
+    assert not files[0].exists()
+    assert files[1].exists()
+    assert not files[2].exists()
+
+
+def test_clearer_delete_files_ignores_files_that_no_longer_exist(tmp_path):
+    assert Clearer._delete_files([tmp_path / "job.out"]) == []
+
+
+def test_clearer_clear_directory_counts_only_deleted_files(tmp_path):
+    files = [tmp_path / f"job{suffix}" for suffix in CFG.suffixes.all_suffixes]
+    for file in files:
+        file.touch()
+
+    with patch.object(Path, "unlink", _unlink_failing_for(files[0])):
+        result = Clearer._clear_directory(tmp_path, force=True)
+
+    assert result.detected == len(files)
+    assert result.deleted == len(files) - 1
+    assert result.failed_files == [(files[0], "Permission denied")]
+    assert result.failed_directories == []
+
+
+def test_clearer_clear_directory_reports_directory_that_cannot_be_searched(tmp_path):
+    with patch.object(
+        Clearer,
+        "_collect_runtime_files",
+        side_effect=PermissionError(13, "Permission denied", str(tmp_path)),
+    ):
+        result = Clearer._clear_directory(tmp_path, force=False)
+
+    assert result.detected == 0
+    assert result.deleted == 0
+    assert result.failed_files == []
+    assert result.failed_directories == [(tmp_path, "Permission denied")]
+
+
+def test_clearer_clear_directory_reports_directory_when_info_files_cannot_be_read(
+    tmp_path,
+):
+    (tmp_path / f"job{CFG.suffixes.qq_info}").touch()
+
+    with patch.object(
+        Clearer,
+        "_collect_excluded_files",
+        side_effect=PermissionError(13, "Permission denied", str(tmp_path)),
+    ):
+        result = Clearer._clear_directory(tmp_path, force=False)
+
+    assert (tmp_path / f"job{CFG.suffixes.qq_info}").exists()
+    assert result.failed_directories == [(tmp_path, "Permission denied")]
+
+
+def test_clearer_clear_logs_all_failures_together(tmp_path):
+    dir_a = tmp_path / "a"
+    dir_b = tmp_path / "b"
+    dir_a.mkdir()
+    dir_b.mkdir()
+    failing = [dir_a / "job.out", dir_b / "job.err"]
+    for directory in (dir_a, dir_b):
+        for suffix in (CFG.suffixes.qq_info, ".out", ".err"):
+            (directory / f"job{suffix}").touch()
+
+    with (
+        patch.object(Path, "unlink", _unlink_failing_for(*failing)),
+        patch("qq_lib.clear.clearer.logger") as mock_logger,
+    ):
+        success = Clearer([dir_a, dir_b]).clear(force=True)
+
+    assert success is False
+    info_messages = [c.args[0] for c in mock_logger.info.call_args_list]
+    assert "Removed 4 qq files." in info_messages
+
+    # all files that could not be removed are reported in a single message
+    mock_logger.error.assert_called_once()
+    message = mock_logger.error.call_args.args[0]
+    assert message.startswith("Could not remove 2 qq files:")
+    assert f"{failing[0]}: Permission denied" in message
+    assert f"{failing[1]}: Permission denied" in message
+
+    for file in failing:
+        assert file.exists()
+    assert not (dir_a / "job.err").exists()
+    assert not (dir_b / "job.out").exists()
+
+
+def test_clearer_clear_logs_directories_that_cannot_be_searched(tmp_path):
+    missing = tmp_path / "missing"
+
+    with patch("qq_lib.clear.clearer.logger") as mock_logger:
+        success = Clearer([missing]).clear()
+
+    assert success is False
+    mock_logger.error.assert_called_once()
+    message = mock_logger.error.call_args.args[0]
+    assert message.startswith("Could not search 1 directory:")
+    assert str(missing) in message
+    info_messages = [c.args[0] for c in mock_logger.info.call_args_list]
+    assert "Nothing to clear." not in info_messages
+
+
+def test_clearer_clear_reports_failures_when_nothing_could_be_removed(tmp_path):
+    files = [tmp_path / f"job{CFG.suffixes.qq_info}", tmp_path / "job.out"]
+    for file in files:
+        file.touch()
+
+    with (
+        patch.object(Path, "unlink", _unlink_failing_for(*files)),
+        patch("qq_lib.clear.clearer.logger") as mock_logger,
+    ):
+        success = Clearer([tmp_path]).clear(force=True)
+
+    assert success is False
+    info_messages = [c.args[0] for c in mock_logger.info.call_args_list]
+    assert "Nothing to clear." not in info_messages
+    assert not any(msg.startswith("Removed") for msg in info_messages)
+    message = mock_logger.error.call_args.args[0]
+    assert message.startswith("Could not remove 2 qq files:")
+
+
+def test_clearer_clear_returns_true_when_everything_is_removed(tmp_path):
+    for suffix in (CFG.suffixes.qq_info, ".out", ".err"):
+        (tmp_path / f"job{suffix}").touch()
+
+    with patch("qq_lib.clear.clearer.logger") as mock_logger:
+        success = Clearer([tmp_path]).clear(force=True)
+
+    assert success is True
+    mock_logger.error.assert_not_called()
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_clearer_clear_returns_true_when_nothing_to_clear(tmp_path):
+    with patch("qq_lib.clear.clearer.logger") as mock_logger:
+        success = Clearer([tmp_path]).clear()
+
+    assert success is True
+    mock_logger.error.assert_not_called()
+
+
+def test_clearer_clear_reraises_unexpected_errors(tmp_path):
+    with (
+        patch.object(Clearer, "_clear_directory", side_effect=RuntimeError("bug")),
+        pytest.raises(RuntimeError, match="bug"),
+    ):
+        Clearer([tmp_path]).clear()
+
+
+@pytest.mark.parametrize(
+    "success, exit_code", [(True, 0), (False, CFG.exit_codes.default)]
+)
+def test_clear_exit_code_reflects_whether_all_files_were_removed(success, exit_code):
+    runner = CliRunner()
+
+    with patch("qq_lib.clear.cli.Clearer") as mock_cls:
+        mock_cls.return_value.clear.return_value = success
+        result = runner.invoke(clear, [])
+
+    assert result.exit_code == exit_code

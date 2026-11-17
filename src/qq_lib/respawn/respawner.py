@@ -44,7 +44,8 @@ class Respawner(Operator):
             The job ID of the newly submitted job.
 
         Raises:
-            QQError: If the submitter cannot be built or the job cannot be submitted.
+            QQError: If the submitter cannot be built, if the qq runtime files
+                cannot be removed from the input directory, or if the job cannot be submitted.
         """
         informer = self.get_informer()
         submitter = self._build_submitter(informer)
@@ -62,8 +63,12 @@ class Respawner(Operator):
             logger.warning(f"Failed to remove working directory: {e}")
 
         # clear files from the input directory
+        # (files that could not be removed are logged by the clearer)
         clearer = Clearer([input_dir])
-        clearer.clear()
+        if not clearer.clear():
+            raise QQError(
+                f"Could not remove all qq runtime files from '{input_dir}'. Not respawning the job"
+            )
 
         # submit a new job
         return submitter.submit()

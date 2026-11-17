@@ -275,9 +275,12 @@ def test_respawner_respawn_wipes_and_clears_before_submitting(respawner_for_resp
     ):
         wiper = mock_wiper_cls.from_informer.return_value
         wiper.wipe.side_effect = lambda: call_order.append("wipe")
-        mock_clearer_cls.return_value.clear.side_effect = lambda: call_order.append(
-            "clear"
-        )
+
+        def clear() -> bool:
+            call_order.append("clear")
+            return True
+
+        mock_clearer_cls.return_value.clear.side_effect = clear
         respawner_for_respawn._build_submitter.return_value.submit.side_effect = (
             lambda: (call_order.append("submit"), "99999")[1]
         )
@@ -355,3 +358,16 @@ def test_respawner_respawn_builds_submitter_from_informer(respawner_for_respawn)
         respawner_for_respawn.respawn()
 
     respawner_for_respawn._build_submitter.assert_called_once_with(informer)
+
+
+def test_respawner_respawn_raises_if_files_cannot_be_cleared(respawner_for_respawn):
+    with (
+        patch("qq_lib.respawn.respawner.Wiper"),
+        patch("qq_lib.respawn.respawner.Clearer") as mock_clearer_cls,
+    ):
+        mock_clearer_cls.return_value.clear.return_value = False
+
+        with pytest.raises(QQError, match="Could not remove all qq runtime files"):
+            respawner_for_respawn.respawn()
+
+    respawner_for_respawn._build_submitter.return_value.submit.assert_not_called()

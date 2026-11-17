@@ -57,8 +57,8 @@ def clear(dir: tuple[Path, ...], recursive: bool, force: bool) -> NoReturn:
     """
     try:
         clearer = Clearer(list(dir) if dir else [Path()], recursive=recursive)
-        clearer.clear(force)
-        sys.exit(0)
+        # files that could not be removed are logged by the clearer
+        sys.exit(0 if clearer.clear(force) else CFG.exit_codes.default)
     except QQError as e:
         logger.error(e.terminated)
         sys.exit(CFG.exit_codes.default)
