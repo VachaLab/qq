@@ -7,6 +7,7 @@
 - Job resubmission no longer hangs when the input directory is unavailable. It now fails after a 120-second timeout.
 - qq now uses, and `qq_lib` requires, Python 3.15.
 - `.out` and `.err` files are only treated as qq runtime files if a `.qqinfo` or `.qqout` file with the same stem exists in the same directory, so output files of other programs are no longer deleted. A `.out` or `.err` file left behind after its `.qqinfo` and `.qqout` files were removed is no longer recognized and has to be deleted manually.
+- If a qq directive is specified multiple times, the user is warned about that (and the last value is used).
 
 ### Bug fixes and small changes
 

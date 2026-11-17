@@ -60,7 +60,8 @@ class Parser:
         is non-empty, and is not a comment. Empty or commented lines are ignored.
 
         Each valid `qq` line is parsed into key-value pairs, normalized to `snake_case`,
-        and stored in `self._options`.
+        and stored in `self._options`. If an option is specified multiple times,
+        a warning is printed and the last value is used.
 
         Raises:
             QQError: If the script cannot be read, or if an option line is malformed or
@@ -104,6 +105,10 @@ class Parser:
 
                 # is this a known option?
                 if snake_case_key in self._known_options:
+                    if snake_case_key in self._options:
+                        logger.warning(
+                            f"Option '{key}' is specified multiple times in '{self._script!s}'. Using the last value '{value}'."
+                        )
                     try:
                         self._options[snake_case_key] = int(value)
                     except ValueError:

@@ -169,7 +169,9 @@ class Resources(HasCouplingMethods):
         """
         Merge multiple Resources objects.
 
-        Earlier resources take precedence over later ones. Properties are merged.
+        Earlier resources take precedence over later ones. Properties are not merged:
+        `props` are taken as a whole from the first resource that defines them
+        (e.g., properties on the command line replace the properties from the script).
 
         If either field in a coupling is set in an earlier resource, both fields of
         that coupling are taken from that resource and ignore later resources.
