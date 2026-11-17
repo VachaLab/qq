@@ -568,12 +568,15 @@ class Runner:
         No retrying since there is no time for that.
         """
         logger.debug(f"Updating '{self._info_file}' at job kill.")
-        self._reload_info_and_ensure_valid(retry=False)
 
         try:
-            self._informer.set_killed(datetime.now())
             # no retrying here since we cannot afford multiple attempts here
+            self._reload_info_and_ensure_valid(retry=False)
+            self._informer.set_killed(datetime.now())
             self._informer.to_file(self._info_file, host=self._input_machine)
+        except QQRunCommunicationError:
+            # `qq kill` has already marked the job as killed (and locked the info file)
+            logger.debug("Job has already been marked as killed in the info file.")
         except Exception as e:
             logger.warning(
                 f"Could not update qqinfo file '{self._info_file}' at JOB KILL: {e}."

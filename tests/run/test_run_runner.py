@@ -2069,3 +2069,33 @@ def test_runner_finalize_does_not_create_init_file_for_failed_cycle(tmp_path: Pa
     runner._archiver.to_archive.assert_called_once_with(tmp_path)
     runner._archiver.create_init_file.assert_not_called()
     runner._update_info_failed.assert_called_once_with(1)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        QQRunCommunicationError("Job has been killed without informing qq run"),
+        QQError("Could not read the info file"),
+    ],
+)
+def test_runner_cleanup_continues_when_info_file_cannot_be_updated(error):
+    runner = Runner.__new__(Runner)
+    runner._use_scratch = True
+    runner._info_file = Path("/fake/job.qqinfo")
+    runner._input_machine = "input.host"
+    runner._informer = MagicMock()
+    runner._reload_info_and_ensure_valid = MagicMock(side_effect=error)
+    process_mock = MagicMock()
+    process_mock.poll.return_value = None
+    runner._process = process_mock
+
+    with (
+        patch("qq_lib.run.runner.logger"),
+        patch("qq_lib.run.runner.sleep"),
+        patch.object(Runner, "_copy_runtime_files_to_input_dir") as mock_copy,
+    ):
+        runner._cleanup()
+
+    runner._informer.to_file.assert_not_called()
+    process_mock.terminate.assert_called_once()
+    mock_copy.assert_called_once_with(retry=False)

@@ -30,6 +30,7 @@
 - Better Slurm->qq state conversions.
 - Submitting to servers unknown to AMS no longer raises an error.
 - Fixed handling paths with spaces and/or quotes.
+- SIGTERM handler now finishes cleanup properly even if the info file cannot be updated.
 
 ### Internal changes
 
