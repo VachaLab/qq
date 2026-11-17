@@ -281,7 +281,10 @@ class Runner:
             logger.debug(
                 f"Script exit code is '{self._process.returncode}'. Archiving files."
             )
-            self._archive_files_from_work_dir()
+            # the next cycle is only prepared if the current cycle succeeded
+            self._archive_files_from_work_dir(
+                create_init_file=self._process.returncode == 0
+            )
 
         # transfer files back to the input (submission) directory
         if self._use_scratch:
@@ -712,11 +715,16 @@ class Runner:
 
         logger.info(f"Job resubmitted successfully as '{job_id}'.")
 
-    def _archive_files_from_work_dir(self) -> None:
+    def _archive_files_from_work_dir(self, create_init_file: bool = True) -> None:
         """
         Archive files from the working directory.
 
-        If no file exists for the next loop cycle, creates an empty init file to ensure the loop job continues normally.
+        If no file exists for the next loop cycle and `create_init_file` is True,
+        creates an empty init file to ensure the loop job continues normally.
+
+        Args:
+            create_init_file: Whether to create an init file for the next cycle
+                if no file for it exists. Should be False if the current cycle failed.
         """
         if not self._archiver:
             raise QQError(
@@ -740,7 +748,7 @@ class Runner:
         logger.debug(f"Files excluded from archiving: {exclude}.")
         files = [f for f in files_matching_pattern if f not in exclude]
 
-        if not files:
+        if not files and create_init_file:
             # if there are no files matching the next loop job cycle
             # (which are not excluded via `--include` or `--ignore` options)
             # create an empty .init file

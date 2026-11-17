@@ -21,6 +21,7 @@
 - Working directories on Karolina/LUMI are now properly normalized.
 - Fixed unexpected qstat error line making a bulk job look up fail.
 - Handling jobs for which info file could not be written at submission.
+- `.init` file should not be created for a failing loop job even if the archive mode includes the failed state.
 
 ### Internal changes
 

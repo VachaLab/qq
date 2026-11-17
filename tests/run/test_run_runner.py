@@ -22,6 +22,7 @@ from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.states import NaiveState
+from qq_lib.properties.transfer_mode import Always
 from qq_lib.run.runner import CFG, Runner, log_fatal_error_and_exit
 
 
@@ -2036,3 +2037,35 @@ def test_runner_get_excluded_from_input_dir_keeps_location_of_ignored_files(
         work_dir / "equil" / "md.trr",
         work_dir / "results" / "storage",
     ]
+
+
+def test_runner_finalize_does_not_create_init_file_for_failed_cycle(tmp_path: Path):
+    runner = Runner.__new__(Runner)
+    runner._process = MagicMock()
+    runner._process.returncode = 1
+    runner._archiver = MagicMock(spec=Archiver)
+    runner._archiver.get_files_matching_pattern.return_value = []
+    runner._use_scratch = False
+    runner._work_dir = tmp_path
+    runner._informer = MagicMock()
+    runner._informer.info.job_type = JobType.LOOP
+    runner._informer.info.loop_info = LoopInfo(
+        start=1,
+        end=10,
+        archive=tmp_path / "storage",
+        archive_format="job%04d",
+        current=3,
+        archive_mode=[Always()],
+    )
+    runner._informer.info.included_files = []
+    runner._informer.info.ignored_files = []
+    runner._informer.info.input_dir = tmp_path
+    runner._informer.should_archive_files.return_value = True
+    runner._update_info_failed = MagicMock()
+
+    with patch("qq_lib.run.runner.logger"):
+        runner.finalize()
+
+    runner._archiver.to_archive.assert_called_once_with(tmp_path)
+    runner._archiver.create_init_file.assert_not_called()
+    runner._update_info_failed.assert_called_once_with(1)
