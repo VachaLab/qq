@@ -12,6 +12,7 @@
 
 - Fixed resolving files excluded from copying to the input directory.
 - Fixed filtering old dependencies on Slurm.
+- Fixed qq eagerly clearing files or deleting working directories when the batch system is unreachable.
 
 ### Internal changes
 

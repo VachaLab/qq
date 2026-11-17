@@ -282,7 +282,8 @@ class Informer:
 
         Returns:
             The job's real state obtained by combining information
-            from qq and the batch system.
+            from qq and the batch system. `RealState.UNKNOWN` if the batch
+            system could not be asked about the job.
         """
         # shortcut: if the naive state is unknown, there is no need to check batch state
         if self.info.job_state in {
@@ -293,7 +294,17 @@ class Informer:
             )
             return RealState.from_states(self.info.job_state, BatchState.UNKNOWN)
 
-        return RealState.from_states(self.info.job_state, self.get_batch_state())
+        batch_state = self.get_batch_state()
+
+        # if the batch system could not be asked, the real state cannot be determined;
+        # the job must not be mistaken for a job that no longer exists in the batch system
+        if batch_state == BatchState.UNKNOWN and self.get_batch_info().is_unreachable():
+            logger.debug(
+                f"Could not get information about job '{self.info.job_id}' from the batch system."
+            )
+            return RealState.UNKNOWN
+
+        return RealState.from_states(self.info.job_state, batch_state)
 
     def get_comment(self) -> str | None:
         """

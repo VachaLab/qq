@@ -5,6 +5,7 @@
 from qq_lib.core.error import QQError, QQNotSuitableError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.navigator import Navigator
+from qq_lib.properties.states import RealState
 
 logger = get_logger(__name__)
 
@@ -30,6 +31,13 @@ class Wiper(Navigator):
         if self._is_queued():
             raise QQNotSuitableError(
                 f"Job is {str(self._informer.get_real_state()).lower()} and does not have a working directory yet"
+            )
+
+        # e.g., the batch system could not be asked about the job,
+        # so the job may still be running
+        if self._state == RealState.UNKNOWN:
+            raise QQNotSuitableError(
+                "Job is in an unknown state. It may not be safe to delete the working directory. Rerun as 'qq wipe --force' if sure"
             )
 
         if self._is_running() or self._is_suspended():

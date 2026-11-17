@@ -12,7 +12,8 @@ from click.testing import CliRunner
 from qq_lib.clear.clearer import CFG, _ClearResult
 from qq_lib.clear.cli import Clearer, clear
 from qq_lib.core.error import QQError
-from qq_lib.properties.states import RealState
+from qq_lib.info import Informer
+from qq_lib.properties.states import BatchState, NaiveState, RealState
 
 
 def test_clear_result_defaults_to_zero():
@@ -764,3 +765,36 @@ def test_clear_recursive_with_dirs_and_force(tmp_path):
     assert result.exit_code == 0
     mock_cls.assert_called_once_with([dir1, dir2], recursive=True)
     mock_cls.return_value.clear.assert_called_once_with(True)
+
+
+def test_clearer_collect_excluded_files_keeps_files_of_job_when_batch_system_unreachable(
+    tmp_path,
+):
+    # a running job while qstat/scontrol cannot reach the batch server
+    info_file = tmp_path / f"job{CFG.suffixes.qq_info}"
+    info_file.touch()
+
+    info = MagicMock()
+    info.job_state = NaiveState.RUNNING
+    info.job_id = "12345"
+    info.stdout_file = f"job{CFG.suffixes.stdout}"
+    info.stderr_file = f"job{CFG.suffixes.stderr}"
+    info.job_name = "job"
+    batch_info = MagicMock()
+    batch_info.get_state.return_value = BatchState.UNKNOWN
+    batch_info.is_unreachable.return_value = True
+    informer = Informer(info)
+    informer.set_batch_info(batch_info)
+
+    with (
+        patch("qq_lib.clear.clearer.get_info_files", return_value=[info_file]),
+        patch("qq_lib.clear.clearer.Informer.from_file", return_value=informer),
+    ):
+        result = Clearer._collect_excluded_files(tmp_path)
+
+    assert result == {
+        info_file,
+        tmp_path / f"job{CFG.suffixes.stdout}",
+        tmp_path / f"job{CFG.suffixes.stderr}",
+        tmp_path / f"job{CFG.suffixes.qq_out}",
+    }

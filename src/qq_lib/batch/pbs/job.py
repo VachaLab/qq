@@ -11,6 +11,7 @@ import yaml
 
 from qq_lib.batch.interface import BatchJobInterface
 from qq_lib.batch.pbs.common import (
+    _parse_unknown_pbs_object,
     parse_pbs_dump_to_dictionary,
 )
 from qq_lib.core.common import hhmmss_to_duration, load_yaml_dumper
@@ -39,11 +40,16 @@ class PBSJob(BatchJobInterface):
         """Query the batch system for information about the job with the specified ID."""
         self._job_id = job_id
         self._info: dict[str, str] = {}
+        # set if qstat failed for another reason than the job not existing
+        self._unreachable: bool = False
 
         self.update()
 
     def is_empty(self) -> bool:
         return not self._info
+
+    def is_unreachable(self) -> bool:
+        return self._unreachable
 
     def get_id(self) -> str:
         return self._job_id
@@ -70,8 +76,15 @@ class PBSJob(BatchJobInterface):
                 f"qstat failed: no information about job '{self._job_id}' is available: {result.stderr.strip()}"
             )
             self._info: dict[str, str] = {}
+            # the job does not exist only if PBS says so;
+            # any other error means that PBS could not be asked
+            self._unreachable = not any(
+                _parse_unknown_pbs_object(line) is not None
+                for line in result.stderr.splitlines()
+            )
         else:
             self._info = parse_pbs_dump_to_dictionary(result.stdout)
+            self._unreachable = False
 
     def get_state(self) -> BatchState:
         if not (state := self._info.get("job_state")):

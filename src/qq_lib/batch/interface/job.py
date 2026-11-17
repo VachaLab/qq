@@ -29,10 +29,27 @@ class BatchJobInterface(ABC):
     def is_empty(self) -> bool:
         """
         Check whether the job contains any information.
-        This should return True if the job does not exist in the batch system.
+
+        This should return True if the job does not exist in the batch system
+        or the batch system could not be reached.
+
+        See also `BatchJobInterface.is_unreachable`.
 
         Returns:
             True if the job contains no information.
+        """
+
+    @abstractmethod
+    def is_unreachable(self) -> bool:
+        """
+        Check whether the batch system could not be asked about the job.
+
+        This should return True if querying the batch system failed for a reason
+        other than the job not existing (e.g., the batch server is not responding).
+        In that case, the job contains no information, but it may still exist.
+
+        Returns:
+            True if the information about the job could not be obtained.
         """
 
     @abstractmethod

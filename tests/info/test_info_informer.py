@@ -793,3 +793,27 @@ def test_informer_set_batch_info_in_bulk_single_informer():
 
     informer.batch_system.get_batch_jobs_from_ids.assert_called_once_with(["111"])
     assert informer._batch_info is batch_job
+
+
+@pytest.mark.parametrize(
+    "unreachable, expected",
+    [
+        # the batch system could not be asked, the job may still be running
+        (True, RealState.UNKNOWN),
+        # the batch system does not know the job, it died without qq noticing
+        (False, RealState.IN_AN_INCONSISTENT_STATE),
+    ],
+)
+def test_informer_get_real_state_without_batch_information(unreachable, expected):
+    info_mock = MagicMock()
+    info_mock.job_state = NaiveState.RUNNING
+    info_mock.job_id = "12345"
+
+    batch_info = MagicMock()
+    batch_info.get_state.return_value = BatchState.UNKNOWN
+    batch_info.is_unreachable.return_value = unreachable
+
+    informer = Informer(info_mock)
+    informer.set_batch_info(batch_info)
+
+    assert informer.get_real_state() == expected

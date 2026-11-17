@@ -969,3 +969,35 @@ def test_slurm_job_step_from_sacct_string_raises_on_invalid_field_count():
         QQError, match="Number of items in a sacct string for a slurm step"
     ):
         SlurmJob._step_from_sacct_string(s)
+
+
+@patch("qq_lib.batch.slurm.job.subprocess.run")
+def test_slurm_job_update_unreachable_when_sacct_fails(mock_run):
+    mock_run.side_effect = [
+        MagicMock(
+            returncode=1,
+            stderr="slurm_load_jobs error: Unable to contact slurm controller",
+        ),
+        MagicMock(
+            returncode=1,
+            stdout="",
+            stderr="sacct: error: Problem talking to the database: Connection refused",
+        ),
+    ]
+
+    job = SlurmJob("123")
+
+    assert job.is_empty()
+    assert job.is_unreachable() is True
+
+
+@patch("qq_lib.batch.slurm.job.subprocess.run")
+def test_slurm_job_update_scontrol_success_is_not_unreachable(mock_run):
+    mock_run.return_value = MagicMock(
+        returncode=0, stdout="JobId=123 JobState=RUNNING", stderr=""
+    )
+
+    job = SlurmJob("123")
+
+    assert job.get_state() == BatchState.RUNNING
+    assert job.is_unreachable() is False

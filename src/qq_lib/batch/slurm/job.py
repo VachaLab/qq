@@ -54,11 +54,15 @@ class SlurmJob(BatchJobInterface):
         """Query the batch system for information about the job with the specified ID."""
         self._job_id = job_id
         self._info: dict[str, str] = {}
+        self._unreachable: bool = False
 
         self.update()
 
     def is_empty(self) -> bool:
         return not self._info
+
+    def is_unreachable(self) -> bool:
+        return self._unreachable
 
     def get_id(self) -> str:
         return self._job_id
@@ -81,12 +85,12 @@ class SlurmJob(BatchJobInterface):
         )
 
         if result.returncode != 0:
-            # if scontrol fails, try sacct
             logger.debug(
                 f"scontrol failed for job '{self._job_id}' ({result.stderr.strip()}); trying sacct"
             )
         else:
             self._info: dict[str, str] = parse_slurm_dump_to_dictionary(result.stdout)
+            self._unreachable = False
             return
 
         # if `scontrol` fails, try `sacct`
@@ -108,9 +112,13 @@ class SlurmJob(BatchJobInterface):
                 f"both scontrol and sacct failed: no information about job '{self._job_id}' is available: {result.stderr.strip()}"
             )
             self._info: dict[str, str] = {}
+            # sacct prints nothing and exits with zero for jobs it does not know,
+            # so a failure means that the batch system could not be asked
+            self._unreachable = True
         else:
             job: SlurmJob = SlurmJob.from_sacct_string(result.stdout.strip())
             self._info: dict[str, str] = job._info
+            self._unreachable = False
 
     def get_state(self) -> BatchState:
         if not (raw_state := self._info.get("JobState")):
