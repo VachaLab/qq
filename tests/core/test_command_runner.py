@@ -936,3 +936,26 @@ def test_command_runner_handle_error_prefers_most_specific_handler():
 
     specific_handler.assert_called_once_with(error, runner)
     general_handler.assert_not_called()
+
+
+def test_command_runner_collect_recursive_unreadable_subdirectory_logs_warning(
+    tmp_path,
+):
+    readable = make_job(tmp_path / "a")
+    locked = tmp_path / "b"
+    make_job(locked / "inner")
+    logger = MagicMock()
+
+    real_iterdir = Path.iterdir
+
+    def iterdir(self):
+        # emulates a directory without read permissions (the tests may run as root)
+        if self == locked:
+            raise PermissionError(13, "Permission denied", str(self))
+        return real_iterdir(self)
+
+    with patch.object(Path, "iterdir", iterdir):
+        result = collect([tmp_path], recursive=True, logger=logger)
+
+    assert result == [readable]
+    logger.warning.assert_called_once()

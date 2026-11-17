@@ -252,10 +252,11 @@ class CommandRunner:
 
         def visit(directory: Path) -> tuple[list[Path], list[Path]]:
             """Return the info files in a directory and, if it is not a job directory, its subdirectories."""
-            info_files = get_info_files(directory)
-            if info_files or not self._recursive:
-                return info_files, []
             try:
+                info_files = get_info_files(directory)
+                if info_files or not self._recursive:
+                    return info_files, []
+
                 with os.scandir(directory) as entries:
                     subdirs = [
                         directory / entry.name

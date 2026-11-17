@@ -25,6 +25,7 @@
 - `loop-start` 0 is now properly rejected, not silently overwritten with 1.
 - Numeric size or walltime directives now raise an error instead of being silently dropped.
 - Fixed unexpected aborting of multi-job commands.
+- Fixed a crash when attempting to access an unreadable directory during a recursive search for qq jobs.
 
 ### Internal changes
 
