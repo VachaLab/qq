@@ -41,8 +41,9 @@ class Size:
         unit = unit.lower()
         if unit not in self._unit_map:
             # special handling of bytes
+            # (rounded up to whole kilobytes)
             if unit == "b":
-                self.value = 0 if value == 0 else 1
+                self.value = math.ceil(value / 1024)
                 return
 
             raise QQError(f"Unsupported unit for size '{unit}'")
@@ -70,7 +71,7 @@ class Size:
 
         # normalize single-letter units to their full form by appending 'b'
         # but skip bytes
-        if len(unit) == 1 and unit != "b":
+        if len(unit) == 1 and unit.lower() != "b":
             unit = unit.lower() + "b"
 
         return cls(int(value), unit)

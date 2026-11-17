@@ -17,6 +17,7 @@
 - Fixed identification of loop cycle number if the stem itself contains a number.
 - More reliable information about the availability of computing nodes and queues.
 - Fixed `qq info` with an unknown Slurm job id failing with an "This is a bug" error.
+- Sizes specified in bytes now properly converted to kB.
 - Fixed `MaxTime=UNLIMITED` in Slurm partition properties leading to a crash.
 - Working directories on Karolina/LUMI are now properly normalized.
 - Fixed unexpected qstat error line making a bulk job look up fail.
