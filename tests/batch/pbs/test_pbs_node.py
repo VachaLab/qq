@@ -576,3 +576,15 @@ def test_pbs_node_to_yaml():
     assert isinstance(result, str)
     assert isinstance(parsed_result, dict)
     assert parsed_result == expected_dict
+
+
+@pytest.mark.parametrize(
+    "state", ["offline", "job-busy,offline", "maintenance", "stale"]
+)
+def test_pbs_node_is_available_to_user_returns_false_for_unschedulable_states(state):
+    node = PBSNode.__new__(PBSNode)
+    node._name = "node2"
+    node._server = None
+    node._info = {"state": state}
+
+    assert node.is_available_to_user("user2") is False

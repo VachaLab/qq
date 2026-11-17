@@ -177,7 +177,15 @@ class PBSNode(BatchNodeInterface):
 
         if any(
             disabled_state in state
-            for disabled_state in ("down", "unknown", "unresolvable", "resv-exclusive")
+            for disabled_state in (
+                "down",
+                "offline",
+                "maintenance",
+                "stale",
+                "unknown",
+                "unresolvable",
+                "resv-exclusive",
+            )
         ):
             return False
 
