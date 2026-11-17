@@ -798,3 +798,44 @@ def test_clearer_collect_excluded_files_keeps_files_of_job_when_batch_system_unr
         tmp_path / f"job{CFG.suffixes.stderr}",
         tmp_path / f"job{CFG.suffixes.qq_out}",
     }
+
+
+def test_clearer_clear_keeps_output_files_of_other_programs(tmp_path):
+    for name in [
+        f"job{CFG.suffixes.qq_info}",
+        "job.out",
+        "job.err",
+        "gaussian.out",
+        "analysis.err",
+    ]:
+        (tmp_path / name).touch()
+
+    Clearer([tmp_path]).clear(force=True)
+
+    assert sorted(f.name for f in tmp_path.iterdir()) == [
+        "analysis.err",
+        "gaussian.out",
+    ]
+
+
+def test_clearer_clear_directory_without_qq_job_has_nothing_to_clear(tmp_path):
+    (tmp_path / "gaussian.out").touch()
+    (tmp_path / "analysis.err").touch()
+
+    with patch("qq_lib.clear.clearer.logger") as mock_logger:
+        Clearer([tmp_path]).clear(force=True)
+
+    assert (tmp_path / "gaussian.out").exists()
+    assert (tmp_path / "analysis.err").exists()
+    info_messages = [c.args[0] for c in mock_logger.info.call_args_list]
+    assert "Nothing to clear." in info_messages
+
+
+def test_clearer_get_directories_recursive_output_files_of_other_programs_do_not_mark_job_directory(
+    tmp_path,
+):
+    (tmp_path / "gaussian").mkdir()
+    (tmp_path / "gaussian" / "run.out").touch()
+    job_info = make_job(tmp_path / "gaussian" / "qq_job")
+
+    assert get_directories([tmp_path], recursive=True) == [job_info.parent]

@@ -95,17 +95,32 @@ def get_runtime_files(directory: Path) -> list[Path]:
     """
     Retrieve all qq runtime files in a directory.
 
+    qq info files and qq output files are always runtime files. Files with the
+    suffixes of the job's standard output and standard error (`.out`, `.err`)
+    are only runtime files if a qq info file or a qq output file with the same
+    stem exists in the directory, since other programs use these suffixes too.
+
     Args:
         directory: The directory to search in.
 
     Returns:
         A list of Path objects representing qq runtime files.
     """
-    files = []
-    for suffix in CFG.suffixes.all_suffixes:
-        files.extend(get_files_with_suffix(directory, suffix))
+    qq_suffixes = {CFG.suffixes.qq_info, CFG.suffixes.qq_out}
+    output_suffixes = {CFG.suffixes.stdout, CFG.suffixes.stderr}
 
-    return files
+    candidates = [
+        file
+        for file in directory.iterdir()
+        if file.suffix in qq_suffixes | output_suffixes and file.is_file()
+    ]
+    job_stems = {file.stem for file in candidates if file.suffix in qq_suffixes}
+
+    return [
+        file
+        for file in candidates
+        if file.suffix in qq_suffixes or file.stem in job_stems
+    ]
 
 
 def get_info_file(directory: Path) -> Path:

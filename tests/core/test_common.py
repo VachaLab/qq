@@ -881,28 +881,45 @@ def test_raises_if_no_info_files_found(mock_get_info_files):
     mock_get_info_files.assert_called_once_with(Path())
 
 
-def test_get_runtime_files(tmp_path):
-    expected_files = [
-        tmp_path / f"f1{CFG.suffixes.qq_info}",
-        tmp_path / f"f2{CFG.suffixes.qq_out}",
-        tmp_path / f"f3{CFG.suffixes.stdout}",
-        tmp_path / f"f4{CFG.suffixes.stderr}",
-    ]
+@pytest.mark.parametrize(
+    "files, expected",
+    [
+        # qq info and qq output files are always runtime files
+        (["job.qqinfo", "old.qqout"], ["job.qqinfo", "old.qqout"]),
+        # output files of a qq job
+        (
+            ["job.qqinfo", "job.qqout", "job.out", "job.err"],
+            ["job.qqinfo", "job.qqout", "job.out", "job.err"],
+        ),
+        # a leftover qq output file also marks the job's output files
+        (["job.qqout", "job.out", "job.err"], ["job.qqout", "job.out", "job.err"]),
+        # loop job names and names with dots
+        (
+            ["md+0002.qqinfo", "md+0002.out", "md.prod.qqinfo", "md.prod.err"],
+            ["md+0002.qqinfo", "md+0002.out", "md.prod.qqinfo", "md.prod.err"],
+        ),
+        # output files of other programs are not runtime files
+        (["gaussian.out", "analysis.err", "notes.txt"], []),
+        (
+            ["job.qqinfo", "job.out", "orca.out", "md+0001.out"],
+            ["job.qqinfo", "job.out"],
+        ),
+    ],
+)
+def test_get_runtime_files(tmp_path, files, expected):
+    for name in files:
+        (tmp_path / name).touch()
 
-    def mock_get_files_with_suffix(directory, suffix):
-        _ = directory
-        return [tmp_path / f"f{CFG.suffixes.all_suffixes.index(suffix) + 1}{suffix}"]
+    result = get_runtime_files(tmp_path)
 
-    with patch(
-        "qq_lib.core.common.get_files_with_suffix",
-        side_effect=mock_get_files_with_suffix,
-    ) as mock_func:
-        result = get_runtime_files(tmp_path)
+    assert sorted(result) == sorted(tmp_path / name for name in expected)
 
-        assert result == expected_files
 
-        for suffix in CFG.suffixes.all_suffixes:
-            mock_func.assert_any_call(tmp_path, suffix)
+def test_get_runtime_files_ignores_directories(tmp_path):
+    (tmp_path / "job.qqinfo").touch()
+    (tmp_path / "job.out").mkdir()
+
+    assert get_runtime_files(tmp_path) == [tmp_path / "job.qqinfo"]
 
 
 @pytest.mark.parametrize(
