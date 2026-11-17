@@ -592,3 +592,26 @@ def test_queues_presenter_should_show_max_nodes_returns_false_if_none_have_max_n
 
     presenter = QueuesPresenter([q1, q2], user="user", all=False, server=None)
     assert not presenter._should_show_max_n_nodes()
+
+
+def test_queues_presenter_add_queue_row_respects_unavailable_override():
+    # a destination queue that is available, but its parent route queue is not
+    queue = MagicMock()
+    queue.is_available_to_user.return_value = True
+    queue.get_name.return_value = "destq"
+    queue.get_priority.return_value = None
+    queue.get_running_jobs.return_value = 0
+    queue.get_queued_jobs.return_value = 0
+    queue.get_other_jobs.return_value = 0
+    queue.get_total_jobs.return_value = 0
+    queue.get_comment.return_value = None
+    queue.get_max_walltime.return_value = None
+    queue.get_max_n_nodes.return_value = None
+
+    presenter = QueuesPresenter([queue], "user", True, None)
+    table = Table()
+    presenter._add_queue_row(queue, table, "user", from_route=True, available=False)
+
+    mark = next(iter(table.columns[0].cells))
+    assert isinstance(mark, Text)
+    assert mark.style == CFG.queues_presenter.unavailable_mark_style

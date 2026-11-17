@@ -248,7 +248,9 @@ class QueuesPresenter:
             else CFG.queues_presenter.rerouted_mark
         )
 
-        available = available or queue.is_available_to_user(user)
+        # an explicit False (e.g., the parent route queue is unavailable) must be kept
+        if available is None:
+            available = queue.is_available_to_user(user)
 
         if available and dangling:
             mark_style = CFG.queues_presenter.dangling_mark_style
