@@ -20,6 +20,7 @@
 - Fixed `MaxTime=UNLIMITED` in Slurm partition properties leading to a crash.
 - Working directories on Karolina/LUMI are now properly normalized.
 - Fixed unexpected qstat error line making a bulk job look up fail.
+- Handling jobs for which info file could not be written at submission.
 
 ### Internal changes
 

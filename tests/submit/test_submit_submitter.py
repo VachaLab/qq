@@ -819,3 +819,44 @@ def test_submitter_expands_glob_patterns_in_exclude_and_include(
         shared / "params.itp",
         input_dir / "sub" / "nested.log",
     ]
+
+
+@pytest.mark.parametrize("kill_error", [None, QQError("qdel failed")])
+def test_submitter_submit_kills_job_if_info_file_cannot_be_written(
+    tmp_path, kill_error
+):
+    submitter = Submitter.__new__(Submitter)
+    submitter._batch_system = MagicMock()
+    submitter._batch_system.job_submit.return_value = "jobid123"
+    submitter._batch_system.job_kill.side_effect = kill_error
+    submitter._resources = Resources()
+    submitter._queue = "default"
+    submitter._account = None
+    submitter._script = tmp_path / "script.sh"
+    submitter._job_name = "job1"
+    submitter._script_name = "script.sh"
+    submitter._job_type = JobType.STANDARD
+    submitter._input_dir = tmp_path
+    submitter._loop_info = None
+    submitter._exclude = []
+    submitter._include = []
+    submitter._ignore = []
+    submitter._depend = []
+    submitter._transfer_mode = [Success()]
+    submitter._info_file = tmp_path / "job1.qqinfo"
+    submitter._server = None
+    submitter._interpreter = None
+    submitter._resubmit_from = []
+
+    with (
+        patch.object(submitter, "_create_env_vars_dict", return_value={}),
+        patch("qq_lib.submit.submitter.Info") as mock_info_class,
+    ):
+        mock_info_class.return_value.to_file.side_effect = QQError(
+            "Disk quota exceeded"
+        )
+
+        with pytest.raises(QQError, match="jobid123"):
+            submitter.submit()
+
+    submitter._batch_system.job_kill.assert_called_once_with("jobid123")

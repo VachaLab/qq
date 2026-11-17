@@ -174,6 +174,30 @@ class Submitter:
         # whether we are submiting from the current machine or from the remote machine
         # the input directory should be available on both concerned machines,
         # so this should be okay
+        try:
+            self._write_info_file(job_id, remote)
+        except QQError as e:
+            # the job would fail at start without its info file,
+            # and a retried submission would create a duplicate job
+            _kill_job_without_info_file(self._batch_system, job_id)
+            raise QQError(
+                f"Job '{job_id}' was submitted but its qq info file could not be written, so the job was killed: {e}"
+            ) from e
+
+        return job_id
+
+    def _write_info_file(self, job_id: str, remote: str | None) -> None:
+        """
+        Create the qq info file of a newly submitted job.
+
+        Args:
+            job_id: The job ID assigned by the batch system.
+            remote: Name of the machine from which the job was submitted.
+                If `None`, the current machine was used.
+
+        Raises:
+            QQError: If the info file cannot be written.
+        """
         Info(
             batch_system=self._batch_system,
             qq_version=qq_lib.__version__,
@@ -201,8 +225,6 @@ class Submitter:
             interpreter=self._interpreter,
             resubmit_from=self._resubmit_from,
         ).to_file(self._info_file, host=remote)
-
-        return job_id
 
     def continues_loop(self) -> bool:
         """
@@ -466,3 +488,21 @@ class Submitter:
 
         # for loop jobs, use script_name with cycle number
         return construct_loop_job_name(self._script_name, self._loop_info.current)
+
+
+def _kill_job_without_info_file(batch_system: AnyBatchClass, job_id: str) -> None:
+    """
+    Kill a submitted job whose qq info file could not be written.
+
+    Failures are only logged, since the caller reports the original error.
+
+    Args:
+        batch_system: The batch system the job was submitted to.
+        job_id: The ID of the job to kill.
+    """
+    try:
+        batch_system.job_kill(job_id)
+    except QQError as e:
+        logger.error(
+            f"Could not kill job '{job_id}' which has no qq info file. Please kill it manually: {e}"
+        )
