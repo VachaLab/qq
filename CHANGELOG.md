@@ -23,6 +23,7 @@
 - Handling jobs for which info file could not be written at submission.
 - `.init` file should not be created for a failing loop job even if the archive mode includes the failed state.
 - `loop-start` 0 is now properly rejected, not silently overwritten with 1.
+- Numeric size or walltime directives now raise an error instead of being silently dropped.
 
 ### Internal changes
 

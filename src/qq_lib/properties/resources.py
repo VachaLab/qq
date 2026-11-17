@@ -90,7 +90,7 @@ class Resources(HasCouplingMethods):
         mem_per_cpu: Size | str | dict[str, object] | None = None,
         ngpus: int | str | None = None,
         ngpus_per_node: int | str | None = None,
-        walltime: str | None = None,
+        walltime: str | int | None = None,
         work_dir: str | None = None,
         work_size: Size | str | dict[str, object] | None = None,
         work_size_per_node: Size | str | dict[str, object] | None = None,
@@ -106,6 +106,9 @@ class Resources(HasCouplingMethods):
         work_size_per_cpu = Resources._parse_size(work_size_per_cpu)
 
         # convert walltime
+        # numbers without a unit (e.g. from `# qq walltime 24`) are rejected by `wdhms_to_hhmmss`
+        if isinstance(walltime, int):
+            walltime = str(walltime)
         if isinstance(walltime, str) and ":" not in walltime:
             walltime = wdhms_to_hhmmss(walltime)
 
@@ -230,8 +233,10 @@ class Resources(HasCouplingMethods):
             A `Size` object if the input could be parsed,
             otherwise `None`.
         """
-        if isinstance(value, str):
-            return Size.from_string(value)
+        # numbers without a unit (e.g. from `# qq mem 4096`) are passed to `Size.from_string`
+        # so that they are rejected the same way as on the command line
+        if isinstance(value, str | int):
+            return Size.from_string(str(value))
         if isinstance(value, dict):
             return Size(**value)
         if isinstance(value, Size):
