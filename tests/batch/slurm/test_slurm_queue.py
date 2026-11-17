@@ -461,3 +461,10 @@ def test_slurm_queue_from_dict_creates_instance(mock_set_jobs):
     assert queue._name == "cpu"
     assert queue._info == info
     mock_set_jobs.assert_called_once_with()
+
+
+def test_slurm_queue_get_max_walltime_returns_none_when_unlimited():
+    queue = SlurmQueue.__new__(SlurmQueue)
+    queue._info = {"MaxTime": "UNLIMITED"}
+
+    assert queue.get_max_walltime() is None

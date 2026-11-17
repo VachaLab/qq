@@ -150,10 +150,14 @@ class SlurmQueue(BatchQueueInterface):
         return self._other_jobs
 
     def get_max_walltime(self) -> timedelta | None:
-        if raw := self._info.get("MaxTime"):
-            return dhhmmss_to_duration(raw)
+        if not (raw := self._info.get("MaxTime")) or raw == "UNLIMITED":
+            return None
 
-        return None
+        try:
+            return dhhmmss_to_duration(raw)
+        except QQError as e:
+            logger.debug(f"Could not parse the 'MaxTime' property: {e}.")
+            return None
 
     def get_max_n_nodes(self) -> int | None:
         if not (raw := self._info.get("MaxNodes")):

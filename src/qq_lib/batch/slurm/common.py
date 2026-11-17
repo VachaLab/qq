@@ -65,7 +65,8 @@ def default_resources_from_dict(res: dict[str, str]) -> Resources:
 
     converted_resources = {}
     for key, value in res.items():
-        if value == "UNLIMITED":
+        # 'NONE' is reported e.g. for partitions without a default walltime
+        if value in {"UNLIMITED", "NONE"}:
             continue
 
         converted_key = converter.get(key, key)
