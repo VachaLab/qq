@@ -19,6 +19,7 @@
 - Fixed `qq info` with an unknown Slurm job id failing with an "This is a bug" error.
 - Fixed `MaxTime=UNLIMITED` in Slurm partition properties leading to a crash.
 - Working directories on Karolina/LUMI are now properly normalized.
+- Fixed unexpected qstat error line making a bulk job look up fail.
 
 ### Internal changes
 

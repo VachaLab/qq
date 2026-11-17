@@ -14,7 +14,13 @@ _UNKNOWN_OBJECT_PATTERNS = (
     re.compile(r"^\s*\w+:\s+Unknown\s+(?:Job Id|queue|node)\s+(\S+)\s*$"),
     # Node: node.ceitec.muni.cz,  Error: Unknown node
     re.compile(r"^\s*Node:\s*([^,\s]+)\s*,\s*Error:\s*Unknown node\s*$"),
+    # qstat: illegally formed job identifier: 12x
+    re.compile(r"^\s*\w+:\s+illegally formed job identifier:\s*(\S+)\s*$"),
 )
+
+# any other error reported by a PBS client command, e.g.
+# qstat: cannot connect to server pbs.example.com (errno=15010)
+_CLIENT_ERROR_PATTERN = re.compile(r"^(?:qstat|pbsnodes):\s")
 
 
 def _parse_unknown_pbs_object(line: str) -> str | None:
@@ -95,6 +101,16 @@ def parse_multi_pbs_dump_to_dictionaries(
                 )
                 block, identifier = [], ""
             data.append(({}, unknown))
+            continue
+
+        # other errors carry no metadata and no identifier, so they are only logged
+        if _CLIENT_ERROR_PATTERN.match(line):
+            logger.warning(f"PBS reported an error: {line.strip()}")
+            if block:
+                data.append(
+                    (parse_pbs_dump_to_dictionary("\n".join(block)), identifier)
+                )
+                block, identifier = [], ""
             continue
 
         # if the line is empty, start a new block

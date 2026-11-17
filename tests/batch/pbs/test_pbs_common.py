@@ -602,3 +602,35 @@ def test_parse_unknown_pbs_object_ignores_unknown_inside_regular_lines(
     line: str,
 ) -> None:
     assert _parse_unknown_pbs_object(line) is None
+
+
+def test_parse_multi_pbs_dump_to_dictionaries_treats_malformed_job_id_as_unknown():
+    dump = """Job Id: 123.pbs-m1.metacentrum.cz
+    job_state = R
+
+qstat: illegally formed job identifier: 12x
+Job Id: 124.pbs-m1.metacentrum.cz
+    job_state = Q
+"""
+    result = parse_multi_pbs_dump_to_dictionaries(dump, "Job Id")
+
+    assert result == [
+        ({"job_state": "R"}, "123.pbs-m1.metacentrum.cz"),
+        ({}, "12x"),
+        ({"job_state": "Q"}, "124.pbs-m1.metacentrum.cz"),
+    ]
+
+
+def test_parse_multi_pbs_dump_to_dictionaries_skips_other_client_errors():
+    dump = """Job Id: 123.pbs-m1.metacentrum.cz
+    job_state = R
+qstat: cannot connect to server elixir-pbs.elixir-czech.cz (errno=15010)
+Job Id: 124.pbs-m1.metacentrum.cz
+    job_state = Q
+"""
+    result = parse_multi_pbs_dump_to_dictionaries(dump, "Job Id")
+
+    assert result == [
+        ({"job_state": "R"}, "123.pbs-m1.metacentrum.cz"),
+        ({"job_state": "Q"}, "124.pbs-m1.metacentrum.cz"),
+    ]

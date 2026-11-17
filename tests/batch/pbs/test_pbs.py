@@ -2551,3 +2551,19 @@ def test_pbs_disable_shared_storage_overrides_env_var(
     assert not PBS._using_shared_storage()
     # the environment variable is left untouched
     assert os.environ[CFG.env_vars.shared_submit] == "true"
+
+
+def test_pbs_get_batch_jobs_from_ids_does_not_fail_on_malformed_job_id():
+    stdout = """Job Id: 123.pbs-m1.metacentrum.cz
+    job_state = R
+
+qstat: illegally formed job identifier: 12x
+"""
+    with patch(
+        "subprocess.run",
+        return_value=MagicMock(returncode=1, stdout=stdout, stderr=""),
+    ):
+        jobs = PBS.get_batch_jobs_from_ids(["123", "12x"])
+
+    assert [job.get_id() for job in jobs] == ["123.pbs-m1.metacentrum.cz", "12x"]
+    assert jobs[1].is_empty()
