@@ -1644,3 +1644,17 @@ def test_kill_process_group_ignores_missing_group() -> None:
 def test_format_duration_wdhhmmss_negative_is_zero(td):
     # e.g. a planned start time of a pending job that is already in the past
     assert format_duration_wdhhmmss(td) == "00:00:00"
+
+
+@pytest.mark.parametrize(
+    "string, expected",
+    [
+        ("a.txt,", ["a.txt"]),
+        (" a.txt", ["a.txt"]),
+        ("a.txt, b.txt ", ["a.txt", "b.txt"]),
+        (":a.txt::b.txt:", ["a.txt", "b.txt"]),
+        (" , ", []),
+    ],
+)
+def test_split_string_list_ignores_empty_items(string, expected):
+    assert split_string_list(string) == expected

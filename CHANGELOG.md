@@ -34,7 +34,8 @@
 - SIGTERM handler now finishes cleanup properly even if the info file cannot be updated.
 - Job should not be considered synchronized if `qq run` itself failed.
 - Negative duration is now shown as 0.
-- `qq go` would sometimes read the qq info file remotely from the submission machine.
+- `qq go` will now never read the info file remotely from the submission machine.
+- Empty items in file lists can no longer be interpreted as the input directory.
 
 ### Internal changes
 

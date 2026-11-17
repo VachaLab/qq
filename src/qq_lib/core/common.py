@@ -654,7 +654,8 @@ def split_string_list(string: str | None) -> list[str]:
     if not string:
         return []
 
-    return list(re.split(r"[:,\s]+", string))
+    # leading or trailing separators would produce empty items
+    return [item for item in re.split(r"[:,\s]+", string) if item]
 
 
 def to_snake_case(s: str) -> str:
