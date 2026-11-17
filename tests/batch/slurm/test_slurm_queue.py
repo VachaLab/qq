@@ -511,3 +511,11 @@ def test_user_groups_get_accounts_or_init_parses_sacctmgr_output(mock_run):
         mock_run.assert_called_once()
     finally:
         UserGroups._accounts.clear()
+
+
+@pytest.mark.parametrize("state", ["DRAIN", "DOWN", "INACTIVE"])
+def test_slurm_queue_is_available_user_false_when_partition_not_accepting_jobs(state):
+    queue = SlurmQueue.__new__(SlurmQueue)
+    queue._info = {"State": state}
+
+    assert queue.is_available_to_user("user1") is False

@@ -214,8 +214,8 @@ class SlurmQueue(BatchQueueInterface):
 
     def is_available_to_user(self, user: str) -> bool:
         # check the queue's state
-        state = self._info.get("State", "DOWN")
-        if state not in ["UP", "DRAIN"]:
+        # partitions in the DRAIN state do not accept new jobs
+        if self._info.get("State", "DOWN") != "UP":
             return False
 
         def parse_list(value):
