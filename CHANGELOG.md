@@ -15,6 +15,7 @@
 - Fixed qq eagerly clearing files or deleting working directories when the batch system is unreachable.
 - Fixed handling stale $PWD.
 - Fixed identification of loop cycle number if the stem itself contains a number.
+- More reliable information about the availability of computing nodes.
 
 ### Internal changes
 

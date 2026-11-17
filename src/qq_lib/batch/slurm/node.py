@@ -117,21 +117,28 @@ class SlurmNode(BatchNodeInterface):
             logger.debug(f"Could not get state information for node '{self._name}'.")
             return False
 
-        invalid_states = [
+        invalid_states = {
             "DOWN",
+            "DRAIN",
             "DRAINED",
+            "DRAINING",
             "FAIL",
             "FUTURE",
             "INVAL",
+            "INVALID_REG",
             "MAINT",
+            "MAINTENANCE",
+            "NOT_RESPONDING",
             "PERFCTRS",
             "POWERED_DOWN",
             "POWERING_DOWN",
             "RESERVED",
             "UNKNOWN",
-        ]
+        }
 
-        return state not in invalid_states
+        # scontrol reports the base state followed by '+'-separated flags
+        # (e.g., 'IDLE+DRAIN', 'DOWN+NOT_RESPONDING')
+        return not any(flag in invalid_states for flag in state.split("+"))
 
     @classmethod
     def from_dict(cls, name: str, info: dict[str, str]) -> Self:
