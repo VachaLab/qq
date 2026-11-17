@@ -4,6 +4,7 @@
 import functools
 import inspect
 import os
+import shlex
 import socket
 import subprocess
 from abc import ABC, ABCMeta
@@ -542,7 +543,7 @@ class BatchInterface[
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 "-q",  # suppress some SSH messages
                 host,
-                f"cat {file}",
+                f"cat {shlex.quote(str(file))}",
             ],
             capture_output=True,
             text=True,
@@ -584,7 +585,7 @@ class BatchInterface[
                 "-o StrictHostKeyChecking=no",  # allow unknown hosts
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
-                f"cat > {file}",
+                f"cat > {shlex.quote(str(file))}",
             ],
             input=content,
             capture_output=True,
@@ -625,7 +626,7 @@ class BatchInterface[
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
                 # ignore an error if the directory already exists
-                f"mkdir {directory} 2>/dev/null || [ -d {directory} ]",
+                f"mkdir {shlex.quote(str(directory))} 2>/dev/null || [ -d {shlex.quote(str(directory))} ]",
             ],
             capture_output=True,
             text=True,
@@ -668,7 +669,7 @@ class BatchInterface[
                 "-o StrictHostKeyChecking=no",  # allow unknown hosts
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
-                f"ls -A {directory}",
+                f"ls -A {shlex.quote(str(directory))}",
             ],
             capture_output=True,
             text=True,
@@ -714,7 +715,7 @@ class BatchInterface[
                 "-o StrictHostKeyChecking=no",  # allow unknown hosts
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
-                f"yes | rm -r {directory}",
+                f"yes | rm -r {shlex.quote(str(directory))}",
             ],
             capture_output=True,
             text=True,
@@ -987,7 +988,7 @@ class BatchInterface[
             f"-o ConnectTimeout={CFG.timeouts.ssh}",
             host,
             "-t",
-            f"cd {directory} || exit {cls._CD_FAIL} && exec bash -l",
+            f"cd {shlex.quote(str(directory))} || exit {cls._CD_FAIL} && exec bash -l",
         ]
 
     @classmethod
@@ -1042,7 +1043,7 @@ class BatchInterface[
 
         mv_commands: list[str] = []
         for src, dst in zip(files, moved_files):
-            mv_commands.append(f"mv '{src}' '{dst}'")
+            mv_commands.append(f"mv {shlex.quote(str(src))} {shlex.quote(str(dst))}")
 
         return " && ".join(mv_commands)
 

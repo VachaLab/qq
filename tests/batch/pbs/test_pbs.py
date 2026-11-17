@@ -3,6 +3,7 @@
 
 
 import os
+import shlex
 import shutil
 import socket
 import subprocess
@@ -2578,3 +2579,19 @@ qstat: illegally formed job identifier: 12x
 
     assert [job.get_id() for job in jobs] == ["123.pbs-m1.metacentrum.cz", "12x"]
     assert jobs[1].is_empty()
+
+
+@pytest.mark.parametrize("server", [None, "pbs-m1.metacentrum.cz"])
+def test_pbs_translate_submit_quotes_paths_with_spaces(server):
+    res = Resources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
+    input_dir = Path("/home/user/my sims")
+    command = PBS._translate_submit(
+        res, "gpu", server, input_dir, "run me.sh", "run me.sh", [], {}
+    )
+
+    args = shlex.split(command)
+    assert args[args.index("-N") + 1] == "run me.sh"
+    assert args[-1] == "/home/user/my sims/run me.sh"
+    assert args[args.index("-e") + 1].endswith(
+        f"/home/user/my sims/run me{CFG.suffixes.qq_out}"
+    )

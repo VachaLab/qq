@@ -2,6 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 
+import shlex
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -1014,3 +1015,19 @@ def test_slurm_get_batch_jobs_from_ids_returns_empty_job_for_unknown_id():
 
     assert [job.get_id() for job in jobs] == ["999"]
     assert jobs[0].is_empty()
+
+
+def test_slurm_translate_submit_quotes_paths_with_spaces():
+    res = Resources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
+    input_dir = Path("/home/user/my sims")
+    command = Slurm._translate_submit(
+        res, "cpu", input_dir, "run me.sh", "run me.sh", [], {}, None
+    )
+
+    args = shlex.split(command)
+    qq_output = "/home/user/my sims/run me.qqout"
+    assert args[args.index("-J") + 1] == "run me.sh"
+    assert args[args.index("-e") + 1] == qq_output
+    assert args[args.index("-o") + 1] == qq_output
+    assert "--chdir=/home/user/my sims" in args
+    assert args[-1] == "/home/user/my sims/run me.sh"

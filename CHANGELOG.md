@@ -29,6 +29,7 @@
 - Fixed `qq clear` swallowing file removal errors.
 - Better Slurm->qq state conversions.
 - Submitting to servers unknown to AMS no longer raises an error.
+- Fixed handling paths with spaces and/or quotes.
 
 ### Internal changes
 

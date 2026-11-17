@@ -3,6 +3,7 @@
 
 
 import os
+import shlex
 import shutil
 import socket
 import subprocess
@@ -650,7 +651,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Returns:
             The fully constructed qsub command string.
         """
-        command = f"qsub -N {job_name} {cls._translate_queue_server(queue, server)} {cls._translate_output_server(input_dir, job_name, server)} "
+        command = f"qsub -N {shlex.quote(job_name)} {cls._translate_queue_server(queue, server)} {cls._translate_output_server(input_dir, job_name, server)} "
 
         # translate environment variables
         if env_vars:
@@ -686,7 +687,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             command += f"-W depend={converted_depend} "
 
         # add script
-        command += str(input_dir / script)
+        command += shlex.quote(str(input_dir / script))
 
         return command
 
@@ -737,7 +738,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
                 logger.debug(
                     f"Using output host '{output_host}' for server '{server}'."
                 )
-                return f"-j eo -e {output_host}:{qq_output}"
+                return f"-j eo -e {shlex.quote(f'{output_host}:{qq_output}')}"
 
             logger.warning(
                 f"No output host configured for server '{server}'. "
@@ -745,7 +746,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
                 "which may fail if it is not accessible from the working node."
             )
 
-        return f"-j eo -e {qq_output}"
+        return f"-j eo -e {shlex.quote(qq_output)}"
 
     @classmethod
     def _translate_env_vars(cls, env_vars: dict[str, str]) -> str:

@@ -2,6 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 import os
+import shlex
 import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -475,7 +476,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
             The fully constructed sbatch command string.
         """
         qq_output = str((input_dir / job_name).with_suffix(CFG.suffixes.qq_out))
-        command = f"sbatch -J {job_name} -p {queue} -e {qq_output} -o {qq_output} "
+        command = f"sbatch -J {shlex.quote(job_name)} -p {queue} -e {shlex.quote(qq_output)} -o {shlex.quote(qq_output)} "
 
         if account:
             command += f"--account {account} "
@@ -512,10 +513,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
             command += f"--dependency={converted_depend} "
 
         # set input directory for the job
-        command += f"--chdir={input_dir!s} "
+        command += f"--chdir={shlex.quote(str(input_dir))} "
 
         # add script
-        command += str(input_dir / script)
+        command += shlex.quote(str(input_dir / script))
 
         return command
 

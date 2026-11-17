@@ -2,6 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 import os
+import stat
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -586,7 +587,7 @@ def test_translate_move_command_single_file():
     moved_files = [Path("dest") / "dest.txt"]
 
     cmd = BatchInterface._translate_move_command(files, moved_files)
-    assert cmd == "mv 'source.txt' 'dest/dest.txt'"
+    assert cmd == "mv source.txt dest/dest.txt"
 
 
 def test_translate_move_command_multiple_files():
@@ -594,7 +595,7 @@ def test_translate_move_command_multiple_files():
     moved_files = [Path("x.txt"), Path("y.txt")]
 
     cmd = BatchInterface._translate_move_command(files, moved_files)
-    assert cmd == "mv 'a.txt' 'x.txt' && mv 'b.txt' 'y.txt'"
+    assert cmd == "mv a.txt x.txt && mv b.txt y.txt"
 
 
 def test_translate_move_command_mismatched_lengths():
@@ -767,3 +768,42 @@ def test_batch_interface_sync_with_exclusions_excludes_only_the_given_path(
     assert not (dest / "storage").exists()
     assert (dest / "analysis" / "md.trr").read_text() == "keep"
     assert (dest / "analysis" / "storage" / "result.dat").read_text() == "keep"
+
+
+@pytest.fixture
+def fake_ssh(tmp_path, monkeypatch):
+    # fake `ssh` that executes the remote command in a local shell, as sshd would
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    ssh = bin_dir / "ssh"
+    ssh.write_text('#!/bin/bash\nexec bash -c "${@: -1}"\n')
+    ssh.chmod(ssh.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setenv("PATH", f"{bin_dir}:{os.environ['PATH']}")
+
+
+@pytest.mark.usefixtures("fake_ssh")
+def test_batch_interface_remote_file_operations_handle_spaces_in_paths(tmp_path):
+    project = tmp_path / "my project's files"
+    project.mkdir()
+    directory = project / "storage"
+    file = project / "job.qqinfo"
+
+    BatchInterface.make_remote_dir("remote", directory)
+    BatchInterface.write_remote_file("remote", file, "state: running\n")
+    BatchInterface.move_remote_files("remote", [file], [directory / "job.qqinfo"])
+
+    assert directory.is_dir()
+    assert (
+        BatchInterface.read_remote_file("remote", directory / "job.qqinfo")
+        == "state: running\n"
+    )
+    assert BatchInterface.list_remote_dir("remote", project) == [directory]
+
+    BatchInterface.delete_remote_dir("remote", directory)
+    assert not directory.exists()
+
+
+def test_batch_interface_translate_ssh_command_quotes_directory():
+    command = BatchInterface._translate_ssh_command("remote", Path("/scratch/my job"))
+
+    assert command[-1].startswith("cd '/scratch/my job' ||")
