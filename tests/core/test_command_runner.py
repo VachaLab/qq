@@ -959,3 +959,29 @@ def test_command_runner_collect_recursive_unreadable_subdirectory_logs_warning(
 
     assert result == [readable]
     logger.warning.assert_called_once()
+
+
+def test_command_runner_run_pipeline_does_not_prepare_remaining_jobs_on_interrupt():
+    prepared = []
+
+    def make_target(job_id: str) -> Callable[[], Informer]:
+        def target() -> Informer:
+            prepared.append(job_id)
+            time.sleep(0.05)
+            return make_informer(job_id)
+
+        return target
+
+    def callback(informer, *args, **kwargs):
+        _ = informer, args, kwargs
+        # e.g. Ctrl+C at a confirmation prompt
+        raise KeyboardInterrupt
+
+    with patch("qq_lib.core.command_runner.BatchInterface"):
+        runner = make_runner(callback=callback, n_threads=1)
+
+    with pytest.raises(KeyboardInterrupt):
+        runner._run_pipeline([make_target(str(i)) for i in range(10)])
+
+    # only the jobs whose preparation already started may have been prepared
+    assert len(prepared) < 10

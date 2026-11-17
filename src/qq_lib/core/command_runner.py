@@ -356,26 +356,32 @@ class CommandRunner:
 
             # process results in order on the main thread
             next_index = 0
-            with ready:
-                while next_index < self.n_jobs:
-                    # block the main thread until the next result is available
-                    # later jobs may finish first, but we wait for the one we need
-                    while results[next_index] is None:
-                        ready.wait()
+            try:
+                with ready:
+                    while next_index < self.n_jobs:
+                        # block the main thread until the next result is available
+                        # later jobs may finish first, but we wait for the one we need
+                        while results[next_index] is None:
+                            ready.wait()
 
-                    self.current_iteration += 1
-                    result = results[next_index]
-                    next_index += 1
+                        self.current_iteration += 1
+                        result = results[next_index]
+                        next_index += 1
 
-                    # handle error or execute the callback
-                    if isinstance(result, Exception):
-                        self._handle_error(result)
-                    elif isinstance(result, Informer):
-                        self._execute(result)
-                    else:
-                        raise TypeError(
-                            f"Unexpected result type: {type(result)}. This is a bug, please report it"
-                        )
+                        # handle error or execute the callback
+                        if isinstance(result, Exception):
+                            self._handle_error(result)
+                        elif isinstance(result, Informer):
+                            self._execute(result)
+                        else:
+                            raise TypeError(
+                                f"Unexpected result type: {type(result)}. This is a bug, please report it"
+                            )
+            except BaseException:
+                # on Ctrl+C, sys.exit or an unhandled error, do not wait
+                # for the preparation of the remaining jobs
+                executor.shutdown(wait=False, cancel_futures=True)
+                raise
 
     def _execute(self, informer: Informer) -> None:
         """
