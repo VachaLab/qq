@@ -850,6 +850,30 @@ def relocate_by_name(files: Iterable[Path], directory: Path) -> list[Path]:
     return [logical_resolve(directory / file.name) for file in files]
 
 
+def relocate_by_relative_path(
+    files: Iterable[Path], source: Path, directory: Path
+) -> list[Path]:
+    """
+    Map paths to their counterparts in another directory, keeping their location relative to `source`.
+
+    Paths that are not located inside `source` are matched by file name.
+
+    Args:
+        files: Original paths of the files.
+        source: Directory the original paths are relative to.
+        directory: Directory the files were placed in.
+
+    Returns:
+        Logical absolute paths to the files inside `directory`.
+    """
+    return [
+        logical_resolve(directory / file.relative_to(source))
+        if file.is_relative_to(source)
+        else logical_resolve(directory / file.name)
+        for file in files
+    ]
+
+
 @contextmanager
 def delayed_spinner(
     message: str, delay: float = 1.0, console: Console | None = None

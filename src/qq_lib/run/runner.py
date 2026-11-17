@@ -15,7 +15,11 @@ from typing import TYPE_CHECKING, NoReturn
 import qq_lib
 from qq_lib.archive.archiver import Archiver
 from qq_lib.batch.interface import BatchInterface
-from qq_lib.core.common import construct_loop_job_name, relocate_by_name
+from qq_lib.core.common import (
+    construct_loop_job_name,
+    relocate_by_name,
+    relocate_by_relative_path,
+)
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
@@ -807,11 +811,18 @@ class Runner:
         """
         info = self._informer.info
 
-        excluded = [*info.included_files, *info.ignored_files]
+        # explicitly included files are copied to the root of the working directory,
+        # ignored files and the archive keep their location relative to the input directory
+        kept_in_place = [*info.ignored_files]
         if self._archiver:
-            excluded.append(self._archiver.archive)
+            kept_in_place.append(self._archiver.archive)
 
-        return list(dict.fromkeys(relocate_by_name(excluded, self._work_dir)))
+        excluded = [
+            *relocate_by_name(info.included_files, self._work_dir),
+            *relocate_by_relative_path(kept_in_place, info.input_dir, self._work_dir),
+        ]
+
+        return list(dict.fromkeys(excluded))
 
     def _cleanup(self) -> None:
         """

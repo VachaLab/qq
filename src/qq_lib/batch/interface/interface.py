@@ -1091,7 +1091,10 @@ class BatchInterface[
             "-rltD",
         ]
         for file in relative_excluded:
-            command.extend(["--exclude", str(file)])
+            # anchor the pattern to the root of the transfer, otherwise rsync
+            # also excludes files with the same name in any subdirectory
+            # paths starting with / are not absolute paths but relative to the root of transfer
+            command.extend(["--exclude", f"/{file}"])
 
         src = src_host + ":" + str(src_dir) + "/" if src_host else str(src_dir) + "/"
         dest = dest_host + ":" + str(dest_dir) if dest_host else str(dest_dir)

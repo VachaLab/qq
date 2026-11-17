@@ -2013,3 +2013,26 @@ def test_runner_get_excluded_from_input_dir_deduplicates_after_relocating(
     )
 
     assert runner._get_excluded_from_input_dir() == [work_dir / "params.itp"]
+
+
+def test_runner_get_excluded_from_input_dir_keeps_location_of_ignored_files(
+    tmp_path: Path,
+):
+    input_dir = tmp_path / "input"
+    work_dir = tmp_path / "scratch" / "main"
+
+    runner = Runner.__new__(Runner)
+    runner._work_dir = work_dir
+    archiver = MagicMock()
+    archiver.archive = input_dir / "results" / "storage"
+    runner._archiver = archiver
+    runner._informer = MagicMock()
+    runner._informer.info.input_dir = input_dir
+    runner._informer.info.included_files = [tmp_path / "shared" / "params.itp"]
+    runner._informer.info.ignored_files = [input_dir / "equil" / "md.trr"]
+
+    assert runner._get_excluded_from_input_dir() == [
+        work_dir / "params.itp",
+        work_dir / "equil" / "md.trr",
+        work_dir / "results" / "storage",
+    ]

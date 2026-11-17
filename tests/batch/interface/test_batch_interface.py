@@ -358,9 +358,9 @@ def test_translate_rsync_excluded_command_with_excludes():
         "ssh -o GSSAPIAuthentication=yes -o PasswordAuthentication=no -o StrictHostKeyChecking=no",
         "-rltD",
         "--exclude",
-        "temp",
+        "/temp",
         "--exclude",
-        "logs/debug.log",
+        "/logs/debug.log",
         "/source/",
         "/dest",
     ]
@@ -742,3 +742,28 @@ def test_batch_interface_is_valid_dependency_false_for_unknown_job(
 
     with patch("subprocess.run", return_value=result):
         assert not batch_class.is_valid_dependency("123")
+
+
+@pytest.mark.parametrize("batch_system", [BatchInterface, PBS, Slurm])
+def test_batch_interface_sync_with_exclusions_excludes_only_the_given_path(
+    tmp_path, batch_system, monkeypatch
+):
+    monkeypatch.delenv(CFG.env_vars.shared_submit, raising=False)
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    (src / "analysis" / "storage").mkdir(parents=True)
+    (src / "storage").mkdir()
+    dest.mkdir()
+
+    (src / "md.trr").write_text("excluded")
+    (src / "analysis" / "md.trr").write_text("keep")
+    (src / "analysis" / "storage" / "result.dat").write_text("keep")
+
+    batch_system.sync_with_exclusions(
+        src, dest, None, None, exclude_files=[src / "md.trr", src / "storage"]
+    )
+
+    assert not (dest / "md.trr").exists()
+    assert not (dest / "storage").exists()
+    assert (dest / "analysis" / "md.trr").read_text() == "keep"
+    assert (dest / "analysis" / "storage" / "result.dat").read_text() == "keep"
