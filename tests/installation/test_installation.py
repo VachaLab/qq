@@ -225,6 +225,7 @@ def test_install_fresh_home(tmp_path, home, url):
     assert not (home / ".bash_login").exists()
     assert "BASH_VERSION" in (home / ".profile").read_text()
     assert not (home / ".zshrc").exists()
+    assert not (home / ".zshenv").exists()
     assert not (home / ".config" / "fish").exists()
     assert "OK" in result.stdout
 
@@ -533,6 +534,26 @@ def test_install_shared_bundle_fish_without_scratch(tmp_path, url):
     assert run_shell(main, "fish", "-c", "qq where").strip() == str(main / ".qq" / "qq")
 
 
+@needs_zsh
+@needs_rsync
+def test_install_shared_bundle_zsh(tmp_path, url):
+    main = tmp_path / "main"
+    other = tmp_path / "other"
+    main.mkdir()
+    other.mkdir()
+    scratch = tmp_path / "scratch" / "qq"
+    scratch.parent.mkdir()
+    installer, _ = make_scripts(tmp_path, [other], shared=True, main_home=main)
+
+    result = run_script(installer, main, url, "--zsh", scratch=scratch)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    # non-interactive shells use qq directly, interactive shells the scratch copy
+    bundle = str(main / ".qq" / "qq")
+    assert run_shell(other, "zsh", "-c", "qq where").strip() == bundle
+    assert run_shell(other, "zsh", "-ic", "qq where").strip() == str(scratch)
+
+
 @needs_rsync
 def test_install_shared_bundle_without_scratch(tmp_path, url):
     main = tmp_path / "main"
@@ -579,6 +600,8 @@ def test_install_shared_bundle_missing_main_home(tmp_path, home, url):
 @needs_zsh
 def test_install_zsh(tmp_path, home, url):
     (home / ".zshrc").write_text("autoload -Uz compinit\ncompinit\n")
+    # the block in .zshenv must come after the user's own PATH settings
+    (home / ".zshenv").write_text("export PATH=/usr/bin:/bin\n")
     target = tmp_path / "job"
     target.mkdir()
     installer, _ = make_scripts(tmp_path, [home])
@@ -586,9 +609,17 @@ def test_install_zsh(tmp_path, home, url):
     result = run_script(installer, home, url, "--zsh")
 
     assert result.returncode == 0, result.stdout + result.stderr
+    assert "zsh (non-interactive)" in result.stdout
     zshrc = (home / ".zshrc").read_text()
     assert zshrc.startswith("autoload -Uz compinit\ncompinit\n\n")
     assert zshrc.endswith(f"{END}\n")
+    zshenv = (home / ".zshenv").read_text()
+    assert zshenv.startswith("export PATH=/usr/bin:/bin\n\n")
+    assert zshenv.endswith(f"{END}\n")
+    assert (home / ".qq" / "path.zsh").is_file()
+    assert run_shell(home, "zsh", "-c", "qq --version").strip() == VERSION
+    # non-interactive shells get qq, but not the shell function
+    assert run_shell(home, "zsh", "-c", "whence -w qq").strip() == "qq: command"
     assert run_shell(home, "zsh", "-ic", f"qq cd {target} && pwd").strip() == str(
         target
     )
@@ -649,6 +680,7 @@ def test_scripts_print_help(tmp_path, home, url, help_option):
             ".bashrc": "\n\nexport A=1\n\n",
             ".bash_profile": ". ~/.bashrc\n",
             ".zshrc": "x=1\n",
+            ".zshenv": "\nexport Y=2\n",
         },
         {".bash_profile": "", ".bash_login": "\n"},
     ],
@@ -663,7 +695,14 @@ def test_uninstall_restores_original_files(tmp_path, home, url, files):
     result = run_script(uninstaller, home, url)
 
     assert result.returncode == 0, result.stdout + result.stderr
-    for name in (".bashrc", ".bash_profile", ".bash_login", ".profile", ".zshrc"):
+    for name in (
+        ".bashrc",
+        ".bash_profile",
+        ".bash_login",
+        ".profile",
+        ".zshenv",
+        ".zshrc",
+    ):
         if name in files:
             assert (home / name).read_text() == files[name]
         else:

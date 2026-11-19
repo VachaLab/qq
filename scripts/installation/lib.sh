@@ -246,6 +246,17 @@ EOF
     } >"$file"
 }
 
+# write the file loaded by every zsh, including non-interactive shells
+# started by SSH; it only puts qq on PATH
+qq_write_path_zsh() {
+    local file="$1" bundle="$2"
+    {
+        echo "# This file is managed by the qq installer (qq ${QQ_VERSION}). Do not edit it."
+        echo
+        qq_env_path_posix "$bundle" false
+    } >"$file"
+}
+
 qq_write_env_zsh() {
     local file="$1" bundle="$2" scratch="$3"
     {
@@ -407,7 +418,13 @@ qq_configure_shells() {
     done
 
     if [ "$QQ_WITH_ZSH" = true ]; then
+        qq_write_path_zsh "${qq_dir}/path.zsh" "$bundle"
         qq_write_env_zsh "${qq_dir}/env.zsh" "$bundle" "$scratch"
+        # .zshenv is read by every zsh, including commands run over SSH; the
+        # block goes to the end so that the user's own PATH settings do not remove qq
+        # shellcheck disable=SC2016
+        local load_zsh_path='if [ -f "$HOME/.qq/path.zsh" ]; then . "$HOME/.qq/path.zsh"; fi'
+        qq_rewrite_blocks "${home}/.zshenv" "$(qq_block "$load_zsh_path")" bottom
         # .zshrc is only read by interactive shells; the block goes to the end,
         # after the user's own completion setup
         # shellcheck disable=SC2016
@@ -483,10 +500,13 @@ qq_check_home() {
 
     if [ "$QQ_WITH_ZSH" = true ]; then
         if command -v zsh >/dev/null; then
+            # commands run over ssh: non-interactive shells reading .zshenv
+            qq_check "$home" "zsh (non-interactive)" "$expected" \
+                zsh -c 'qq --version' || status=1
             qq_check "$home" "zsh (interactive)" "$expected" \
                 zsh -ic 'whence -w qq | grep -q function && qq --version' || status=1
         else
-            qq_result "$home" "zsh (interactive)" "SKIPPED (zsh not available here)"
+            qq_result "$home" "zsh" "SKIPPED (zsh not available here)"
         fi
     fi
 
@@ -559,7 +579,7 @@ qq_clean_rc_file() {
 qq_uninstall_home() {
     local home="$1" status=0 file
 
-    for file in .bashrc .bash_profile .bash_login .profile .zshrc; do
+    for file in .bashrc .bash_profile .bash_login .profile .zshenv .zshrc; do
         qq_clean_rc_file "${home}/${file}" || status=1
     done
 
