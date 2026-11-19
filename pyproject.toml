@@ -52,6 +52,7 @@ dev = [
     "snakeviz>=2.2.2",
     "ty>=0.0.104",
     "setuptools>=80.10.1",
+    "shellcheck-py>=0.10",
 ]
 
 

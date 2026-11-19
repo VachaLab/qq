@@ -53,12 +53,9 @@ jobs:
             - name: Add VERSION file to package directory
               run: |
                   echo "${{ steps.version.outputs.version }}" > dist/qq/VERSION
-            - name: Update version in installation scripts
+            - name: Build installation scripts
               run: |
-                  VERSION="${{ steps.version.outputs.version }}"
-                  for script in scripts/installation_scripts/*; do
-                    sed -i "s/__VERSION__/$VERSION/g" "$script"
-                  done
+                  uv run python scripts/installation/build.py "${{ steps.version.outputs.version }}" --output dist/installation
             - name: Create tarball
               run: |
                   cd dist
@@ -70,7 +67,7 @@ jobs:
                   name: release-assets
                   path: |
                       qq-release.tar.gz
-                      scripts/installation_scripts/*
+                      dist/installation/*
                   if-no-files-found: error
 
     release:
@@ -86,7 +83,7 @@ jobs:
               run: |
                   gh release upload "$TAG" --clobber \
                     assets/qq-release.tar.gz \
-                    assets/scripts/installation_scripts/*
+                    assets/dist/installation/*
               env:
                   TAG: ${{ github.event.release.tag_name }}
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
