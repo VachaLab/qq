@@ -17,8 +17,6 @@ QQ_HOMES=(
     "/storage/plzen1/home/${USER}"
     # oven, perian, onyx, skirit, computing nodes (galdor, halmir, tyra, aman)
     "/storage/brno2/home/${USER}"
-    # tarkil
-    "/storage/praha1/home/${USER}"
     # tilia
     "/storage/pruhonice1-ibot/home/${USER}"
     # computing nodes (pcr, fau, fer, mor)
@@ -29,7 +27,6 @@ QQ_HOMES=(
     "/storage/brno11-elixir/home/${USER}"
     # other storages
     "/storage/brno3-cerit/home/${USER}"
-    "/storage/vestec1-elixir/home/${USER}"
 )
 QQ_SHARED_BUNDLE=true
 # machines with local home directories
