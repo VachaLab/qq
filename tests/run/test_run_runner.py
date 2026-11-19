@@ -43,6 +43,7 @@ def test_runner_init_success():
 
         informer = MagicMock()
         informer.matches_job.return_value = True
+        informer.info.qq_version = "1.0.0"
         informer.batch_system = batch
         informer.info.job_id = "12345"
         informer.info.input_dir = "/tmp/input"
@@ -144,6 +145,7 @@ def test_runner_init_raises_on_batch_system_mismatch():
 
         informer = MagicMock()
         informer.matches_job.return_value = True
+        informer.info.qq_version = "1.0.0"
         informer.batch_system = MagicMock()
         informer.info.job_id = "12345"
 
@@ -175,6 +177,7 @@ def test_runner_init_creates_archiver_when_loop_info_present():
         loop_info = MagicMock()
         informer = MagicMock()
         informer.matches_job.return_value = True
+        informer.info.qq_version = "1.0.0"
         informer.batch_system = batch
         informer.info.job_id = "12345"
         informer.info.input_dir = "/tmp/input"
@@ -2099,3 +2102,103 @@ def test_runner_cleanup_continues_when_info_file_cannot_be_updated(error):
     runner._informer.to_file.assert_not_called()
     process_mock.terminate.assert_called_once()
     mock_copy.assert_called_once_with(retry=False)
+
+
+@pytest.mark.parametrize(
+    ("submitted", "running"),
+    [
+        ("0.15.0", "0.14.0"),
+        ("0.14.1", "0.14.0"),
+        ("0.14.0", "0.14.0.dev4"),
+        ("0.14.0.dev5", "0.14.0.dev4"),
+        ("1.0.0", "0.14.2"),
+    ],
+)
+def test_runner_warn_if_submitted_with_newer_version_warns(submitted, running):
+    runner = Runner.__new__(Runner)
+    runner._informer = MagicMock()
+    runner._informer.info.qq_version = submitted
+
+    with (
+        patch("qq_lib.run.runner.qq_lib.__version__", running),
+        patch("qq_lib.run.runner.logger") as mock_logger,
+    ):
+        runner._warn_if_submitted_with_newer_version()
+
+    mock_logger.warning.assert_called_once()
+    message = mock_logger.warning.call_args.args[0]
+    assert f"submitted using qq {submitted}" in message
+    assert f"older version of qq ({running})" in message
+
+
+@pytest.mark.parametrize(
+    ("submitted", "running"),
+    [
+        ("0.14.0", "0.14.0"),
+        ("0.13.2", "0.14.0"),
+        ("0.14.0.dev4", "0.14.0"),
+        ("0.14.0.dev4", "0.14.0.dev4+g06f5b00e7.d20261119"),
+        ("0.9.0", "0.10.0"),
+    ],
+)
+def test_runner_warn_if_submitted_with_newer_version_silent_for_same_or_older(
+    submitted, running
+):
+    runner = Runner.__new__(Runner)
+    runner._informer = MagicMock()
+    runner._informer.info.qq_version = submitted
+
+    with (
+        patch("qq_lib.run.runner.qq_lib.__version__", running),
+        patch("qq_lib.run.runner.logger") as mock_logger,
+    ):
+        runner._warn_if_submitted_with_newer_version()
+
+    mock_logger.warning.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("submitted", "running"), [("unknown", "0.14.0"), ("0.15.0", "not-a-version")]
+)
+def test_runner_warn_if_submitted_with_newer_version_ignores_invalid_versions(
+    submitted, running
+):
+    runner = Runner.__new__(Runner)
+    runner._informer = MagicMock()
+    runner._informer.info.qq_version = submitted
+
+    with (
+        patch("qq_lib.run.runner.qq_lib.__version__", running),
+        patch("qq_lib.run.runner.logger") as mock_logger,
+    ):
+        runner._warn_if_submitted_with_newer_version()
+
+    mock_logger.warning.assert_not_called()
+
+
+def test_runner_init_warns_if_submitted_with_newer_version():
+    with (
+        patch("qq_lib.run.runner.signal.signal"),
+        patch("qq_lib.run.runner.logger") as mock_logger,
+        patch("qq_lib.run.runner.socket.getfqdn", return_value="mockhost"),
+        patch("qq_lib.run.runner.qq_lib.__version__", "0.14.0"),
+        patch("qq_lib.run.runner.BatchInterface.from_env_var_or_guess") as mock_batch,
+        patch("qq_lib.run.runner.Retryer") as mock_retryer,
+    ):
+        batch = MagicMock()
+        batch.get_job_id.return_value = "12345"
+        mock_batch.return_value = batch
+
+        informer = MagicMock()
+        informer.matches_job.return_value = True
+        informer.batch_system = batch
+        informer.info.qq_version = "0.15.0"
+        informer.info.input_dir = "/tmp/input"
+        informer.info.loop_info = None
+        informer.uses_scratch.return_value = False
+        mock_retryer.return_value.run.return_value = informer
+
+        Runner(Path("job.qqinfo"), "input_host")
+
+    mock_logger.warning.assert_called_once()
+    assert "submitted using qq 0.15.0" in mock_logger.warning.call_args.args[0]

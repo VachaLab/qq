@@ -49,6 +49,7 @@
 - Potentially more responsive CTRL+C when performing multi-job operations.
 - `qq nodes` no longer crashes if there are no available nodes.
 - `qq submit` now properly warns about setting `work-size-per-node` when the work dir does not support it.
+- `qq run` now logs a warning if the job was submitted with a _newer_ version of qq.
 
 ### Internal changes
 

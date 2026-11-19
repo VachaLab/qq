@@ -12,6 +12,8 @@ from pathlib import Path
 from time import sleep
 from typing import TYPE_CHECKING, NoReturn
 
+from packaging.version import InvalidVersion, Version
+
 import qq_lib
 from qq_lib.archive.archiver import Archiver
 from qq_lib.batch.interface import BatchInterface
@@ -117,6 +119,7 @@ class Runner:
             f"[qq-{self._batch_system!s} v{qq_lib.__version__}] Initializing "
             f"job '{self._informer.info.job_id}' on host '{socket.getfqdn()}'."
         )
+        self._warn_if_submitted_with_newer_version()
 
         # get input directory
         self._input_dir = Path(self._informer.info.input_dir)
@@ -639,6 +642,31 @@ class Runner:
             ).run()
         else:
             self._informer = Informer.from_file(self._info_file, self._input_machine)
+
+    def _warn_if_submitted_with_newer_version(self) -> None:
+        """
+        Log a warning if the job was submitted using a newer version of qq
+        than the one running it.
+
+        Older versions are not reported, since qq is typically backwards compatible.
+        """
+        submitted = self._informer.info.qq_version
+        running = qq_lib.__version__
+        logger.debug(f"Submitted with qq {submitted}, running with qq {running}.")
+
+        try:
+            is_newer = Version(submitted) > Version(running)
+        except InvalidVersion:
+            logger.debug(
+                f"Could not compare qq versions '{submitted}' (submission) and '{running}' (run)."
+            )
+            return
+
+        if is_newer:
+            logger.warning(
+                f"Job was submitted using qq {submitted}, but it is run by an older version of qq ({running}). "
+                "The job may not work as expected. Update qq on this machine."
+            )
 
     def _ensure_matches_job(self, job_id: str) -> None:
         """
