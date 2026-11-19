@@ -24,6 +24,7 @@ from qq_lib.core.common import (
     CFG,
     _kill_process_group,
     available_work_dirs,
+    choice_prompt,
     construct_info_file_path,
     construct_loop_job_name,
     convert_absolute_to_relative,
@@ -204,6 +205,48 @@ def test_other_key():
     with patch("readchar.readkey", return_value="x"):
         result = yes_or_no_prompt("Do you agree?")
         assert result is False
+
+
+CHOICES = [("c", "Continue"), ("r", "rerun"), ("x", "cancel")]
+
+
+@pytest.mark.parametrize("key", ["c", "r", "x"])
+def test_choice_prompt_returns_selected_key(key):
+    with patch("readchar.readkey", return_value=key):
+        assert choice_prompt(CHOICES) == key
+
+
+def test_choice_prompt_ignores_other_keys():
+    with patch("readchar.readkey", side_effect=["n", "\r", " ", "r"]) as mock_readkey:
+        assert choice_prompt(CHOICES) == "r"
+
+    assert mock_readkey.call_count == 4
+
+
+def test_choice_prompt_is_case_insensitive():
+    with patch("readchar.readkey", return_value="C"):
+        assert choice_prompt(CHOICES) == "c"
+
+
+@pytest.mark.parametrize(
+    ("options", "expected"),
+    [
+        (
+            [("c", "Continue"), ("r", "rerun"), ("x", "cancel")],
+            "Continue [c], rerun [r], or cancel [x]?",
+        ),
+        ([("r", "Rerun"), ("x", "cancel")], "Rerun [r] or cancel [x]?"),
+    ],
+)
+def test_choice_prompt_text(options, expected):
+    with (
+        patch("readchar.readkey", return_value="x"),
+        patch("qq_lib.core.common.Live") as mock_live,
+    ):
+        choice_prompt(options)
+
+    text = mock_live.call_args.args[0]
+    assert text.plain == f"PROMPT   {expected}"
 
 
 @pytest.mark.parametrize(

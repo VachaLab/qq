@@ -32,44 +32,39 @@ def make_loop_info(tmp_path):
     return _make
 
 
-def test_respawner_ensure_archive_consistent_passes_when_cycles_match(make_loop_info):
-    loop_info = make_loop_info(current=3, start=1, archive_files=["job0003.init"])
-    Respawner._ensure_archive_consistent(loop_info)
+def make_respawner_with_loop_info(loop_info: LoopInfo | None) -> Respawner:
+    respawner = Respawner.__new__(Respawner)
+    respawner._informer = MagicMock()
+    respawner._informer.info.loop_info = loop_info
+    return respawner
 
 
-def test_respawner_ensure_archive_consistent_raises_when_cycles_differ(make_loop_info):
-    loop_info = make_loop_info(current=2, start=1, archive_files=["job0003.init"])
+def test_respawner_get_next_cycle_in_archive_returns_none_for_non_loop_job():
+    respawner = make_respawner_with_loop_info(None)
 
-    with pytest.raises(QQError, match="cycle '2'.*cycle '3'"):
-        Respawner._ensure_archive_consistent(loop_info)
+    assert respawner.get_next_cycle_in_archive() is None
 
 
-def test_respawner_ensure_archive_consistent_passes_when_archive_empty_and_current_is_one(
-    make_loop_info,
+@pytest.mark.parametrize(
+    ("current", "start", "archive_files"),
+    [
+        (3, 1, ["job0003.init"]),
+        (3, 1, ["job0001.dat", "job0002.dat", "job0003.init"]),
+        (1, 1, []),
+        (8, 8, []),
+    ],
+)
+def test_respawner_get_next_cycle_in_archive_returns_none_when_cycles_match(
+    make_loop_info, current, start, archive_files
 ):
-    loop_info = make_loop_info(current=1, start=1, archive_files=[])
+    respawner = make_respawner_with_loop_info(
+        make_loop_info(current=current, start=start, archive_files=archive_files)
+    )
 
-    Respawner._ensure_archive_consistent(loop_info)
-
-
-def test_respawner_ensure_archive_consistent_passes_when_archive_empty_and_current_is_starting(
-    make_loop_info,
-):
-    loop_info = make_loop_info(current=8, start=8, archive_files=[])
-
-    Respawner._ensure_archive_consistent(loop_info)
+    assert respawner.get_next_cycle_in_archive() is None
 
 
-def test_respawner_ensure_archive_consistent_raises_when_archive_empty_and_current_is_not_starting(
-    make_loop_info,
-):
-    loop_info = make_loop_info(current=3, start=2, archive_files=[])
-
-    with pytest.raises(QQError, match="cycle '3'.*cycle '2'"):
-        Respawner._ensure_archive_consistent(loop_info)
-
-
-def test_respawner_ensure_archive_consistent_passes_when_archive_does_not_exist_and_current_is_starting(
+def test_respawner_get_next_cycle_in_archive_returns_none_when_archive_does_not_exist_and_current_is_starting(
     tmp_path,
 ):
     loop_info = LoopInfo(
@@ -80,10 +75,41 @@ def test_respawner_ensure_archive_consistent_passes_when_archive_does_not_exist_
         archive_format="job%04d",
     )
 
-    Respawner._ensure_archive_consistent(loop_info)
+    assert make_respawner_with_loop_info(loop_info).get_next_cycle_in_archive() is None
 
 
-def test_respawner_ensure_archive_consistent_raises_when_archive_does_not_exist_and_current_is_not_starting(
+def test_respawner_get_next_cycle_in_archive_returns_next_cycle(make_loop_info):
+    respawner = make_respawner_with_loop_info(
+        make_loop_info(
+            current=2, start=1, archive_files=["job0002.dat", "job0003.init"]
+        )
+    )
+
+    assert respawner.get_next_cycle_in_archive() == 3
+
+
+@pytest.mark.parametrize(
+    ("current", "start", "archive_files", "match"),
+    [
+        # the archive is more than one cycle ahead
+        (2, 1, ["job0004.init"], "cycle '2'.*cycle '4'"),
+        # the archive is behind the current cycle
+        (3, 2, [], "cycle '3'.*cycle '2'"),
+        (5, 1, ["job0003.init"], "cycle '5'.*cycle '3'"),
+    ],
+)
+def test_respawner_get_next_cycle_in_archive_raises_on_other_mismatch(
+    make_loop_info, current, start, archive_files, match
+):
+    respawner = make_respawner_with_loop_info(
+        make_loop_info(current=current, start=start, archive_files=archive_files)
+    )
+
+    with pytest.raises(QQError, match=match):
+        respawner.get_next_cycle_in_archive()
+
+
+def test_respawner_get_next_cycle_in_archive_raises_when_archive_does_not_exist_and_current_is_not_starting(
     tmp_path,
 ):
     loop_info = LoopInfo(
@@ -95,7 +121,32 @@ def test_respawner_ensure_archive_consistent_raises_when_archive_does_not_exist_
     )
 
     with pytest.raises(QQError, match="cycle '5'.*cycle '1'"):
-        Respawner._ensure_archive_consistent(loop_info)
+        make_respawner_with_loop_info(loop_info).get_next_cycle_in_archive()
+
+
+@pytest.mark.parametrize(
+    ("current", "archive_files", "expected"),
+    [
+        # the archive corresponds to the current cycle
+        (3, ["job0003.init"], False),
+        # the archive already contains the next cycle
+        (3, ["job0004.init"], True),
+        # the next cycle is the last cycle
+        (9, ["job0010.init"], True),
+        # the failed cycle is the last cycle
+        (10, ["job0011.init"], False),
+    ],
+)
+def test_respawner_can_continue(make_loop_info, current, archive_files, expected):
+    respawner = make_respawner_with_loop_info(
+        make_loop_info(current=current, archive_files=archive_files)
+    )
+
+    assert respawner.can_continue() is expected
+
+
+def test_respawner_can_continue_returns_false_for_non_loop_job():
+    assert make_respawner_with_loop_info(None).can_continue() is False
 
 
 @pytest.fixture
@@ -162,58 +213,6 @@ def test_respawner_build_submitter_filters_dependencies(respawner_with_info_file
     assert mock_submitter_cls.call_args.kwargs["depend"] == filtered
 
 
-def test_respawner_build_submitter_calls_ensure_archive_consistent_for_loop_job(
-    respawner_with_info_file,
-):
-    informer = MagicMock()
-    loop_info = MagicMock()
-    informer.info.loop_info = loop_info
-
-    with (
-        patch("qq_lib.respawn.respawner.Submitter"),
-        patch("qq_lib.respawn.respawner.filter_dependencies", return_value=[]),
-        patch.object(Respawner, "_ensure_archive_consistent") as mock_ensure,
-    ):
-        respawner_with_info_file._build_submitter(informer)
-
-    mock_ensure.assert_called_once_with(loop_info)
-
-
-def test_respawner_build_submitter_does_not_call_ensure_archive_for_non_loop_job(
-    respawner_with_info_file,
-):
-    informer = MagicMock()
-    informer.info.loop_info = None
-
-    with (
-        patch("qq_lib.respawn.respawner.Submitter"),
-        patch("qq_lib.respawn.respawner.filter_dependencies", return_value=[]),
-        patch.object(Respawner, "_ensure_archive_consistent") as mock_ensure,
-    ):
-        respawner_with_info_file._build_submitter(informer)
-
-    mock_ensure.assert_not_called()
-
-
-def test_respawner_build_submitter_raises_when_archive_inconsistent(
-    respawner_with_info_file,
-):
-    informer = MagicMock()
-    informer.info.loop_info = MagicMock()
-
-    with (
-        patch("qq_lib.respawn.respawner.Submitter"),
-        patch("qq_lib.respawn.respawner.filter_dependencies", return_value=[]),
-        patch.object(
-            Respawner,
-            "_ensure_archive_consistent",
-            side_effect=QQError("inconsistent"),
-        ),
-        pytest.raises(QQError, match="inconsistent"),
-    ):
-        respawner_with_info_file._build_submitter(informer)
-
-
 def test_respawner_build_submitter_passes_loop_info_to_submitter(
     respawner_with_info_file,
 ):
@@ -224,11 +223,31 @@ def test_respawner_build_submitter_passes_loop_info_to_submitter(
     with (
         patch("qq_lib.respawn.respawner.Submitter") as mock_submitter_cls,
         patch("qq_lib.respawn.respawner.filter_dependencies", return_value=[]),
-        patch.object(Respawner, "_ensure_archive_consistent"),
     ):
         respawner_with_info_file._build_submitter(informer)
 
     assert mock_submitter_cls.call_args.kwargs["loop_info"] is loop_info
+
+
+def test_respawner_build_submitter_uses_requested_cycle(
+    respawner_with_info_file, make_loop_info
+):
+    informer = MagicMock()
+    loop_info = make_loop_info(current=3, archive_files=["job0004.init"])
+    informer.info.loop_info = loop_info
+
+    with (
+        patch("qq_lib.respawn.respawner.Submitter") as mock_submitter_cls,
+        patch("qq_lib.respawn.respawner.filter_dependencies", return_value=[]),
+    ):
+        respawner_with_info_file._build_submitter(informer, 4)
+
+    submitted = mock_submitter_cls.call_args.kwargs["loop_info"]
+    assert submitted.current == 4
+    assert submitted.end == loop_info.end
+    assert submitted.archive == loop_info.archive
+    # the loop info of the failed job is not modified
+    assert loop_info.current == 3
 
 
 RESPAWNABLE_STATES = {RealState.FAILED, RealState.KILLED}
@@ -250,9 +269,15 @@ def test_respawner_ensure_suitable(state):
 def respawner_for_respawn():
     respawner = Respawner.__new__(Respawner)
     respawner._info_file = Path("/tmp/input/job.qqinfo")
-    respawner.get_informer = MagicMock()
+    respawner._informer = MagicMock()
+    respawner._informer.info.loop_info.current = 5
+    respawner._informer.info.loop_info.end = 10
+    respawner.get_informer = MagicMock(return_value=respawner._informer)
+    respawner.get_next_cycle_in_archive = MagicMock(return_value=None)
     respawner._build_submitter = MagicMock()
     respawner._build_submitter.return_value.submit.return_value = "99999"
+    respawner._warn_if_work_dir_exists = MagicMock()
+    respawner._archive_runtime_files = MagicMock()
     return respawner
 
 
@@ -357,7 +382,7 @@ def test_respawner_respawn_builds_submitter_from_informer(respawner_for_respawn)
     ):
         respawner_for_respawn.respawn()
 
-    respawner_for_respawn._build_submitter.assert_called_once_with(informer)
+    respawner_for_respawn._build_submitter.assert_called_once_with(informer, None)
 
 
 def test_respawner_respawn_raises_if_files_cannot_be_cleared(respawner_for_respawn):
@@ -371,3 +396,277 @@ def test_respawner_respawn_raises_if_files_cannot_be_cleared(respawner_for_respa
             respawner_for_respawn.respawn()
 
     respawner_for_respawn._build_submitter.return_value.submit.assert_not_called()
+
+
+@pytest.mark.parametrize("flags", [{}, {"force_continue": True}, {"force_rerun": True}])
+def test_respawner_respawn_without_mismatch_ignores_options(
+    respawner_for_respawn, flags
+):
+    informer = respawner_for_respawn.get_informer.return_value
+
+    with (
+        patch("qq_lib.respawn.respawner.Wiper") as mock_wiper_cls,
+        patch("qq_lib.respawn.respawner.Clearer"),
+    ):
+        result = respawner_for_respawn.respawn(**flags)
+
+    assert result == "99999"
+    respawner_for_respawn._build_submitter.assert_called_once_with(informer, None)
+    mock_wiper_cls.from_informer.return_value.wipe.assert_called_once()
+    respawner_for_respawn._archive_runtime_files.assert_not_called()
+
+
+def test_respawner_respawn_raises_when_both_options_set(respawner_for_respawn):
+    with (
+        patch("qq_lib.respawn.respawner.Wiper") as mock_wiper_cls,
+        patch("qq_lib.respawn.respawner.Clearer") as mock_clearer_cls,
+        pytest.raises(QQError, match="Cannot both continue"),
+    ):
+        respawner_for_respawn.respawn(force_continue=True, force_rerun=True)
+
+    mock_wiper_cls.from_informer.assert_not_called()
+    mock_clearer_cls.assert_not_called()
+    respawner_for_respawn._build_submitter.return_value.submit.assert_not_called()
+
+
+def test_respawner_respawn_raises_on_mismatch_without_options(respawner_for_respawn):
+    respawner_for_respawn.get_next_cycle_in_archive.return_value = 6
+
+    with (
+        patch("qq_lib.respawn.respawner.Wiper") as mock_wiper_cls,
+        patch("qq_lib.respawn.respawner.Clearer") as mock_clearer_cls,
+        pytest.raises(QQError, match="cycle '5'.*cycle '6'"),
+    ):
+        respawner_for_respawn.respawn()
+
+    mock_wiper_cls.from_informer.assert_not_called()
+    mock_clearer_cls.assert_not_called()
+    respawner_for_respawn._archive_runtime_files.assert_not_called()
+    respawner_for_respawn._build_submitter.return_value.submit.assert_not_called()
+
+
+def test_respawner_respawn_force_rerun_reruns_failed_cycle(respawner_for_respawn):
+    respawner_for_respawn.get_next_cycle_in_archive.return_value = 6
+    informer = respawner_for_respawn.get_informer.return_value
+
+    with (
+        patch("qq_lib.respawn.respawner.Wiper") as mock_wiper_cls,
+        patch("qq_lib.respawn.respawner.Clearer") as mock_clearer_cls,
+    ):
+        result = respawner_for_respawn.respawn(force_rerun=True)
+
+    assert result == "99999"
+    respawner_for_respawn._build_submitter.assert_called_once_with(informer, None)
+    mock_wiper_cls.from_informer.return_value.wipe.assert_called_once()
+    mock_clearer_cls.return_value.clear.assert_called_once()
+    respawner_for_respawn._archive_runtime_files.assert_not_called()
+    respawner_for_respawn._warn_if_work_dir_exists.assert_not_called()
+
+
+def test_respawner_respawn_force_continue_submits_next_cycle(respawner_for_respawn):
+    respawner_for_respawn.get_next_cycle_in_archive.return_value = 6
+    informer = respawner_for_respawn.get_informer.return_value
+    call_order = []
+    respawner_for_respawn._warn_if_work_dir_exists.side_effect = lambda _: (
+        call_order.append("warn")
+    )
+    respawner_for_respawn._archive_runtime_files.side_effect = lambda _: (
+        call_order.append("archive")
+    )
+    respawner_for_respawn._build_submitter.return_value.submit.side_effect = lambda: (
+        call_order.append("submit"),
+        "99999",
+    )[1]
+
+    with (
+        patch("qq_lib.respawn.respawner.Wiper") as mock_wiper_cls,
+        patch("qq_lib.respawn.respawner.Clearer") as mock_clearer_cls,
+    ):
+
+        def clear() -> bool:
+            call_order.append("clear")
+            return True
+
+        mock_clearer_cls.return_value.clear.side_effect = clear
+        result = respawner_for_respawn.respawn(force_continue=True)
+
+    assert result == "99999"
+    respawner_for_respawn._build_submitter.assert_called_once_with(informer, 6)
+    # the working directory is never removed when continuing
+    mock_wiper_cls.from_informer.return_value.wipe.assert_not_called()
+    respawner_for_respawn._warn_if_work_dir_exists.assert_called_once_with(informer)
+    respawner_for_respawn._archive_runtime_files.assert_called_once_with(informer)
+    assert call_order == ["warn", "archive", "clear", "submit"]
+
+
+def test_respawner_respawn_force_continue_raises_after_last_cycle(
+    respawner_for_respawn,
+):
+    respawner_for_respawn._informer.info.loop_info.current = 10
+    respawner_for_respawn.get_next_cycle_in_archive.return_value = 11
+
+    with (
+        patch("qq_lib.respawn.respawner.Wiper") as mock_wiper_cls,
+        patch("qq_lib.respawn.respawner.Clearer") as mock_clearer_cls,
+        pytest.raises(QQError, match="Cannot continue with cycle '11'.*'10'"),
+    ):
+        respawner_for_respawn.respawn(force_continue=True)
+
+    mock_wiper_cls.from_informer.assert_not_called()
+    mock_clearer_cls.assert_not_called()
+    respawner_for_respawn._archive_runtime_files.assert_not_called()
+
+
+def test_respawner_respawn_force_continue_does_not_submit_if_archiving_fails(
+    respawner_for_respawn,
+):
+    respawner_for_respawn.get_next_cycle_in_archive.return_value = 6
+    respawner_for_respawn._archive_runtime_files.side_effect = QQError("cannot move")
+
+    with (
+        patch("qq_lib.respawn.respawner.Wiper"),
+        patch("qq_lib.respawn.respawner.Clearer") as mock_clearer_cls,
+        pytest.raises(QQError, match="cannot move"),
+    ):
+        respawner_for_respawn.respawn(force_continue=True)
+
+    mock_clearer_cls.assert_not_called()
+    respawner_for_respawn._build_submitter.return_value.submit.assert_not_called()
+
+
+@pytest.fixture
+def respawner_with_work_dir():
+    respawner = Respawner.__new__(Respawner)
+    informer = MagicMock()
+    informer.get_destination.return_value = ("node1", Path("/scratch/job"))
+    return respawner, informer
+
+
+def test_respawner_warn_if_work_dir_exists_warns_when_directory_exists(
+    respawner_with_work_dir,
+):
+    respawner, informer = respawner_with_work_dir
+
+    with (
+        patch("qq_lib.respawn.respawner.Wiper"),
+        patch("qq_lib.respawn.respawner.logger") as mock_logger,
+    ):
+        respawner._warn_if_work_dir_exists(informer)
+
+    informer.batch_system.list_remote_dir.assert_called_once_with(
+        "node1", Path("/scratch/job")
+    )
+    mock_logger.warning.assert_called_once()
+    message = mock_logger.warning.call_args.args[0]
+    assert "'/scratch/job' on 'node1' still exists" in message
+
+
+def test_respawner_warn_if_work_dir_exists_silent_when_directory_missing(
+    respawner_with_work_dir,
+):
+    respawner, informer = respawner_with_work_dir
+    informer.batch_system.list_remote_dir.side_effect = QQError("no such directory")
+
+    with (
+        patch("qq_lib.respawn.respawner.Wiper"),
+        patch("qq_lib.respawn.respawner.logger") as mock_logger,
+    ):
+        respawner._warn_if_work_dir_exists(informer)
+
+    mock_logger.warning.assert_not_called()
+
+
+def test_respawner_warn_if_work_dir_exists_silent_when_not_expected_to_exist(
+    respawner_with_work_dir,
+):
+    respawner, informer = respawner_with_work_dir
+
+    with (
+        patch("qq_lib.respawn.respawner.Wiper") as mock_wiper_cls,
+        patch("qq_lib.respawn.respawner.logger") as mock_logger,
+    ):
+        mock_wiper_cls.from_informer.return_value.ensure_suitable.side_effect = (
+            QQNotSuitableError("synchronized")
+        )
+        respawner._warn_if_work_dir_exists(informer)
+
+    informer.batch_system.list_remote_dir.assert_not_called()
+    mock_logger.warning.assert_not_called()
+
+
+def test_respawner_warn_if_work_dir_exists_silent_without_destination(
+    respawner_with_work_dir,
+):
+    respawner, informer = respawner_with_work_dir
+    informer.get_destination.return_value = None
+
+    with (
+        patch("qq_lib.respawn.respawner.Wiper"),
+        patch("qq_lib.respawn.respawner.logger") as mock_logger,
+    ):
+        respawner._warn_if_work_dir_exists(informer)
+
+    informer.batch_system.list_remote_dir.assert_not_called()
+    mock_logger.warning.assert_not_called()
+
+
+def test_respawner_archive_runtime_files_archives_failed_cycle(make_loop_info):
+    respawner = Respawner.__new__(Respawner)
+    informer = MagicMock()
+    loop_info = make_loop_info(current=5, archive_files=["job0006.init"])
+    informer.info.loop_info = loop_info
+    informer.info.script_name = "run.sh"
+
+    with patch("qq_lib.respawn.respawner.Archiver") as mock_archiver_cls:
+        respawner._archive_runtime_files(informer)
+
+    mock_archiver_cls.assert_called_once_with(
+        archive=loop_info.archive,
+        archive_format="job%04d",
+        input_machine=informer.info.input_machine,
+        input_dir=informer.info.input_dir,
+        batch_system=informer.batch_system,
+        included_files=informer.info.included_files,
+        excluded_files=informer.info.excluded_files,
+        ignored_files=informer.info.ignored_files,
+    )
+    mock_archiver_cls.return_value.archive_runtime_files.assert_called_once_with(
+        "run\\+0005.sh", 5
+    )
+
+
+def test_respawner_archive_runtime_files_moves_files_into_archive(
+    tmp_path, make_loop_info
+):
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    for suffix in (".qqinfo", ".qqout", ".out", ".err"):
+        (input_dir / f"run+0005{suffix}").write_text(suffix)
+    (input_dir / "run.sh").write_text("script")
+
+    loop_info = make_loop_info(current=5, archive_files=["job0006.init"])
+    informer = MagicMock()
+    informer.info.loop_info = loop_info
+    informer.info.script_name = "run.sh"
+    informer.info.input_dir = input_dir
+    informer.info.input_machine = None
+    informer.info.included_files = []
+    informer.info.excluded_files = []
+    informer.info.ignored_files = []
+
+    def move(_host, files, moved_files):
+        for src, dst in zip(files, moved_files, strict=True):
+            src.rename(dst)
+
+    informer.batch_system.move_remote_files.side_effect = move
+
+    Respawner.__new__(Respawner)._archive_runtime_files(informer)
+
+    assert sorted(p.name for p in input_dir.iterdir()) == ["run.sh"]
+    assert sorted(p.name for p in loop_info.archive.iterdir()) == [
+        "job0005.err",
+        "job0005.out",
+        "job0005.qqinfo",
+        "job0005.qqout",
+        "job0006.init",
+    ]

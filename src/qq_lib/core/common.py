@@ -283,6 +283,48 @@ def yes_or_no_prompt(prompt: str) -> bool:
     return key == "y"
 
 
+def choice_prompt(options: list[tuple[str, str]]) -> str:
+    """
+    Display an interactive prompt offering several options and return the selected one.
+
+    Each option is shown as its description followed by its key in brackets, e.g.
+    `Continue [c], rerun [r], or cancel [x]?`. Other keys are ignored,
+    so there is no default option. The key of the selected option is highlighted.
+
+    Args:
+        options: Pairs of a single-character key and a description of the option.
+            At least two options must be provided.
+
+    Returns:
+        The key of the selected option.
+    """
+    keys = [key.lower() for key, _ in options]
+
+    def build(selected: str | None) -> Text:
+        text = Text("PROMPT", style="magenta") + Text("   ", style="default")
+        for i, (key, description) in enumerate(options):
+            if i == len(options) - 1:
+                text += Text(", or " if len(options) > 2 else " or ", style="default")
+            elif i > 0:
+                text += Text(", ", style="default")
+            text += Text(f"{description} ", style="default")
+            text += Text("[", style="bold default")
+            text += Text(
+                key, style="bold green" if key.lower() == selected else "bold default"
+            )
+            text += Text("]", style="bold default")
+        return text + Text("?", style="default")
+
+    with Live(build(None), refresh_per_second=1) as live:
+        while (key := readchar.readkey().lower()) not in keys:
+            pass
+
+        # highlight the pressed key
+        live.update(build(key))
+
+    return key
+
+
 def format_duration(td: timedelta) -> str:
     """
     Convert a timedelta into a human-readable string showing only relevant units.

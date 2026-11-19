@@ -8,6 +8,7 @@
 - qq now uses, and `qq_lib` requires, Python 3.15.
 - `.out` and `.err` files are only treated as qq runtime files if a `.qqinfo` or `.qqout` file with the same stem exists in the same directory, so output files of other programs are no longer deleted. A `.out` or `.err` file left behind after its `.qqinfo` and `.qqout` files were removed is no longer recognized and has to be deleted manually.
 - If a qq directive is specified multiple times, the user is warned about that (and the last value is used).
+- `qq respawn` can now continue a loop job with the next cycle if the archive already contains files for it (for example, when only the submission of the next cycle failed). The user is asked whether to continue or to rerun the failed cycle; use `--force-continue` or `--force-respawn` to choose without being asked.
 
 ### Installation
 
