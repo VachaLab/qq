@@ -25,8 +25,8 @@ def test_sync_job_calls_sync():
         _sync_job(informer, ["a.txt", "b.txt"])
 
     syncer_mock.print_info.assert_called_once()
-    syncer_mock.ensure_suitable.assert_called_once()
-    syncer_mock.sync.assert_called_once_with(["a.txt", "b.txt"])
+    syncer_mock.ensure_suitable.assert_called_once_with(False)
+    syncer_mock.sync.assert_called_once_with(["a.txt", "b.txt"], False)
 
 
 def test_sync_job_calls_sync_without_files():
@@ -38,7 +38,7 @@ def test_sync_job_calls_sync_without_files():
     ):
         _sync_job(informer, None)
 
-    syncer_mock.sync.assert_called_once_with(None)
+    syncer_mock.sync.assert_called_once_with(None, False)
 
 
 def test_split_files_returns_none_when_input_none():
@@ -84,6 +84,7 @@ def test_sync_creates_command_runner_and_runs():
         _sync_job,
         logger,
         ["a.txt", "b.txt"],
+        False,
         recursive=False,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     )
@@ -112,6 +113,7 @@ def test_sync_creates_command_runner_with_dirs_and_runs(tmp_path):
         _sync_job,
         logger,
         None,
+        False,
         recursive=False,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     )
@@ -143,6 +145,7 @@ def test_sync_creates_complex_command_runner_and_runs(tmp_path):
         _sync_job,
         logger,
         None,
+        False,
         recursive=False,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     )
@@ -184,6 +187,7 @@ def test_sync_creates_complex_command_runner_with_recursive_and_runs(tmp_path):
         _sync_job,
         logger,
         None,
+        False,
         recursive=True,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     )
@@ -223,3 +227,30 @@ def test_sync_registers_exception_handlers():
     }
     assert handlers[QQNotSuitableError] is handle_not_suitable_error
     assert handlers[QQError] is handle_general_qq_error
+
+
+def test_sync_job_calls_sync_with_archive():
+    informer = MagicMock()
+    syncer_mock = MagicMock()
+    with (
+        patch("qq_lib.sync.cli.Syncer.from_informer", return_value=syncer_mock),
+        patch("qq_lib.sync.cli.console"),
+    ):
+        _sync_job(informer, ["a.txt"], True)
+
+    syncer_mock.ensure_suitable.assert_called_once_with(True)
+    syncer_mock.sync.assert_called_once_with(["a.txt"], True)
+
+
+@pytest.mark.parametrize(("flags", "expected"), [([], False), (["--archive"], True)])
+def test_sync_passes_archive_to_command_runner(flags, expected):
+    runner = CliRunner()
+
+    with patch("qq_lib.sync.cli.CommandRunner") as mock_cls:
+        mock_cls.return_value.on_exception.return_value = mock_cls.return_value
+        mock_cls.return_value.run.side_effect = SystemExit(0)
+
+        result = runner.invoke(sync, ["12345", *flags])
+
+    assert result.exit_code == 0
+    assert mock_cls.call_args.args[7] is expected

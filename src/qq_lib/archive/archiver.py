@@ -139,18 +139,58 @@ class Archiver:
         Files that were explicitly included via the `include` submission option are not archived.
 
         Args:
-            work_dir: The directory containing files to archive.
+            dir: The directory containing files to archive.
 
         Raises:
             QQError: If file transfer or removal fails.
         """
+        if not (files := self.copy_to_archive(dir, None, self._input_machine)):
+            return
+
+        # remove the archived files
+        Retryer(
+            self._remove_files,
+            files,
+            max_tries=CFG.archiver.retry_tries,
+            wait_seconds=CFG.archiver.retry_wait,
+        ).run()
+
+    def copy_to_archive(
+        self,
+        dir: Path,
+        host: str | None,
+        archive_host: str | None,
+        selected: list[Path] | None = None,
+    ) -> list[Path]:
+        """
+        Copy all files matching the archive format from the specified directory to the archive.
+
+        The files are not removed from `dir`. Files that were explicitly included
+        via the `include` submission option or ignored via the `ignore` submission option
+        are not archived.
+
+        Args:
+            dir: The directory containing files to archive.
+            host: Hostname of the machine on which `dir` is located,
+                or None if it is available from the current machine.
+            archive_host: Hostname of the machine on which the archive is located,
+                or None if it is available from the current machine.
+            selected: If provided, only files from this list (absolute paths in `dir`)
+                are archived.
+
+        Returns:
+            Absolute paths of the archived files in `dir`.
+
+        Raises:
+            QQError: If the file transfer fails.
+        """
         if not (
             files := self.get_files_matching_pattern(
-                dir, None, self._archive_format, None, False
+                dir, host, self._archive_format, None, False
             )
         ):
             logger.debug("Nothing to archive.")
-            return
+            return []
 
         # files that were explicitly included via the `include` submission option are not archived
         # as well as files that are explicitly ignored via the `ignore` submission option
@@ -160,26 +200,28 @@ class Archiver:
         )
         files = [file for file in files if file not in exclude]
 
+        if selected is not None:
+            chosen = {logical_resolve(file) for file in selected}
+            files = [file for file in files if file in chosen]
+
+        if not files:
+            logger.debug("Nothing to archive.")
+            return []
+
         logger.debug(f"Files to archive: {files}.")
 
         Retryer(
             self._batch_system.sync_selected,
             dir,
             self._archive,
-            socket.getfqdn(),
-            self._input_machine,
+            host or socket.getfqdn(),
+            archive_host,
             files,
             max_tries=CFG.archiver.retry_tries,
             wait_seconds=CFG.archiver.retry_wait,
         ).run()
 
-        # remove the archived files
-        Retryer(
-            self._remove_files,
-            files,
-            max_tries=CFG.archiver.retry_tries,
-            wait_seconds=CFG.archiver.retry_wait,
-        ).run()
+        return files
 
     def archive_runtime_files(self, job_name: str, cycle: int) -> None:
         """

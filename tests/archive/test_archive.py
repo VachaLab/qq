@@ -4,6 +4,7 @@
 import re
 import socket
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -565,6 +566,113 @@ def test_archive_to_archive_copies_and_removes_files_except_ignored(
     # qq runtime files should remain as well
     assert (work_dir / "job0001.out").exists()
     assert (work_dir / "job0002.err").exists()
+
+
+def test_archive_copy_to_archive_copies_and_keeps_files(
+    monkeypatch, archiver, archive_dir, work_dir
+):
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+    archiver.make_archive_dir()
+    touch_files(work_dir, ["job0001.dat", "job0002.dat", "other.txt", "job0001.out"])
+
+    result = archiver.copy_to_archive(work_dir, None, "input")
+
+    assert set(result) == {work_dir / "job0001.dat", work_dir / "job0002.dat"}
+    assert sorted(f.name for f in archive_dir.iterdir()) == [
+        "job0001.dat",
+        "job0002.dat",
+    ]
+    # nothing is removed from the directory
+    assert sorted(f.name for f in work_dir.iterdir()) == [
+        "job0001.dat",
+        "job0001.out",
+        "job0002.dat",
+        "other.txt",
+    ]
+
+
+def test_archive_copy_to_archive_only_selected_files(
+    monkeypatch, archiver, archive_dir, work_dir
+):
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+    archiver.make_archive_dir()
+    touch_files(work_dir, ["job0001.dat", "job0002.dat", "other.txt"])
+
+    result = archiver.copy_to_archive(
+        work_dir,
+        None,
+        "input",
+        # not matching files and missing files are ignored
+        [work_dir / "job0002.dat", work_dir / "other.txt", work_dir / "job0003.dat"],
+    )
+
+    assert result == [work_dir / "job0002.dat"]
+    assert [f.name for f in archive_dir.iterdir()] == ["job0002.dat"]
+
+
+@pytest.mark.parametrize(
+    "option", ["included_files", "ignored_files"], ids=["included", "ignored"]
+)
+def test_archive_copy_to_archive_skips_included_and_ignored_files(
+    monkeypatch, archive_dir, work_dir, input_dir, option
+):
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+    archiver = _make_archiver(
+        archive_dir, input_dir, **{option: [Path("external/shared/job0002.dat")]}
+    )
+    archiver.make_archive_dir()
+    touch_files(work_dir, ["job0001.dat", "job0002.dat"])
+
+    result = archiver.copy_to_archive(work_dir, None, "input")
+
+    assert result == [work_dir / "job0001.dat"]
+    assert [f.name for f in archive_dir.iterdir()] == ["job0001.dat"]
+
+
+@pytest.mark.parametrize("selected", [None, []], ids=["all files", "no selected files"])
+def test_archive_copy_to_archive_nothing_to_archive(work_dir, input_dir, selected):
+    batch_system = MagicMock()
+    archiver = Archiver(
+        archive=input_dir / "archive",
+        archive_format="job%04d",
+        input_machine="input",
+        input_dir=input_dir,
+        batch_system=batch_system,
+        included_files=[],
+        excluded_files=[],
+        ignored_files=[],
+    )
+    if selected is not None:
+        touch_files(work_dir, ["job0001.dat"])
+
+    assert archiver.copy_to_archive(work_dir, None, "input", selected) == []
+    batch_system.sync_selected.assert_not_called()
+
+
+def test_archive_copy_to_archive_from_remote_directory(work_dir, input_dir):
+    batch_system = MagicMock()
+    batch_system.list_remote_dir.return_value = [
+        work_dir / "job0001.dat",
+        work_dir / "other.txt",
+    ]
+    archiver = Archiver(
+        archive=input_dir / "archive",
+        archive_format="job%04d",
+        input_machine="input",
+        input_dir=input_dir,
+        batch_system=batch_system,
+        included_files=[],
+        excluded_files=[],
+        ignored_files=[],
+    )
+
+    result = archiver.copy_to_archive(work_dir, "node", None)
+
+    assert result == [work_dir / "job0001.dat"]
+    batch_system.list_remote_dir.assert_called_once_with("node", work_dir)
+    batch_system.sync_selected.assert_called_once_with(
+        work_dir, input_dir / "archive", "node", None, [work_dir / "job0001.dat"]
+    )
 
 
 def test_archive_to_nothing_to_archive(monkeypatch, archiver, archive_dir, work_dir):
