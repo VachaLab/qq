@@ -1,64 +1,70 @@
 ## Version 0.14.0
 
-- **DEPRECATION:** Archive formats that are not printf-style patterns are deprecated and will not be supported in qq v0.15. A warning is shown when submitting a loop job with such an archive format.
 - **BREAKING CHANGE:** `qq killall` has been removed. Use `qq kill --all` instead.
-- Added the `-r`/`--recursive` option to `qq clear`, `qq go`, `qq info`, `qq kill`, `qq respawn`, `qq sync`, and `qq wipe`. With this option, the command also searches all subdirectories of the directories given with `-d`, or of the current directory if neither `-d` nor a job ID is given.
-    - Subdirectories of a directory containing a qq job are not searched. Nesting qq jobs is not recommended, and this prevents reading archived info files of loop jobs.
-- Tweaked the output format of `qq info -b`.
-- Job resubmission no longer hangs when the input directory is unavailable. It now fails after a 120-second timeout.
+- **DEPRECATION:** Archive formats that are not printf-style patterns are deprecated and will not be supported in qq v0.15. Submitting a loop job with such an archive format now shows a warning.
 - qq now uses, and `qq_lib` requires, Python 3.15.
-- `.out` and `.err` files are only treated as qq runtime files if a `.qqinfo` or `.qqout` file with the same stem exists in the same directory, so output files of other programs are no longer deleted. A `.out` or `.err` file left behind after its `.qqinfo` and `.qqout` files were removed is no longer recognized and has to be deleted manually.
-- If a qq directive is specified multiple times, the user is warned about that (and the last value is used).
-- `qq respawn` can now continue a loop job with the next cycle if the archive already contains files for it (for example, when only the submission of the next cycle failed). The user is asked whether to continue or to rerun the failed cycle; use `--force-continue` or `--force-respawn` to choose without being asked.
+
+### New features
+
+- Added the `-r`/`--recursive` option to `qq clear`, `qq go`, `qq info`, `qq kill`, `qq respawn`, `qq sync`, and `qq wipe`. With this option, the command also searches all subdirectories of the directories given with `-d`, or of the current directory if neither `-d` nor a job ID is given.
+    - Subdirectories of a directory containing a qq job are not searched. Nesting qq jobs is not recommended, and skipping such subdirectories prevents reading archived info files of loop jobs.
+- `qq respawn` can now continue a loop job with the next cycle if the archive already contains files for it (for example, when only the submission of the next cycle failed). The user is asked whether to continue or to rerun the failed cycle. Use `--force-continue` or `--force-rerun` to choose without being asked.
 - Added the `--archive` option to `qq sync`. For failed or killed loop jobs, it copies files matching the archive format to the archive and fetches the remaining files to the input directory, as qq does after a successfully finished cycle.
-- `.out` and `.err` files matching the archive format are now archived unless they are qq runtime files. Previously, all such files were left out of the archive.
-- Added spinners for long operations of `qq info`, `qq jobs`, `qq stat`, `qq queues`, and `qq nodes`.
+- qq now warns if a qq directive is specified multiple times in a script. The last value is used.
+- `qq run` now logs a warning if the job was submitted using a newer version of qq.
+- `qq info`, `qq jobs`, `qq stat`, `qq queues`, and `qq nodes` now show a spinner during long operations.
 
 ### Installation
 
 - **BREAKING CHANGE:** qq is now installed into `~/.qq/qq` instead of `~/qq`. The installers remove the old installation.
-- The installation scripts have been rewritten. qq is now loaded in login, non-interactive and interactive bash shells, and the installers check this on every home directory before finishing.
+- The installation scripts have been rewritten. qq is now loaded in login, non-interactive, and interactive bash shells, and the installers check this in every home directory before finishing.
 - qq can optionally be set up for zsh (`--zsh`) and fish (`--fish`).
-- Added uninstallation scripts which remove qq and all changes made by the installers.
+- Added uninstallation scripts, which remove qq and all changes made by the installers.
 
-### Bug fixes and small changes
+### Changes
+
+- Tweaked the output format of `qq info -b`.
+- Job resubmission no longer hangs when the input directory is unavailable. It now fails after a 120-second timeout.
+- `.out` and `.err` files are now treated as qq runtime files only if a `.qqinfo` or `.qqout` file with the same stem exists in the same directory, so output files of other programs are no longer deleted. A `.out` or `.err` file left behind after its `.qqinfo` and `.qqout` files were removed is no longer recognized and has to be deleted manually.
+- `.out` and `.err` files matching the archive format are now archived unless they are qq runtime files. Previously, all such files were excluded from the archive.
+
+### Bug fixes
 
 - Fixed resolving files excluded from copying to the input directory.
-- Fixed filtering old dependencies on Slurm.
-- Fixed qq eagerly clearing files or deleting working directories when the batch system is unreachable.
-- Fixed handling stale $PWD.
-- Fixed identification of loop cycle number if the stem itself contains a number.
-- More reliable information about the availability of computing nodes and queues.
-- Fixed `qq info` with an unknown Slurm job id failing with an "This is a bug" error.
-- Sizes specified in bytes now properly converted to kB.
-- Fixed `MaxTime=UNLIMITED` in Slurm partition properties leading to a crash.
-- Working directories on Karolina/LUMI are now properly normalized.
-- Fixed unexpected qstat error line making a bulk job look up fail.
-- Handling jobs for which info file could not be written at submission.
-- `.init` file should not be created for a failing loop job even if the archive mode includes the failed state.
-- `loop-start` 0 is now properly rejected, not silently overwritten with 1.
-- Numeric size or walltime directives now raise an error instead of being silently dropped.
-- Fixed unexpected aborting of multi-job commands.
-- Fixed a crash when attempting to access an unreadable directory during a recursive search for qq jobs.
-- Fixed `qq clear` swallowing file removal errors.
-- Better Slurm->qq state conversions.
+- Fixed filtering of old dependencies on Slurm.
+- qq no longer clears files or deletes working directories when the batch system is unreachable.
+- Fixed handling of a stale `$PWD`.
+- Fixed identification of the loop cycle number when the file stem contains another number.
+- Information about the availability of compute nodes and queues is now more reliable.
+- Fixed `qq info` failing with a "This is a bug" error for an unknown Slurm job ID.
+- Sizes specified in bytes are now properly converted to kB.
+- Fixed a crash caused by `MaxTime=UNLIMITED` in Slurm partition properties.
+- Working directories on Karolina and LUMI are now properly normalized.
+- Fixed an unexpected line in the `qstat` error output causing bulk job lookups to fail.
+- Fixed handling of jobs whose info file could not be written at submission.
+- An `.init` file is no longer created for a failed loop job, even if the archive mode includes the failed state.
+- `loop-start 0` is now rejected instead of being silently replaced with 1.
+- Numeric size or walltime directives now raise an error instead of being silently ignored.
+- Fixed multi-job commands aborting unexpectedly.
+- Fixed a crash when a recursive search for qq jobs encounters an unreadable directory.
+- `qq clear` no longer silently ignores errors when removing files.
+- Improved conversion of Slurm job states to qq states.
 - Submitting to servers unknown to AMS no longer raises an error.
-- Fixed handling paths with spaces and/or quotes.
-- SIGTERM handler now finishes cleanup properly even if the info file cannot be updated.
-- Job should not be considered synchronized if `qq run` itself failed.
-- Negative duration is now shown as 0.
-- `qq go` will now never read the info file remotely from the submission machine.
+- Fixed handling of paths containing spaces or quotes.
+- The SIGTERM handler now finishes the cleanup even if the info file cannot be updated.
+- A job is no longer considered synchronized if `qq run` itself failed.
+- Negative durations are now shown as 0.
+- `qq go` no longer reads the info file remotely from the submission machine.
 - Empty items in file lists can no longer be interpreted as the input directory.
-- Made handling errors in multi-job operations more robust.
-- Potentially more responsive CTRL+C when performing multi-job operations.
-- `qq nodes` no longer crashes if there are no available nodes.
-- `qq submit` now properly warns about setting `work-size-per-node` when the work dir does not support it.
-- `qq run` now logs a warning if the job was submitted with a _newer_ version of qq.
+- Made error handling in multi-job operations more robust.
+- Ctrl+C should now be more responsive during multi-job operations.
+- `qq nodes` no longer crashes if no nodes are available.
+- `qq submit` now properly warns about setting `work-size-per-node` when the working directory does not support it.
 
 ### Internal changes
 
-- **Python API breaking change:** `Repeater` has been removed.
-- Removed unnecessary typing information from function and method doc strings.
+- **BREAKING CHANGE (Python API):** `Repeater` has been removed.
+- Removed unnecessary type information from function and method docstrings.
 
 ---
 
