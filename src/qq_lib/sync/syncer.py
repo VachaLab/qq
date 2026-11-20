@@ -160,6 +160,7 @@ class Syncer(Navigator):
             included_files=info.included_files,
             excluded_files=info.excluded_files,
             ignored_files=info.ignored_files,
+            runtime_files=[info.stdout_file, info.stderr_file],
         )
 
         archived = archiver.copy_to_archive(

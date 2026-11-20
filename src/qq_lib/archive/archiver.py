@@ -36,6 +36,7 @@ class Archiver:
         included_files: list[Path],
         excluded_files: list[Path],
         ignored_files: list[Path],
+        runtime_files: list[str] | None = None,
     ):
         """
         Initialize the Archiver.
@@ -52,6 +53,8 @@ class Archiver:
                 from the working directory and should not be fetched from archive.
             ignored_files: List of files that are ignored and should be neither
                 archived nor fetched from archive.
+            runtime_files: Names of the job's standard output and standard error files.
+                These are qq runtime files and are never archived from the working directory.
         """
         self._batch_system = batch_system
         self._archive = archive
@@ -61,6 +64,7 @@ class Archiver:
         self._included_files = included_files
         self._excluded_files = excluded_files
         self._ignored_files = ignored_files
+        self._runtime_files = set(runtime_files or [])
 
     @property
     def archive(self) -> Path:
@@ -296,6 +300,12 @@ class Archiver:
 
         Returns:
             A list of absolute (logical) paths to matching files.
+
+        Notes:
+            qq info files and qq output files are always qq runtime files. Files with
+            the suffixes of the job's standard output and standard error are only qq runtime
+            files if they are the job's own standard output and standard error files,
+            since other programs use these suffixes too.
         """
         if cycle and is_printf_pattern(pattern):
             try:
@@ -335,8 +345,24 @@ class Archiver:
         return [
             logical_resolve(f)
             for f in available_files
-            if regex.search(f.stem) and f.suffix not in CFG.suffixes.all_suffixes
+            if regex.search(f.stem) and not self._is_runtime_file(f)
         ]
+
+    def _is_runtime_file(self, file: Path) -> bool:
+        """
+        Check whether a file is a qq runtime file.
+
+        Args:
+            file: The file to check.
+
+        Returns:
+            True if the file is a qq info file, a qq output file, or the job's own
+            standard output or standard error file. False otherwise.
+        """
+        if file.suffix in {CFG.suffixes.qq_info, CFG.suffixes.qq_out}:
+            return True
+
+        return file.name in self._runtime_files
 
     def _get_excluded_from_copying_to_archive(self, dir: Path) -> list[Path]:
         """

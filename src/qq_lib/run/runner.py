@@ -140,6 +140,10 @@ class Runner:
                 included_files=self._informer.info.included_files,
                 excluded_files=self._informer.info.excluded_files,
                 ignored_files=self._informer.info.ignored_files,
+                runtime_files=[
+                    self._informer.info.stdout_file,
+                    self._informer.info.stderr_file,
+                ],
             )
             self._should_resubmit = True
         else:

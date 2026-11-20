@@ -200,6 +200,7 @@ def test_runner_init_creates_archiver_when_loop_info_present():
             included_files=informer.info.included_files,
             excluded_files=informer.info.excluded_files,
             ignored_files=informer.info.ignored_files,
+            runtime_files=[informer.info.stdout_file, informer.info.stderr_file],
         )
         mock_batchmeta.assert_called_once()
         mock_retryer.assert_called_once()

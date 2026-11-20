@@ -422,6 +422,7 @@ def test_syncer_sync_archive_builds_archiver_from_info(syncer_with_archiver):
         included_files=info.included_files,
         excluded_files=info.excluded_files,
         ignored_files=info.ignored_files,
+        runtime_files=[info.stdout_file, info.stderr_file],
     )
 
 
