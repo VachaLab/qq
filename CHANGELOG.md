@@ -60,6 +60,7 @@
 - Ctrl+C should now be more responsive during multi-job operations.
 - `qq nodes` no longer crashes if no nodes are available.
 - `qq submit` now properly warns about setting `work-size-per-node` when the working directory does not support it.
+- Fix non-functional config options.
 
 ### Internal changes
 

@@ -285,9 +285,9 @@ class QueuesPresenterSettings:
     headers_style: str = "default"
 
     # Mark used to denote main queues.
-    main_mark = "●"
+    main_mark: str = "●"
     # Mark used to denote reroutings.
-    rerouted_mark = " ··>"
+    rerouted_mark: str = " ··>"
 
     # Style used for the mark if the queue is available.
     available_mark_style: str = "bright_green"
@@ -333,7 +333,7 @@ class NodesPresenterSettings:
     all_nodes_group_name: str = "all nodes"
 
     # Mark used to denote nodes.
-    state_mark = "●"
+    state_mark: str = "●"
 
     # Style used for main information about the nodes.
     main_text_style: str = "white"
@@ -346,7 +346,7 @@ class NodesPresenterSettings:
     # Style used for the mark and resources if the node is busy.
     busy_node_style: str = "blue"
     # Style used for all information about unavailable nodes.
-    unavailable_node_style = "bright_red"
+    unavailable_node_style: str = "bright_red"
 
 
 @dataclass(frozen=True)

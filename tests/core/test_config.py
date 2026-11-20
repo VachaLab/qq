@@ -2,7 +2,8 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields, is_dataclass
+from typing import Any
 
 from qq_lib.core.config import Config, _dict_to_dataclass
 
@@ -310,3 +311,47 @@ retry_tries = 5
 
     config = Config.load(config_file)
     assert config == Config()
+
+
+def _settings_classes(cls: Any) -> list[Any]:
+    """Return the dataclass and all dataclasses nested in it."""
+    classes = [cls]
+    for f in fields(cls):
+        if isinstance(f.type, type) and is_dataclass(f.type):
+            classes.extend(_settings_classes(f.type))
+    return classes
+
+
+def test_all_settings_are_configurable():
+    # a class attribute without a type annotation is not a dataclass field,
+    # so it would be silently ignored when loading the config file
+    for cls in _settings_classes(Config):
+        field_names = {f.name for f in fields(cls)}
+        attributes = {
+            name
+            for name, value in vars(cls).items()
+            if not name.startswith("_")
+            and not callable(value)
+            and not isinstance(value, (property, classmethod, staticmethod))
+        }
+        assert attributes <= field_names, f"{cls.__name__}: {attributes - field_names}"
+
+
+def test_load_presenter_marks_and_styles(tmp_path):
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("""
+[queues_presenter]
+main_mark = "*"
+rerouted_mark = " ->"
+
+[nodes_presenter]
+state_mark = "#"
+unavailable_node_style = "red"
+""")
+
+    config = Config.load(config_file)
+
+    assert config.queues_presenter.main_mark == "*"
+    assert config.queues_presenter.rerouted_mark == " ->"
+    assert config.nodes_presenter.state_mark == "#"
+    assert config.nodes_presenter.unavailable_node_style == "red"
