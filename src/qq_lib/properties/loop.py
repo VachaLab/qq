@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Self
 
 from qq_lib.archive.archiver import Archiver
+from qq_lib.core.common import is_printf_pattern, printf_to_regex
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -52,21 +53,21 @@ class LoopInfo:
         Initialize loop job information with validation checks.
 
         Args:
-            start (int): The starting cycle number.
-            end (int | None): The ending cycle number. Must be provided and >= `start`.
-            archive (Path): Path to the archive directory.
-            input_dir (Path | None): The job submission directory. Used to validate archive.
+            start: The starting cycle number. Must be at least 1.
+            end: The ending cycle number. Must be provided and >= `start`.
+            archive: Path to the archive directory.
+            input_dir: The job submission directory. Used to validate archive.
                 If `None`, no validation is performed.
-            archive_format (str): File naming pattern used for archived files.
-            current (int | None): The current cycle number. Defaults to `start`
+            archive_format: File naming pattern used for archived files.
+            current: The current cycle number. Defaults to `start`
                 if not provided.
-            archive_mode (list[TransferMode] | None): When should the files be archived?
+            archive_mode: When should the files be archived?
                 Defaults to [Success()], meaning that archival should only be performed for
                 successfully completed jobs.
 
         Raises:
-            QQError: If `end` is not provided, if `start > end`, if `current > end`,
-                or if the archive path is invalid.
+            QQError: If `end` is not provided, if `start < 1`, if `start > end`,
+                if `current > end`, or if the archive path is invalid.
         """
         if not end:
             raise QQError("Attribute 'loop-end' is undefined")
@@ -84,8 +85,8 @@ class LoopInfo:
         self.end = end
         self.current = current or self.determine_cycle_from_archive()
 
-        if self.start < 0:
-            raise QQError(f"Attribute 'loop-start' ({self.start}) cannot be negative")
+        if self.start < 1:
+            raise QQError(f"Attribute 'loop-start' ({self.start}) must be at least 1")
 
         if self.start > self.end:
             raise QQError(
@@ -103,10 +104,10 @@ class LoopInfo:
         Reconstruct a LoopInfo instance from a dictionary produced by to_dict.
 
         Args:
-            data (dict[str, object]): A dictionary as returned by `to_dict()`.
+            data: A dictionary as returned by `to_dict()`.
 
         Returns:
-            LoopInfo: A new instance with fields populated from the dictionary.
+            A new instance with fields populated from the dictionary.
         """
         start = data.get("start")
         end = data.get("end")
@@ -142,7 +143,7 @@ class LoopInfo:
             archive=Path(archive),
             archive_format=archive_format,
             current=current,
-            archive_mode=[TransferMode.from_str(mode) for mode in archive_mode],  # ty: ignore[invalid-argument-type]
+            archive_mode=[TransferMode.from_str(mode) for mode in archive_mode],
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -161,11 +162,13 @@ class LoopInfo:
         Determine the current cycle number based on files in the archive directory.
 
         Returns:
-            int: The detected maximum cycle number, or `self.start` if no valid cycle
+            The detected maximum cycle number, or `self.start` if no valid cycle
                 can be inferred.
 
         Notes:
-            - Only the first sequence of digits found in the stem is considered.
+            - For printf-style archive formats, the number at the position of the
+                first placeholder is considered. For other formats, the first sequence
+                of digits found in the stem is considered.
         """
 
         # if the directory does not exist, use the starting cycle number
@@ -184,9 +187,38 @@ class LoopInfo:
             if not stem_pattern.search(f.stem):
                 continue
 
-            match = re.search(r"\d+", f.stem)
-            if match:
-                number = int(match.group(0))
+            if (number := _extract_cycle(self.archive_format, f.stem)) is not None:
                 max_number = max(max_number, number)
 
         return max_number
+
+
+def _extract_cycle(archive_format: str, stem: str) -> int | None:
+    """
+    Extract the cycle number from the stem of an archived file.
+
+    For printf-style archive formats, the number at the position of the first
+    placeholder is used. For other formats, the first sequence of digits is used.
+
+    Args:
+        archive_format: The archive format of the loop job.
+        stem: Stem of the archived file.
+
+    Returns:
+        The cycle number or `None` if no number could be extracted.
+    """
+    if is_printf_pattern(archive_format):
+        # capture the digits matched by the first placeholder
+        regex = re.sub(
+            r"\\d(?:\{\d+\}|\+)",
+            lambda m: f"({m.group(0)})",
+            printf_to_regex(archive_format),
+            count=1,
+        )
+    else:
+        regex = r"(\d+)"
+
+    if match := re.search(regex, stem):
+        return int(match.group(1))
+
+    return None

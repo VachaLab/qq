@@ -10,10 +10,12 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from qq_lib.batch.slurm import SlurmNode
+from qq_lib.batch.slurmit4i import SlurmIT4I
 from qq_lib.batch.slurmlumi.node import SlurmLumiNode
 from qq_lib.batch.slurmlumi.slurm import SlurmLumi
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
+from qq_lib.properties.resources import Resources
 
 
 @pytest.mark.parametrize("which_return,expected", [(None, False), ("some/path", True)])
@@ -152,3 +154,30 @@ def test_slurmlumi_get_nodes_success(mock_from_dict, mock_parser, mock_run):
     assert result == [mock_node1, mock_node2]
     assert isinstance(result[0], SlurmLumiNode)
     assert isinstance(result[1], SlurmLumiNode)
+
+
+@pytest.mark.parametrize(
+    "batch_system, provided, expected",
+    [
+        (SlurmLumi, "FLASH", "flash"),
+        (SlurmLumi, "Flash", "flash"),
+        (SlurmLumi, "Scratch", "scratch"),
+        (SlurmLumi, "job-dir", "job_dir"),
+        (SlurmIT4I, "SCRATCH", "scratch"),
+        (SlurmIT4I, "Input-Dir", "input_dir"),
+    ],
+)
+@patch("qq_lib.batch.slurmit4i.slurm.SlurmQueue")
+def test_slurmlumi_transform_resources_canonicalizes_work_dir(
+    mock_queue, batch_system, provided, expected
+):
+    mock_queue.return_value.get_default_resources.return_value = Resources()
+
+    with patch.object(
+        batch_system, "_get_default_server_resources", return_value=Resources()
+    ):
+        result = batch_system.transform_resources(
+            "standard", None, Resources(work_dir=provided)
+        )
+
+    assert result.work_dir == expected

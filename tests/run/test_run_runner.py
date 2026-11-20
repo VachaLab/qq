@@ -22,6 +22,7 @@ from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.states import NaiveState
+from qq_lib.properties.transfer_mode import Always
 from qq_lib.run.runner import CFG, Runner, log_fatal_error_and_exit
 
 
@@ -42,6 +43,7 @@ def test_runner_init_success():
 
         informer = MagicMock()
         informer.matches_job.return_value = True
+        informer.info.qq_version = "1.0.0"
         informer.batch_system = batch
         informer.info.job_id = "12345"
         informer.info.input_dir = "/tmp/input"
@@ -143,6 +145,7 @@ def test_runner_init_raises_on_batch_system_mismatch():
 
         informer = MagicMock()
         informer.matches_job.return_value = True
+        informer.info.qq_version = "1.0.0"
         informer.batch_system = MagicMock()
         informer.info.job_id = "12345"
 
@@ -174,6 +177,7 @@ def test_runner_init_creates_archiver_when_loop_info_present():
         loop_info = MagicMock()
         informer = MagicMock()
         informer.matches_job.return_value = True
+        informer.info.qq_version = "1.0.0"
         informer.batch_system = batch
         informer.info.job_id = "12345"
         informer.info.input_dir = "/tmp/input"
@@ -196,6 +200,7 @@ def test_runner_init_creates_archiver_when_loop_info_present():
             included_files=informer.info.included_files,
             excluded_files=informer.info.excluded_files,
             ignored_files=informer.info.ignored_files,
+            runtime_files=[informer.info.stdout_file, informer.info.stderr_file],
         )
         mock_batchmeta.assert_called_once()
         mock_retryer.assert_called_once()
@@ -838,7 +843,7 @@ def test_runner_log_failure_and_exit_calls_update_and_exits():
     runner = Runner.__new__(Runner)
     runner._update_info_failed = MagicMock()
     exc = RuntimeError("fatal error")
-    exc.exit_code = 42  # ty: ignore[unresolved-attribute]
+    exc.exit_code = 42  # ty: ignore[missing-attribute]
 
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
@@ -855,7 +860,7 @@ def test_runner_log_failure_and_exit_calls_fallback_on_exception():
     runner = Runner.__new__(Runner)
     runner._update_info_failed = MagicMock(side_effect=Exception("update failed"))
     exc = RuntimeError("fatal error")
-    exc.exit_code = 42  # ty: ignore[unresolved-attribute]
+    exc.exit_code = 42  # ty: ignore[missing-attribute]
 
     with patch("qq_lib.run.runner.log_fatal_error_and_exit") as mock_fatal:
         runner.log_failure_and_exit(exc)
@@ -1293,7 +1298,7 @@ def test_runner_prepare_with_scratch_and_archiver():
     runner._informer = MagicMock()
     runner._informer.info.loop_info.current = 2
     runner._informer.info.script_name = "run_job"
-    runner._work_dir = "/tmp/work"
+    runner._work_dir = Path("/tmp/work")
 
     with (
         patch("qq_lib.run.runner.logger") as mock_logger,
@@ -1308,7 +1313,7 @@ def test_runner_prepare_with_scratch_and_archiver():
     )
     runner._set_up_scratch_dir.assert_called_once()
     runner._set_up_shared_dir.assert_not_called()
-    runner._archiver.from_archive.assert_called_once_with("/tmp/work", 2)
+    runner._archiver.from_archive.assert_called_once_with(Path("/tmp/work"), 2)
     mock_logger.debug.assert_any_call("Archiving run time files from cycle 1.")
 
 
@@ -1334,7 +1339,7 @@ def test_runner_prepare_without_scratch_and_with_archiver():
     runner._informer = MagicMock()
     runner._informer.info.loop_info.current = 5
     runner._informer.info.script_name = "task"
-    runner._work_dir = "/tmp/work_shared"
+    runner._work_dir = Path("/tmp/work_shared")
 
     with (
         patch("qq_lib.run.runner.logger"),
@@ -1391,7 +1396,7 @@ def test_log_fatal_error_and_exit_unknown_exception():
     mock_logger.error.assert_any_call(
         "Failure state was NOT logged into the job info file."
     )
-    mock_logger.critical.assert_called_once_with(exc, exc_info=True, stack_info=True)
+    mock_logger.critical.assert_called_once_with(exc, stack_info=True)
     assert e.value.code == CFG.exit_codes.unexpected_error
 
 
@@ -1404,14 +1409,14 @@ def test_runner_reload_info_with_retry(mock_informer_cls, mock_retryer_cls):
     mock_retryer_cls.return_value = mock_retryer
 
     runner = Runner.__new__(Runner)
-    runner._info_file = "job.qqinfo"
+    runner._info_file = Path("job.qqinfo")
     runner._input_machine = "host"
 
     runner._reload_info(retry=True)
 
     mock_retryer_cls.assert_called_once_with(
         mock_informer_cls.from_file,
-        "job.qqinfo",
+        Path("job.qqinfo"),
         host="host",
         max_tries=CFG.runner.retry_tries,
         wait_seconds=CFG.runner.retry_wait,
@@ -1427,12 +1432,12 @@ def test_runner_reload_info_without_retry(mock_informer_cls, mock_retryer_cls):
     mock_informer_cls.from_file.return_value = mock_informer
 
     runner = Runner.__new__(Runner)
-    runner._info_file = "job.qqinfo"
+    runner._info_file = Path("job.qqinfo")
     runner._input_machine = "host"
 
     runner._reload_info(retry=False)
 
-    mock_informer_cls.from_file.assert_called_once_with("job.qqinfo", "host")
+    mock_informer_cls.from_file.assert_called_once_with(Path("job.qqinfo"), "host")
     mock_retryer_cls.assert_not_called()
     assert runner._informer == mock_informer
 
@@ -1446,7 +1451,7 @@ def test_runner_ensure_matches_job_with_matching_numeric_id():
 
     runner = Runner.__new__(Runner)
     runner._informer = informer
-    runner._info_file = "job.qqinfo"
+    runner._info_file = Path("job.qqinfo")
 
     runner._ensure_matches_job("12345")
 
@@ -1460,7 +1465,7 @@ def test_runner_ensure_matches_job_with_different_numeric_id_raises():
 
     runner = Runner.__new__(Runner)
     runner._informer = informer
-    runner._info_file = "job.qqinfo"
+    runner._info_file = Path("job.qqinfo")
 
     with pytest.raises(QQJobMismatchError, match="job.qqinfo"):
         runner._ensure_matches_job("12345")
@@ -1475,7 +1480,7 @@ def test_runner_ensure_matches_job_with_partial_suffix_matching():
 
     runner = Runner.__new__(Runner)
     runner._informer = informer
-    runner._info_file = "job.qqinfo"
+    runner._info_file = Path("job.qqinfo")
 
     runner._ensure_matches_job("5678")
 
@@ -1562,8 +1567,8 @@ def test_runner_copy_runtime_files_to_input_dir_retry_true():
     runner = Runner.__new__(Runner)
     runner._informer = informer
     runner._batch_system = batch_system
-    runner._work_dir = "/work"
-    runner._input_dir = "/input"
+    runner._work_dir = Path("/work")
+    runner._input_dir = Path("/input")
 
     with (
         patch("qq_lib.run.runner.socket.getfqdn", return_value="host"),
@@ -1581,8 +1586,8 @@ def test_runner_copy_runtime_files_to_input_dir_retry_true():
 
     mock_retryer.assert_called_once_with(
         batch_system.sync_selected,
-        "/work",
-        "/input",
+        Path("/work"),
+        Path("/input"),
         "host",
         "machineA",
         include_files=expected_files,
@@ -1605,8 +1610,8 @@ def test_runner_copy_runtime_files_to_input_dir_retry_false():
     runner = Runner.__new__(Runner)
     runner._informer = informer
     runner._batch_system = batch_system
-    runner._work_dir = "/work"
-    runner._input_dir = "/input"
+    runner._work_dir = Path("/work")
+    runner._input_dir = Path("/input")
 
     with patch("qq_lib.run.runner.socket.getfqdn", return_value="host"):
         runner._copy_runtime_files_to_input_dir(retry=False)
@@ -1617,8 +1622,8 @@ def test_runner_copy_runtime_files_to_input_dir_retry_false():
     ]
 
     batch_system.sync_selected.assert_called_once_with(
-        "/work",
-        "/input",
+        Path("/work"),
+        Path("/input"),
         "host",
         "machineA",
         expected_files,
@@ -2013,3 +2018,188 @@ def test_runner_get_excluded_from_input_dir_deduplicates_after_relocating(
     )
 
     assert runner._get_excluded_from_input_dir() == [work_dir / "params.itp"]
+
+
+def test_runner_get_excluded_from_input_dir_keeps_location_of_ignored_files(
+    tmp_path: Path,
+):
+    input_dir = tmp_path / "input"
+    work_dir = tmp_path / "scratch" / "main"
+
+    runner = Runner.__new__(Runner)
+    runner._work_dir = work_dir
+    archiver = MagicMock()
+    archiver.archive = input_dir / "results" / "storage"
+    runner._archiver = archiver
+    runner._informer = MagicMock()
+    runner._informer.info.input_dir = input_dir
+    runner._informer.info.included_files = [tmp_path / "shared" / "params.itp"]
+    runner._informer.info.ignored_files = [input_dir / "equil" / "md.trr"]
+
+    assert runner._get_excluded_from_input_dir() == [
+        work_dir / "params.itp",
+        work_dir / "equil" / "md.trr",
+        work_dir / "results" / "storage",
+    ]
+
+
+def test_runner_finalize_does_not_create_init_file_for_failed_cycle(tmp_path: Path):
+    runner = Runner.__new__(Runner)
+    runner._process = MagicMock()
+    runner._process.returncode = 1
+    runner._archiver = MagicMock(spec=Archiver)
+    runner._archiver.get_files_matching_pattern.return_value = []
+    runner._use_scratch = False
+    runner._work_dir = tmp_path
+    runner._informer = MagicMock()
+    runner._informer.info.job_type = JobType.LOOP
+    runner._informer.info.loop_info = LoopInfo(
+        start=1,
+        end=10,
+        archive=tmp_path / "storage",
+        archive_format="job%04d",
+        current=3,
+        archive_mode=[Always()],
+    )
+    runner._informer.info.included_files = []
+    runner._informer.info.ignored_files = []
+    runner._informer.info.input_dir = tmp_path
+    runner._informer.should_archive_files.return_value = True
+    runner._update_info_failed = MagicMock()
+
+    with patch("qq_lib.run.runner.logger"):
+        runner.finalize()
+
+    runner._archiver.to_archive.assert_called_once_with(tmp_path)
+    runner._archiver.create_init_file.assert_not_called()
+    runner._update_info_failed.assert_called_once_with(1)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        QQRunCommunicationError("Job has been killed without informing qq run"),
+        QQError("Could not read the info file"),
+    ],
+)
+def test_runner_cleanup_continues_when_info_file_cannot_be_updated(error):
+    runner = Runner.__new__(Runner)
+    runner._use_scratch = True
+    runner._info_file = Path("/fake/job.qqinfo")
+    runner._input_machine = "input.host"
+    runner._informer = MagicMock()
+    runner._reload_info_and_ensure_valid = MagicMock(side_effect=error)
+    process_mock = MagicMock()
+    process_mock.poll.return_value = None
+    runner._process = process_mock
+
+    with (
+        patch("qq_lib.run.runner.logger"),
+        patch("qq_lib.run.runner.sleep"),
+        patch.object(Runner, "_copy_runtime_files_to_input_dir") as mock_copy,
+    ):
+        runner._cleanup()
+
+    runner._informer.to_file.assert_not_called()
+    process_mock.terminate.assert_called_once()
+    mock_copy.assert_called_once_with(retry=False)
+
+
+@pytest.mark.parametrize(
+    ("submitted", "running"),
+    [
+        ("0.15.0", "0.14.0"),
+        ("0.14.1", "0.14.0"),
+        ("0.14.0", "0.14.0.dev4"),
+        ("0.14.0.dev5", "0.14.0.dev4"),
+        ("1.0.0", "0.14.2"),
+    ],
+)
+def test_runner_warn_if_submitted_with_newer_version_warns(submitted, running):
+    runner = Runner.__new__(Runner)
+    runner._informer = MagicMock()
+    runner._informer.info.qq_version = submitted
+
+    with (
+        patch("qq_lib.run.runner.qq_lib.__version__", running),
+        patch("qq_lib.run.runner.logger") as mock_logger,
+    ):
+        runner._warn_if_submitted_with_newer_version()
+
+    mock_logger.warning.assert_called_once()
+    message = mock_logger.warning.call_args.args[0]
+    assert f"submitted using qq {submitted}" in message
+    assert f"older version of qq ({running})" in message
+
+
+@pytest.mark.parametrize(
+    ("submitted", "running"),
+    [
+        ("0.14.0", "0.14.0"),
+        ("0.13.2", "0.14.0"),
+        ("0.14.0.dev4", "0.14.0"),
+        ("0.14.0.dev4", "0.14.0.dev4+g06f5b00e7.d20261119"),
+        ("0.9.0", "0.10.0"),
+    ],
+)
+def test_runner_warn_if_submitted_with_newer_version_silent_for_same_or_older(
+    submitted, running
+):
+    runner = Runner.__new__(Runner)
+    runner._informer = MagicMock()
+    runner._informer.info.qq_version = submitted
+
+    with (
+        patch("qq_lib.run.runner.qq_lib.__version__", running),
+        patch("qq_lib.run.runner.logger") as mock_logger,
+    ):
+        runner._warn_if_submitted_with_newer_version()
+
+    mock_logger.warning.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("submitted", "running"), [("unknown", "0.14.0"), ("0.15.0", "not-a-version")]
+)
+def test_runner_warn_if_submitted_with_newer_version_ignores_invalid_versions(
+    submitted, running
+):
+    runner = Runner.__new__(Runner)
+    runner._informer = MagicMock()
+    runner._informer.info.qq_version = submitted
+
+    with (
+        patch("qq_lib.run.runner.qq_lib.__version__", running),
+        patch("qq_lib.run.runner.logger") as mock_logger,
+    ):
+        runner._warn_if_submitted_with_newer_version()
+
+    mock_logger.warning.assert_not_called()
+
+
+def test_runner_init_warns_if_submitted_with_newer_version():
+    with (
+        patch("qq_lib.run.runner.signal.signal"),
+        patch("qq_lib.run.runner.logger") as mock_logger,
+        patch("qq_lib.run.runner.socket.getfqdn", return_value="mockhost"),
+        patch("qq_lib.run.runner.qq_lib.__version__", "0.14.0"),
+        patch("qq_lib.run.runner.BatchInterface.from_env_var_or_guess") as mock_batch,
+        patch("qq_lib.run.runner.Retryer") as mock_retryer,
+    ):
+        batch = MagicMock()
+        batch.get_job_id.return_value = "12345"
+        mock_batch.return_value = batch
+
+        informer = MagicMock()
+        informer.matches_job.return_value = True
+        informer.batch_system = batch
+        informer.info.qq_version = "0.15.0"
+        informer.info.input_dir = "/tmp/input"
+        informer.info.loop_info = None
+        informer.uses_scratch.return_value = False
+        mock_retryer.return_value.run.return_value = informer
+
+        Runner(Path("job.qqinfo"), "input_host")
+
+    mock_logger.warning.assert_called_once()
+    assert "submitted using qq 0.15.0" in mock_logger.warning.call_args.args[0]

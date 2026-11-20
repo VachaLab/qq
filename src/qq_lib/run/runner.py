@@ -10,13 +10,18 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from time import sleep
-from types import FrameType
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
+
+from packaging.version import InvalidVersion, Version
 
 import qq_lib
 from qq_lib.archive.archiver import Archiver
 from qq_lib.batch.interface import BatchInterface
-from qq_lib.core.common import construct_loop_job_name, relocate_by_name
+from qq_lib.core.common import (
+    construct_loop_job_name,
+    relocate_by_name,
+    relocate_by_relative_path,
+)
 from qq_lib.core.config import CFG
 from qq_lib.core.error import (
     QQError,
@@ -33,6 +38,9 @@ from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
 from qq_lib.properties.states import NaiveState
 from qq_lib.resubmit.resubmitter import Resubmitter
+
+if TYPE_CHECKING:
+    from types import FrameType
 
 logger = get_logger(__name__, show_time=True)
 
@@ -53,8 +61,8 @@ class Runner:
         Initialize a new Runner instance.
 
         Args:
-            info_file (Path): Path to the qq info file that contains job metadata.
-            host (str): The hostname of the input machine from which the job was submitted.
+            info_file: Path to the qq info file that contains job metadata.
+            host: The hostname of the input machine from which the job was submitted.
 
         Raises:
             QQRunFatalError: If loading the QQ info file fails fatally during initialization.
@@ -75,7 +83,7 @@ class Runner:
         try:
             # get the batch system from the environment variable (or guess it)
             self._batch_system = BatchInterface.from_env_var_or_guess()
-            logger.debug(f"Batch system: {str(self._batch_system)}.")
+            logger.debug(f"Batch system: {self._batch_system!s}.")
 
             # get the id of the job from the batch system
             if not (job_id := self._batch_system.get_job_id()):
@@ -99,7 +107,7 @@ class Runner:
             # check that the batch system in info file matches the one loaded from the environment variable
             if self._batch_system != self._informer.batch_system:
                 raise QQError(
-                    f"Batch system mismatch - env var: '{str(self._batch_system)}', info file: '{self._informer.batch_system}'"
+                    f"Batch system mismatch - env var: '{self._batch_system!s}', info file: '{self._informer.batch_system}'"
                 )
 
         except Exception as e:
@@ -108,9 +116,10 @@ class Runner:
             ) from e
 
         logger.info(
-            f"[qq-{str(self._batch_system)} v{qq_lib.__version__}] Initializing "
+            f"[qq-{self._batch_system!s} v{qq_lib.__version__}] Initializing "
             f"job '{self._informer.info.job_id}' on host '{socket.getfqdn()}'."
         )
+        self._warn_if_submitted_with_newer_version()
 
         # get input directory
         self._input_dir = Path(self._informer.info.input_dir)
@@ -131,6 +140,10 @@ class Runner:
                 included_files=self._informer.info.included_files,
                 excluded_files=self._informer.info.excluded_files,
                 ignored_files=self._informer.info.ignored_files,
+                runtime_files=[
+                    self._informer.info.stdout_file,
+                    self._informer.info.stderr_file,
+                ],
             )
             self._should_resubmit = True
         else:
@@ -185,7 +198,7 @@ class Runner:
         Execute the job script in the working directory.
 
         Returns:
-            int: The exit code from the executed script.
+            The exit code from the executed script.
 
         Raises:
             QQError: If execution fails or info file cannot be updated.
@@ -275,7 +288,10 @@ class Runner:
             logger.debug(
                 f"Script exit code is '{self._process.returncode}'. Archiving files."
             )
-            self._archive_files_from_work_dir()
+            # the next cycle is only prepared if the current cycle succeeded
+            self._archive_files_from_work_dir(
+                create_init_file=self._process.returncode == 0
+            )
 
         # transfer files back to the input (submission) directory
         if self._use_scratch:
@@ -322,7 +338,7 @@ class Runner:
         Record a failure state into the qq info file and exit the program.
 
         Args:
-            exception (BaseException): The exception to log.
+            exception: The exception to log.
 
         Raises:
             SystemExit: Always exits with the exit code associated with the given exception.
@@ -469,7 +485,7 @@ class Runner:
         `socket.getfqdn()` instead and prints warning.
 
         Returns:
-            list[str]: Names of nodes used to execute the job.
+            Names of nodes used to execute the job.
 
         Raises:
             QQError: If the batch system is unable to provide information about the nodes after retries
@@ -524,7 +540,7 @@ class Runner:
         Update the qq info file to mark the job as failed.
 
         Args:
-            return_code (int): Exit code from the failed job.
+            return_code: Exit code from the failed job.
 
         Logs errors as warnings if updating fails.
 
@@ -559,12 +575,15 @@ class Runner:
         No retrying since there is no time for that.
         """
         logger.debug(f"Updating '{self._info_file}' at job kill.")
-        self._reload_info_and_ensure_valid(retry=False)
 
         try:
-            self._informer.set_killed(datetime.now())
             # no retrying here since we cannot afford multiple attempts here
+            self._reload_info_and_ensure_valid(retry=False)
+            self._informer.set_killed(datetime.now())
             self._informer.to_file(self._info_file, host=self._input_machine)
+        except QQRunCommunicationError:
+            # `qq kill` has already marked the job as killed (and locked the info file)
+            logger.debug("Job has already been marked as killed in the info file.")
         except Exception as e:
             logger.warning(
                 f"Could not update qqinfo file '{self._info_file}' at JOB KILL: {e}."
@@ -575,7 +594,7 @@ class Runner:
         Copy .out and .err runtime files from the working directory to the input directory.
 
         Args:
-            retry (bool): Retry the copying if it fails.
+            retry: Retry the copying if it fails.
 
         Raises:
             QQError: If the files could not be copied after retrying.
@@ -612,7 +631,7 @@ class Runner:
         Reload the qq job info file for this job.
 
         Args:
-            retry (bool): Retry the loading operation if it fails.
+            retry: Retry the loading operation if it fails.
 
         Raises:
             QQError: If the qq info file cannot be reach or read after retrying.
@@ -627,6 +646,31 @@ class Runner:
             ).run()
         else:
             self._informer = Informer.from_file(self._info_file, self._input_machine)
+
+    def _warn_if_submitted_with_newer_version(self) -> None:
+        """
+        Log a warning if the job was submitted using a newer version of qq
+        than the one running it.
+
+        Older versions are not reported, since qq is typically backwards compatible.
+        """
+        submitted = self._informer.info.qq_version
+        running = qq_lib.__version__
+        logger.debug(f"Submitted with qq {submitted}, running with qq {running}.")
+
+        try:
+            is_newer = Version(submitted) > Version(running)
+        except InvalidVersion:
+            logger.debug(
+                f"Could not compare qq versions '{submitted}' (submission) and '{running}' (run)."
+            )
+            return
+
+        if is_newer:
+            logger.warning(
+                f"Job was submitted using qq {submitted}, but it is run by an older version of qq ({running}). "
+                "The job may not work as expected. Update qq on this machine."
+            )
 
     def _ensure_matches_job(self, job_id: str) -> None:
         """
@@ -660,7 +704,7 @@ class Runner:
         Then check the job's state and ensure it is not killed.
 
         Args:
-            retry (bool): Retry the loading operation if it fails.
+            retry: Retry the loading operation if it fails.
 
         Raises:
             QQJobMismatchError: If the info file corresponds to a different job.
@@ -706,11 +750,16 @@ class Runner:
 
         logger.info(f"Job resubmitted successfully as '{job_id}'.")
 
-    def _archive_files_from_work_dir(self) -> None:
+    def _archive_files_from_work_dir(self, create_init_file: bool = True) -> None:
         """
         Archive files from the working directory.
 
-        If no file exists for the next loop cycle, creates an empty init file to ensure the loop job continues normally.
+        If no file exists for the next loop cycle and `create_init_file` is True,
+        creates an empty init file to ensure the loop job continues normally.
+
+        Args:
+            create_init_file: Whether to create an init file for the next cycle
+                if no file for it exists. Should be False if the current cycle failed.
         """
         if not self._archiver:
             raise QQError(
@@ -734,7 +783,7 @@ class Runner:
         logger.debug(f"Files excluded from archiving: {exclude}.")
         files = [f for f in files_matching_pattern if f not in exclude]
 
-        if not files:
+        if not files and create_init_file:
             # if there are no files matching the next loop job cycle
             # (which are not excluded via `--include` or `--ignore` options)
             # create an empty .init file
@@ -774,7 +823,7 @@ class Runner:
         Duplicates are removed, preserving the order of first occurrence.
 
         Returns:
-            list[Path]: Paths that should not be copied to the working directory.
+            Paths that should not be copied to the working directory.
         """
         info = self._informer.info
 
@@ -801,15 +850,22 @@ class Runner:
         preserving the order of first occurrence.
 
         Returns:
-            list[Path]: Paths that should not be copied to the input directory.
+            Paths that should not be copied to the input directory.
         """
         info = self._informer.info
 
-        excluded = [*info.included_files, *info.ignored_files]
+        # explicitly included files are copied to the root of the working directory,
+        # ignored files and the archive keep their location relative to the input directory
+        kept_in_place = [*info.ignored_files]
         if self._archiver:
-            excluded.append(self._archiver.archive)
+            kept_in_place.append(self._archiver.archive)
 
-        return list(dict.fromkeys(relocate_by_name(excluded, self._work_dir)))
+        excluded = [
+            *relocate_by_name(info.included_files, self._work_dir),
+            *relocate_by_relative_path(kept_in_place, info.input_dir, self._work_dir),
+        ]
+
+        return list(dict.fromkeys(excluded))
 
     def _cleanup(self) -> None:
         """
@@ -859,7 +915,7 @@ def log_fatal_error_and_exit(exception: BaseException) -> NoReturn:
     the job info file (e.g., if the info file path is missing or corrupted).
 
     Args:
-        exception (BaseException): The error to log.
+        exception: The error to log.
 
     Raises:
         SystemExit: Exits with an exit code associated with the exception.
@@ -870,5 +926,5 @@ def log_fatal_error_and_exit(exception: BaseException) -> NoReturn:
     if isinstance(exception, (QQRunFatalError, QQRunCommunicationError, QQError)):
         sys.exit(exception.exit_code)
 
-    logger.critical(exception, exc_info=True, stack_info=True)
+    logger.critical(exception, stack_info=True)
     sys.exit(CFG.exit_codes.unexpected_error)

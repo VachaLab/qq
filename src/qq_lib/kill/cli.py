@@ -2,7 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 from pathlib import Path
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import click
 from rich.console import Console
@@ -22,8 +22,10 @@ from qq_lib.core.error_handlers import (
     handle_not_suitable_error,
 )
 from qq_lib.core.logger import get_logger
-from qq_lib.info.informer import Informer
 from qq_lib.kill.killer import Killer
+
+if TYPE_CHECKING:
+    from qq_lib.info.informer import Informer
 
 logger = get_logger(__name__)
 console = Console()
@@ -65,6 +67,12 @@ This can be useful for removing lingering or stuck jobs.""",
     help="One or more directories to search for qq jobs in. Supports globs.",
 )
 @click.option(
+    "-r",
+    "--recursive",
+    is_flag=True,
+    help="Also search subdirectories, except those inside a qq job's directory.",
+)
+@click.option(
     "-a",
     "--all",
     is_flag=True,
@@ -87,6 +95,7 @@ This can be useful for removing lingering or stuck jobs.""",
 def kill(
     jobs: tuple[str, ...],
     dir: tuple[Path, ...],
+    recursive: bool,
     all: bool,
     server: str | None,
     yes: bool = False,
@@ -124,6 +133,7 @@ def kill(
         logger,
         force,
         yes,
+        recursive=recursive,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     ).on_exception(QQNotSuitableError, handle_not_suitable_error).on_exception(
         QQError, handle_general_qq_error
@@ -135,9 +145,9 @@ def kill_job(informer: Informer, force: bool, yes: bool) -> None:
     Attempt to terminate a qq job associated with the specified informer.
 
     Args:
-        informer (Informer): Informer associated with the job.
-        force (bool): Whether to forcibly kill the job regardless of its state.
-        yes (bool): Whether to skip confirmation before termination.
+        informer: Informer associated with the job.
+        force: Whether to forcibly kill the job regardless of its state.
+        yes: Whether to skip confirmation before termination.
 
     Raises:
         QQNotSuitableError: If the job is not suitable for termination.

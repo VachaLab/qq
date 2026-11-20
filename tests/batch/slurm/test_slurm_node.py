@@ -217,22 +217,32 @@ def test_slurm_node_is_available_to_user_no_state_returns_false():
 
 
 @pytest.mark.parametrize(
-    "state,expected",
+    "state, expected",
     [
+        # base states as reported by `scontrol show node`
         ("ALLOCATED", True),
         ("MIXED", True),
         ("IDLE", True),
         ("DOWN", False),
-        ("DRAINED", False),
-        ("FAIL", False),
         ("FUTURE", False),
-        ("INVAL", False),
-        ("MAINT", False),
-        ("PERFCTRS", False),
-        ("POWERED_DOWN", False),
-        ("POWERING_DOWN", False),
-        ("RESERVED", False),
         ("UNKNOWN", False),
+        # base states followed by flags that do not prevent scheduling
+        ("MIXED+COMPLETING", True),
+        ("IDLE+CLOUD", True),
+        # base states followed by flags that prevent scheduling
+        ("IDLE+DRAIN", False),
+        ("MIXED+DRAIN", False),
+        ("ALLOCATED+DRAIN", False),
+        ("MIXED+FAIL", False),
+        ("DOWN+NOT_RESPONDING", False),
+        ("DOWN+DRAIN+NOT_RESPONDING", False),
+        ("IDLE+NOT_RESPONDING", False),
+        ("IDLE+MAINTENANCE+RESERVED", False),
+        ("IDLE+RESERVED", False),
+        ("IDLE+PERFCTRS", False),
+        ("IDLE+CLOUD+POWERED_DOWN", False),
+        ("IDLE+POWERING_DOWN", False),
+        ("IDLE+INVALID_REG", False),
     ],
 )
 def test_slurm_node_is_available_to_user_various_states(state, expected):

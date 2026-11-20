@@ -10,23 +10,22 @@ Requires `uv`: https://docs.astral.sh/uv
 """
 
 # /// script
-# requires-python = ">=3.13"
+# requires-python = ">=3.15"
 # dependencies = [
 #     "qq",
 # ]
 #
 # [tool.uv.sources]
-# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.13.0" }
+# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.14.0" }
 # ///
 
 # format used for printing the estimated completion time
 import statistics
 import sys
-from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import click
 from rich.console import Console
@@ -37,8 +36,12 @@ from qq_lib.core.common import format_duration, get_info_files
 from qq_lib.core.error import QQError
 from qq_lib.info import Informer
 from qq_lib.properties.info import Info
-from qq_lib.properties.loop import LoopInfo
 from qq_lib.properties.states import NaiveState, RealState
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from qq_lib.properties.loop import LoopInfo
 
 ETA_FORMAT = "%Y-%m-%d %H:%M"
 

@@ -3,7 +3,7 @@
 
 import re
 from pathlib import Path
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import click
 from rich.console import Console
@@ -20,9 +20,11 @@ from qq_lib.core.error_handlers import (
     handle_not_suitable_error,
 )
 from qq_lib.core.logger import get_logger
-from qq_lib.info.informer import Informer
 
 from .syncer import Syncer
+
+if TYPE_CHECKING:
+    from qq_lib.info.informer import Informer
 
 logger = get_logger(__name__)
 console = Console()
@@ -42,6 +44,10 @@ Files fetched from later jobs may overwrite files from earlier jobs in the input
 You can combine JOB_IDs with directories. All JOB_IDs must be specified before the `--dir` option.
 
 Files are copied from the job's working directory to its input directory, not to the current directory.
+
+With `--archive`, files matching the archive format of a loop job are copied to the job's archive
+instead of the input directory, as qq would do after a successfully finished cycle.
+This is only possible for loop jobs that failed or were killed.
 """,
     cls=QQOperatorCommand,
     help_options_color="bright_blue",
@@ -60,6 +66,12 @@ Files are copied from the job's working directory to its input directory, not to
     type=click.Path(exists=True, file_okay=False, path_type=Path),
     multiple=True,
     help="One or more directories to search for qq jobs in. Supports globs.",
+)
+@click.option(
+    "-r",
+    "--recursive",
+    is_flag=True,
+    help="Also search subdirectories, except those inside a qq job's directory.",
 )
 @click.option(
     "-a",
@@ -81,12 +93,19 @@ Files are copied from the job's working directory to its input directory, not to
     help="""A colon-, comma-, or space-separated list of files or directories to fetch.
 If not specified, the entire content of the working directory is fetched.""",
 )
+@click.option(
+    "--archive",
+    is_flag=True,
+    help="Copy files matching the archive format to the archive instead of the input directory. Only for failed or killed loop jobs.",
+)
 def sync(
     jobs: tuple[str, ...],
     dir: tuple[Path, ...],
+    recursive: bool,
     all: bool,
     server: str | None,
     files: str | None,
+    archive: bool,
 ) -> NoReturn:
     """
     Fetch files from the working directory (directories) of the specified qq job(s)
@@ -100,6 +119,8 @@ def sync(
         _sync_job,
         logger,
         _split_files(files),
+        archive,
+        recursive=recursive,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     ).on_exception(QQNotSuitableError, handle_not_suitable_error).on_exception(
         QQError, handle_general_qq_error
@@ -116,15 +137,19 @@ def _split_files(files: str | None) -> list[str] | None:
     return re.split(r"[\s:,]+", files)
 
 
-def _sync_job(informer: Informer, files: list[str] | None) -> None:
+def _sync_job(
+    informer: Informer, files: list[str] | None, archive: bool = False
+) -> None:
     """
     Perform synchronization of job files from a remote working directory to the local input directory.
 
     Args:
-        informer (Informer): Informer associated with the job.
-        files (list[str] | None): Optional list of specific file names to synchronize.
+        informer: Informer associated with the job.
+        files: Optional list of specific file names to synchronize.
             If not provided, all files are fetched from the job's working directory
             except those excluded by the batch system.
+        archive: Copy files matching the archive format to the archive
+            instead of the input directory. Only for failed or killed loop jobs.
 
     Raises:
         QQNotSuitableError: If the job is not in a state suitable for synchronization,
@@ -137,6 +162,6 @@ def _sync_job(informer: Informer, files: list[str] | None) -> None:
     syncer.print_info(console)
 
     # make sure that the job is suitable to be synced
-    syncer.ensure_suitable()
+    syncer.ensure_suitable(archive)
 
-    syncer.sync(files)
+    syncer.sync(files, archive)

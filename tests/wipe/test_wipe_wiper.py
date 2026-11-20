@@ -137,6 +137,12 @@ from qq_lib.wipe.wiper import Wiper
             [ExitCode(2)],
             "Job has been completed and was synchronized: working directory no longer exists",
         ),
+        (
+            RealState.UNKNOWN,
+            None,
+            [Always()],
+            "Job is in an unknown state. It may not be safe to delete the working directory. Rerun as 'qq wipe --force' if sure",
+        ),
     ],
 )
 def test_wiper_ensure_suitable_raises_for_disallowed_states(
@@ -240,21 +246,6 @@ def test_wiper_ensure_suitable_raises_when_workdir_is_inputdir():
             [Success()],
         ),
         (
-            RealState.UNKNOWN,
-            None,
-            [Success()],
-        ),
-        (
-            RealState.UNKNOWN,
-            None,
-            [Always()],
-        ),
-        (
-            RealState.UNKNOWN,
-            1,
-            [Success()],
-        ),
-        (
             RealState.IN_AN_INCONSISTENT_STATE,
             None,
             [Success()],
@@ -336,3 +327,22 @@ def test_wiper_delete_success_calls_logger_and_deletes(mock_logger_info):
     wiper._batch_system.delete_remote_dir.assert_called_once_with(
         "main_node", Path("/some/workdir")
     )
+
+
+def test_wiper_ensure_suitable_raises_for_unknown_state():
+    # e.g. a running job while the batch system cannot be asked about it
+    wiper = Wiper.__new__(Wiper)
+    wiper._state = RealState.UNKNOWN
+    wiper._informer = MagicMock()
+    wiper._informer.info.job_exit_code = None
+    wiper._informer.info.transfer_mode = [Success()]
+    wiper._informer.get_real_state.return_value = RealState.UNKNOWN
+    wiper._work_dir = Path("/valid/workdir")
+    wiper._main_node = "main"
+    wiper._input_machine = "input"
+    wiper._informer.info.input_dir = Path("/different")
+    wiper._informer.uses_scratch.return_value = True
+    wiper._batch_system = MagicMock()
+
+    with pytest.raises(QQNotSuitableError, match="unknown state"):
+        wiper.ensure_suitable()

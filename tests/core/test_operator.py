@@ -4,8 +4,11 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from qq_lib.batch.pbs.pbs import PBS
 from qq_lib.core.operator import Operator
+from qq_lib.info import Informer
 from qq_lib.properties.states import RealState
 
 
@@ -50,18 +53,20 @@ def test_operator_init_without_host(tmp_path):
     assert operator._state == RealState.RUNNING
 
 
-def test_operator_update(tmp_path):
+@pytest.mark.parametrize("host", [None, "example.host.org"])
+def test_operator_update(tmp_path, host):
     info_file = tmp_path / "job.qqinfo"
-    host = "example.host.org"
 
     old_informer = MagicMock()
+    old_informer.get_host.return_value = host
     new_informer = MagicMock()
     new_informer.get_real_state.return_value = RealState.RUNNING
 
     operator = Operator.__new__(Operator)
     operator._informer = old_informer
     operator._info_file = info_file
-    operator._input_machine = host
+    # the input machine is not where the info file is read from
+    operator._input_machine = "input.host.org"
 
     with patch(
         "qq_lib.core.operator.Informer.from_file", return_value=new_informer
@@ -135,3 +140,24 @@ def test_operator_from_informer_initializes_fields():
     assert op._input_machine == "machineA"
     assert op._batch_system == PBS
     assert op._state == RealState.RUNNING
+
+
+@pytest.mark.parametrize("host", [None, "input.example.org"])
+def test_operator_update_after_from_informer_reads_info_file_from_same_host(
+    tmp_path, host
+):
+    info_file = tmp_path / "job.qqinfo"
+    info_file.touch()
+
+    with patch("qq_lib.info.informer.Info.from_file") as mock_info_from_file:
+        mock_info_from_file.return_value.input_dir = tmp_path
+        mock_info_from_file.return_value.job_name = "job"
+        informer = Informer.from_file(info_file, host)
+
+        with patch.object(Informer, "get_real_state", return_value=RealState.QUEUED):
+            operator = Operator.from_informer(informer)
+            operator.update()
+
+    # both reads go to the same machine
+    assert [c.args[1] for c in mock_info_from_file.call_args_list] == [host, host]
+    assert operator.get_informer().get_host() == host

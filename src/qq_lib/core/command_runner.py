@@ -3,19 +3,22 @@
 
 
 import getpass
-import logging
+import os
 import sys
 import threading
-from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from pathlib import Path
-from typing import Any, NoReturn, Self
+from typing import TYPE_CHECKING, Any, NoReturn, Self
 
 from qq_lib.batch.interface import BatchInterface, BatchJobInterface
-from qq_lib.core.common import get_info_files, translate_server
+from qq_lib.core.common import delayed_spinner, get_info_files, translate_server
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.info import Informer
+
+if TYPE_CHECKING:
+    import logging
+    from collections.abc import Callable
 
 
 class CommandRunner:
@@ -30,8 +33,8 @@ class CommandRunner:
     Specific exception types can be handled gracefully via `on_exception`.
 
     Attributes:
-        n_jobs (int): The total number of jobs to run.
-        encountered_errors (dict[int, Exception]): A dictionary mapping
+        n_jobs: The total number of jobs to run.
+        encountered_errors: A dictionary mapping
             job indices to exceptions encountered during preparation or execution.
     """
 
@@ -44,6 +47,7 @@ class CommandRunner:
         callback: Callable,
         logger: logging.Logger,
         *args: Any,
+        recursive: bool = False,
         n_threads: int = 1,
         **kwargs: Any,
     ):
@@ -51,19 +55,20 @@ class CommandRunner:
         Initialize a CommandRunner.
 
         Args:
-            job_ids (tuple[str, ...]): List of batch job IDs to operate on.
-            directories (tuple[Path, ...]): List of directories to search for qq jobs in.
+            job_ids: List of batch job IDs to operate on.
+            directories: List of directories to search for qq jobs in.
                 If `job_ids` and `directories` are both empty and `all` is `False`, the current directory is searched for jobs.
-            all (bool): Collect all qq jobs for the given user on the given server.
-            server (str | None): The batch server to collect qq jobs from. If `None`, the local batch server is used.
+            all: Collect all qq jobs for the given user on the given server.
+            server: The batch server to collect qq jobs from. If `None`, the local batch server is used.
                 The server can be specified as a shortcut.
-            callback (Callable): The operation to perform on each resolved Informer.
+            callback: The operation to perform on each resolved Informer.
                 The informer is passed as the first argument, followed by `*args` and `**kwargs`.
-            logger (logging.Logger): Logger instance used for error and critical messages.
+            logger: Logger instance used for error and critical messages.
                 Should be the module-level logger of the calling CLI module.
-            *args (Any): Additional positional arguments forwarded to `callback`.
-            n_threads (int): Number of threads for parallel informer resolution. Defaults to 1 (serial).
-            **kwargs (Any): Additional keyword arguments forwarded to `callback`.
+            *args: Additional positional arguments forwarded to `callback`.
+            recursive: Search the directories recursively. Only relevant if `directories` are provided.
+            n_threads: Number of threads for parallel informer resolution. Defaults to 1 (serial).
+            **kwargs: Additional keyword arguments forwarded to `callback`.
         """
         self._job_ids = job_ids
         self._directories = directories
@@ -72,6 +77,7 @@ class CommandRunner:
         self._server = translate_server(server) if server else None
         if not self._job_ids and not self._directories and not all:
             self._directories = [Path.cwd()]
+        self._recursive = recursive
 
         self._callback = callback
         self._args = args
@@ -95,8 +101,8 @@ class CommandRunner:
         propagate up and cause the process to exit.
 
         Args:
-            exc_type (type[Exception]): The exception type to handle.
-            handler (Callable): Function to call when `exc_type` is raised.
+            exc_type: The exception type to handle.
+            handler: Function to call when `exc_type` is raised.
                 Must accept two arguments: the exception instance and
                 a reference to this `CommandRunner`.
 
@@ -121,7 +127,9 @@ class CommandRunner:
             - Exit code `CFG.exit_codes.unexpected_error` on any other exception.
         """
         try:
-            targets = self._build_targets()
+            with delayed_spinner("Collecting jobs..."):
+                targets = self._build_targets()
+
             self._run_pipeline(targets)
             sys.exit(0)
         except QQError as e:
@@ -142,7 +150,7 @@ class CommandRunner:
         Each target then also reloads the informer's batch info.
 
         Returns:
-            list[Callable[[], Informer]]: One callable per job.
+            One callable per job.
 
         Raises:
             QQError: If no job IDs were given and no info files were found in the current directory.
@@ -186,10 +194,10 @@ class CommandRunner:
         Build preparation targets from a list of batch jobs.
 
         Args:
-            jobs (list[BatchJobInterface]): The batch jobs to resolve.
+            jobs: The batch jobs to resolve.
 
         Returns:
-            list[Callable[[], Informer]]: Per-job preparation callables.
+            Per-job preparation callables.
         """
         return [lambda bj=batch_job: Informer.from_batch_job(bj) for batch_job in jobs]
 
@@ -204,10 +212,10 @@ class CommandRunner:
         from a file and queries the batch system for its info individually.
 
         Args:
-            directories (list[Path]): Directories to search for info files.
+            directories: Directories to search for info files.
 
         Returns:
-            list[Callable[[], Informer]]: Per-job preparation callables.
+            Per-job preparation callables.
         """
 
         def _resolve_and_prepare(path: Path) -> Informer:
@@ -215,11 +223,92 @@ class CommandRunner:
             informer.load_batch_info()
             return informer
 
-        info_files: list[Path] = []
-        for directory in directories:
-            info_files.extend(get_info_files(directory))
+        info_files = self._collect_info_files(directories)
 
         return [lambda f=info_file: _resolve_and_prepare(f) for info_file in info_files]
+
+    def _collect_info_files(self, directories: list[Path]) -> list[Path]:
+        """
+        Collect qq info files from the given directories.
+
+        Without `recursive`, only the given directories are searched.
+        With `recursive`, their subdirectories are searched too, in parallel,
+        but the search does not descend into the directory of a qq job
+        (a directory containing at least one info file). Each directory is
+        searched at most once, even if the given directories overlap.
+        Symlinked directories are not followed.
+
+        The result is in the same order as a sorted top-down walk would give,
+        regardless of the order in which the directories were searched.
+
+        Args:
+            directories: The directories to search.
+
+        Returns:
+            Paths to the info files found, in a deterministic order.
+        """
+        seen: set[Path] = set()
+        found: list[tuple[int, tuple[str, ...], list[Path]]] = []
+
+        def visit(directory: Path) -> tuple[list[Path], list[Path]]:
+            """Return the info files in a directory and, if it is not a job directory, its subdirectories."""
+            try:
+                info_files = get_info_files(directory)
+                if info_files or not self._recursive:
+                    return info_files, []
+
+                with os.scandir(directory) as entries:
+                    subdirs = [
+                        directory / entry.name
+                        for entry in entries
+                        # do not follow links to avoid getting stuck in an infinite loop
+                        if entry.is_dir(follow_symlinks=False)
+                    ]
+            except OSError as e:
+                self._logger.warning(f"Could not search '{directory}': {e.strerror}")
+                return [], []
+            return [], subdirs
+
+        with ThreadPoolExecutor(
+            max_workers=CFG.parallelization_options.search_max_threads
+        ) as executor:
+            # roots are processed one after another so that overlapping roots
+            # are deduplicated in favour of the earlier one
+            for root_index, root in enumerate(directories):
+                root_key = root.resolve()
+                if root_key in seen:
+                    continue
+                seen.add(root_key)
+
+                pending: dict[Future, tuple[Path, Path]] = {
+                    executor.submit(visit, root): (root, root_key)
+                }
+
+                while pending:
+                    done, _ = wait(pending, return_when=FIRST_COMPLETED)
+                    for future in done:
+                        directory, key = pending.pop(future)
+                        info_files, subdirs = future.result()
+                        if info_files:
+                            found.append(
+                                (
+                                    root_index,
+                                    directory.relative_to(root).parts,
+                                    info_files,
+                                )
+                            )
+                        for subdir in subdirs:
+                            # symlinks are not followed, so no resolve() is needed
+                            subdir_key = key / subdir.name
+                            if subdir_key not in seen:
+                                seen.add(subdir_key)
+                                pending[executor.submit(visit, subdir)] = (
+                                    subdir,
+                                    subdir_key,
+                                )
+
+        found.sort(key=lambda item: (item[0], item[1]))
+        return [file for _, _, files in found for file in files]
 
     def _run_pipeline(self, targets: list[Callable[[], Informer]]) -> None:
         """
@@ -248,8 +337,8 @@ class CommandRunner:
             the next-in-order result is available.
 
             Args:
-                index (int): The position of this target in the original order.
-                target (Callable[[], Informer]): The callable to execute.
+                index: The position of this target in the original order.
+                target: The callable to execute.
             """
             try:
                 result: Informer | Exception = target()
@@ -267,33 +356,39 @@ class CommandRunner:
 
             # process results in order on the main thread
             next_index = 0
-            with ready:
-                while next_index < self.n_jobs:
-                    # block the main thread until the next result is available
-                    # later jobs may finish first, but we wait for the one we need
-                    while results[next_index] is None:
-                        ready.wait()
+            try:
+                with ready:
+                    while next_index < self.n_jobs:
+                        # block the main thread until the next result is available
+                        # later jobs may finish first, but we wait for the one we need
+                        while results[next_index] is None:
+                            ready.wait()
 
-                    self.current_iteration += 1
-                    result = results[next_index]
-                    next_index += 1
+                        self.current_iteration += 1
+                        result = results[next_index]
+                        next_index += 1
 
-                    # handle error or execute the callback
-                    if isinstance(result, Exception):
-                        self._handle_error(result)
-                    elif isinstance(result, Informer):
-                        self._execute(result)
-                    else:
-                        raise ValueError(
-                            f"Unexpected result type: {type(result)}. This is a bug, please report it"
-                        )
+                        # handle error or execute the callback
+                        if isinstance(result, Exception):
+                            self._handle_error(result)
+                        elif isinstance(result, Informer):
+                            self._execute(result)
+                        else:
+                            raise TypeError(
+                                f"Unexpected result type: {type(result)}. This is a bug, please report it"
+                            )
+            except BaseException:
+                # on Ctrl+C, sys.exit or an unhandled error, do not wait
+                # for the preparation of the remaining jobs
+                executor.shutdown(wait=False, cancel_futures=True)
+                raise
 
     def _execute(self, informer: Informer) -> None:
         """
         Run the callback on a prepared informer.
 
         Args:
-            informer (Informer): A resolved and prepared Informer.
+            informer: A resolved and prepared Informer.
         """
         try:
             self._callback(informer, *self._args, **self._kwargs)
@@ -305,14 +400,17 @@ class CommandRunner:
         Handle an exception using registered handlers, or re-raise.
 
         Args:
-            error (Exception): The exception to handle.
+            error: The exception to handle.
 
         Raises:
             Exception: If no handler is registered for the exception type.
         """
         self.encountered_errors[self.current_iteration] = error
-        handler = self._exception_handlers.get(type(error))
-        if handler:
-            handler(error, self)
-        else:
-            raise error
+        # use the handler registered for the most specific type of the exception,
+        # including its parent classes (e.g., QQError for QQJobMismatchError)
+        for exception_type in type(error).__mro__:
+            if handler := self._exception_handlers.get(exception_type):
+                handler(error, self)
+                return
+
+        raise error

@@ -46,7 +46,7 @@ class Killer(Operator):
         Execute the kill command for the job using the batch system.
 
         Returns:
-            str: The identifier of the terminated job.
+            The identifier of the terminated job.
 
         Raises:
             QQError: If the kill command fails.
@@ -70,12 +70,11 @@ class Killer(Operator):
         the job has been killed into the info file.
 
         Args:
-            force (bool): The job is being killed forcibly.
+            force: The job is being killed forcibly.
 
         Returns:
-            bool:
-                True if the info file should be updated by the qq kill process,
-                False otherwise.
+            True if the info file should be updated by the qq kill process,
+            False otherwise.
         """
 
         return (

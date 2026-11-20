@@ -5,6 +5,7 @@ import getpass
 import os
 import shutil
 from pathlib import Path
+from typing import ClassVar
 
 from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.slurm import Slurm
@@ -25,7 +26,7 @@ class SlurmIT4I(Slurm):
     """
 
     # all scratch directory types supported by SlurmIT4I
-    SUPPORTED_SCRATCHES = ["scratch"]
+    SUPPORTED_SCRATCHES: ClassVar[list[str]] = ["scratch"]
 
     @classmethod
     def env_name(cls) -> str:
@@ -190,19 +191,31 @@ class SlurmIT4I(Slurm):
                 "Work-dir is not set after filling in default attributes. This is a bug, please report it"
             )
 
-        if provided_resources.work_size_per_cpu or provided_resources.work_size:
+        if (
+            provided_resources.work_size
+            or provided_resources.work_size_per_cpu
+            or provided_resources.work_size_per_node
+        ):
             logger.warning(
                 "Setting work-size is not supported in this environment. Working directory has a virtually unlimited capacity"
             )
 
-        if not any(
-            equals_normalized(resources.work_dir, dir)
-            for dir in cls.get_supported_work_dir_types()
+        if not (
+            work_dir := next(
+                (
+                    dir
+                    for dir in cls.get_supported_work_dir_types()
+                    if equals_normalized(resources.work_dir, dir)
+                ),
+                None,
+            )
         ):
             raise QQError(
                 f"Unknown working directory type specified: work-dir='{resources.work_dir}'. Supported types for {cls.env_name()} are: {' '.join(cls.get_supported_work_dir_types())}"
             )
 
+        # use the canonical name (it is used e.g. to construct the scratch path on LUMI)
+        resources.work_dir = work_dir
         return resources
 
     @classmethod

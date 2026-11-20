@@ -1,9 +1,9 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-# ruff: noqa: W291
 
 import os
+import shlex
 import shutil
 import socket
 import subprocess
@@ -62,7 +62,8 @@ def test_navigate_success(tmp_path):
                 "fake.host.org",
                 "-t",
                 f"cd {directory} || exit {BatchInterface._CD_FAIL} && exec bash -l",
-            ]
+            ],
+            check=False,
         )
 
         # should not raise
@@ -2139,10 +2140,21 @@ def test_modify_ams_env_vars_warns_for_unknown_server():
         assert "unknown-server.example.com" in mock_warning.call_args[0][0]
 
 
-def test_modify_ams_env_vars_raises_for_unknown_server_with_ams_vars():
-    env_vars = {"AMS_SITE": "old-value"}
-    with pytest.raises(KeyError):
+def test_modify_ams_env_vars_keeps_vars_for_unknown_server():
+    env_vars = {
+        "AMS_SITE": "old-value",
+        "AMS_SITE_SUPPORT": "old-support",
+        "AMS_GROUPNS": "old-ns",
+    }
+    with patch("qq_lib.batch.pbs.pbs.logger.warning") as mock_warning:
         PBS._modify_ams_env_vars(env_vars, "unknown-server.example.com")
+
+    mock_warning.assert_called_once()
+    assert env_vars == {
+        "AMS_SITE": "old-value",
+        "AMS_SITE_SUPPORT": "old-support",
+        "AMS_GROUPNS": "old-ns",
+    }
 
 
 @pytest.mark.parametrize(
@@ -2551,3 +2563,59 @@ def test_pbs_disable_shared_storage_overrides_env_var(
     assert not PBS._using_shared_storage()
     # the environment variable is left untouched
     assert os.environ[CFG.env_vars.shared_submit] == "true"
+
+
+def test_pbs_get_batch_jobs_from_ids_does_not_fail_on_malformed_job_id():
+    stdout = """Job Id: 123.pbs-m1.metacentrum.cz
+    job_state = R
+
+qstat: illegally formed job identifier: 12x
+"""
+    with patch(
+        "subprocess.run",
+        return_value=MagicMock(returncode=1, stdout=stdout, stderr=""),
+    ):
+        jobs = PBS.get_batch_jobs_from_ids(["123", "12x"])
+
+    assert [job.get_id() for job in jobs] == ["123.pbs-m1.metacentrum.cz", "12x"]
+    assert jobs[1].is_empty()
+
+
+@pytest.mark.parametrize("server", [None, "pbs-m1.metacentrum.cz"])
+def test_pbs_translate_submit_quotes_paths_with_spaces(server):
+    res = Resources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
+    input_dir = Path("/home/user/my sims")
+    command = PBS._translate_submit(
+        res, "gpu", server, input_dir, "run me.sh", "run me.sh", [], {}
+    )
+
+    args = shlex.split(command)
+    assert args[args.index("-N") + 1] == "run me.sh"
+    assert args[-1] == "/home/user/my sims/run me.sh"
+    assert args[args.index("-e") + 1].endswith(
+        f"/home/user/my sims/run me{CFG.suffixes.qq_out}"
+    )
+
+
+@pytest.mark.parametrize("work_dir", ["input_dir", "job_dir", "scratch_shm"])
+@pytest.mark.parametrize(
+    "work_size_field", ["work_size", "work_size_per_cpu", "work_size_per_node"]
+)
+def test_pbs_transform_resources_clears_all_work_sizes_without_scratch(
+    work_dir, work_size_field
+):
+    provided = Resources(work_dir=work_dir, **{work_size_field: "10gb"})
+    with (
+        patch("qq_lib.batch.pbs.pbs.PBSQueue") as mock_queue,
+        patch.object(PBS, "_get_default_server_resources", return_value=Resources()),
+        patch("qq_lib.batch.pbs.pbs.logger.warning") as mock_warning,
+    ):
+        mock_queue.return_value.get_default_resources.return_value = Resources()
+
+        res = PBS.transform_resources("gpu", None, provided)
+
+    assert res.work_size is None
+    assert res.work_size_per_cpu is None
+    assert res.work_size_per_node is None
+    mock_warning.assert_called_once()
+    assert "Setting work-size is not supported" in mock_warning.call_args.args[0]

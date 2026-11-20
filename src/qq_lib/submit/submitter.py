@@ -6,9 +6,9 @@ import os
 import socket
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import qq_lib
-from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.core.common import (
     construct_info_file_path,
     construct_loop_job_name,
@@ -22,15 +22,18 @@ from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.info.informer import Informer
-from qq_lib.properties.depend import Depend
 from qq_lib.properties.info import Info
-from qq_lib.properties.interpreter import Interpreter
 from qq_lib.properties.job_type import JobType
-from qq_lib.properties.loop import LoopInfo
-from qq_lib.properties.resources import Resources
-from qq_lib.properties.resubmit_host import ResubmitHost
 from qq_lib.properties.states import NaiveState
 from qq_lib.properties.transfer_mode import TransferMode
+
+if TYPE_CHECKING:
+    from qq_lib.batch.interface import AnyBatchClass
+    from qq_lib.properties.depend import Depend
+    from qq_lib.properties.interpreter import Interpreter
+    from qq_lib.properties.loop import LoopInfo
+    from qq_lib.properties.resources import Resources
+    from qq_lib.properties.resubmit_host import ResubmitHost
 
 logger = get_logger(__name__)
 
@@ -72,32 +75,32 @@ class Submitter:
         Initialize a Submitter instance.
 
         Args:
-            batch_system (AnyBatchClass): The batch system class implementing
+            batch_system: The batch system class implementing
                 the BatchInterface used for job submission.
-            queue (str): The name of the batch system queue to which the job will be submitted.
-            account (str | None): The name of the account to use for the job.
-            script (Path): Path to the job script to submit.
-            job_type (JobType): Type of the job to submit (e.g. standard, loop).
-            resources (Resources): Job resource requirements (e.g., CPUs, memory, walltime).
-            loop_info (LoopInfo | None): Optional information for loop jobs. Pass None if not applicable.
-            exclude (list[str] | None): Optional list of files or glob patterns which should not be copied to the working directory.
+            queue: The name of the batch system queue to which the job will be submitted.
+            account: The name of the account to use for the job.
+            script: Path to the job script to submit.
+            job_type: Type of the job to submit (e.g. standard, loop).
+            resources: Job resource requirements (e.g., CPUs, memory, walltime).
+            loop_info: Optional information for loop jobs. Pass None if not applicable.
+            exclude: Optional list of files or glob patterns which should not be copied to the working directory.
                 Paths are provided relative to the input directory or absolute.
-            include (list[str] | None): Optional list of files or glob patterns which should be copied to the working directory
+            include: Optional list of files or glob patterns which should be copied to the working directory
                 even though they are not part of the job's input directory.
                 Paths are provided either absolute or relative to the input directory.
-            ignore (list[str] | None): Optional list of files or glob patterns which should be ignored completely.
+            ignore: Optional list of files or glob patterns which should be ignored completely.
                 These files will not be copied to the working directory and if they are created in the working directory, they are also not copied back.
                 Paths are provided either absolute or relative to the input directory.
-            depend (list[Depend] | None): Optional list of job dependencies.
-            transfer_mode (list[TransferMode] | None): Mode specifying when files whould be transferred from the
+            depend: Optional list of job dependencies.
+            transfer_mode: Mode specifying when files whould be transferred from the
                 working directory to the input directory. Defaults to [`Success()`].
-            server (str | None): Optional name of the server to which the job should be submitted.
+            server: Optional name of the server to which the job should be submitted.
                 If `None`, the default batch server, as configured by the batch system is used.
-            intepreter (Interpreter | None): Optional interpreter specification to use to execute the script.
+            intepreter: Optional interpreter specification to use to execute the script.
                 If not specified, the config default is used.
-            resubmit_from (list[ResubmitHost] | None): List of hosts from which a loop/continuous job should be resubmitted.
+            resubmit_from: List of hosts from which a loop/continuous job should be resubmitted.
                 Must only be specified for loop/continuous jobs!
-            skip_checks (bool): If `True`, the script is not checked for availability and validity before submitting the job.
+            skip_checks: If `True`, the script is not checked for availability and validity before submitting the job.
 
         Raises:
             QQError: If the script does not exist or has an invalid shebang line.
@@ -145,11 +148,11 @@ class Submitter:
         This method is thread-safe, if the submission is done from the current machine.
 
         Args:
-            remote (str | None): Name of the machine from which the job should be submitted.
+            remote: Name of the machine from which the job should be submitted.
                 If `None`, the current machine is used.
 
         Returns:
-            str: The job ID of the submitted job.
+            The job ID of the submitted job.
 
         Raises:
             QQError: If job submission fails.
@@ -171,6 +174,30 @@ class Submitter:
         # whether we are submiting from the current machine or from the remote machine
         # the input directory should be available on both concerned machines,
         # so this should be okay
+        try:
+            self._write_info_file(job_id, remote)
+        except QQError as e:
+            # the job would fail at start without its info file,
+            # and a retried submission would create a duplicate job
+            _kill_job_without_info_file(self._batch_system, job_id)
+            raise QQError(
+                f"Job '{job_id}' was submitted but its qq info file could not be written, so the job was killed: {e}"
+            ) from e
+
+        return job_id
+
+    def _write_info_file(self, job_id: str, remote: str | None) -> None:
+        """
+        Create the qq info file of a newly submitted job.
+
+        Args:
+            job_id: The job ID assigned by the batch system.
+            remote: Name of the machine from which the job was submitted.
+                If `None`, the current machine was used.
+
+        Raises:
+            QQError: If the info file cannot be written.
+        """
         Info(
             batch_system=self._batch_system,
             qq_version=qq_lib.__version__,
@@ -199,15 +226,13 @@ class Submitter:
             resubmit_from=self._resubmit_from,
         ).to_file(self._info_file, host=remote)
 
-        return job_id
-
     def continues_loop(self) -> bool:
         """
         Determine whether the submitted job is a continuation of a loop/continuous job.
 
         Returns:
-            bool: True if the job is a valid continuation of a previous loop/continuous job,
-                  False otherwise.
+            True if the job is a valid continuation of a previous loop/continuous job,
+            False otherwise.
         """
         try:
             # there should only be one info file for both loop jobs (runtime files are archived)
@@ -233,10 +258,10 @@ class Submitter:
         Determine whether the submitted job is a continuation of a loop job.
 
         Args:
-            previous (Informer): Informer associated with the previous job.
+            previous: Informer associated with the previous job.
 
         Returns:
-            bool: True if the job is a valid continuation of a previous loop job, False otherwise.
+            True if the job is a valid continuation of a previous loop job, False otherwise.
         """
         return (
             # both the previous job and the current job must be loop jobs
@@ -253,10 +278,10 @@ class Submitter:
         Determine whether the submitted job is a continuation of a continuous job.
 
         Args:
-            previous (Informer): Informer associated with the previous job.
+            previous: Informer associated with the previous job.
 
         Returns:
-            bool: True if the job is a valid continuation of a previous continuous job, False otherwise.
+            True if the job is a valid continuation of a previous continuous job, False otherwise.
         """
         return (
             # both the previous and the current job must be continuous jobs
@@ -271,7 +296,7 @@ class Submitter:
         Get path to the job's input directory.
 
         Returns:
-            Path: Path to the job's input directory.
+            Path to the job's input directory.
         """
         return self._input_dir
 
@@ -344,7 +369,7 @@ class Submitter:
         Create a dictionary of environment variables provided to qq runtime.
 
         Args:
-            remote (str | None): Name of the machine from which the job is being submitted.
+            remote: Name of the machine from which the job is being submitted.
                 If `None`, the current machine is used.
 
         Returns
@@ -423,11 +448,11 @@ class Submitter:
         If the archive_format is not a printf pattern, returns an empty string.
 
         Args:
-            archive_format (str): The provided archive format.
-            cycle (int): Cycle number to use.
+            archive_format: The provided archive format.
+            cycle: Cycle number to use.
 
         Returns:
-            str: The pattern or an empty string if the archive format is not a printf pattern.
+            The pattern or an empty string if the archive format is not a printf pattern.
         """
         if is_printf_pattern(archive_format):
             return archive_format % cycle
@@ -439,10 +464,10 @@ class Submitter:
         Verify that the script has a valid shebang for qq run.
 
         Args:
-            script (Path): Path to the script file.
+            script: Path to the script file.
 
         Returns:
-            bool: True if the first line starts with '#!' and ends with 'qq run'.
+            True if the first line starts with '#!' and ends with 'qq run'.
         """
         with Path.open(script) as file:
             first_line = file.readline()
@@ -455,7 +480,7 @@ class Submitter:
         Construct the job name for submission.
 
         Returns:
-            str: The constructed job name.
+            The constructed job name.
         """
         # for standard jobs, use script name
         if not self._loop_info:
@@ -463,3 +488,21 @@ class Submitter:
 
         # for loop jobs, use script_name with cycle number
         return construct_loop_job_name(self._script_name, self._loop_info.current)
+
+
+def _kill_job_without_info_file(batch_system: AnyBatchClass, job_id: str) -> None:
+    """
+    Kill a submitted job whose qq info file could not be written.
+
+    Failures are only logged, since the caller reports the original error.
+
+    Args:
+        batch_system: The batch system the job was submitted to.
+        job_id: The ID of the job to kill.
+    """
+    try:
+        batch_system.job_kill(job_id)
+    except QQError as e:
+        logger.error(
+            f"Could not kill job '{job_id}' which has no qq info file. Please kill it manually: {e}"
+        )

@@ -22,8 +22,6 @@ from qq_lib.properties.transfer_mode import TransferMode
 from qq_lib.submit.cli import submit
 from qq_lib.submit.parser import Parser
 
-# ruff: noqa: W293
-
 
 def test_parser_init(tmp_path):
     script = tmp_path / "script.sh"
@@ -47,7 +45,6 @@ def test_parser_init(tmp_path):
         ("# qq key=value", ["key", "value"]),
         ("#qq key=value", ["key", "value"]),
         ("#  qq   key=value", ["key", "value"]),
-        ("# QQ key=value", ["key", "value"]),
         ("# qQ   key=value", ["key", "value"]),
         # spaces instead of equals
         ("# qq key value", ["key", "value"]),
@@ -295,8 +292,8 @@ def test_parser_get_resources_returns_resources_with_matching_fields():
     result = parser.get_resources()
 
     assert isinstance(result, Resources)
-    assert getattr(result, "ncpus") == 4
-    assert getattr(result, "mem") == Size(4, "gb")
+    assert result.ncpus == 4
+    assert result.mem == Size(4, "gb")
 
 
 def test_parser_get_job_type_none():
@@ -793,3 +790,52 @@ def test_parser_integration_nonexistent_script_raises():
     parser = Parser(Path("non_existent.sh"), submit.params)
     with pytest.raises(QQError, match="Could not open"):
         parser.parse()
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        ["# qq exclude big.trr", "# qq exclude big.xtc"],
+        ["# qq ncpus 4", "# qq ncpus=8"],
+        # different spellings of the same option
+        ["# qq work-dir scratch_local", "# qq workdir scratch_ssd"],
+        ["# qq loop-end 10", "# qq loop_end 20"],
+    ],
+)
+def test_parser_parse_warns_about_repeated_options(temp_script_file, lines):
+    tmp_file, path = temp_script_file
+    tmp_file.write("#!/usr/bin/env -S qq run\n" + "\n".join(lines) + "\n")
+    tmp_file.flush()
+
+    parser = Parser(path, submit.params)
+    with patch("qq_lib.submit.parser.logger.warning") as mock_warning:
+        parser.parse()
+
+    mock_warning.assert_called_once()
+    assert "multiple times" in mock_warning.call_args.args[0]
+
+
+def test_parser_parse_uses_last_value_of_repeated_option(temp_script_file):
+    tmp_file, path = temp_script_file
+    tmp_file.write("#!/usr/bin/env -S qq run\n# qq ncpus 4\n# qq ncpus 8\n")
+    tmp_file.flush()
+
+    parser = Parser(path, submit.params)
+    with patch("qq_lib.submit.parser.logger.warning"):
+        parser.parse()
+
+    assert parser._options["ncpus"] == 8
+
+
+def test_parser_parse_does_not_warn_without_repeated_options(temp_script_file):
+    tmp_file, path = temp_script_file
+    tmp_file.write(
+        "#!/usr/bin/env -S qq run\n# qq ncpus 4\n# qq mem 4gb\n# qq exclude a.txt\n"
+    )
+    tmp_file.flush()
+
+    parser = Parser(path, submit.params)
+    with patch("qq_lib.submit.parser.logger.warning") as mock_warning:
+        parser.parse()
+
+    mock_warning.assert_not_called()

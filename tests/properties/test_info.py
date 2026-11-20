@@ -235,7 +235,7 @@ def test_from_dict_roundtrip(sample_info):
         value = object.__getattribute__(reconstructed, optional_field)
         assert value is None
 
-    assert getattr(reconstructed, "work_dir") == getattr(sample_info, "work_dir")
+    assert reconstructed.work_dir == sample_info.work_dir
 
     # excluded files
     assert reconstructed.excluded_files == [Path(p) for p in sample_info.excluded_files]

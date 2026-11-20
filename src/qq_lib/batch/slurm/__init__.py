@@ -23,8 +23,8 @@ from .queue import SlurmQueue
 from .slurm import Slurm
 
 __all__ = [
+    "Slurm",
     "SlurmJob",
     "SlurmNode",
     "SlurmQueue",
-    "Slurm",
 ]

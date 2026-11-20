@@ -5,7 +5,7 @@ import getpass
 import os
 import shutil
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from qq_lib.batch.slurm import Slurm
 from qq_lib.batch.slurmit4i import SlurmIT4I
@@ -13,8 +13,10 @@ from qq_lib.batch.slurmlumi.node import SlurmLumiNode
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
-from qq_lib.properties.depend import Depend
 from qq_lib.properties.resources import Resources
+
+if TYPE_CHECKING:
+    from qq_lib.properties.depend import Depend
 
 logger = get_logger(__name__)
 
@@ -25,7 +27,7 @@ class SlurmLumi(SlurmIT4I):
     """
 
     # all scratch directory types supported by SlurmLumi
-    SUPPORTED_SCRATCHES = ["scratch", "flash"]
+    SUPPORTED_SCRATCHES: ClassVar[list[str]] = ["scratch", "flash"]
 
     @classmethod
     def env_name(cls) -> str:
@@ -84,7 +86,7 @@ class SlurmLumi(SlurmIT4I):
                 f"/{storage_type}/{account.lower()}/{user_component}/qq-jobs/job_{job_id}"
             )
             logger.debug(
-                f"Creating directory '{str(scratch)}' on '{storage_type}' storage."
+                f"Creating directory '{scratch!s}' on '{storage_type}' storage."
             )
 
             try:
@@ -99,7 +101,7 @@ class SlurmLumi(SlurmIT4I):
         ) from last_exception
 
     @classmethod
-    def get_nodes(cls, server: str | None = None) -> list[SlurmLumiNode]:  # ty: ignore[invalid-method-override]
+    def get_nodes(cls, server: str | None = None) -> list[SlurmLumiNode]:  # ty: ignore[incompatible-method-override]
         nodes = Slurm.get_nodes(server)
         for node in nodes:
             node.__class__ = SlurmLumiNode

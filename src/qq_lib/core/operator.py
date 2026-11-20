@@ -9,13 +9,15 @@ working with qq jobs. It loads job information, tracks job state, refreshes
 metadata, and renders formatted status output using Rich presenters.
 """
 
-from pathlib import Path
-from typing import Self
-
-from rich.console import Console
+from typing import TYPE_CHECKING, Self
 
 from qq_lib.info.informer import Informer
 from qq_lib.info.presenter import Presenter
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from rich.console import Console
 
 
 class Operator:
@@ -23,11 +25,11 @@ class Operator:
     Base class for performing operations with qq jobs.
 
     Attributes:
-        _informer (Informer): The underlying informer object that provides job details.
-        _info_file (Path): The path to the qq info file associated with this job.
-        _input_machine (str | None): Hostname of the machine on which the qq info file is stored.
-        _batch_system (str): The batch system type as reported by the informer.
-        _state (RealState): The current real state of the qq job.
+        _informer: The underlying informer object that provides job details.
+        _info_file: The path to the qq info file associated with this job.
+        _input_machine: Hostname of the machine on which the qq info file is stored.
+        _batch_system: The batch system type as reported by the informer.
+        _state: The current real state of the qq job.
     """
 
     def __init__(self, info_file: Path, host: str | None = None):
@@ -35,8 +37,8 @@ class Operator:
         Initialize an Operator instance from a qq info file.
 
         Args:
-            info_file (Path): Path to the qq info file describing the job.
-            host (str | None, optional): Optional hostname of a machine from
+            info_file: Path to the qq info file describing the job.
+            host: Optional hostname of a machine from
                 which to load job information. Defaults to None meaning 'current machine'.
         """
         self._informer = Informer.from_file(info_file, host)
@@ -53,10 +55,10 @@ class Operator:
         Path to info file is set based on the information in the Informer, even if it does not exist.
 
         Args:
-            informer (Informer): Initialized informer instance containing information about the job.
+            informer: Initialized informer instance containing information about the job.
 
         Returns:
-            Operator: Initialized Operator.
+            Initialized Operator.
         """
         operator = cls.__new__(cls)
         operator._informer = informer
@@ -70,8 +72,10 @@ class Operator:
     def update(self) -> None:
         """
         Refresh the internal informer and job state from the qq info file.
+
+        The info file is read from the same machine as the current informer read it.
         """
-        self._informer = Informer.from_file(self._info_file, self._input_machine)
+        self._informer = Informer.from_file(self._info_file, self._informer.get_host())
         self._state = self._informer.get_real_state()
 
     def get_informer(self) -> Informer:
@@ -79,7 +83,7 @@ class Operator:
         Retrieve the underlying Informer instance.
 
         Returns:
-            Informer: The informer currently associated with this operator.
+            The informer currently associated with this operator.
         """
         return self._informer
 
@@ -88,7 +92,7 @@ class Operator:
         Display the current job information in a formatted Rich panel.
 
         Args:
-            console (Console): Rich Console instance used to render output.
+            console: Rich Console instance used to render output.
         """
         presenter = Presenter(self._informer)
         panel = presenter.create_job_status_panel(console)
@@ -99,10 +103,10 @@ class Operator:
         Determine whether this operator corresponds to the specified job ID.
 
         Args:
-            job_id (str): The job ID to compare against (e.g., "12345" or "12345.cluster.domain").
+            job_id: The job ID to compare against (e.g., "12345" or "12345.cluster.domain").
 
         Returns:
-            bool: True if both job IDs refer to the same job (same numeric/job part),
+            True if both job IDs refer to the same job (same numeric/job part),
                 False otherwise.
         """
         return self._informer.matches_job(job_id)

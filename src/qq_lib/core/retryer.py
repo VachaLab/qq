@@ -10,12 +10,14 @@ logged with timing information, and the final exception is re-raised with
 context when retries are exhausted.
 """
 
-from collections.abc import Callable
 from time import sleep
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .error import QQError
 from .logger import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = get_logger(__name__, show_time=True)
 
@@ -25,11 +27,11 @@ class Retryer:
     Retryer repeatedly executes a function until it succeeds or max attempts are reached.
 
     Attributes:
-        func (Callable): The function or method to execute.
-        args (Tuple): Positional arguments to pass to the function.
-        kwargs (Dict): Keyword arguments to pass to the function.
-        max_tries (int): Maximum number of attempts.
-        wait_seconds (float): Time to wait between attempts.
+        func: The function or method to execute.
+        args: Positional arguments to pass to the function.
+        kwargs: Keyword arguments to pass to the function.
+        max_tries: Maximum number of attempts.
+        wait_seconds: Time to wait between attempts.
     """
 
     def __init__(
@@ -53,7 +55,7 @@ class Retryer:
         Any situation when the function does not raise an exception is considered a success.
 
         Returns:
-            Any: The return value of the function if successful.
+            The return value of the function if successful.
 
         Raises:
             Exception: The last exception raised if all attempts fail.

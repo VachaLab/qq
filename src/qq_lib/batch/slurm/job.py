@@ -3,10 +3,9 @@
 
 import re
 import subprocess
-from collections.abc import Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Self
+from typing import TYPE_CHECKING, ClassVar, Self
 
 import yaml
 
@@ -21,6 +20,9 @@ from qq_lib.properties.states import BatchState
 
 from .common import SACCT_FIELDS, SACCT_STEP_FIELDS, parse_slurm_dump_to_dictionary
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
 logger = get_logger(__name__)
 
 Dumper: type[yaml.Dumper] = load_yaml_dumper()
@@ -33,17 +35,30 @@ class SlurmJob(BatchJobInterface):
     """
 
     # converts from Slurm state names to qq BatchStates
-    _STATE_CONVERTER: dict[str, BatchState] = {
+    # (Slurm reports some job flags instead of the base state, e.g. COMPLETING or CONFIGURING)
+    _STATE_CONVERTER: ClassVar[dict[str, BatchState]] = {
         "BOOT_FAIL": BatchState.FAILED,
         "CANCELLED": BatchState.FAILED,
         "COMPLETED": BatchState.FINISHED,
+        "COMPLETING": BatchState.EXITING,
+        "CONFIGURING": BatchState.RUNNING,
         "DEADLINE": BatchState.FAILED,
         "FAILED": BatchState.FAILED,
         "NODE_FAIL": BatchState.FAILED,
         "OUT_OF_MEMORY": BatchState.FAILED,
         "PENDING": BatchState.QUEUED,
-        "PREEMPTED": BatchState.SUSPENDED,
+        # PREEMPTED is a terminal state; suspended jobs are reported as SUSPENDED
+        "PREEMPTED": BatchState.FAILED,
+        "REQUEUED": BatchState.QUEUED,
+        "REQUEUE_FED": BatchState.QUEUED,
+        "REQUEUE_HOLD": BatchState.HELD,
+        "RESIZING": BatchState.RUNNING,
+        "RESV_DEL_HOLD": BatchState.HELD,
         "RUNNING": BatchState.RUNNING,
+        "SIGNALING": BatchState.RUNNING,
+        "SPECIAL_EXIT": BatchState.FAILED,
+        "STAGE_OUT": BatchState.EXITING,
+        "STOPPED": BatchState.SUSPENDED,
         "SUSPENDED": BatchState.SUSPENDED,
         "TIMEOUT": BatchState.FAILED,
     }
@@ -52,11 +67,15 @@ class SlurmJob(BatchJobInterface):
         """Query the batch system for information about the job with the specified ID."""
         self._job_id = job_id
         self._info: dict[str, str] = {}
+        self._unreachable: bool = False
 
         self.update()
 
     def is_empty(self) -> bool:
         return not self._info
+
+    def is_unreachable(self) -> bool:
+        return self._unreachable
 
     def get_id(self) -> str:
         return self._job_id
@@ -79,12 +98,12 @@ class SlurmJob(BatchJobInterface):
         )
 
         if result.returncode != 0:
-            # if scontrol fails, try sacct
             logger.debug(
                 f"scontrol failed for job '{self._job_id}' ({result.stderr.strip()}); trying sacct"
             )
         else:
             self._info: dict[str, str] = parse_slurm_dump_to_dictionary(result.stdout)
+            self._unreachable = False
             return
 
         # if `scontrol` fails, try `sacct`
@@ -106,9 +125,21 @@ class SlurmJob(BatchJobInterface):
                 f"both scontrol and sacct failed: no information about job '{self._job_id}' is available: {result.stderr.strip()}"
             )
             self._info: dict[str, str] = {}
+            # sacct prints nothing and exits with zero for jobs it does not know,
+            # so a failure means that the batch system could not be asked
+            self._unreachable = True
+        elif not (lines := result.stdout.strip().splitlines()):
+            # sacct prints nothing and exits with zero for jobs it does not know
+            logger.debug(
+                f"both scontrol and sacct have no information about job '{self._job_id}'"
+            )
+            self._info: dict[str, str] = {}
+            self._unreachable = False
         else:
-            job: SlurmJob = SlurmJob.from_sacct_string(result.stdout.strip())
+            # sacct prints one line per component for heterogeneous and array jobs
+            job: SlurmJob = SlurmJob.from_sacct_string(lines[0])
             self._info: dict[str, str] = job._info
+            self._unreachable = False
 
     def get_state(self) -> BatchState:
         if not (raw_state := self._info.get("JobState")):
@@ -116,11 +147,12 @@ class SlurmJob(BatchJobInterface):
 
         converted_state = SlurmJob._STATE_CONVERTER.get(raw_state) or BatchState.UNKNOWN
 
-        # if the job is queued due to depending on another job, it should be considered "held"
+        # if the job is queued due to depending on another job or due to a user/admin hold,
+        # it should be considered "held"
         if (
             converted_state == BatchState.QUEUED
             and (comment := self.get_comment())
-            and "Dependency" in comment
+            and ("Dependency" in comment or "JobHeld" in comment)
         ):
             return BatchState.HELD
 
@@ -187,7 +219,7 @@ class SlurmJob(BatchJobInterface):
     def get_n_gpus(self) -> int | None:
         tres = self._get_tres()
         for item in tres.split(","):
-            if item.startswith("gpu") or item.startswith("gres/gpu"):
+            if item.startswith(("gpu", "gres/gpu")):
                 try:
                     return int(item.split("=")[1])
                 except ValueError as e:
@@ -308,7 +340,7 @@ class SlurmJob(BatchJobInterface):
             self._info, default_flow_style=False, sort_keys=False, Dumper=Dumper
         )
 
-    def get_steps(self) -> Sequence[Self]:
+    def get_steps(self) -> Sequence[SlurmJob]:
         command = f"sacct -j {self._job_id} --parsable2 --format={SACCT_STEP_FIELDS}"
         logger.debug(command)
 
@@ -356,11 +388,11 @@ class SlurmJob(BatchJobInterface):
         attributes of the new instance.
 
         Args:
-            job_id (str): The unique identifier of the job.
-            info (dict[str, str]): A dictionary containing Slurm job metadata as key-value pairs.
+            job_id: The unique identifier of the job.
+            info: A dictionary containing Slurm job metadata as key-value pairs.
 
         Returns:
-            Self: A new instance of SlurmJob.
+            A new instance of SlurmJob.
 
         Note:
             This method does not perform any validation or processing of the provided dictionary.
@@ -377,10 +409,10 @@ class SlurmJob(BatchJobInterface):
         Construct a new instance of SlurmJob using a string from sacct.
 
         Args:
-            string (str): String describing the job properties obtained using sacct.
+            string: String describing the job properties obtained using sacct.
 
         Returns:
-            Self: A new instance of SlurmJob.
+            A new instance of SlurmJob.
         """
         fields: list[str] = [
             "JobId",
@@ -428,10 +460,10 @@ class SlurmJob(BatchJobInterface):
         Construct a new instance of SlurmJob step using a string from sacct.
 
         Args:
-            string (str): String describing the job properties obtained using sacct.
+            string: String describing the job properties obtained using sacct.
 
         Returns:
-            Self: A new instance of SlurmJob for a job step.
+            A new instance of SlurmJob for a job step.
         """
         fields: list[str] = [
             "JobId",
@@ -463,7 +495,7 @@ class SlurmJob(BatchJobInterface):
         when a non-digit and non-underscore character is encountered.
 
         Returns:
-            list[int]: A list of integer components extracted from the job ID,
+            A list of integer components extracted from the job ID,
                 or [0] if no valid numeric portion is found.
         """
         # get the numerical portion of the job ID (may contain underscores)
@@ -485,10 +517,10 @@ class SlurmJob(BatchJobInterface):
         If the expansion fails, the original compact string is returned as a single-element list.
 
         Args:
-            compact (str): The compact Slurm node list expression to expand.
+            compact: The compact Slurm node list expression to expand.
 
         Returns:
-            list[str]: A list of fully expanded node hostnames. If expansion fails,
+            A list of fully expanded node hostnames. If expansion fails,
                 returns a list containing the original input string.
         """
         command = f"scontrol show hostnames {compact}"
@@ -521,11 +553,11 @@ class SlurmJob(BatchJobInterface):
         `None` is returned.
 
         Args:
-            property (str): The key identifying the property in the job information.
-            property_name (str): A human-readable name of the property for logging.
+            property: The key identifying the property in the job information.
+            property_name: A human-readable name of the property for logging.
 
         Returns:
-            int: The integer value of the property, or `None` if unavailable or invalid.
+            The integer value of the property, or `None` if unavailable or invalid.
         """
         try:
             # we split by '-' because pending jobs may have this property shown as MIN-MAX
@@ -547,11 +579,11 @@ class SlurmJob(BatchJobInterface):
         A warning is logged if parsing fails.
 
         Args:
-            property (str): The key identifying the property in the job information.
-            property_name (str): A human-readable name of the property for logging.
+            property: The key identifying the property in the job information.
+            property_name: A human-readable name of the property for logging.
 
         Returns:
-            datetime | None: A datetime object if parsing succeeds, otherwise None.
+            A datetime object if parsing succeeds, otherwise None.
         """
         if not (raw_datetime := self._info.get(property)) or raw_datetime.lower() in [
             "unknown",
@@ -589,10 +621,10 @@ class SlurmJob(BatchJobInterface):
         if it exists and is valid; otherwise, falls back to the requested value.
 
         Args:
-            info (dict[str, str]): The dictionary containing allocation and request data.
-            alloc_key (str): The key for the allocated resource (e.g., "AllocCPUs").
-            req_key (str): The key for the requested resource (e.g., "ReqCPUs").
-            target_key (str): The key under which the resolved value should be stored (e.g., "NumCPUs").
+            info: The dictionary containing allocation and request data.
+            alloc_key: The key for the allocated resource (e.g., "AllocCPUs").
+            req_key: The key for the requested resource (e.g., "ReqCPUs").
+            target_key: The key under which the resolved value should be stored (e.g., "NumCPUs").
 
         Notes:
             - A value is considered invalid if it is `None`, an empty string `""`, or `"0"`.

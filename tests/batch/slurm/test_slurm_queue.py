@@ -234,15 +234,17 @@ def test_slurm_queue_is_available_user_false_invalid_state(state):
 
 def test_slurm_queue_is_available_user_false_not_in_allow_accounts():
     queue = SlurmQueue.__new__(SlurmQueue)
-    queue._info = {"State": "UP", "AllowAccounts": "user2,user3"}
-    result = queue.is_available_to_user("user1")
+    queue._info = {"State": "UP", "AllowAccounts": "project_2,project_3"}
+    with patch.object(UserGroups, "get_accounts_or_init", return_value=["project_1"]):
+        result = queue.is_available_to_user("user1")
     assert result is False
 
 
 def test_slurm_queue_is_available_user_false_in_deny_accounts():
     queue = SlurmQueue.__new__(SlurmQueue)
-    queue._info = {"State": "UP", "DenyAccounts": "user1"}
-    result = queue.is_available_to_user("user1")
+    queue._info = {"State": "UP", "DenyAccounts": "project_1"}
+    with patch.object(UserGroups, "get_accounts_or_init", return_value=["project_1"]):
+        result = queue.is_available_to_user("user1")
     assert result is False
 
 
@@ -461,3 +463,59 @@ def test_slurm_queue_from_dict_creates_instance(mock_set_jobs):
     assert queue._name == "cpu"
     assert queue._info == info
     mock_set_jobs.assert_called_once_with()
+
+
+def test_slurm_queue_get_max_walltime_returns_none_when_unlimited():
+    queue = SlurmQueue.__new__(SlurmQueue)
+    queue._info = {"MaxTime": "UNLIMITED"}
+
+    assert queue.get_max_walltime() is None
+
+
+@pytest.mark.parametrize(
+    "info, accounts",
+    [
+        # one of the user's accounts is allowed
+        (
+            {"State": "UP", "AllowAccounts": "project_465000123,project_2"},
+            ["project_465000123"],
+        ),
+        # one of the user's accounts is not denied
+        ({"State": "UP", "DenyAccounts": "project_1"}, ["project_1", "project_2"]),
+        # the user's accounts could not be determined
+        ({"State": "UP", "AllowAccounts": "project_1"}, []),
+    ],
+)
+def test_slurm_queue_is_available_user_true_with_account_restrictions(info, accounts):
+    queue = SlurmQueue.__new__(SlurmQueue)
+    queue._info = info
+
+    with (
+        patch.object(UserGroups, "get_groups_or_init", return_value=["dev"]),
+        patch.object(UserGroups, "get_qos_or_init", return_value="normal"),
+        patch.object(UserGroups, "get_accounts_or_init", return_value=accounts),
+    ):
+        assert queue.is_available_to_user("user1") is True
+
+
+@patch("qq_lib.batch.slurm.queue.subprocess.run")
+def test_user_groups_get_accounts_or_init_parses_sacctmgr_output(mock_run):
+    UserGroups._accounts.clear()
+    mock_run.return_value = MagicMock(
+        returncode=0, stdout="project_1\nPROJECT_2\nproject_1\n"
+    )
+
+    try:
+        assert UserGroups.get_accounts_or_init("user1") == ["project_1", "project_2"]
+        assert UserGroups.get_accounts_or_init("user1") == ["project_1", "project_2"]
+        mock_run.assert_called_once()
+    finally:
+        UserGroups._accounts.clear()
+
+
+@pytest.mark.parametrize("state", ["DRAIN", "DOWN", "INACTIVE"])
+def test_slurm_queue_is_available_user_false_when_partition_not_accepting_jobs(state):
+    queue = SlurmQueue.__new__(SlurmQueue)
+    queue._info = {"State": state}
+
+    assert queue.is_available_to_user("user1") is False

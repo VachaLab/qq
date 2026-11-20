@@ -1,12 +1,10 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-# ruff: noqa: W291
-
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -741,3 +739,40 @@ def test_pbs_job_get_id_int_returns_none_on_conversion_failure():
     job._job_id = "123x"
     with patch("qq_lib.batch.pbs.job.re.match", return_value=None):
         assert job.get_id_int() is None
+
+
+@pytest.mark.parametrize(
+    "stderr, unreachable",
+    [
+        ("qstat: Unknown Job Id 123.pbs-m1.metacentrum.cz", False),
+        (
+            "Connection refused\nqstat: cannot connect to server pbs-m1 (errno=15010)",
+            True,
+        ),
+        ("", True),
+    ],
+)
+def test_pbs_job_update_distinguishes_unknown_job_from_unreachable_server(
+    stderr, unreachable
+):
+    with patch(
+        "qq_lib.batch.pbs.job.subprocess.run",
+        return_value=MagicMock(returncode=1, stdout="", stderr=stderr),
+    ):
+        job = PBSJob("123.pbs-m1.metacentrum.cz")
+
+    assert job.is_empty()
+    assert job.is_unreachable() is unreachable
+
+
+def test_pbs_job_update_success_is_not_unreachable():
+    with patch(
+        "qq_lib.batch.pbs.job.subprocess.run",
+        return_value=MagicMock(
+            returncode=0, stdout="Job Id: 123\n    job_state = R\n", stderr=""
+        ),
+    ):
+        job = PBSJob("123")
+
+    assert job.get_state() == BatchState.RUNNING
+    assert job.is_unreachable() is False

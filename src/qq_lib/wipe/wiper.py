@@ -5,6 +5,7 @@
 from qq_lib.core.error import QQError, QQNotSuitableError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.navigator import Navigator
+from qq_lib.properties.states import RealState
 
 logger = get_logger(__name__)
 
@@ -32,6 +33,13 @@ class Wiper(Navigator):
                 f"Job is {str(self._informer.get_real_state()).lower()} and does not have a working directory yet"
             )
 
+        # e.g., the batch system could not be asked about the job,
+        # so the job may still be running
+        if self._state == RealState.UNKNOWN:
+            raise QQNotSuitableError(
+                "Job is in an unknown state. It may not be safe to delete the working directory. Rerun as 'qq wipe --force' if sure"
+            )
+
         if self._is_running() or self._is_suspended():
             raise QQNotSuitableError(
                 f"Job is {str(self._informer.get_real_state()).lower()}. It is not safe to delete the working directory"
@@ -55,7 +63,7 @@ class Wiper(Navigator):
         Delete the working directory on the computing node.
 
         Returns:
-            str: The identifier of the job which working directory was deleted.
+            The identifier of the job which working directory was deleted.
 
         Raises:
             QQError: If the working directory of the job does not exist or cannot be deleted.
@@ -76,7 +84,7 @@ class Wiper(Navigator):
             )
 
         logger.info(
-            f"Deleting working directory '{str(self._work_dir)}' on '{self._main_node}'."
+            f"Deleting working directory '{self._work_dir!s}' on '{self._main_node}'."
         )
         self._batch_system.delete_remote_dir(self._main_node, self._work_dir)
 

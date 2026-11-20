@@ -68,7 +68,7 @@ def test_terminate_appends_after_quote() -> None:
 def test_qq_terminated_mixin_adds_dot(exception_type: type[Exception]) -> None:
     exception = exception_type("something broke")
     assert str(exception) == "something broke"
-    assert exception.terminated == "something broke."  # ty:ignore[unresolved-attribute]
+    assert exception.terminated == "something broke."  # ty: ignore[missing-attribute]
 
 
 def test_qq_terminated_mixin_keeps_nested_message_undotted() -> None:

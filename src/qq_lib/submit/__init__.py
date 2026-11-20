@@ -27,4 +27,4 @@ from .factory import SubmitterFactory
 from .parser import Parser
 from .submitter import Submitter
 
-__all__ = ["SubmitterFactory", "Parser", "Submitter"]
+__all__ = ["Parser", "Submitter", "SubmitterFactory"]

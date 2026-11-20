@@ -2,10 +2,10 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 from dataclasses import fields
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from qq_lib.batch.interface import AnyBatchClass, BatchInterface
-from qq_lib.core.common import split_string_list, translate_server
+from qq_lib.core.common import is_printf_pattern, split_string_list, translate_server
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -19,6 +19,9 @@ from qq_lib.properties.transfer_mode import TransferMode
 
 from .parser import Parser
 from .submitter import Submitter
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -34,7 +37,7 @@ class SubmitterFactory:
         Initialize the factory with the script, command-line parameters, and additional options.
 
         Args:
-            script (Path): Path to the script to submit.
+            script: Path to the script to submit.
             **kwargs: Keyword arguments from the command line.
         """
         from qq_lib.submit.cli import submit
@@ -49,7 +52,7 @@ class SubmitterFactory:
         Construct and return a Submitter instance.
 
         Returns:
-            Submitter: A fully initialized submitter object ready to submit a job.
+            A fully initialized submitter object ready to submit a job.
 
         Raises:
             QQError: If required information, such as the submission queue, is missing.
@@ -105,7 +108,7 @@ class SubmitterFactory:
             4. Guessed batch system
 
         Returns:
-            type[BatchInterface]: The selected batch system class.
+            The selected batch system class.
         """
         if batch_system := self._kwargs.get("batch_system"):
             return BatchInterface.from_str(batch_system)
@@ -121,7 +124,7 @@ class SubmitterFactory:
             3. Default to `JobType.STANDARD`
 
         Returns:
-            JobType: The determined job type.
+            The determined job type.
         """
         if job_type := self._kwargs.get("job_type"):
             return JobType.from_str(job_type)
@@ -136,7 +139,7 @@ class SubmitterFactory:
             2. Queue specified in the script
 
         Returns:
-            str: Name of the submission queue.
+            Name of the submission queue.
 
         Raises:
             QQError: If no queue is specified either in kwargs or in the script.
@@ -155,12 +158,12 @@ class SubmitterFactory:
         The resources are then further modified to conform to the provided `BatchSystem` and submission `queue`.
 
         Args:
-            BatchSystem (type[BatchInterface]): The batch system class to use.
-            queue (str): The submission queue.
-            server (str | None): The submission server. `None` = the current main server.
+            BatchSystem: The batch system class to use.
+            queue: The submission queue.
+            server: The submission server. `None` = the current main server.
 
         Returns:
-            Resources: A merged Resources object containing the final resource requirements.
+            A merged Resources object containing the final resource requirements.
         """
         field_names = {f.name for f in fields(Resources)}
         command_line_resources = Resources(
@@ -180,23 +183,39 @@ class SubmitterFactory:
         Construct LoopInfo holding information about the loop job.
 
         Returns:
-            LoopInfo: An object containing loop job parameters.
+            An object containing loop job parameters.
 
         Raises:
             QQError: If required loop job parameters are missing or invalid.
         """
+        # `or` cannot be used here, since an invalid zero would be silently replaced
+        start = _first_not_none(
+            self._kwargs.get("loop_start"), self._parser.get_loop_start()
+        )
+        end = _first_not_none(self._kwargs.get("loop_end"), self._parser.get_loop_end())
+
+        archive_format = (
+            self._kwargs.get("archive_format")
+            or self._parser.get_archive_format()
+            or CFG.loop_jobs.archive_format
+        )
+        if not is_printf_pattern(archive_format):
+            logger.warning(
+                f"Archive format '{archive_format}' is not a printf-style pattern. "
+                "Archive formats that are not printf-style patterns will not be supported in qq v0.15. "
+                "If you have concerns about this, please open an issue at https://github.com/VachaLab/qq/issues."
+            )
+
         return LoopInfo(
-            self._kwargs.get("loop_start") or self._parser.get_loop_start() or 1,
-            self._kwargs.get("loop_end") or self._parser.get_loop_end(),
+            1 if start is None else start,
+            end,
             self._input_dir
             / (
                 self._kwargs.get("archive")
                 or self._parser.get_archive()
                 or CFG.loop_jobs.archive_dir
             ),
-            self._kwargs.get("archive_format")
-            or self._parser.get_archive_format()
-            or CFG.loop_jobs.archive_format,
+            archive_format,
             input_dir=self._input_dir,
             archive_mode=TransferMode.multi_from_str(
                 self._kwargs.get("archive_mode") or ""
@@ -222,7 +241,7 @@ class SubmitterFactory:
         ):
             if self._kwargs.get(option) or parser_func():
                 logger.warning(
-                    f"Option '{option}' is specified but job type is '{str(job_type)}', not 'loop' - '{option}' will be ignored."
+                    f"Option '{option}' is specified but job type is '{job_type!s}', not 'loop' - '{option}' will be ignored."
                 )
 
     def _print_warning_if_resubmit_from_defined(self, job_type: JobType) -> None:
@@ -231,7 +250,7 @@ class SubmitterFactory:
         """
         if self._kwargs.get("resubmit_from") or self._parser.get_resubmit_from():
             logger.warning(
-                f"Option 'resubmit_from' is specified but job type is '{str(job_type)}', not 'loop' or 'continuous' - 'resubmit_from' will be ignored."
+                f"Option 'resubmit_from' is specified but job type is '{job_type!s}', not 'loop' or 'continuous' - 'resubmit_from' will be ignored."
             )
 
     def _get_exclude(self) -> list[str]:
@@ -245,7 +264,7 @@ class SubmitterFactory:
         The lists are NOT merged.
 
         Returns:
-            list[str]: List of files or glob patterns to exclude.
+            List of files or glob patterns to exclude.
         """
         return (
             split_string_list(self._kwargs.get("exclude")) or self._parser.get_exclude()
@@ -262,7 +281,7 @@ class SubmitterFactory:
         The lists are NOT merged.
 
         Returns:
-            list[str]: List of files or glob patterns to include.
+            List of files or glob patterns to include.
         """
         return (
             split_string_list(self._kwargs.get("include")) or self._parser.get_include()
@@ -279,7 +298,7 @@ class SubmitterFactory:
         The lists are NOT merged.
 
         Returns:
-            list[str]: List of files or glob patterns to ignore.
+            List of files or glob patterns to ignore.
         """
         return (
             split_string_list(self._kwargs.get("ignore")) or self._parser.get_ignore()
@@ -296,7 +315,7 @@ class SubmitterFactory:
         The lists are NOT merged.
 
         Returns:
-            list[Depend]: List of job dependencies.
+            List of job dependencies.
         """
         return (
             Depend.multi_from_str(self._kwargs.get("depend") or "")
@@ -308,7 +327,7 @@ class SubmitterFactory:
         Determine the account name to use for the job.
 
         Returns:
-            str | None: The account name or None if not defined.
+            The account name or None if not defined.
         """
         return self._kwargs.get("account") or self._parser.get_account()
 
@@ -324,7 +343,7 @@ class SubmitterFactory:
         The lists are NOT merged.
 
         Returns:
-            list[TransferMode]: List of transfer modes.
+            List of transfer modes.
         """
         return (
             TransferMode.multi_from_str(self._kwargs.get("transfer_mode") or "")
@@ -341,7 +360,7 @@ class SubmitterFactory:
             3. None - the current batch server
 
         Returns:
-            str | None: The full name of the batch server to use,
+            The full name of the batch server to use,
                 or `None` for the current batch server.
         """
         if raw := (self._kwargs.get("server") or self._parser.get_server()):
@@ -359,7 +378,7 @@ class SubmitterFactory:
             3. None - the default intepreter
 
         Returns:
-            Interpreter | None: The interpreter to use for running the script
+            The interpreter to use for running the script
                 or `None` to use the default intepreter.
         """
         if (raw := self._kwargs.get("interpreter")) is not None:
@@ -380,10 +399,10 @@ class SubmitterFactory:
         The lists are NOT merged.
 
         Args:
-            BatchSystem (AnyBatchClass): The batch system used for job submission.
+            BatchSystem: The batch system used for job submission.
 
         Returns:
-            list[ResubmitHost]: List of resubmission hosts.
+            List of resubmission hosts.
         """
         return (
             ResubmitHost.multi_from_str(self._kwargs.get("resubmit_from") or "")
@@ -391,3 +410,18 @@ class SubmitterFactory:
             or ResubmitHost.multi_from_str(CFG.resubmitter.default_resubmit_hosts or "")
             or BatchSystem.get_default_resubmit_hosts()
         )
+
+
+def _first_not_none[T](*values: T | None) -> T | None:
+    """
+    Return the first value that is not `None`.
+
+    Unlike chaining with `or`, falsy values such as `0` are kept.
+
+    Args:
+        *values: Values in the order of precedence.
+
+    Returns:
+        The first value that is not `None`, or `None` if all values are `None`.
+    """
+    return next((value for value in values if value is not None), None)

@@ -2,7 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 from pathlib import Path
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import click
 from rich.console import Console
@@ -13,8 +13,10 @@ from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.error_handlers import handle_general_qq_error
 from qq_lib.core.logger import get_logger
-from qq_lib.info.informer import Informer
 from qq_lib.info.presenter import Presenter
+
+if TYPE_CHECKING:
+    from qq_lib.info.informer import Informer
 
 logger = get_logger(__name__)
 
@@ -61,6 +63,12 @@ You can combine JOB_IDs with directories. All JOB_IDs must be specified before t
     help="One or more directories to search for qq jobs in. Supports globs.",
 )
 @click.option(
+    "-r",
+    "--recursive",
+    is_flag=True,
+    help="Also search subdirectories, except those inside a qq job's directory.",
+)
+@click.option(
     "-a",
     "--all",
     is_flag=True,
@@ -82,6 +90,7 @@ You can combine JOB_IDs with directories. All JOB_IDs must be specified before t
 def info(
     jobs: tuple[str, ...],
     dir: tuple[Path, ...],
+    recursive: bool,
     all: bool,
     server: str | None,
     brief: bool,
@@ -97,27 +106,27 @@ def info(
         _info_for_job,
         logger,
         brief,
-        len(dir) > 0,
+        recursive=recursive,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     ).on_exception(QQError, handle_general_qq_error).run()
 
 
-def _info_for_job(informer: Informer, brief: bool, dirs_provided: bool) -> None:
+def _info_for_job(informer: Informer, brief: bool) -> None:
     """
     Display information about a qq job associated with the specified Informer.
 
     Args:
-        informer (Informer): Informer associated with the job.
-        brief (bool): If True, print only the job ID, its directory
-                      relative to the current directory (if `dirs_provided`),
-                      and the current job state.
-                      If False, print the full formatted information panel.
-        dirs_provided (bool): If true, at least one directory was provided.
+        informer: Informer associated with the job.
+        brief: If True, print only the job ID, its directory
+               relative to the current directory (if `dirs_provided`),
+               and the current job state.
+               If False, print the full formatted information panel.
+        dirs_provided: If true, at least one directory was provided.
     """
     presenter = Presenter(informer)
     console = Console()
     if brief:
-        console.print(presenter.get_brief_info(dirs_provided))
+        console.print(presenter.get_brief_info())
     else:
         panel = presenter.create_full_info_panel(console)
         console.print(panel)

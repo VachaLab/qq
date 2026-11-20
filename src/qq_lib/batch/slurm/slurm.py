@@ -2,13 +2,15 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 import os
+import shlex
 import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.pbs.pbs import PBS
+from qq_lib.core.common import run_with_timeout
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -24,6 +26,9 @@ from .common import (
 from .job import SlurmJob
 from .node import SlurmNode
 from .queue import SlurmQueue
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -67,7 +72,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
             logger.warning("The 'server' option is ignored for Slurm.")
 
         input_dir = script.parent
-        logger.debug(f"Job submission: input directory is '{str(input_dir)}'.")
+        logger.debug(f"Job submission: input directory is '{input_dir!s}'.")
 
         # intentionally using PBS
         PBS._shared_guard(input_dir, res, env_vars, server, remote_host)
@@ -76,39 +81,38 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
             res, queue, script.parent, str(script), job_name, depend, env_vars, account
         )
 
-        if not remote_host:
-            logger.debug(f"Submitting job using '{command}'.")
-            result = subprocess.run(
-                ["bash"],
-                input=command,
-                text=True,
-                check=False,
-                capture_output=True,
-                errors="replace",
-            )
-        else:
-            # submit the script from the remote host
-            logger.debug(
-                f"Navigating to '{remote_host}' to execute the submission command '{command}'."
-            )
-            result = subprocess.run(
-                [
-                    "ssh",
-                    "-o PasswordAuthentication=no",
-                    "-o GSSAPIAuthentication=yes",
-                    "-o StrictHostKeyChecking=no",  # allow unknown hosts
-                    f"-o ConnectTimeout={CFG.timeouts.ssh}",
-                    "-q",  # suppress some SSH messages
-                    remote_host,
-                    command,
-                ],
-                capture_output=True,
-                text=True,
-            )
+        try:
+            if not remote_host:
+                logger.debug(f"Submitting job using '{command}'.")
+                result = run_with_timeout(["bash"], CFG.timeouts.submit, input=command)
+            else:
+                # submit the script from the remote host
+                logger.debug(
+                    f"Navigating to '{remote_host}' to execute the submission command '{command}'."
+                )
+                result = run_with_timeout(
+                    [
+                        "ssh",
+                        "-o PasswordAuthentication=no",
+                        "-o GSSAPIAuthentication=yes",
+                        "-o StrictHostKeyChecking=no",  # allow unknown hosts
+                        f"-o ConnectTimeout={CFG.timeouts.ssh}",
+                        "-q",  # suppress some SSH messages
+                        remote_host,
+                        command,
+                    ],
+                    CFG.timeouts.submit,
+                )
+        except subprocess.TimeoutExpired as e:
+            raise QQError(
+                f"Submission of script '{script!s}' timed out after {CFG.timeouts.submit} seconds. "
+                "The job may or may not have been submitted. "
+                "Check that the input directory is accessible and that the batch server is responding."
+            ) from e
 
         if result.returncode != 0:
             raise QQError(
-                f"Failed to submit script '{str(script)}': {result.stderr.strip()}"
+                f"Failed to submit script '{script!s}': {result.stderr.strip()}"
             )
 
         return result.stdout.split()[-1]
@@ -326,6 +330,30 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         return nodes
 
     @classmethod
+    def is_valid_dependency(cls, job_id: str) -> bool:
+        # only slurmctld's view matters here; sacct would also report
+        # jobs that slurmctld has already purged and sbatch would reject
+        command = f"scontrol show job {job_id} -o"
+        logger.debug(command)
+
+        result = subprocess.run(
+            ["bash"],
+            input=command,
+            text=True,
+            check=False,
+            capture_output=True,
+            errors="replace",
+        )
+
+        if result.returncode != 0:
+            logger.debug(
+                f"Job '{job_id}' is not known to slurmctld and is not a valid dependency: {result.stderr.strip()}"
+            )
+            return False
+
+        return True
+
+    @classmethod
     def read_remote_file(cls, host: str, file: Path) -> str:
         return PBS.read_remote_file(host, file)
 
@@ -399,10 +427,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Generate the Slurm kill command for a job using SIGTERM.
 
         Args:
-            job_id (str): The ID of the job to kill.
+            job_id: The ID of the job to kill.
 
         Returns:
-            str: The scancel command sending SIGTERM.
+            The scancel command sending SIGTERM.
         """
         return f"scancel {job_id}"
 
@@ -412,10 +440,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Generate the Slurm kill command for a job using SIGKILL.
 
         Args:
-            job_id (str): The ID of the job to kill.
+            job_id: The ID of the job to kill.
 
         Returns:
-            str: The scancel command sending SIGKILL.
+            The scancel command sending SIGKILL.
         """
         return f"scancel --signal=KILL {job_id}"
 
@@ -435,20 +463,20 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Generate the Slurm submission command for a job.
 
         Args:
-            res (Resources): The resources requested for the job.
-            queue (str): The queue name to submit to.
-            input_dir (Path): The directory from which the job is being submitted.
-            script (str): Path to the job script.
-            job_name (str): Name of the job.
-            depend (list[Depend]): List of dependencies of the job.
-            env_vars (dict[str, str]): Dictionary of environment variables and their values to propagate to the job's environment.
-            account (str | None): Optional name of the account to use for the job.
+            res: The resources requested for the job.
+            queue: The queue name to submit to.
+            input_dir: The directory from which the job is being submitted.
+            script: Path to the job script.
+            job_name: Name of the job.
+            depend: List of dependencies of the job.
+            env_vars: Dictionary of environment variables and their values to propagate to the job's environment.
+            account: Optional name of the account to use for the job.
 
         Returns:
-            str: The fully constructed sbatch command string.
+            The fully constructed sbatch command string.
         """
         qq_output = str((input_dir / job_name).with_suffix(CFG.suffixes.qq_out))
-        command = f"sbatch -J {job_name} -p {queue} -e {qq_output} -o {qq_output} "
+        command = f"sbatch -J {shlex.quote(job_name)} -p {queue} -e {shlex.quote(qq_output)} -o {shlex.quote(qq_output)} "
 
         if account:
             command += f"--account {account} "
@@ -485,10 +513,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
             command += f"--dependency={converted_depend} "
 
         # set input directory for the job
-        command += f"--chdir={str(input_dir)} "
+        command += f"--chdir={shlex.quote(str(input_dir))} "
 
         # add script
-        command += str(input_dir / script)
+        command += shlex.quote(str(input_dir / script))
 
         return command
 
@@ -498,11 +526,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Convert a dictionary of environment variables into a formatted string.
 
         Args:
-            env_vars (dict[str, str]): A mapping of environment variable names
+            env_vars: A mapping of environment variable names
                 to their corresponding values.
 
         Returns:
-            str: A comma-separated string of environment variable assignments,
+            A comma-separated string of environment variable assignments,
                 suitable for inclusion in the sbatch command.
         """
         converted = []
@@ -520,11 +548,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         accordingly.
 
         Args:
-            res (Resources): The resource specification for the job.
+            res: The resource specification for the job.
 
         Returns:
-            list[str]: A list of per-node resource strings suitable for inclusion
-                    in the sbatch command.
+            A list of per-node resource strings suitable for inclusion
+            in the sbatch command.
 
         Raises:
             QQError: If sanity checks fail or required memory attributes are missing.
@@ -585,11 +613,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Convert a list of `Depend` objects into a Slurm-compatible dependency string.
 
         Args:
-            depend (list[Depend]): List of dependency objects to translate.
+            depend: List of dependency objects to translate.
 
         Returns:
-            str | None: Slurm-style dependency string (e.g., "after:12345,afterok:1:2:3"),
-                        or None if the input list is empty.
+            Slurm-style dependency string (e.g., "after:12345,afterok:1:2:3"),
+            or None if the input list is empty.
         """
         if not depend:
             return None
@@ -602,7 +630,7 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Return a Resources object representing the default resources for a batch job.
 
         Returns:
-            Resources: Default batch job resources obtained from `slurm.conf`.
+            Default batch job resources obtained from `slurm.conf`.
         """
         command = "scontrol show config"
 
@@ -644,11 +672,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Execute `sacct` to retrieve information about Slurm jobs and parse it.
 
         Args:
-            command (str): A Slurm command to get the relevant jobs.
+            command: A Slurm command to get the relevant jobs.
 
         Returns:
-            list[SlurmJob]: A list of `SlurmJob` instances corresponding to the jobs
-                            returned by the command.
+            A list of `SlurmJob` instances corresponding to the jobs
+            returned by the command.
 
         Raises:
             QQError: If the command fails (non-zero return code) or if the output
@@ -688,11 +716,11 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Note that the jobs are returned in an arbitrary order.
 
         Args:
-            command (str): A Slurm command to get the relevant job IDs.
+            command: A Slurm command to get the relevant job IDs.
 
         Returns:
-            list[SlurmJob]: A list of `SlurmJob` instances corresponding to the jobs
-                            returned by the command.
+            A list of `SlurmJob` instances corresponding to the jobs
+            returned by the command.
 
         Raises:
             QQError: If the command fails (non-zero return code) or if the output
@@ -722,10 +750,10 @@ class Slurm(BatchInterface[SlurmJob, SlurmQueue, SlurmNode]):
         Constructs Slurm jobs in parallel.
 
         Args:
-            job_ids (list[str]): A list of job IDs to collect.
+            job_ids: A list of job IDs to collect.
 
         Returns:
-            list[SlurmJob]: A list of SlurmJob objects.
+            A list of SlurmJob objects.
         """
 
         def get_job(job_id: str) -> SlurmJob:

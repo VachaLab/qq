@@ -9,7 +9,7 @@ relationships among multiple fields, and the `@coupled_fields` decorator for
 automatically enforcing these rules in a dataclass's `__post_init__`.
 """
 
-from typing import Any, Protocol
+from typing import Any, ClassVar
 
 
 class FieldCoupling:
@@ -63,43 +63,52 @@ class FieldCoupling:
                 setattr(instance, field, None)
 
 
+def _enforce_couplings(instance: HasCouplingMethods) -> None:
+    """Enforce dominance rules for all couplings of the instance's class."""
+    for coupling in instance._field_couplings:
+        coupling.enforce(instance)
+
+
+class HasCouplingMethods:
+    """Mixin providing coupling enforcement for classes decorated with @coupled_fields."""
+
+    _field_couplings: ClassVar[tuple[FieldCoupling, ...]] = ()
+
+    @classmethod
+    def get_coupling_for_field(cls, field_name: str) -> FieldCoupling | None:
+        """Return the FieldCoupling that contains the given field name, or None."""
+        for coupling in cls._field_couplings:
+            if coupling.contains(field_name):
+                return coupling
+
+        return None
+
+    def __post_init__(self) -> None:
+        """Enforce dominance rules for all couplings of the class."""
+        _enforce_couplings(self)
+
+
 def coupled_fields(*couplings: FieldCoupling):
     """
-    Class decorator that enforces multi-field coupling rules in __post_init__.
+    Class decorator that attaches multi-field coupling rules to a class.
+    The class must inherit from `HasCouplingMethods`.
+
+    If the class defines its own `__post_init__`, it is wrapped so that
+    the coupling rules are enforced first.
     """
 
     def decorator(cls):
         cls._field_couplings = couplings
-        original_post_init = getattr(cls, "__post_init__", None)
 
-        def __post_init__(self):
-            for coupling in self._field_couplings:
-                coupling.enforce(self)
+        own_post_init = cls.__dict__.get("__post_init__")
+        if own_post_init is not None:
 
-            if original_post_init:
-                original_post_init(self)
+            def __post_init__(self: HasCouplingMethods) -> None:
+                _enforce_couplings(self)
+                own_post_init(self)
 
-        @staticmethod
-        def get_coupling_for_field(field_name: str) -> FieldCoupling | None:
-            for coupling in cls._field_couplings:
-                if coupling.contains(field_name):
-                    return coupling
+            cls.__post_init__ = __post_init__
 
-            return None
-
-        cls.__post_init__ = __post_init__
-        cls.get_coupling_for_field = get_coupling_for_field
         return cls
 
     return decorator
-
-
-class HasCouplingMethods(Protocol):
-    """Protocol for classes decorated with @coupled_fields."""
-
-    _field_couplings: tuple[FieldCoupling, ...]
-
-    @staticmethod
-    def get_coupling_for_field(field_name: str) -> FieldCoupling | None:
-        """Return the FieldCoupling that contains the given field name, or None."""
-        ...

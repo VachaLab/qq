@@ -6,11 +6,11 @@ import os
 import socket
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.batch.pbs.pbs import PBS
 from qq_lib.batch.slurm import Slurm
 from qq_lib.core.error import QQError
@@ -24,6 +24,9 @@ from qq_lib.properties.resubmit_host import ExplicitHost, InputHost, WorkHost
 from qq_lib.properties.states import NaiveState
 from qq_lib.properties.transfer_mode import Always, Success
 from qq_lib.submit.submitter import CFG, Submitter
+
+if TYPE_CHECKING:
+    from qq_lib.batch.interface import AnyBatchClass
 
 
 def test_submitter_init_sets_all_attributes_correctly(tmp_path):
@@ -180,7 +183,7 @@ def test_submitter_construct_job_name_returns_name_with_cycle_number_for_loop_jo
     class DummyLoopInfo:
         current = 3
 
-    submitter._loop_info = DummyLoopInfo()
+    submitter._loop_info = DummyLoopInfo()  # ty: ignore[invalid-assignment]
 
     result = submitter._construct_job_name()
 
@@ -198,7 +201,7 @@ def test_submitter_construct_job_name_loop_job_no_extension(
     class DummyLoopInfo:
         current = 3
 
-    submitter._loop_info = DummyLoopInfo()
+    submitter._loop_info = DummyLoopInfo()  # ty: ignore[invalid-assignment]
 
     result = submitter._construct_job_name()
 
@@ -331,8 +334,8 @@ def test_submitter_create_env_vars_dict_sets_loop_variables(tmp_path, debug_mode
 
     submitter = Submitter.__new__(Submitter)
     submitter._info_file = tmp_path / "job.qqinfo"
-    submitter._batch_system = "BatchSystem"
-    submitter._loop_info = DummyLoop()
+    submitter._batch_system = "BatchSystem"  # ty: ignore[invalid-assignment]
+    submitter._loop_info = DummyLoop()  # ty: ignore[invalid-assignment]
     submitter._input_dir = tmp_path
     submitter._resources = Resources()
     submitter._job_type = JobType.LOOP
@@ -370,7 +373,7 @@ def test_submitter_create_env_vars_dict_continuous_job(tmp_path, debug_mode):
 
     submitter = Submitter.__new__(Submitter)
     submitter._info_file = tmp_path / "job.qqinfo"
-    submitter._batch_system = "BatchSystem"
+    submitter._batch_system = "BatchSystem"  # ty: ignore[invalid-assignment]
     submitter._input_dir = tmp_path
     submitter._resources = Resources()
     submitter._loop_info = None
@@ -681,9 +684,9 @@ def test_submitter_submit(tmp_path):
     submitter._job_type = JobType.STANDARD
     submitter._input_dir = tmp_path
     submitter._loop_info = None
-    submitter._exclude = ["exclude1"]
-    submitter._include = ["include1"]
-    submitter._ignore = ["ignore1"]
+    submitter._exclude = ["exclude1"]  # ty: ignore[invalid-assignment]
+    submitter._include = ["include1"]  # ty: ignore[invalid-assignment]
+    submitter._ignore = ["ignore1"]  # ty: ignore[invalid-assignment]
     submitter._depend = []
     submitter._transfer_mode = [Always()]
     submitter._server = "fake.server.com"
@@ -816,3 +819,44 @@ def test_submitter_expands_glob_patterns_in_exclude_and_include(
         shared / "params.itp",
         input_dir / "sub" / "nested.log",
     ]
+
+
+@pytest.mark.parametrize("kill_error", [None, QQError("qdel failed")])
+def test_submitter_submit_kills_job_if_info_file_cannot_be_written(
+    tmp_path, kill_error
+):
+    submitter = Submitter.__new__(Submitter)
+    submitter._batch_system = MagicMock()
+    submitter._batch_system.job_submit.return_value = "jobid123"
+    submitter._batch_system.job_kill.side_effect = kill_error
+    submitter._resources = Resources()
+    submitter._queue = "default"
+    submitter._account = None
+    submitter._script = tmp_path / "script.sh"
+    submitter._job_name = "job1"
+    submitter._script_name = "script.sh"
+    submitter._job_type = JobType.STANDARD
+    submitter._input_dir = tmp_path
+    submitter._loop_info = None
+    submitter._exclude = []
+    submitter._include = []
+    submitter._ignore = []
+    submitter._depend = []
+    submitter._transfer_mode = [Success()]
+    submitter._info_file = tmp_path / "job1.qqinfo"
+    submitter._server = None
+    submitter._interpreter = None
+    submitter._resubmit_from = []
+
+    with (
+        patch.object(submitter, "_create_env_vars_dict", return_value={}),
+        patch("qq_lib.submit.submitter.Info") as mock_info_class,
+    ):
+        mock_info_class.return_value.to_file.side_effect = QQError(
+            "Disk quota exceeded"
+        )
+
+        with pytest.raises(QQError, match="jobid123"):
+            submitter.submit()
+
+    submitter._batch_system.job_kill.assert_called_once_with("jobid123")

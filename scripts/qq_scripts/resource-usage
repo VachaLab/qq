@@ -10,13 +10,13 @@ Requires `uv`: https://docs.astral.sh/uv
 """
 
 # /// script
-# requires-python = ">=3.13"
+# requires-python = ">=3.15"
 # dependencies = [
 #     "qq",
 # ]
 #
 # [tool.uv.sources]
-# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.13.0" }
+# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.14.0" }
 # ///
 
 from __future__ import annotations

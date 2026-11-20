@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from qq_lib.core.command_runner import CommandRunner
-from qq_lib.core.error import QQNotSuitableError, terminate
+from qq_lib.core.error import QQError, QQNotSuitableError, terminate
 from qq_lib.core.error_handlers import (
     CFG,
     handle_general_qq_error,
@@ -88,7 +88,7 @@ def test_job_mismatch_logs_and_exits(n_jobs):
 def test_job_general_qq_error_single_item_logs_and_exits():
     metadata = CommandRunner.__new__(CommandRunner)
     metadata.n_jobs = 1
-    metadata.encountered_errors = {RuntimeError("general error")}
+    metadata.encountered_errors = {RuntimeError("general error")}  # ty: ignore[invalid-assignment]
     exc = RuntimeError("general error")
 
     with (
@@ -133,4 +133,22 @@ def test_job_general_qq_error_multiple_items_multiple_errors_logs_and_exits():
         handle_general_qq_error(exc, metadata)
 
     mock_logger.error.assert_called_once_with(terminate(str(exc)))
+    mock_exit.assert_called_once_with(CFG.exit_codes.default)
+
+
+def test_not_suitable_last_job_exits_when_all_jobs_failed():
+    metadata = CommandRunner.__new__(CommandRunner)
+    metadata.n_jobs = 2
+    metadata.encountered_errors = {
+        0: QQError("could not reach the batch server"),
+        1: QQNotSuitableError("not suitable"),
+    }
+    exc = QQNotSuitableError("not suitable")
+
+    with (
+        patch("qq_lib.core.error_handlers.logger"),
+        patch("qq_lib.core.error_handlers.sys.exit") as mock_exit,
+    ):
+        handle_not_suitable_error(exc, metadata)
+
     mock_exit.assert_called_once_with(CFG.exit_codes.default)

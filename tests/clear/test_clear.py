@@ -2,6 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 
+import os
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
@@ -11,7 +12,8 @@ from click.testing import CliRunner
 from qq_lib.clear.clearer import CFG, _ClearResult
 from qq_lib.clear.cli import Clearer, clear
 from qq_lib.core.error import QQError
-from qq_lib.properties.states import RealState
+from qq_lib.info import Informer
+from qq_lib.properties.states import BatchState, NaiveState, RealState
 
 
 def test_clear_result_defaults_to_zero():
@@ -27,6 +29,12 @@ def test_clearer_init_sets_directories():
     dirs = [Path("/fake/path1"), Path("/fake/path2")]
     clearer = Clearer(dirs)
     assert clearer._directories == dirs
+    assert clearer._recursive is False
+
+
+def test_clearer_init_sets_recursive():
+    clearer = Clearer([Path("/fake/path")], recursive=True)
+    assert clearer._recursive is True
 
 
 def test_clearer_delete_files_deletes_all_files():
@@ -363,7 +371,7 @@ def test_clear_runs_successfully():
         result = runner.invoke(clear, [])
 
     assert result.exit_code == 0
-    mock_cls.assert_called_once_with([Path()])
+    mock_cls.assert_called_once_with([Path()], recursive=False)
     mock_cls.return_value.clear.assert_called_once_with(False)
 
 
@@ -373,7 +381,7 @@ def test_clear_uses_current_directory_by_default():
     with patch("qq_lib.clear.cli.Clearer") as mock_cls:
         runner.invoke(clear, [])
 
-    mock_cls.assert_called_once_with([Path()])
+    mock_cls.assert_called_once_with([Path()], recursive=False)
 
 
 def test_clear_with_single_dir_flag(tmp_path):
@@ -383,7 +391,7 @@ def test_clear_with_single_dir_flag(tmp_path):
         result = runner.invoke(clear, ["-d", str(tmp_path)])
 
     assert result.exit_code == 0
-    mock_cls.assert_called_once_with([tmp_path])
+    mock_cls.assert_called_once_with([tmp_path], recursive=False)
 
 
 def test_clear_with_multiple_dir_flags(tmp_path):
@@ -397,7 +405,7 @@ def test_clear_with_multiple_dir_flags(tmp_path):
         result = runner.invoke(clear, ["-d", str(dir1), "-d", str(dir2)])
 
     assert result.exit_code == 0
-    mock_cls.assert_called_once_with([dir1, dir2])
+    mock_cls.assert_called_once_with([dir1, dir2], recursive=False)
 
 
 def test_clear_with_force_flag():
@@ -417,7 +425,7 @@ def test_clear_with_dir_and_force(tmp_path):
         result = runner.invoke(clear, ["-d", str(tmp_path), "--force"])
 
     assert result.exit_code == 0
-    mock_cls.assert_called_once_with([tmp_path])
+    mock_cls.assert_called_once_with([tmp_path], recursive=False)
     mock_cls.return_value.clear.assert_called_once_with(True)
 
 
@@ -447,3 +455,569 @@ def test_clear_unexpected_exception_exits_with_unexpected_code():
 
     assert result.exit_code == CFG.exit_codes.unexpected_error
     mock_logger.critical.assert_called_once()
+
+
+def fake_get_runtime_files(directory: Path) -> list[Path]:
+    """Stand-in for get_runtime_files: qq info and qq out files directly in `directory`."""
+    suffixes = (CFG.suffixes.qq_info, CFG.suffixes.qq_out)
+    return sorted(
+        p for p in directory.iterdir() if p.is_file() and p.name.endswith(suffixes)
+    )
+
+
+def make_job(directory: Path, name: str = "job") -> Path:
+    """Create a qq job directory containing a single info file and return the file."""
+    directory.mkdir(parents=True, exist_ok=True)
+    info_file = directory / f"{name}{CFG.suffixes.qq_info}"
+    info_file.touch()
+    return info_file
+
+
+@pytest.fixture
+def fake_runtime_files():
+    with patch(
+        "qq_lib.clear.clearer.get_runtime_files", side_effect=fake_get_runtime_files
+    ) as mock_get:
+        yield mock_get
+
+
+def get_directories(directories: list[Path], recursive: bool) -> list[Path]:
+    return Clearer(directories, recursive=recursive)._get_directories()
+
+
+def test_clearer_get_directories_non_recursive_returns_given_directories(
+    tmp_path, fake_runtime_files
+):
+    dir1 = tmp_path / "a"
+    dir2 = tmp_path / "b"
+    dir1.mkdir()
+    dir2.mkdir()
+    make_job(dir1 / "nested")
+
+    assert get_directories([dir1, dir2], recursive=False) == [dir1, dir2]
+    fake_runtime_files.assert_not_called()
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_get_directories_non_recursive_deduplicates(tmp_path):
+    assert get_directories([tmp_path, tmp_path], recursive=False) == [tmp_path]
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_get_directories_recursive_finds_job_directories(tmp_path):
+    make_job(tmp_path / "a")
+    make_job(tmp_path / "b" / "c" / "d")
+    (tmp_path / "empty").mkdir()
+
+    assert get_directories([tmp_path], recursive=True) == [
+        tmp_path / "a",
+        tmp_path / "b" / "c" / "d",
+    ]
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_get_directories_recursive_returns_nothing_without_runtime_files(
+    tmp_path,
+):
+    (tmp_path / "a" / "b").mkdir(parents=True)
+
+    assert get_directories([tmp_path], recursive=True) == []
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_get_directories_recursive_root_is_job_directory(tmp_path):
+    make_job(tmp_path)
+    make_job(tmp_path / "nested")
+
+    assert get_directories([tmp_path], recursive=True) == [tmp_path]
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_get_directories_recursive_does_not_descend_into_job_directory(
+    tmp_path,
+):
+    make_job(tmp_path / "job")
+    make_job(tmp_path / "job" / "nested")
+
+    assert get_directories([tmp_path], recursive=True) == [tmp_path / "job"]
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_get_directories_recursive_pruning_does_not_affect_siblings(tmp_path):
+    make_job(tmp_path / "a")
+    make_job(tmp_path / "a" / "nested")
+    make_job(tmp_path / "b")
+
+    assert get_directories([tmp_path], recursive=True) == [
+        tmp_path / "a",
+        tmp_path / "b",
+    ]
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_get_directories_recursive_any_runtime_file_marks_job_directory(
+    tmp_path,
+):
+    # leftover qq out file without an info file still counts as a job directory
+    job_dir = tmp_path / "job"
+    job_dir.mkdir()
+    (job_dir / f"job{CFG.suffixes.qq_out}").touch()
+    make_job(job_dir / "nested")
+
+    assert get_directories([tmp_path], recursive=True) == [job_dir]
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_get_directories_recursive_ignores_non_runtime_files(tmp_path):
+    (tmp_path / "a").mkdir()
+    (tmp_path / "a" / "script.sh").touch()
+    make_job(tmp_path / "a" / "nested")
+
+    assert get_directories([tmp_path], recursive=True) == [tmp_path / "a" / "nested"]
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_get_directories_recursive_returns_sorted_order(tmp_path):
+    make_job(tmp_path / "c")
+    make_job(tmp_path / "b")
+    make_job(tmp_path / "a")
+
+    assert get_directories([tmp_path], recursive=True) == [
+        tmp_path / "a",
+        tmp_path / "b",
+        tmp_path / "c",
+    ]
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_get_directories_recursive_overlapping_roots_no_duplicates(tmp_path):
+    make_job(tmp_path / "a" / "b")
+    make_job(tmp_path / "a" / "c" / "d")
+
+    result = get_directories([tmp_path, tmp_path / "a" / "c"], recursive=True)
+
+    assert result == [tmp_path / "a" / "b", tmp_path / "a" / "c" / "d"]
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_get_directories_recursive_nested_root_given_first(tmp_path):
+    make_job(tmp_path / "a" / "b")
+    make_job(tmp_path / "c")
+
+    result = get_directories([tmp_path / "a", tmp_path], recursive=True)
+
+    assert result == [tmp_path / "a" / "b", tmp_path / "c"]
+
+
+def test_clearer_get_directories_recursive_overlap_does_not_rescan(
+    tmp_path, fake_runtime_files
+):
+    (tmp_path / "a" / "b").mkdir(parents=True)
+
+    get_directories([tmp_path, tmp_path / "a"], recursive=True)
+
+    searched = [c.args[0].resolve() for c in fake_runtime_files.call_args_list]
+    assert len(searched) == len(set(searched))
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_get_directories_recursive_does_not_follow_symlinks(tmp_path):
+    root = tmp_path / "root"
+    root.mkdir()
+    make_job(tmp_path / "outside")
+    try:
+        (root / "link").symlink_to(tmp_path / "outside", target_is_directory=True)
+    except OSError:
+        # symlinks not supported
+        pytest.skip()
+
+    assert get_directories([root], recursive=True) == []
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_get_directories_recursive_from_current_directory(
+    tmp_path, monkeypatch
+):
+    make_job(tmp_path / "a")
+    monkeypatch.chdir(tmp_path)
+
+    result = get_directories([Path()], recursive=True)
+
+    assert [d.resolve() for d in result] == [(tmp_path / "a").resolve()]
+
+
+@pytest.mark.skipif(
+    not hasattr(os, "geteuid") or os.geteuid() == 0,
+    reason="permission checks are bypassed for root",
+)
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_get_directories_recursive_unreadable_directory_logs_warning(
+    tmp_path,
+):
+    make_job(tmp_path / "a")
+    locked = tmp_path / "b"
+    make_job(locked / "inner")
+    locked.chmod(0o000)
+
+    try:
+        with patch("qq_lib.clear.clearer.logger.warning") as mock_warning:
+            result = get_directories([tmp_path], recursive=True)
+    finally:
+        locked.chmod(0o755)
+
+    assert result == [tmp_path / "a"]
+    mock_warning.assert_called_once()
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_clear_recursive_calls_clear_directory_for_job_directories(tmp_path):
+    make_job(tmp_path / "a")
+    make_job(tmp_path / "b" / "c")
+    clearer = Clearer([tmp_path], recursive=True)
+
+    with patch.object(
+        Clearer, "_clear_directory", return_value=_ClearResult(detected=1)
+    ) as mock_clear:
+        clearer.clear()
+
+    assert mock_clear.call_count == 2
+    mock_clear.assert_any_call(tmp_path / "a", False)
+    mock_clear.assert_any_call(tmp_path / "b" / "c", False)
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_clear_non_recursive_duplicate_directories_cleared_once(tmp_path):
+    clearer = Clearer([tmp_path, tmp_path])
+
+    with patch.object(
+        Clearer, "_clear_directory", return_value=_ClearResult(detected=0)
+    ) as mock_clear:
+        clearer.clear()
+
+    mock_clear.assert_called_once_with(tmp_path, False)
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_clear_recursive_logs_nothing_to_clear_without_jobs(tmp_path):
+    (tmp_path / "a" / "b").mkdir(parents=True)
+    clearer = Clearer([tmp_path], recursive=True)
+
+    with (
+        patch.object(Clearer, "_clear_directory") as mock_clear,
+        patch("qq_lib.clear.clearer.logger.info") as mock_info,
+    ):
+        clearer.clear()
+
+    mock_clear.assert_not_called()
+    messages = [c.args[0] for c in mock_info.call_args_list]
+    assert any("Nothing to clear" in msg for msg in messages)
+
+
+@pytest.mark.usefixtures("fake_runtime_files")
+def test_clearer_clear_recursive_force_deletes_files_in_job_directories(tmp_path):
+    job_a = make_job(tmp_path / "a")
+    job_b = make_job(tmp_path / "b" / "c")
+    nested = make_job(tmp_path / "a" / "nested")
+    unrelated = tmp_path / "b" / "notes.txt"
+    unrelated.touch()
+
+    Clearer([tmp_path], recursive=True).clear(force=True)
+
+    assert not job_a.exists()
+    assert not job_b.exists()
+    assert nested.exists()  # inside a job directory: not searched
+    assert unrelated.exists()
+
+
+def test_clear_recursive_short_flag():
+    runner = CliRunner()
+
+    with patch("qq_lib.clear.cli.Clearer") as mock_cls:
+        result = runner.invoke(clear, ["-r"])
+
+    assert result.exit_code == 0
+    mock_cls.assert_called_once_with([Path()], recursive=True)
+    mock_cls.return_value.clear.assert_called_once_with(False)
+
+
+def test_clear_recursive_long_flag():
+    runner = CliRunner()
+
+    with patch("qq_lib.clear.cli.Clearer") as mock_cls:
+        result = runner.invoke(clear, ["--recursive"])
+
+    assert result.exit_code == 0
+    mock_cls.assert_called_once_with([Path()], recursive=True)
+
+
+def test_clear_recursive_with_dirs_and_force(tmp_path):
+    dir1 = tmp_path / "a"
+    dir2 = tmp_path / "b"
+    dir1.mkdir()
+    dir2.mkdir()
+    runner = CliRunner()
+
+    with patch("qq_lib.clear.cli.Clearer") as mock_cls:
+        result = runner.invoke(
+            clear, ["-d", str(dir1), "-d", str(dir2), "-r", "--force"]
+        )
+
+    assert result.exit_code == 0
+    mock_cls.assert_called_once_with([dir1, dir2], recursive=True)
+    mock_cls.return_value.clear.assert_called_once_with(True)
+
+
+def test_clearer_collect_excluded_files_keeps_files_of_job_when_batch_system_unreachable(
+    tmp_path,
+):
+    # a running job while qstat/scontrol cannot reach the batch server
+    info_file = tmp_path / f"job{CFG.suffixes.qq_info}"
+    info_file.touch()
+
+    info = MagicMock()
+    info.job_state = NaiveState.RUNNING
+    info.job_id = "12345"
+    info.stdout_file = f"job{CFG.suffixes.stdout}"
+    info.stderr_file = f"job{CFG.suffixes.stderr}"
+    info.job_name = "job"
+    batch_info = MagicMock()
+    batch_info.get_state.return_value = BatchState.UNKNOWN
+    batch_info.is_unreachable.return_value = True
+    informer = Informer(info)
+    informer.set_batch_info(batch_info)
+
+    with (
+        patch("qq_lib.clear.clearer.get_info_files", return_value=[info_file]),
+        patch("qq_lib.clear.clearer.Informer.from_file", return_value=informer),
+    ):
+        result = Clearer._collect_excluded_files(tmp_path)
+
+    assert result == {
+        info_file,
+        tmp_path / f"job{CFG.suffixes.stdout}",
+        tmp_path / f"job{CFG.suffixes.stderr}",
+        tmp_path / f"job{CFG.suffixes.qq_out}",
+    }
+
+
+def test_clearer_clear_keeps_output_files_of_other_programs(tmp_path):
+    for name in [
+        f"job{CFG.suffixes.qq_info}",
+        "job.out",
+        "job.err",
+        "gaussian.out",
+        "analysis.err",
+    ]:
+        (tmp_path / name).touch()
+
+    Clearer([tmp_path]).clear(force=True)
+
+    assert sorted(f.name for f in tmp_path.iterdir()) == [
+        "analysis.err",
+        "gaussian.out",
+    ]
+
+
+def test_clearer_clear_directory_without_qq_job_has_nothing_to_clear(tmp_path):
+    (tmp_path / "gaussian.out").touch()
+    (tmp_path / "analysis.err").touch()
+
+    with patch("qq_lib.clear.clearer.logger") as mock_logger:
+        Clearer([tmp_path]).clear(force=True)
+
+    assert (tmp_path / "gaussian.out").exists()
+    assert (tmp_path / "analysis.err").exists()
+    info_messages = [c.args[0] for c in mock_logger.info.call_args_list]
+    assert "Nothing to clear." in info_messages
+
+
+def test_clearer_get_directories_recursive_output_files_of_other_programs_do_not_mark_job_directory(
+    tmp_path,
+):
+    (tmp_path / "gaussian").mkdir()
+    (tmp_path / "gaussian" / "run.out").touch()
+    job_info = make_job(tmp_path / "gaussian" / "qq_job")
+
+    assert get_directories([tmp_path], recursive=True) == [job_info.parent]
+
+
+def _unlink_failing_for(*failing: Path):
+    """Return a replacement of `Path.unlink` that fails for the given paths."""
+    real_unlink = Path.unlink
+
+    def unlink(self: Path, missing_ok: bool = False) -> None:
+        if self in failing:
+            raise PermissionError(13, "Permission denied", str(self))
+        real_unlink(self, missing_ok=missing_ok)
+
+    return unlink
+
+
+def test_clearer_delete_files_continues_after_failure(tmp_path):
+    files = [tmp_path / f"job{suffix}" for suffix in (".out", ".err", ".qqout")]
+    for file in files:
+        file.touch()
+
+    with patch.object(Path, "unlink", _unlink_failing_for(files[1])):
+        failed = Clearer._delete_files(files)
+
+    assert failed == [(files[1], "Permission denied")]
+    assert not files[0].exists()
+    assert files[1].exists()
+    assert not files[2].exists()
+
+
+def test_clearer_delete_files_ignores_files_that_no_longer_exist(tmp_path):
+    assert Clearer._delete_files([tmp_path / "job.out"]) == []
+
+
+def test_clearer_clear_directory_counts_only_deleted_files(tmp_path):
+    files = [tmp_path / f"job{suffix}" for suffix in CFG.suffixes.all_suffixes]
+    for file in files:
+        file.touch()
+
+    with patch.object(Path, "unlink", _unlink_failing_for(files[0])):
+        result = Clearer._clear_directory(tmp_path, force=True)
+
+    assert result.detected == len(files)
+    assert result.deleted == len(files) - 1
+    assert result.failed_files == [(files[0], "Permission denied")]
+    assert result.failed_directories == []
+
+
+def test_clearer_clear_directory_reports_directory_that_cannot_be_searched(tmp_path):
+    with patch.object(
+        Clearer,
+        "_collect_runtime_files",
+        side_effect=PermissionError(13, "Permission denied", str(tmp_path)),
+    ):
+        result = Clearer._clear_directory(tmp_path, force=False)
+
+    assert result.detected == 0
+    assert result.deleted == 0
+    assert result.failed_files == []
+    assert result.failed_directories == [(tmp_path, "Permission denied")]
+
+
+def test_clearer_clear_directory_reports_directory_when_info_files_cannot_be_read(
+    tmp_path,
+):
+    (tmp_path / f"job{CFG.suffixes.qq_info}").touch()
+
+    with patch.object(
+        Clearer,
+        "_collect_excluded_files",
+        side_effect=PermissionError(13, "Permission denied", str(tmp_path)),
+    ):
+        result = Clearer._clear_directory(tmp_path, force=False)
+
+    assert (tmp_path / f"job{CFG.suffixes.qq_info}").exists()
+    assert result.failed_directories == [(tmp_path, "Permission denied")]
+
+
+def test_clearer_clear_logs_all_failures_together(tmp_path):
+    dir_a = tmp_path / "a"
+    dir_b = tmp_path / "b"
+    dir_a.mkdir()
+    dir_b.mkdir()
+    failing = [dir_a / "job.out", dir_b / "job.err"]
+    for directory in (dir_a, dir_b):
+        for suffix in (CFG.suffixes.qq_info, ".out", ".err"):
+            (directory / f"job{suffix}").touch()
+
+    with (
+        patch.object(Path, "unlink", _unlink_failing_for(*failing)),
+        patch("qq_lib.clear.clearer.logger") as mock_logger,
+    ):
+        success = Clearer([dir_a, dir_b]).clear(force=True)
+
+    assert success is False
+    info_messages = [c.args[0] for c in mock_logger.info.call_args_list]
+    assert "Removed 4 qq files." in info_messages
+
+    # all files that could not be removed are reported in a single message
+    mock_logger.error.assert_called_once()
+    message = mock_logger.error.call_args.args[0]
+    assert message.startswith("Could not remove 2 qq files:")
+    assert f"{failing[0]}: Permission denied" in message
+    assert f"{failing[1]}: Permission denied" in message
+
+    for file in failing:
+        assert file.exists()
+    assert not (dir_a / "job.err").exists()
+    assert not (dir_b / "job.out").exists()
+
+
+def test_clearer_clear_logs_directories_that_cannot_be_searched(tmp_path):
+    missing = tmp_path / "missing"
+
+    with patch("qq_lib.clear.clearer.logger") as mock_logger:
+        success = Clearer([missing]).clear()
+
+    assert success is False
+    mock_logger.error.assert_called_once()
+    message = mock_logger.error.call_args.args[0]
+    assert message.startswith("Could not search 1 directory:")
+    assert str(missing) in message
+    info_messages = [c.args[0] for c in mock_logger.info.call_args_list]
+    assert "Nothing to clear." not in info_messages
+
+
+def test_clearer_clear_reports_failures_when_nothing_could_be_removed(tmp_path):
+    files = [tmp_path / f"job{CFG.suffixes.qq_info}", tmp_path / "job.out"]
+    for file in files:
+        file.touch()
+
+    with (
+        patch.object(Path, "unlink", _unlink_failing_for(*files)),
+        patch("qq_lib.clear.clearer.logger") as mock_logger,
+    ):
+        success = Clearer([tmp_path]).clear(force=True)
+
+    assert success is False
+    info_messages = [c.args[0] for c in mock_logger.info.call_args_list]
+    assert "Nothing to clear." not in info_messages
+    assert not any(msg.startswith("Removed") for msg in info_messages)
+    message = mock_logger.error.call_args.args[0]
+    assert message.startswith("Could not remove 2 qq files:")
+
+
+def test_clearer_clear_returns_true_when_everything_is_removed(tmp_path):
+    for suffix in (CFG.suffixes.qq_info, ".out", ".err"):
+        (tmp_path / f"job{suffix}").touch()
+
+    with patch("qq_lib.clear.clearer.logger") as mock_logger:
+        success = Clearer([tmp_path]).clear(force=True)
+
+    assert success is True
+    mock_logger.error.assert_not_called()
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_clearer_clear_returns_true_when_nothing_to_clear(tmp_path):
+    with patch("qq_lib.clear.clearer.logger") as mock_logger:
+        success = Clearer([tmp_path]).clear()
+
+    assert success is True
+    mock_logger.error.assert_not_called()
+
+
+def test_clearer_clear_reraises_unexpected_errors(tmp_path):
+    with (
+        patch.object(Clearer, "_clear_directory", side_effect=RuntimeError("bug")),
+        pytest.raises(RuntimeError, match="bug"),
+    ):
+        Clearer([tmp_path]).clear()
+
+
+@pytest.mark.parametrize(
+    "success, exit_code", [(True, 0), (False, CFG.exit_codes.default)]
+)
+def test_clear_exit_code_reflects_whether_all_files_were_removed(success, exit_code):
+    runner = CliRunner()
+
+    with patch("qq_lib.clear.cli.Clearer") as mock_cls:
+        mock_cls.return_value.clear.return_value = success
+        result = runner.invoke(clear, [])
+
+    assert result.exit_code == exit_code

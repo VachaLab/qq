@@ -16,11 +16,11 @@ from .qq import __version__, cli
 
 __all__ = [
     "__version__",
-    "cli",
     "archive",
     "batch",
     "cd",
     "clear",
+    "cli",
     "core",
     "go",
     "info",

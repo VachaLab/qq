@@ -12,13 +12,13 @@ Requires `uv`: https://docs.astral.sh/uv
 """
 
 # /// script
-# requires-python = ">=3.13"
+# requires-python = ">=3.15"
 # dependencies = [
 #     "qq",
 # ]
 #
 # [tool.uv.sources]
-# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.13.0" }
+# qq = { git = "https://github.com/VachaLab/qq.git", tag = "v0.14.0" }
 # ///
 
 import contextlib
@@ -26,10 +26,9 @@ import getpass
 import json
 import os
 import sys
-from collections.abc import Iterable
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import click
 
@@ -37,6 +36,9 @@ from qq_lib.batch.interface import BatchInterface, BatchJobInterface
 from qq_lib.core.common import format_duration, translate_server
 from qq_lib.core.error import QQError
 from qq_lib.properties.states import BatchState
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 REPORT_HEADER = [
     "Job ID",
@@ -75,7 +77,7 @@ def load_reported(state_file: Path) -> dict[str, datetime]:
         data = json.loads(state_file.read_text())
     except FileNotFoundError:
         return {}
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return {}
 
     if not isinstance(data, dict):

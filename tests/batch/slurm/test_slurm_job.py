@@ -109,27 +109,42 @@ def test_slurm_job_get_state_returns_unknown_when_no_jobstate():
 
 
 @pytest.mark.parametrize(
-    "raw_state,expected_state",
+    "raw_state, reason, expected_state",
     [
-        ("BOOT_FAIL", BatchState.FAILED),
-        ("CANCELLED", BatchState.FAILED),
-        ("COMPLETED", BatchState.FINISHED),
-        ("DEADLINE", BatchState.FAILED),
-        ("FAILED", BatchState.FAILED),
-        ("NODE_FAIL", BatchState.FAILED),
-        ("OUT_OF_MEMORY", BatchState.FAILED),
-        ("PENDING", BatchState.QUEUED),
-        ("PREEMPTED", BatchState.SUSPENDED),
-        ("RUNNING", BatchState.RUNNING),
-        ("SUSPENDED", BatchState.SUSPENDED),
-        ("TIMEOUT", BatchState.FAILED),
+        ("BOOT_FAIL", "None", BatchState.FAILED),
+        ("CANCELLED", "None", BatchState.FAILED),
+        ("COMPLETED", "None", BatchState.FINISHED),
+        ("DEADLINE", "None", BatchState.FAILED),
+        ("FAILED", "None", BatchState.FAILED),
+        ("NODE_FAIL", "None", BatchState.FAILED),
+        ("OUT_OF_MEMORY", "None", BatchState.FAILED),
+        ("PENDING", "None", BatchState.QUEUED),
+        ("PREEMPTED", "None", BatchState.FAILED),
+        ("RUNNING", "None", BatchState.RUNNING),
+        ("SUSPENDED", "None", BatchState.SUSPENDED),
+        ("TIMEOUT", "None", BatchState.FAILED),
+        ("COMPLETING", "None", BatchState.EXITING),
+        ("STAGE_OUT", "None", BatchState.EXITING),
+        ("CONFIGURING", "None", BatchState.RUNNING),
+        ("RESIZING", "None", BatchState.RUNNING),
+        ("SIGNALING", "None", BatchState.RUNNING),
+        ("REQUEUED", "None", BatchState.QUEUED),
+        ("REQUEUE_FED", "None", BatchState.QUEUED),
+        ("REQUEUE_HOLD", "None", BatchState.HELD),
+        ("RESV_DEL_HOLD", "None", BatchState.HELD),
+        ("STOPPED", "None", BatchState.SUSPENDED),
+        ("SPECIAL_EXIT", "None", BatchState.FAILED),
+        ("PENDING", "JobHeldUser", BatchState.HELD),
+        ("PENDING", "JobHeldAdmin", BatchState.HELD),
     ],
 )
 def test_slurm_job_get_state_returns_converted_value_for_all_states(
-    raw_state, expected_state
+    raw_state, reason, expected_state
 ):
     job = SlurmJob.__new__(SlurmJob)
-    job._info = {"JobState": raw_state}
+    job._job_id = "123"
+    job._info = {"JobState": raw_state, "Reason": reason}
+
     assert job.get_state() == expected_state
 
 
@@ -223,7 +238,7 @@ def test_slurm_job_get_main_node_returns_batchhost_when_valid():
 def test_slurm_job_get_main_node_returns_none_when_batchhost_contains_none(monkeypatch):
     job = SlurmJob.__new__(SlurmJob)
     job._info = {"BatchHost": "None"}
-    monkeypatch.setattr(job, "get_nodes", lambda: [])
+    monkeypatch.setattr(job, "get_nodes", list)
     assert job.get_main_node() is None
 
 
@@ -239,7 +254,7 @@ def test_slurm_job_get_main_node_returns_none_when_no_batchhost_and_no_nodes(
 ):
     job = SlurmJob.__new__(SlurmJob)
     job._info = {}
-    monkeypatch.setattr(job, "get_nodes", lambda: [])
+    monkeypatch.setattr(job, "get_nodes", list)
     assert job.get_main_node() is None
 
 
@@ -969,3 +984,76 @@ def test_slurm_job_step_from_sacct_string_raises_on_invalid_field_count():
         QQError, match="Number of items in a sacct string for a slurm step"
     ):
         SlurmJob._step_from_sacct_string(s)
+
+
+@patch("qq_lib.batch.slurm.job.subprocess.run")
+def test_slurm_job_update_unreachable_when_sacct_fails(mock_run):
+    mock_run.side_effect = [
+        MagicMock(
+            returncode=1,
+            stderr="slurm_load_jobs error: Unable to contact slurm controller",
+        ),
+        MagicMock(
+            returncode=1,
+            stdout="",
+            stderr="sacct: error: Problem talking to the database: Connection refused",
+        ),
+    ]
+
+    job = SlurmJob("123")
+
+    assert job.is_empty()
+    assert job.is_unreachable() is True
+
+
+@patch("qq_lib.batch.slurm.job.subprocess.run")
+def test_slurm_job_update_scontrol_success_is_not_unreachable(mock_run):
+    mock_run.return_value = MagicMock(
+        returncode=0, stdout="JobId=123 JobState=RUNNING", stderr=""
+    )
+
+    job = SlurmJob("123")
+
+    assert job.get_state() == BatchState.RUNNING
+    assert job.is_unreachable() is False
+
+
+_SACCT_LINE = (
+    "123+0|acc|COMPLETED|user|job|cpu|/dir|4|4|cpu=4,mem=4G,node=1|cpu=4,mem=4G,node=1|1|1|"
+    "2025-01-01T10:00:00|2025-01-01T10:01:00|2025-01-01T11:00:00|01:00:00|node1|None|0:0"
+)
+
+
+@patch("qq_lib.batch.slurm.job.subprocess.run")
+def test_slurm_job_update_unknown_job_gives_empty_job(mock_run):
+    mock_run.side_effect = [
+        MagicMock(
+            returncode=1, stderr="slurm_load_jobs error: Invalid job id specified"
+        ),
+        # sacct prints nothing and exits with zero for unknown jobs
+        MagicMock(returncode=0, stdout="", stderr=""),
+    ]
+
+    job = SlurmJob("99999")
+
+    assert mock_run.call_count == 2
+    assert job.is_empty()
+    assert job.is_unreachable() is False
+    assert job.get_state() == BatchState.UNKNOWN
+
+
+@patch("qq_lib.batch.slurm.job.subprocess.run")
+def test_slurm_job_update_sacct_multiple_lines_uses_first(mock_run):
+    mock_run.side_effect = [
+        MagicMock(
+            returncode=1, stderr="slurm_load_jobs error: Invalid job id specified"
+        ),
+        MagicMock(
+            returncode=0,
+            stdout=f"{_SACCT_LINE}\n{_SACCT_LINE.replace('123+0', '123+1')}\n",
+        ),
+    ]
+
+    job = SlurmJob("123")
+
+    assert job.get_state() == BatchState.FINISHED

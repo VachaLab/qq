@@ -27,9 +27,9 @@ from .node import BatchNodeInterface
 from .queue import BatchQueueInterface
 
 __all__ = [
+    "AnyBatchClass",
     "BatchInterface",
     "BatchJobInterface",
     "BatchNodeInterface",
     "BatchQueueInterface",
-    "AnyBatchClass",
 ]

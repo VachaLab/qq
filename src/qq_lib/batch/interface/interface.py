@@ -1,16 +1,15 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-from __future__ import annotations
-
 import functools
 import inspect
 import os
+import shlex
 import socket
 import subprocess
 from abc import ABC, ABCMeta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from qq_lib.core.common import convert_absolute_to_relative
 from qq_lib.core.config import CFG
@@ -48,7 +47,7 @@ class _BatchMeta(ABCMeta):
         BatchSystem = BatchInterface.from_str("PBS")
     """
 
-    _registry: dict[str, AnyBatchClass] = {}
+    _registry: ClassVar[dict[str, AnyBatchClass]] = {}
 
     def __init__(cls, name: str, bases: tuple[type, ...], namespace: dict) -> None:
         super().__init__(name, bases, namespace)
@@ -59,7 +58,7 @@ class _BatchMeta(ABCMeta):
             batch_cls = cast("type[BatchInterface]", cls)
             _BatchMeta._registry[batch_cls.env_name()] = batch_cls
 
-    def __str__(cls: type[BatchInterface]) -> str:
+    def __str__(cls: type[BatchInterface]) -> str:  # ty: ignore[incompatible-method-override]
         """
         Get the string representation of the batch system class.
         """
@@ -77,7 +76,8 @@ class _BatchMeta(ABCMeta):
         except KeyError as e:
             raise QQError(f"No batch system registered as '{name}'.") from e
 
-    @functools.cache
+    # this is a class method, so B019 is not relevant
+    @functools.cache  # noqa: B019
     def guess(cls) -> type[BatchInterface]:
         """
         Return the first registered batch system that reports itself
@@ -156,7 +156,7 @@ class BatchInterface[
         Return the name of the batch system environment.
 
         Returns:
-            str: The batch system name.
+            The batch system name.
         """
         raise NotImplementedError(
             f"env_name method is not implemented for {cls.__name__}"
@@ -171,7 +171,7 @@ class BatchInterface[
         of required commands or other environment-specific indicators.
 
         Returns:
-            bool: True if the batch system is available, False otherwise.
+            True if the batch system is available, False otherwise.
         """
         raise NotImplementedError(
             f"is_available method is not implemented for {cls.__name__}"
@@ -185,7 +185,7 @@ class BatchInterface[
         For this method to work, it has to be called from the inside of an active job.
 
         Returns:
-            str | None: Index of the job or None if the collective variable is not set.
+            Index of the job or None if the collective variable is not set.
         """
         raise NotImplementedError(
             f"get_job_id method is not implemented for {cls.__name__}"
@@ -197,10 +197,10 @@ class BatchInterface[
         Create the working directory on scratch for the given job.
 
         Args:
-            job_id (int): Unique identifier of the job.
+            job_id: Unique identifier of the job.
 
         Returns:
-            Path: Absolute path to the working directory on scratch.
+            Absolute path to the working directory on scratch.
 
         Raises:
             QQError: If the working directory could not be created.
@@ -230,18 +230,18 @@ class BatchInterface[
         This method is NOT guaranteed to be thread-safe.
 
         Args:
-            res (Resources): Resources required for the job.
-            queue (str): Target queue for the job submission.
-            script (Path): Path to the script to execute.
-            job_name (str): Name of the job to use.
-            depend (list[Depend]): List of job dependencies.
-            env_vars (dict[str, str]): Dictionary of environment variables to propagate to the job.
-            account (str | None): Optional account name to use for the job.
-            server (str | None): Optional name of the server to submit the job to.
-            remote_host (str | None): Optional name of the machine to submit the job from.
+            res: Resources required for the job.
+            queue: Target queue for the job submission.
+            script: Path to the script to execute.
+            job_name: Name of the job to use.
+            depend: List of job dependencies.
+            env_vars: Dictionary of environment variables to propagate to the job.
+            account: Optional account name to use for the job.
+            server: Optional name of the server to submit the job to.
+            remote_host: Optional name of the machine to submit the job from.
 
         Returns:
-            str: Unique ID of the submitted job.
+            Unique ID of the submitted job.
 
         Raises:
             QQError: If the job submission fails.
@@ -256,7 +256,7 @@ class BatchInterface[
         Terminate a job gracefully. The job should have time for proper cleanup.
 
         Args:
-            job_id (str): Identifier of the job to terminate.
+            job_id: Identifier of the job to terminate.
 
         Raises:
             QQError: If the job could not be killed.
@@ -271,7 +271,7 @@ class BatchInterface[
         Forcefully terminate a job. There may be no time for proper cleanup.
 
         Args:
-            job_id (str): Identifier of the job to forcefully terminate.
+            job_id: Identifier of the job to forcefully terminate.
 
         Raises:
             QQError: If the job could not be killed.
@@ -289,10 +289,10 @@ class BatchInterface[
         no longer exists or its information is unavailable.
 
         Args:
-            job_id (str): Identifier of the job.
+            job_id: Identifier of the job.
 
         Returns:
-            BatchJobInterface: Object containing the job's metadata and state.
+            Object containing the job's metadata and state.
         """
         raise NotImplementedError(
             f"get_batch_job method is not implemented for {cls.__name__}"
@@ -314,10 +314,10 @@ class BatchInterface[
         should be overriden by subclasses.
 
         Args:
-            job_ids (list[str]): List of job identifiers.
+            job_ids: List of job identifiers.
 
         Returns:
-            list[TBatchJob]: List of TBatchJob objects, one for each job id.
+            List of TBatchJob objects, one for each job id.
         """
         return [cls.get_batch_job(id) for id in job_ids]
 
@@ -334,11 +334,11 @@ class BatchInterface[
         Top level array jobs should not be included in the output.
 
         Args:
-            user (str): Username for which to fetch uncompleted jobs.
-            server (str | None): Optional name of the batch server to get jobs from.
+            user: Username for which to fetch uncompleted jobs.
+            server: Optional name of the batch server to get jobs from.
 
         Returns:
-            list[BatchJobInterface]: A list of job info objects representing the user's uncompleted jobs.
+            A list of job info objects representing the user's uncompleted jobs.
         """
         raise NotImplementedError(
             f"get_unfinished_batch_jobs method is not implemented for {cls.__name__}"
@@ -355,11 +355,11 @@ class BatchInterface[
         Top level array jobs should not be included in the output.
 
         Args:
-            user (str): Username for which to fetch all jobs.
-            server (str | None): Optional name of the batch server to get jobs from.
+            user: Username for which to fetch all jobs.
+            server: Optional name of the batch server to get jobs from.
 
         Returns:
-            list[BatchJobInterface]: A list of job info objects representing all jobs of the user.
+            A list of job info objects representing all jobs of the user.
         """
         raise NotImplementedError(
             f"get_batch_jobs method is not implemented for {cls.__name__}"
@@ -377,10 +377,10 @@ class BatchInterface[
         Top level array jobs should not be included in the output.
 
         Args:
-            server (str | None): Optional name of the batch server to get jobs from.
+            server: Optional name of the batch server to get jobs from.
 
         Returns:
-            list[BatchJobInterface]: A list of job info objects representing uncompleted jobs of all users.
+            A list of job info objects representing uncompleted jobs of all users.
         """
         raise NotImplementedError(
             f"get_all_unfinished_batch_jobs method is not implemented for {cls.__name__}"
@@ -396,10 +396,10 @@ class BatchInterface[
         Top level array jobs should not be included in the output.
 
         Args:
-            server (str | None): Optional name of the batch server to get jobs from.
+            server: Optional name of the batch server to get jobs from.
 
         Returns:
-            list[BatchJobInterface]: A list of job info objects representing all jobs of all users.
+            A list of job info objects representing all jobs of all users.
         """
         raise NotImplementedError(
             f"get_all_batch_jobs method is not implemented for {cls.__name__}"
@@ -411,10 +411,10 @@ class BatchInterface[
         Retrieve all queues managed by the batch system on the specified or default batch server.
 
         Args:
-            server (str | None): Optional name of the batch server to get queues from.
+            server: Optional name of the batch server to get queues from.
 
         Returns:
-            list[BatchQueueInterface]: A list of queue objects existing in the batch system.
+            A list of queue objects existing in the batch system.
         """
         raise NotImplementedError(
             f"get_queues method is not implemented for {cls.__name__}"
@@ -426,10 +426,10 @@ class BatchInterface[
         Retrieve all nodes managed by the batch system on the specified or default batch server.
 
         Args:
-            server (str | None): Optional name of the batch server to get nodes from.
+            server: Optional name of the batch server to get nodes from.
 
         Returns:
-            list[BatchNodeInterface]: A list of node objects existing in the batch system.
+            A list of node objects existing in the batch system.
         """
         raise NotImplementedError(
             f"get_nodes method is not implemented for {cls.__name__}"
@@ -442,10 +442,28 @@ class BatchInterface[
         (i.e., strings that can be used with the `--work-dir` option).
 
         Returns:
-            list[str]: A list of supported types of working directories.
+            A list of supported types of working directories.
         """
         raise NotImplementedError(
             f"get_supported_work_dir_types method is not implemented for {cls.__name__}"
+        )
+
+    @classmethod
+    def is_valid_dependency(cls, job_id: str) -> bool:
+        """
+        Check whether a job can still be used as a dependency of a newly submitted job.
+
+        A job is a valid dependency if the batch system still tracks it and would
+        accept it in a dependency specification at submission time.
+
+        Args:
+            job_id: Identifier of the job.
+
+        Returns:
+            True if the job can be used as a dependency, False otherwise.
+        """
+        raise NotImplementedError(
+            f"is_valid_dependency method is not implemented for {cls.__name__}"
         )
 
     @classmethod
@@ -463,8 +481,8 @@ class BatchInterface[
         A new terminal should always be opened, regardless of the host.
 
         Args:
-            host (str): Hostname where the directory is located.
-            directory (Path): Directory path to navigate to.
+            host: Hostname where the directory is located.
+            directory: Directory path to navigate to.
 
         Raises:
             QQError: If the navigation fails.
@@ -477,7 +495,7 @@ class BatchInterface[
         # the directory is on an another node
         ssh_command = cls._translate_ssh_command(host, directory)
         logger.debug(f"Using ssh: '{' '.join(ssh_command)}'")
-        result = subprocess.run(ssh_command)
+        result = subprocess.run(ssh_command, check=False)
 
         # the subprocess exit code can come from:
         # - SSH itself failing - returns _SSH_FAIL
@@ -487,11 +505,11 @@ class BatchInterface[
         # we ignore user exit codes entirely and only treat _SSH_FAIL and _CD_FAIL as errors
         if result.returncode == cls._SSH_FAIL:
             raise QQError(
-                f"Could not reach '{host}:{str(directory)}': could not connect to host"
+                f"Could not reach '{host}:{directory!s}': could not connect to host"
             )
         if result.returncode == cls._CD_FAIL:
             raise QQError(
-                f"Could not reach '{host}:{str(directory)}': could not change directory"
+                f"Could not reach '{host}:{directory!s}': could not change directory"
             )
 
     @classmethod
@@ -507,11 +525,11 @@ class BatchInterface[
         if possible.
 
         Args:
-            host (str): The hostname of the remote machine where the file resides.
-            file (Path): The path to the file on the remote host.
+            host: The hostname of the remote machine where the file resides.
+            file: The path to the file on the remote host.
 
         Returns:
-            str: The contents of the remote file.
+            The contents of the remote file.
 
         Raises:
             QQError: If the file cannot be read or SSH fails.
@@ -525,10 +543,11 @@ class BatchInterface[
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 "-q",  # suppress some SSH messages
                 host,
-                f"cat {file}",
+                f"cat {shlex.quote(str(file))}",
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
 
         if result.returncode != 0:
@@ -550,9 +569,9 @@ class BatchInterface[
         if possible.
 
         Args:
-            host (str): The hostname of the remote machine where the file resides.
-            file (Path): The path to the file on the remote host.
-            content (str): The content to write to the remote file.
+            host: The hostname of the remote machine where the file resides.
+            file: The path to the file on the remote host.
+            content: The content to write to the remote file.
 
         Raises:
             QQError: If the file cannot be written or SSH fails.
@@ -566,11 +585,12 @@ class BatchInterface[
                 "-o StrictHostKeyChecking=no",  # allow unknown hosts
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
-                f"cat > {file}",
+                f"cat > {shlex.quote(str(file))}",
             ],
             input=content,
             capture_output=True,
             text=True,
+            check=False,
         )
 
         if result.returncode != 0:
@@ -591,8 +611,8 @@ class BatchInterface[
         if possible.
 
         Args:
-            host (str): The hostname of the remote machine where the directory should be created.
-            directory (Path): The path of the directory to create on the remote host.
+            host: The hostname of the remote machine where the directory should be created.
+            directory: The path of the directory to create on the remote host.
 
         Raises:
             QQError: If the directory cannot be created but does not already exist or the SSH command fails.
@@ -606,10 +626,11 @@ class BatchInterface[
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
                 # ignore an error if the directory already exists
-                f"mkdir {directory} 2>/dev/null || [ -d {directory} ]",
+                f"mkdir {shlex.quote(str(directory))} 2>/dev/null || [ -d {shlex.quote(str(directory))} ]",
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
 
         if result.returncode != 0:
@@ -630,12 +651,12 @@ class BatchInterface[
         if possible.
 
         Args:
-            host (str): The hostname of the remote machine where the directory resides.
-            directory (Path): The remote directory to list.
+            host: The hostname of the remote machine where the directory resides.
+            directory: The remote directory to list.
 
         Returns:
-            list[Path]: A list of `Path` objects representing the entries inside the directory.
-                        Entries are relative to the given `directory`.
+            A list of `Path` objects representing the entries inside the directory.
+            Entries are relative to the given `directory`.
 
         Raises:
             QQError: If the directory cannot be listed or the SSH command fails.
@@ -648,10 +669,11 @@ class BatchInterface[
                 "-o StrictHostKeyChecking=no",  # allow unknown hosts
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
-                f"ls -A {directory}",
+                f"ls -A {shlex.quote(str(directory))}",
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
 
         if result.returncode != 0:
@@ -679,8 +701,8 @@ class BatchInterface[
         if possible.
 
         Args:
-            host (str): The hostname of the remote machine where the directory resides.
-            directory (Path): The remote directory to delete.
+            host: The hostname of the remote machine where the directory resides.
+            directory: The remote directory to delete.
 
         Raises:
             QQError: If the directory cannot be deleted or the SSH command fails.
@@ -693,10 +715,11 @@ class BatchInterface[
                 "-o StrictHostKeyChecking=no",  # allow unknown hosts
                 f"-o ConnectTimeout={CFG.timeouts.ssh}",
                 host,
-                f"yes | rm -r {directory}",
+                f"yes | rm -r {shlex.quote(str(directory))}",
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
 
         if result.returncode != 0:
@@ -719,9 +742,9 @@ class BatchInterface[
         if possible.
 
         Args:
-            host (str): The hostname of the remote machine where the files reside.
-            files (list[Path]): A list of source file paths on the remote host.
-            moved_files (list[Path]): A list of destination file paths on the remote host.
+            host: The hostname of the remote machine where the files reside.
+            files: A list of source file paths on the remote host.
+            moved_files: A list of destination file paths on the remote host.
                                     Must be the same length as `files`.
 
         Raises:
@@ -742,6 +765,7 @@ class BatchInterface[
             ],
             capture_output=True,
             text=True,
+            check=False,
         )
 
         if result.returncode != 0:
@@ -766,13 +790,13 @@ class BatchInterface[
         those listed in `exclude_files`. Files are never removed from the destination.
 
         Args:
-            src_dir (Path): Source directory to sync from.
-            dest_dir (Path): Destination directory to sync to.
-            src_host (str | None): Optional hostname of the source machine if remote;
+            src_dir: Source directory to sync from.
+            dest_dir: Destination directory to sync to.
+            src_host: Optional hostname of the source machine if remote;
                 None if the source is local.
-            dest_host (str | None): Optional hostname of the destination machine if remote;
+            dest_host: Optional hostname of the destination machine if remote;
                 None if the destination is local.
-            exclude_files (list[Path] | None): Optional list of absolute file paths to exclude from syncing.
+            exclude_files: Optional list of absolute file paths to exclude from syncing.
                 These will be converted to paths relative to `src_dir`.
 
         Raises:
@@ -809,13 +833,13 @@ class BatchInterface[
         Files not listed are ignored. Files are never removed from the destination.
 
         Args:
-            src_dir (Path): Source directory to sync from.
-            dest_dir (Path): Destination directory to sync to.
-            src_host (str | None): Optional hostname of the source machine if remote;
+            src_dir: Source directory to sync from.
+            dest_dir: Destination directory to sync to.
+            src_host: Optional hostname of the source machine if remote;
                 None if the source is local.
-            dest_host (str | None): Optional hostname of the destination machine if remote;
+            dest_host: Optional hostname of the destination machine if remote;
                 None if the destination is local.
-            include_files (list[Path] | None): Optional list of absolute file paths to include in syncing.
+            include_files: Optional list of absolute file paths to include in syncing.
                 These paths are converted relative to `src_dir`.
                 This argument is optional only for consistency with sync_with_exclusions.
 
@@ -848,14 +872,14 @@ class BatchInterface[
         the target batch system. The original `provided_resources` object is not modified.
 
         Args:
-            queue (str): The name of the queue for which the resources are being adapted.
-            server (str | None): Name of the server on which the queue is located.
+            queue: The name of the queue for which the resources are being adapted.
+            server: Name of the server on which the queue is located.
                 If `None`, the queue is treated as being located on the current server.
-            provided_resources (Resources): The raw resources specified by the user.
+            provided_resources: The raw resources specified by the user.
 
         Returns:
-            Resources: A new Resources instance with batch system-specific adjustments,
-                        fully constructed and validated.
+            A new Resources instance with batch system-specific adjustments,
+            fully constructed and validated.
 
         Raises:
             QQError: If any of the provided parameters are invalid or inconsistent.
@@ -870,16 +894,17 @@ class BatchInterface[
         Determine whether a given directory resides on a shared filesystem.
 
         Args:
-            directory (Path): The directory to check.
+            directory: The directory to check.
 
         Returns:
-            bool: True if the directory is on a shared filesystem, False if it is local.
+            True if the directory is on a shared filesystem, False if it is local.
         """
         # df -l exits with zero if the filesystem is local; otherwise it exits with a non-zero code
         result = subprocess.run(
             ["df", "-l", directory],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            check=False,
         )
 
         return result.returncode != 0
@@ -892,7 +917,7 @@ class BatchInterface[
         In the default implementation, resubmission from the input machine is attempted.
 
         Returns:
-            list[ResubmitHost]: A list of resubmission hosts.
+            A list of resubmission hosts.
         """
         return [InputHost()]
 
@@ -906,7 +931,7 @@ class BatchInterface[
         implement custom sorting logic.
 
         Args:
-            jobs (list[BatchJobInterface]): A list of batch job objects to be sorted
+            jobs: A list of batch job objects to be sorted
                 in-place.
         """
         jobs.sort(key=lambda job: job.get_id())
@@ -949,11 +974,11 @@ class BatchInterface[
         This is an internal method of `BatchInterface`; you typically should not override it.
 
         Args:
-            host (str): The hostname of the remote machine.
-            directory (Path): The target directory to navigate to.
+            host: The hostname of the remote machine.
+            directory: The target directory to navigate to.
 
         Returns:
-            list[str]: SSH command as a list suitable for subprocess execution.
+            SSH command as a list suitable for subprocess execution.
         """
         return [
             "ssh",
@@ -963,7 +988,7 @@ class BatchInterface[
             f"-o ConnectTimeout={CFG.timeouts.ssh}",
             host,
             "-t",
-            f"cd {directory} || exit {cls._CD_FAIL} && exec bash -l",
+            f"cd {shlex.quote(str(directory))} || exit {cls._CD_FAIL} && exec bash -l",
         ]
 
     @classmethod
@@ -974,15 +999,19 @@ class BatchInterface[
         This is an internal method of `BatchInterface`; you typically should not override it.
 
         Args:
-            directory (Path): Directory to navigate to.
+            directory: Directory to navigate to.
         """
         logger.debug("Current host is the same as target host. Using 'cd'.")
         if not directory.is_dir():
             raise QQError(
-                f"Could not reach '{socket.getfqdn()}:{str(directory)}': could not change directory"
+                f"Could not reach '{socket.getfqdn()}:{directory!s}': could not change directory"
             )
 
-        subprocess.run(["bash"], cwd=directory)
+        subprocess.run(
+            ["bash"],
+            cwd=directory,
+            check=False,
+        )
 
         # if the directory exists, always report success,
         # no matter what the user does inside the terminal
@@ -996,12 +1025,12 @@ class BatchInterface[
         This is an internal method of `BatchInterface`; you typically should not override it.
 
         Args:
-            files (list[Path]): A list of source file paths to be moved.
-            moved_files (list[Path]): A list of destination file paths of the same
+            files: A list of source file paths to be moved.
+            moved_files: A list of destination file paths of the same
                 length as `files`.
 
         Returns:
-            str: A single shell command string consisting of `mv` commands joined
+            A single shell command string consisting of `mv` commands joined
             with `&&`.
 
         Raises:
@@ -1014,7 +1043,7 @@ class BatchInterface[
 
         mv_commands: list[str] = []
         for src, dst in zip(files, moved_files):
-            mv_commands.append(f"mv '{src}' '{dst}'")
+            mv_commands.append(f"mv {shlex.quote(str(src))} {shlex.quote(str(dst))}")
 
         return " && ".join(mv_commands)
 
@@ -1036,17 +1065,17 @@ class BatchInterface[
         This is an internal method of `BatchInterface`; you typically should not override it.
 
         Args:
-            src_dir (Path): Source directory path.
-            dest_dir (Path): Destination directory path.
-            src_host (str | None): Hostname of the source machine if remote;
+            src_dir: Source directory path.
+            dest_dir: Destination directory path.
+            src_host: Hostname of the source machine if remote;
                 None if the source is local.
-            dest_host (str | None): Hostname of the destination machine if remote;
+            dest_host: Hostname of the destination machine if remote;
                 None if the destination is local.
-            relative_excluded (list[Path]): List of paths relative to `src_dir`
+            relative_excluded: List of paths relative to `src_dir`
                 to exclude from syncing.
 
         Returns:
-            list[str]: List of command arguments for rsync, suitable for `subprocess.run`.
+            List of command arguments for rsync, suitable for `subprocess.run`.
         """
         # syncing recursively (-r), symlinks copied as symlinks (-l),
         # preserving times (-t), preserving device/special files (-D),
@@ -1063,7 +1092,10 @@ class BatchInterface[
             "-rltD",
         ]
         for file in relative_excluded:
-            command.extend(["--exclude", str(file)])
+            # anchor the pattern to the root of the transfer, otherwise rsync
+            # also excludes files with the same name in any subdirectory
+            # paths starting with / are not absolute paths but relative to the root of transfer
+            command.extend(["--exclude", f"/{file}"])
 
         src = src_host + ":" + str(src_dir) + "/" if src_host else str(src_dir) + "/"
         dest = dest_host + ":" + str(dest_dir) if dest_host else str(dest_dir)
@@ -1089,17 +1121,17 @@ class BatchInterface[
         This is an internal method of `BatchInterface`; you typically should not override it.
 
         Args:
-            src_dir (Path): Source directory path.
-            dest_dir (Path): Destination directory path.
-            src_host (str | None): Hostname of the source machine if remote;
+            src_dir: Source directory path.
+            dest_dir: Destination directory path.
+            src_host: Hostname of the source machine if remote;
                 None if the source is local.
-            dest_host (str | None): Hostname of the destination machine if remote;
+            dest_host: Hostname of the destination machine if remote;
                 None if the destination is local.
-            relative_included (list[Path]): List of paths relative to `src_dir`
+            relative_included: List of paths relative to `src_dir`
                 that should be included in the sync.
 
         Returns:
-            list[str]: List of command arguments for rsync, suitable for `subprocess.run`.
+            List of command arguments for rsync, suitable for `subprocess.run`.
         """
 
         command = [
@@ -1114,7 +1146,7 @@ class BatchInterface[
             command.extend(["--include", str(file)])
             # if `file` is a directory
             # it's okay to include both patterns - if it is invalid, it's ignored
-            command.extend(["--include", f"{str(file)}/***"])
+            command.extend(["--include", f"{file!s}/***"])
         # exclude all files not specifically included
         command.extend(["--exclude", "*"])
 
@@ -1139,25 +1171,29 @@ class BatchInterface[
         This is an internal method of `BatchInterface`; you typically should not override it.
 
         Args:
-            src_dir (Path): Source directory path.
-            dest_dir (Path): Destination directory path.
-            src_host (str | None): Optional hostname of the source machine if remote;
+            src_dir: Source directory path.
+            dest_dir: Destination directory path.
+            src_host: Optional hostname of the source machine if remote;
                 None if the source is local.
-            dest_host (str | None): Optional hostname of the destination machine if remote;
+            dest_host: Optional hostname of the destination machine if remote;
                 None if the destination is local.
-            command (list[str]): List of command-line arguments for rsync, typically
+            command: List of command-line arguments for rsync, typically
                 generated by `_translate_rsync_excluded_command` or `_translate_rsync_included_command`.
 
         Raises:
             QQError: If the rsync command fails (non-zero exit code) or
                 if the command times out after `CFG.timeouts.rsync` seconds.
         """
-        src = f"{src_host}:{str(src_dir)}" if src_host else str(src_dir)
-        dest = f"{dest_host}:{str(dest_dir)}" if dest_host else str(dest_dir)
+        src = f"{src_host}:{src_dir!s}" if src_host else str(src_dir)
+        dest = f"{dest_host}:{dest_dir!s}" if dest_host else str(dest_dir)
 
         try:
             result = subprocess.run(
-                command, capture_output=True, text=True, timeout=CFG.timeouts.rsync
+                command,
+                capture_output=True,
+                text=True,
+                timeout=CFG.timeouts.rsync,
+                check=False,
             )
         except subprocess.TimeoutExpired as e:
             raise QQError(

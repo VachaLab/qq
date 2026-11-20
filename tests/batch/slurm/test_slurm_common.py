@@ -88,3 +88,12 @@ def test_default_resources_from_dict_ignores_unlimited_values():
     for f in fields(Resources):
         value = getattr(result, f.name)
         assert value is None
+
+
+def test_default_resources_from_dict_ignores_none_default_time():
+    result = default_resources_from_dict(
+        {"DefaultTime": "NONE", "DefMemPerNode": "UNLIMITED", "DefMemPerCPU": "1920"}
+    )
+
+    assert result.walltime is None
+    assert result.mem_per_cpu == Size(1920, "mb")

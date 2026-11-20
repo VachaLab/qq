@@ -10,7 +10,7 @@ import click
 from rich.console import Console
 
 from qq_lib.batch.interface import BatchInterface
-from qq_lib.core.common import translate_server
+from qq_lib.core.common import delayed_spinner, translate_server
 
 if TYPE_CHECKING:
     from qq_lib.batch.interface.node import BatchNodeInterface
@@ -53,18 +53,25 @@ def nodes(all: bool, server: str | None, yaml: bool) -> NoReturn:
         if server:
             server = translate_server(server)
 
-        nodes: list[BatchNodeInterface] = BatchSystem.get_nodes(server)
         user = getpass.getuser()
 
-        if not all:
-            nodes = [n for n in nodes if n.is_available_to_user(user)]
+        with delayed_spinner("Collecting nodes..."):
+            nodes: list[BatchNodeInterface] = BatchSystem.get_nodes(server)
+            if not all:
+                nodes = [n for n in nodes if n.is_available_to_user(user)]
+
+        if not nodes:
+            logger.info("No nodes found.")
+            sys.exit(0)
 
         presenter = NodesPresenter(nodes, user, all, server)
         if yaml:
             presenter.dump_yaml()
         else:
             console = Console(record=False, markup=False)
-            panel = presenter.create_nodes_info_panel(console)
+            # the availability of the nodes is only queried here if `all` is set
+            with delayed_spinner("Building the output table..."):
+                panel = presenter.create_nodes_info_panel(console)
             console.print(panel)
         sys.exit(0)
     except QQError as e:

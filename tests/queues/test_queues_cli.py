@@ -1,8 +1,10 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
+from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
+import pytest
 from click.testing import CliRunner
 
 from qq_lib.core.config import CFG
@@ -165,3 +167,56 @@ def test_queues_command_handles_unexpected_exception_and_exits_99():
 
     assert result.exit_code == CFG.exit_codes.unexpected_error
     mock_logger.critical.assert_called_once()
+
+
+def make_fake_spinner(events):
+    """Create a replacement for `delayed_spinner` recording when it starts and stops."""
+
+    @contextmanager
+    def fake_spinner(message):
+        events.append(f"start {message}")
+        yield
+        events.append(f"stop {message}")
+
+    return fake_spinner
+
+
+@pytest.mark.parametrize("flags", [[], ["--all"]])
+def test_queues_command_collects_queues_with_spinner(flags):
+    runner = CliRunner()
+    events = []
+    item = MagicMock()
+    item.is_available_to_user.side_effect = lambda _user: (
+        events.append("availability"),
+        True,
+    )[1]
+
+    def fetch(_server):
+        events.append("fetch")
+        return [item]
+
+    with (
+        patch("qq_lib.queues.cli.BatchInterface.from_env_var_or_guess") as mock_meta,
+        patch("qq_lib.queues.cli.QueuesPresenter") as mock_presenter_cls,
+        patch("qq_lib.queues.cli.Console"),
+        patch("qq_lib.queues.cli.getpass.getuser", return_value="user"),
+        patch("qq_lib.queues.cli.delayed_spinner", make_fake_spinner(events)),
+    ):
+        mock_meta.return_value.get_queues.side_effect = fetch
+        mock_presenter_cls.return_value.create_queues_info_panel.side_effect = (
+            lambda _console: events.append("panel")
+        )
+
+        result = runner.invoke(queues, flags)
+
+    assert result.exit_code == 0
+    collected = ["fetch"] if flags else ["fetch", "availability"]
+    # the panel may query the availability, so it is created under a spinner as well
+    assert events == [
+        "start Collecting queues...",
+        *collected,
+        "stop Collecting queues...",
+        "start Building the output table...",
+        "panel",
+        "stop Building the output table...",
+    ]

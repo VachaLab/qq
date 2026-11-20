@@ -24,10 +24,10 @@ def terminate(message: str) -> str:
     Add a terminal dot to a message unless it already ends with punctuation.
 
     Args:
-        message (str): Message to terminate.
+        message: Message to terminate.
 
     Returns:
-        str: The message ending with a single punctuation mark. An empty or
+        The message ending with a single punctuation mark. An empty or
             blank message is returned as an empty string.
     """
     stripped = message.rstrip()
@@ -58,13 +58,9 @@ class QQError(QQTerminatedMixin, Exception):
 class QQJobMismatchError(QQError):
     """Raised when the specified job ID does not match the qq info file."""
 
-    pass
-
 
 class QQNotSuitableError(QQError):
     """Raised when a job is unsuitable for an operation."""
-
-    pass
 
 
 class QQRunFatalError(QQTerminatedMixin, Exception):

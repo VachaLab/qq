@@ -5,6 +5,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import zip_longest
+from typing import TYPE_CHECKING
 
 from rich.console import Console, Group
 from rich.panel import Panel
@@ -12,10 +13,12 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-from qq_lib.batch.interface.node import BatchNodeInterface
 from qq_lib.core.common import get_panel_width
 from qq_lib.core.config import CFG
 from qq_lib.properties.size import Size
+
+if TYPE_CHECKING:
+    from qq_lib.batch.interface.node import BatchNodeInterface
 
 
 class NodeGroup:
@@ -28,9 +31,9 @@ class NodeGroup:
         Initialize a NodeGroup with a name and a list of nodes for the specified user.
 
         Args:
-            name (str): Name identifying this group.
-            nodes (list[BatchNodeInterface]): List of nodes in this group.
-            user (str): User to check node availability for.
+            name: Name identifying this group.
+            nodes: List of nodes in this group.
+            user: User to check node availability for.
         """
         self.name = name
         self.nodes = nodes
@@ -54,7 +57,7 @@ class NodeGroup:
         and their shared resources and statistics.
 
         Returns:
-            Group: A Rich `Group` object containing the node table and metadata table.
+            A Rich `Group` object containing the node table and metadata table.
         """
         nodes = self.create_nodes_table()
         metadata = self.create_metadata_table()
@@ -73,7 +76,7 @@ class NodeGroup:
         memory utilization, scratch storage, and node-specific properties.
 
         Returns:
-            Table: A Rich `Table` instance summarizing all nodes in this group.
+            A Rich `Table` instance summarizing all nodes in this group.
         """
         table = Table(
             show_header=True,
@@ -114,7 +117,7 @@ class NodeGroup:
         The metadata table includes shared properties and aggregated resource statistics.
 
         Returns:
-            Table: A Rich `Table` summarizing shared properties and resource totals.
+            A Rich `Table` summarizing shared properties and resource totals.
         """
         return NodesPresenter._format_metadata_table(
             self._shared_properties, "Shared properties", self.stats
@@ -164,8 +167,8 @@ class NodeGroup:
         Insert a row into the group table representing a single node and update statistics.
 
         Args:
-            node (BatchNodeInterface): Node whose data will be added.
-            table (Table): Rich table to which the row will be appended.
+            node: Node whose data will be added.
+            table: Rich table to which the row will be appended.
         """
         available = node.is_available_to_user(self._user)
         style = (
@@ -224,7 +227,7 @@ class NodeGroup:
         Determine whether the GPUs column should be displayed.
 
         Returns:
-            bool: True if any node has GPUs, False otherwise.
+            True if any node has GPUs, False otherwise.
         """
         return any((ngpus := n.get_n_gpus()) and ngpus != 0 for n in self.nodes)
 
@@ -233,7 +236,7 @@ class NodeGroup:
         Determine whether GPU memory column should be displayed.
 
         Returns:
-            bool: True if any node has GPU memory, False otherwise.
+            True if any node has GPU memory, False otherwise.
         """
         return any((mem := n.get_gpu_memory()) and mem.value != 0 for n in self.nodes)
 
@@ -242,7 +245,7 @@ class NodeGroup:
         Determine whether local scratch storage columns should be displayed.
 
         Returns:
-            bool: True if any node has local scratch space, False otherwise.
+            True if any node has local scratch space, False otherwise.
         """
         return any(
             (scratch := n.get_local_scratch()) and scratch.value != 0
@@ -254,7 +257,7 @@ class NodeGroup:
         Determine whether SSD scratch storage columns should be displayed.
 
         Returns:
-            bool: True if any node has SSD scratch space, False otherwise.
+            True if any node has SSD scratch space, False otherwise.
         """
         return any(
             (scratch := n.get_ssd_scratch()) and scratch.value != 0 for n in self.nodes
@@ -265,7 +268,7 @@ class NodeGroup:
         Determine whether shared scratch storage columns should be displayed.
 
         Returns:
-            bool: True if any node has shared scratch space, False otherwise.
+            True if any node has shared scratch space, False otherwise.
         """
         return any(
             (scratch := n.get_shared_scratch()) and scratch.value != 0
@@ -277,7 +280,7 @@ class NodeGroup:
         Determine whether extra property column should be displayed.
 
         Returns:
-            bool: True if any node has properties not shared by all nodes in the group.
+            True if any node has properties not shared by all nodes in the group.
         """
         return any(
             any(p not in self._shared_properties for p in n.get_properties())
@@ -316,11 +319,11 @@ class NodeGroupStats:
         Add a single node's statistics to the group totals.
 
         Args:
-            cpus (int): Total number of CPUs on the node.
-            free_cpus (int): Number of currently available CPUs.
-            gpus (int): Total number of GPUs on the node.
-            free_gpus (int): Number of currently available GPUs.
-            props (list[str]): List of node properties.
+            cpus: Total number of CPUs on the node.
+            free_cpus: Number of currently available CPUs.
+            gpus: Total number of GPUs on the node.
+            free_gpus: Number of currently available GPUs.
+            props: List of node properties.
         """
         self.n_nodes += 1
         self.n_cpus += cpus
@@ -334,7 +337,7 @@ class NodeGroupStats:
         Create a Rich table summarizing aggregated node statistics.
 
         Returns:
-            Table: A Rich `Table` object summarizing the group's statistics.
+            A Rich `Table` object summarizing the group's statistics.
         """
         table = Table(
             show_header=True,
@@ -371,15 +374,15 @@ class NodeGroupStats:
         return table
 
     @staticmethod
-    def sum_stats(*stats: "NodeGroupStats") -> "NodeGroupStats":
+    def sum_stats(*stats: NodeGroupStats) -> NodeGroupStats:
         """
         Combine multiple `NodeGroupStats` objects into a single aggregate.
 
         Args:
-            *stats (NodeGroupStats): One or more stats objects to sum.
+            *stats: One or more stats objects to sum.
 
         Returns:
-            NodeGroupStats: A new object containing the combined totals and
+            A new object containing the combined totals and
             union of all properties.
         """
         return NodeGroupStats(
@@ -404,11 +407,11 @@ class NodesPresenter:
         Initialize the presenter with a list of nodes.
 
         Args:
-            nodes (list[BatchNodeInterface]): List of node information objects
+            nodes: List of node information objects
                 to be presented.
-            user (str): Name of the user for which the nodes are displayed.
-            all (boolean): Display all nodes or only those that are available.
-            server (str | None): Batch server for which the nodes were collected.
+            user: Name of the user for which the nodes are displayed.
+            all: Display all nodes or only those that are available.
+            server: Batch server for which the nodes were collected.
                 `None` = default server.
         """
         self._nodes = nodes
@@ -430,12 +433,12 @@ class NodesPresenter:
         Build a complete Rich panel summarizing all node groups.
 
         Args:
-            console (Console | None): Optional Rich console instance used to
+            console: Optional Rich console instance used to
                 determine available terminal width. If None, a new console
                 is created.
 
         Returns:
-            Group: A Rich `Group` containing the formatted node information panel.
+            A Rich `Group` containing the formatted node information panel.
         """
         console = console or Console()
 
@@ -477,7 +480,7 @@ class NodesPresenter:
         Create a summary panel displaying overall statistics across all node groups.
 
         Returns:
-            Group: A Rich `Group` containing the overall statistics summary.
+            A Rich `Group` containing the overall statistics summary.
         """
         total_stats = NodeGroupStats.sum_stats(*(g.stats for g in self._node_groups))
 
@@ -505,7 +508,7 @@ class NodesPresenter:
         nodes are merged into a generic "others" group.
 
         Returns:
-            list[NodeGroup]: A list of node groups created from the input nodes.
+            A list of node groups created from the input nodes.
         """
         raw_groups = defaultdict(list)
         unassigned = []
@@ -544,10 +547,10 @@ class NodesPresenter:
         Create a visual separator between node group panels.
 
         Args:
-            title (str): The title to display within the rule separator.
+            title: The title to display within the rule separator.
 
         Returns:
-            Group: A Rich `Group` containing a rule with the given title.
+            A Rich `Group` containing a rule with the given title.
         """
         return Group(
             "",
@@ -565,11 +568,11 @@ class NodesPresenter:
         Interleave content sections with separator elements.
 
         Args:
-            sections (list[Group]): Panels or sections to display.
-            seps (list[Group]): Separators to insert between sections.
+            sections: Panels or sections to display.
+            seps: Separators to insert between sections.
 
         Returns:
-            list[Group]: Combined ordered list of sections and separators.
+            Combined ordered list of sections and separators.
         """
         chunks = []
         for part, sep in zip_longest(sections, seps, fillvalue=None):
@@ -585,12 +588,12 @@ class NodesPresenter:
         Format numbers of free and total CPUs or GPUs as a styled Rich text element.
 
         Args:
-            free (int): Number of free units (e.g., CPUs or GPUs).
-            total (int): Total number of units.
-            available (bool): Whether the node is available to the user.
+            free: Number of free units (e.g., CPUs or GPUs).
+            total: Total number of units.
+            available: Whether the node is available to the user.
 
         Returns:
-            Text: A styled Rich text element showing free and total counts.
+            A styled Rich text element showing free and total counts.
         """
         if not available:
             style = CFG.nodes_presenter.unavailable_node_style
@@ -611,12 +614,12 @@ class NodesPresenter:
         Format a memory or storage property as a styled text string.
 
         Args:
-            free (Size): Available memory or storage.
-            total (Size): Total memory or storage.
-            style (str): Rich style string to apply to the text.
+            free: Available memory or storage.
+            total: Total memory or storage.
+            style: Rich style string to apply to the text.
 
         Returns:
-            Text: A formatted text element showing free and total capacity.
+            A formatted text element showing free and total capacity.
         """
         return Text(f"{free} / {total}", style=style)
 
@@ -628,12 +631,12 @@ class NodesPresenter:
         Format node-specific properties for display, excluding shared ones.
 
         Args:
-            props (list[str]): All properties of the node.
-            shared_props (list[str]): Properties common to all nodes in the group.
-            style (str): Rich text style for formatting.
+            props: All properties of the node.
+            shared_props: Properties common to all nodes in the group.
+            style: Rich text style for formatting.
 
         Returns:
-            Text: Comma-separated list of unique node properties.
+            Comma-separated list of unique node properties.
         """
         return Text(", ".join(x for x in props if x not in shared_props), style=style)
 
@@ -649,14 +652,14 @@ class NodesPresenter:
         Generate a state mark symbol indicating node utilization and availability.
 
         Args:
-            free_cpus (int): Number of free CPU cores.
-            total_cpus (int): Total number of CPU cores.
-            free_gpus (int): Number of free GPUs.
-            total_gpus (int): Total number of GPUs.
-            available (bool): Whether the node is accessible to the user.
+            free_cpus: Number of free CPU cores.
+            total_cpus: Total number of CPU cores.
+            free_gpus: Number of free GPUs.
+            total_gpus: Total number of GPUs.
+            available: Whether the node is accessible to the user.
 
         Returns:
-            Text: A styled Rich text symbol representing node state.
+            A styled Rich text symbol representing node state.
         """
         if not available:
             style = CFG.nodes_presenter.unavailable_node_style
@@ -675,11 +678,11 @@ class NodesPresenter:
         Create a formatted text section showing a list of properties.
 
         Args:
-            props (list[str]): Properties to display.
-            title (str): Section label to prefix before the property list.
+            props: Properties to display.
+            title: Section label to prefix before the property list.
 
         Returns:
-            Text: A Rich text object combining the title and formatted property list.
+            A Rich text object combining the title and formatted property list.
         """
         return Text(
             f"{title}: ",
@@ -698,12 +701,12 @@ class NodesPresenter:
         and an aggregated statistics summary (CPU, GPU, node counts).
 
         Args:
-            props (list[str]): List of properties to display.
-            title (str): Title label for the property section.
-            stats (NodeGroupStats): Aggregated statistics for the corresponding node group.
+            props: List of properties to display.
+            title: Title label for the property section.
+            stats: Aggregated statistics for the corresponding node group.
 
         Returns:
-            Table: A Rich grid table with property and statistics columns.
+            A Rich grid table with property and statistics columns.
         """
         grid = Table.grid(expand=False, padding=(0, 5))
         grid.add_column(max_width=CFG.nodes_presenter.max_props_panel_width)

@@ -275,3 +275,19 @@ def test_subtraction_invalid_type():
     a = Size(1, "gb")
     with pytest.raises(TypeError):
         _ = a - 100  # ty: ignore[unsupported-operator]
+
+
+@pytest.mark.parametrize(
+    "string, expected_kb",
+    [
+        ("0b", 0),
+        ("3b", 1),
+        ("1024b", 1),
+        ("1025b", 2),
+        ("2048b", 2),
+        ("1073741824b", 1048576),
+        ("2048B", 2),
+    ],
+)
+def test_size_from_string_bytes(string, expected_kb):
+    assert Size.from_string(string).value == expected_kb

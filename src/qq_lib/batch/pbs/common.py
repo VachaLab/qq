@@ -1,7 +1,6 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-
 import re
 
 from qq_lib.core.error import QQError
@@ -15,7 +14,13 @@ _UNKNOWN_OBJECT_PATTERNS = (
     re.compile(r"^\s*\w+:\s+Unknown\s+(?:Job Id|queue|node)\s+(\S+)\s*$"),
     # Node: node.ceitec.muni.cz,  Error: Unknown node
     re.compile(r"^\s*Node:\s*([^,\s]+)\s*,\s*Error:\s*Unknown node\s*$"),
+    # qstat: illegally formed job identifier: 12x
+    re.compile(r"^\s*\w+:\s+illegally formed job identifier:\s*(\S+)\s*$"),
 )
+
+# any other error reported by a PBS client command, e.g.
+# qstat: cannot connect to server pbs.example.com (errno=15010)
+_CLIENT_ERROR_PATTERN = re.compile(r"^(?:qstat|pbsnodes):\s")
 
 
 def _parse_unknown_pbs_object(line: str) -> str | None:
@@ -23,10 +28,10 @@ def _parse_unknown_pbs_object(line: str) -> str | None:
     Extract the identifier from a PBS line reporting an unknown job, queue or node.
 
     Args:
-        line (str): A single line of a PBS dump.
+        line: A single line of a PBS dump.
 
     Returns:
-        str | None: Identifier of the unknown PBS object, or `None` if the line does
+        Identifier of the unknown PBS object, or `None` if the line does
             not report an unknown object or carries no identifier.
     """
     for pattern in _UNKNOWN_OBJECT_PATTERNS:
@@ -41,7 +46,7 @@ def parse_pbs_dump_to_dictionary(text: str) -> dict[str, str]:
     Parse a PBS info dump into a dictionary.
 
     Returns:
-        dict[str, str]: Dictionary mapping keys to values.
+        Dictionary mapping keys to values.
     """
     result: dict[str, str] = {}
 
@@ -64,14 +69,14 @@ def parse_multi_pbs_dump_to_dictionaries(
     Parse a PBS dump containing metadata for multiple queues/jobs/nodes into structured dictionaries.
 
     Args:
-        text (str): The raw PBS dump containing information about one or more queues/jobs/nodes.
-        keyword (str | None): Keyword identifying the start of a metadata block.
+        text: The raw PBS dump containing information about one or more queues/jobs/nodes.
+        keyword: Keyword identifying the start of a metadata block.
             If `None`, the first line is treated as identifier.
 
     Returns:
-        list[tuple[dict[str, str], str]]: A list of tuples, each containing:
-            - dict[str, str]: Parsed metadata for a single PBS object (job/queue/node).
-            - str: Identifier (job ID / queue name / node name) extracted from the metadata.
+        A list of tuples, each containing:
+            - Parsed metadata for a single PBS object (job/queue/node).
+            - Identifier (job ID / queue name / node name) extracted from the metadata.
 
     Raises:
         QQError: If the identifier cannot be extracted.
@@ -79,11 +84,12 @@ def parse_multi_pbs_dump_to_dictionaries(
     if not text.strip():
         return []
 
-    data = []
-    block, identifier = [], None
-    pattern = pattern = (
-        re.compile(rf"^\s*(?:.*?{keyword}[:\s]+)(.*)$") if keyword else None
-    )
+    data: list[tuple[dict[str, str], str]] = []
+    # identifier is always assigned on the first line of a block,
+    # so the empty string never reaches `data`
+    block: list[str] = []
+    identifier: str = ""
+    pattern = re.compile(rf"^\s*(?:.*?{keyword}[:\s]+)(.*)$") if keyword else None
 
     for line in text.splitlines():
         # lines reporting unknown objects are parsed into empty dictionaries
@@ -93,8 +99,18 @@ def parse_multi_pbs_dump_to_dictionaries(
                 data.append(
                     (parse_pbs_dump_to_dictionary("\n".join(block)), identifier)
                 )
-                block, identifier = [], None
+                block, identifier = [], ""
             data.append(({}, unknown))
+            continue
+
+        # other errors carry no metadata and no identifier, so they are only logged
+        if _CLIENT_ERROR_PATTERN.match(line):
+            logger.warning(f"PBS reported an error: {line.strip()}")
+            if block:
+                data.append(
+                    (parse_pbs_dump_to_dictionary("\n".join(block)), identifier)
+                )
+                block, identifier = [], ""
             continue
 
         # if the line is empty, start a new block
@@ -103,7 +119,7 @@ def parse_multi_pbs_dump_to_dictionaries(
                 data.append(
                     (parse_pbs_dump_to_dictionary("\n".join(block)), identifier)
                 )
-                block, identifier = [], None
+                block, identifier = [], ""
             continue
 
         if not block:

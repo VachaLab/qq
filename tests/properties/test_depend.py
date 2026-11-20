@@ -2,14 +2,20 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 
-from typing import cast
-from unittest.mock import MagicMock
+from typing import TYPE_CHECKING, Any, cast
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from qq_lib.batch.interface import AnyBatchClass
+from qq_lib.batch.pbs import PBS
+from qq_lib.batch.slurm import Slurm
+from qq_lib.batch.slurmit4i import SlurmIT4I
+from qq_lib.batch.slurmlumi import SlurmLumi
 from qq_lib.core.error import QQError
 from qq_lib.properties.depend import Depend, DependType, filter_dependencies
+
+if TYPE_CHECKING:
+    from qq_lib.batch.interface import AnyBatchClass
 
 
 @pytest.mark.parametrize(
@@ -240,9 +246,7 @@ def batch_system() -> AnyBatchClass:
 
 
 def test_filter_dependencies_keeps_valid_jobs(batch_system):
-    job = MagicMock()
-    job.is_empty.return_value = False
-    batch_system.get_batch_job.return_value = job
+    batch_system.is_valid_dependency.return_value = True
 
     deps = [Depend(type=DependType.AFTER_SUCCESS, jobs=["123"])]
     result = filter_dependencies(batch_system, deps)
@@ -252,9 +256,7 @@ def test_filter_dependencies_keeps_valid_jobs(batch_system):
 
 
 def test_filter_dependencies_removes_missing_jobs(batch_system):
-    job = MagicMock()
-    job.is_empty.return_value = True
-    batch_system.get_batch_job.return_value = job
+    batch_system.is_valid_dependency.return_value = False
 
     deps = [Depend(type=DependType.AFTER_SUCCESS, jobs=["123"])]
     result = filter_dependencies(batch_system, deps)
@@ -263,15 +265,7 @@ def test_filter_dependencies_removes_missing_jobs(batch_system):
 
 
 def test_filter_dependencies_removes_missing_jobs_from_multi_job_depend(batch_system):
-    valid_job = MagicMock()
-    valid_job.is_empty.return_value = False
-
-    missing_job = MagicMock()
-    missing_job.is_empty.return_value = True
-
-    batch_system.get_batch_job.side_effect = lambda jid: (
-        valid_job if jid == "123" else missing_job
-    )
+    batch_system.is_valid_dependency.side_effect = lambda jid: jid == "123"
 
     deps = [Depend(type=DependType.AFTER_SUCCESS, jobs=["123", "456", "789"])]
     result = filter_dependencies(batch_system, deps)
@@ -281,9 +275,7 @@ def test_filter_dependencies_removes_missing_jobs_from_multi_job_depend(batch_sy
 
 
 def test_filter_dependencies_drops_depend_entirely_when_all_jobs_missing(batch_system):
-    job = MagicMock()
-    job.is_empty.return_value = True
-    batch_system.get_batch_job.return_value = job
+    batch_system.is_valid_dependency.return_value = False
 
     deps = [Depend(type=DependType.AFTER_SUCCESS, jobs=["123", "456"])]
     result = filter_dependencies(batch_system, deps)
@@ -292,10 +284,7 @@ def test_filter_dependencies_drops_depend_entirely_when_all_jobs_missing(batch_s
 
 
 def test_filter_dependencies_preserves_depend_type(batch_system):
-    job = MagicMock()
-    job.is_empty.return_value = False
-    job.get_id.return_value = "1"
-    batch_system.get_batch_job.return_value = job
+    batch_system.is_valid_dependency.return_value = True
 
     deps = [
         Depend(type=DependType.AFTER_START, jobs=["1"]),
@@ -312,15 +301,7 @@ def test_filter_dependencies_preserves_depend_type(batch_system):
 
 
 def test_filter_dependencies_handles_multiple_depends(batch_system):
-    valid_job = MagicMock()
-    valid_job.is_empty.return_value = False
-
-    missing_job = MagicMock()
-    missing_job.is_empty.return_value = True
-
-    batch_system.get_batch_job.side_effect = lambda jid: (
-        valid_job if jid == "1" else missing_job
-    )
+    batch_system.is_valid_dependency.side_effect = lambda jid: jid == "1"
 
     deps = [
         Depend(type=DependType.AFTER_SUCCESS, jobs=["1"]),
@@ -340,4 +321,52 @@ def test_filter_dependencies_empty_input(batch_system):
     result = filter_dependencies(batch_system, [])
 
     assert result == []
-    batch_system.get_batch_job.assert_not_called()
+    batch_system.is_valid_dependency.assert_not_called()
+
+
+_TRACKED_JOB_ID = "1"
+_SACCT_ROW = "|".join(["2", "account", "COMPLETED"] + ["x"] * 17)
+
+
+def _run_with_one_tracked_job(*args: Any, **kwargs: Any) -> MagicMock:
+    """
+    Fake `subprocess.run` for a batch system that only tracks job '1'.
+
+    Accounting (`sacct`) answers for every job, which mimics finished jobs
+    that slurmctld has already purged from memory.
+
+    Args:
+        *args: Ignored positional arguments of `subprocess.run`.
+        **kwargs: Keyword arguments of `subprocess.run`; `input` holds the command.
+
+    Returns:
+        A fake `CompletedProcess`.
+    """
+    _ = args
+    command: str = kwargs["input"]
+    if command.startswith("sacct"):
+        return MagicMock(returncode=0, stdout=_SACCT_ROW, stderr="")
+
+    if _TRACKED_JOB_ID in command.split():
+        return MagicMock(
+            returncode=0,
+            stdout=f"Job Id: {_TRACKED_JOB_ID}\n    job_state = R\n",
+            stderr="",
+        )
+
+    return MagicMock(returncode=1, stdout="", stderr="Unknown Job Id")
+
+
+@pytest.mark.parametrize("batch_class", [PBS, Slurm, SlurmIT4I, SlurmLumi])
+def test_filter_dependencies_keeps_only_jobs_tracked_by_batch_system(
+    batch_class: AnyBatchClass,
+) -> None:
+    deps = [
+        Depend(type=DependType.AFTER_SUCCESS, jobs=["1", "2"]),
+        Depend(type=DependType.AFTER_COMPLETION, jobs=["2"]),
+    ]
+
+    with patch("subprocess.run", side_effect=_run_with_one_tracked_job):
+        result = filter_dependencies(batch_class, deps)
+
+    assert result == [Depend(type=DependType.AFTER_SUCCESS, jobs=["1"])]

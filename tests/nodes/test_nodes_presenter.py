@@ -172,7 +172,7 @@ def test_node_group_should_show_properties_returns_true_if_not_all_shared():
     node2.get_properties.return_value = ["fast"]
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
-    group._shared_properties = {"fast"}
+    group._shared_properties = {"fast"}  # ty: ignore[invalid-assignment]
     assert group._should_show_properties() is True
 
 
@@ -183,7 +183,7 @@ def test_node_group_should_show_properties_returns_false_if_all_shared():
     node2.get_properties.return_value = ["fast", "gpu"]
     group = NodeGroup.__new__(NodeGroup)
     group.nodes = [node1, node2]
-    group._shared_properties = {"fast", "gpu"}
+    group._shared_properties = {"fast", "gpu"}  # ty: ignore[invalid-assignment]
     assert group._should_show_properties() is False
 
 
@@ -229,11 +229,11 @@ def test_node_group_add_node_row_all_shows(
     group._show_ssd = True
     group._show_shared = True
     group._show_props = True
-    group._shared_properties = set()
+    group._shared_properties = set()  # ty: ignore[invalid-assignment]
     group.stats = MagicMock()
 
     table = Table()
-    table.add_row = MagicMock()  # ty: ignore[invalid-assignment]
+    table.add_row = MagicMock()
 
     group._add_node_row(node, table)
 
@@ -246,8 +246,8 @@ def test_node_group_add_node_row_all_shows(
         ["gpu", "fast"], set(), CFG.nodes_presenter.main_text_style
     )
 
-    assert table.add_row.call_count == 1  # ty: ignore[unresolved-attribute]
-    assert len(table.add_row.call_args[0]) == 10  # ty: ignore[unresolved-attribute]
+    assert table.add_row.call_count == 1
+    assert len(table.add_row.call_args[0]) == 10
 
 
 @patch(
@@ -288,11 +288,11 @@ def test_node_group_add_node_row_all_shows_false(
     group._show_ssd = False
     group._show_shared = False
     group._show_props = False
-    group._shared_properties = set()
+    group._shared_properties = set()  # ty: ignore[invalid-assignment]
     group.stats = MagicMock()
 
     table = Table()
-    table.add_row = MagicMock()  # ty: ignore[invalid-assignment]
+    table.add_row = MagicMock()
 
     group._add_node_row(node, table)
 
@@ -305,8 +305,8 @@ def test_node_group_add_node_row_all_shows_false(
         "16gb", "32gb", CFG.nodes_presenter.unavailable_node_style
     )
 
-    assert table.add_row.call_count == 1  # ty: ignore[unresolved-attribute]
-    assert len(table.add_row.call_args[0]) == 4  # ty: ignore[unresolved-attribute]
+    assert table.add_row.call_count == 1
+    assert len(table.add_row.call_args[0]) == 4
 
 
 def test_node_group_set_shared_properties_with_common_values():
@@ -441,7 +441,7 @@ def test_node_group_create_nodes_table(mock_add_row):
         "Extra Properties",
     ]
 
-    actual_headers = [col.header.plain for col in table.columns]
+    actual_headers = [col.header.plain for col in table.columns]  # ty: ignore[missing-attribute]
     assert actual_headers == expected_headers
 
     assert mock_add_row.call_count == 2
@@ -465,7 +465,7 @@ def test_node_group_create_nodes_table_respects_disabled_columns(mock_add_row):
     table = group.create_nodes_table()
 
     expected_headers = ["", "Name", "NCPUs", "CPU Mem"]
-    actual_headers = [col.header.plain for col in table.columns]
+    actual_headers = [col.header.plain for col in table.columns]  # ty: ignore[missing-attribute]
     assert actual_headers == expected_headers
 
     mock_add_row.assert_called_once_with(node, table)
@@ -973,8 +973,8 @@ def test_nodes_presenter_create_metadata_panel(mock_sum_stats, mock_format_table
 
     assert isinstance(result, Group)
     assert isinstance(result.renderables[1], Rule)
-    assert result.renderables[1].title.plain == "OVERALL STATISTICS"
-    assert result.renderables[1].title.style == CFG.nodes_presenter.title_style
+    assert result.renderables[1].title.plain == "OVERALL STATISTICS"  # ty: ignore[missing-union-attribute]
+    assert result.renderables[1].title.style == CFG.nodes_presenter.title_style  # ty: ignore[missing-union-attribute]
     assert result.renderables[1].style == CFG.nodes_presenter.rule_style
     assert result.renderables[3] == "formatted_metadata"
 
@@ -1007,8 +1007,8 @@ def test_nodes_presenter_create_nodes_info_panel_multiple_groups(
 
     assert isinstance(result, Group)
     assert isinstance(result.renderables[1], Panel)
-    assert result.renderables[1].title.plain == "NODE GROUP: alpha"
-    assert result.renderables[1].title.style == CFG.nodes_presenter.title_style
+    assert result.renderables[1].title.plain == "NODE GROUP: alpha"  # ty: ignore[missing-union-attribute]
+    assert result.renderables[1].title.style == CFG.nodes_presenter.title_style  # ty: ignore[missing-union-attribute]
     assert result.renderables[1].border_style == CFG.nodes_presenter.border_style
 
 
@@ -1033,8 +1033,8 @@ def test_nodes_presenter_create_nodes_info_panel_single_group(
 
     assert isinstance(result, Group)
     assert isinstance(result.renderables[1], Panel)
-    assert result.renderables[1].title.plain == "NODE GROUP: solo"
-    assert result.renderables[1].title.style == CFG.nodes_presenter.title_style
+    assert result.renderables[1].title.plain == "NODE GROUP: solo"  # ty: ignore[missing-union-attribute]
+    assert result.renderables[1].title.style == CFG.nodes_presenter.title_style  # ty: ignore[missing-union-attribute]
     assert result.renderables[1].border_style == CFG.nodes_presenter.border_style
 
 

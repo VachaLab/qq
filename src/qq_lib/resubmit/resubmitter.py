@@ -1,17 +1,21 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.core.operator import Operator
 from qq_lib.core.retryer import Retryer
-from qq_lib.info import Informer
 from qq_lib.properties.depend import Depend, DependType
-from qq_lib.properties.resubmit_host import ResubmitHost
 from qq_lib.submit import Submitter
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from qq_lib.info import Informer
+    from qq_lib.properties.resubmit_host import ResubmitHost
 
 logger = get_logger(__name__, show_time=True)
 
@@ -26,7 +30,7 @@ class Resubmitter(Operator):
         Resubmit the job to the next cycle.
 
         Returns:
-            str: The job ID of the newly submitted job.
+            The job ID of the newly submitted job.
 
         Raises:
             QQError: If the main node is not defined or if resubmission fails
@@ -71,11 +75,11 @@ class Resubmitter(Operator):
         cycle has already run, so its original dependencies must have been satisfied.
 
         Args:
-            informer (Informer): The informer instance holding job metadata.
-            input_dir (Path): Path to the directory containing the job's input files.
+            informer: The informer instance holding job metadata.
+            input_dir: Path to the directory containing the job's input files.
 
         Returns:
-            Submitter: A configured submitter ready to submit the job.
+            A configured submitter ready to submit the job.
         """
         return Submitter(
             batch_system=informer.batch_system,
@@ -111,12 +115,12 @@ class Resubmitter(Operator):
         Attempt resubmission on each candidate host in order.
 
         Args:
-            submitter (Submitter): The configured submitter to use for job submission.
-            informer (Informer): The informer instance holding job metadata.
-            hosts (list[ResubmitHost]): Ordered list of candidate resubmission hosts to try.
+            submitter: The configured submitter to use for job submission.
+            informer: The informer instance holding job metadata.
+            hosts: Ordered list of candidate resubmission hosts to try.
 
         Returns:
-            str: The job ID of the newly submitted job.
+            The job ID of the newly submitted job.
 
         Raises:
             QQError: If the main node is not defined in the job metadata.

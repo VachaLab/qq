@@ -11,13 +11,14 @@ and exit with appropriate qq exit codes when necessary.
 """
 
 import sys
-from typing import NoReturn
-
-from qq_lib.core.command_runner import CommandRunner
+from typing import TYPE_CHECKING, NoReturn
 
 from .config import CFG
 from .error import QQNotSuitableError, terminate
 from .logger import get_logger
+
+if TYPE_CHECKING:
+    from qq_lib.core.command_runner import CommandRunner
 
 logger = get_logger(__name__)
 
@@ -42,6 +43,10 @@ def handle_not_suitable_error(
         == runner.n_jobs
     ):
         logger.error("No suitable qq job.\n")
+        sys.exit(CFG.exit_codes.default)
+
+    # all jobs failed, but some of them with a different error
+    elif len(runner.encountered_errors) == runner.n_jobs:
         sys.exit(CFG.exit_codes.default)
 
 
@@ -70,4 +75,3 @@ def ignore_error(
     _runner: CommandRunner,
 ) -> None:
     """Ignore the error."""
-    pass

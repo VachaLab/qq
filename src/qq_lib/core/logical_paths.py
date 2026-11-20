@@ -20,16 +20,47 @@ accordingly. The logical cwd is initialized from $PWD at import time, which is
 the only moment the shell-maintained logical path is reliably available.
 """
 
+import functools
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from qq_lib.core.logger import get_logger
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
 logger = get_logger(__name__)
+
+
+def _initial_logical_cwd() -> Path:
+    """
+    Determine the logical current working directory at import time.
+
+    $PWD is only used if it points to the actual current working directory.
+    It may be stale if the process was started by another program than a shell,
+    e.g. by `subprocess.run(..., cwd=...)` in Python, which changes the working
+    directory but keeps the $PWD of the parent process.
+
+    Returns:
+        $PWD if it is an absolute path to the current working directory,
+        otherwise the physical current working directory.
+    """
+    physical = Path.cwd()
+    pwd = os.environ.get("PWD")
+
+    try:
+        if pwd and Path(pwd).is_absolute() and Path(pwd).samefile(physical):
+            return Path(pwd)
+    except OSError:
+        pass
+
+    return physical
+
 
 # initialized from $PWD at import time, while the shell-maintained logical path
 # is still valid; after this point, _chdir keeps it in sync
-_logical_cwd = Path(os.environ.get("PWD", Path.cwd()))
+_logical_cwd = _initial_logical_cwd()
 
 _real_chdir = os.chdir
 
@@ -46,7 +77,7 @@ def _chdir(path: str | Path) -> None:
     before delegating to the real os.chdir.
 
     Args:
-        path (str | Path): The directory to change to. May be relative or absolute.
+        path: The directory to change to. May be relative or absolute.
     """
     global _logical_cwd
     path = Path(path)
@@ -61,6 +92,20 @@ def _chdir(path: str | Path) -> None:
 
 # replacing the standard os.chdir with the patched version
 os.chdir = _chdir  # type: ignore
+
+
+def logical_cwd() -> Path:
+    """Return the logical current working directory (symlinks not expanded)."""
+    return _logical_cwd
+
+
+@functools.cache
+def _physical(path: Path) -> Path | None:
+    """Return the physical path of an existing logical path, or None if it cannot be resolved."""
+    try:
+        return path.resolve(strict=True)
+    except OSError:
+        return None
 
 
 def logical_resolve(path: Path, base: Path | None = None) -> Path:
@@ -80,13 +125,13 @@ def logical_resolve(path: Path, base: Path | None = None) -> Path:
     performed, so symlinks are never followed.
 
     Args:
-        path (Path): The path to resolve. May be relative or absolute.
-        base (Path | None): The base directory to anchor relative paths to. Must be a
+        path: The path to resolve. May be relative or absolute.
+        base: The base directory to anchor relative paths to. Must be a
             logical absolute path. Defaults to the logical current working
             directory maintained by the os.chdir patch.
 
     Returns:
-        Path: A logical absolute path with `.` and `..` components resolved
+        A logical absolute path with `.` and `..` components resolved
         but symlinks left intact.
     """
     if not path.is_absolute():
@@ -94,3 +139,39 @@ def logical_resolve(path: Path, base: Path | None = None) -> Path:
             base = _logical_cwd
         path = base / path
     return Path(os.path.normpath(path))
+
+
+def to_logical(path: Path, anchors: Iterable[Path] | None = None) -> Path:
+    """
+    Convert a physical absolute path to a logical one, if possible.
+
+    Older qq versions stored physical paths (with symlinks expanded). This maps
+    such a path back to its logical form using known logical directories
+    (`anchors`, by default the logical cwd and $HOME): each anchor and its
+    ancestors are resolved physically, and if `path` lies below one of those
+    physical paths, that prefix is replaced by the logical directory.
+    The deepest matching ancestor of the first matching anchor is used.
+
+    Paths that do not match any anchor (including paths that are already
+    logical) are returned unchanged.
+
+    Args:
+        path: The path to convert.
+        anchors: Logical absolute directories to map through.
+
+    Returns:
+        The logical form of `path`, or `path` itself if no mapping was found.
+    """
+    path = logical_resolve(path)
+    if anchors is None:
+        anchors = (logical_cwd(), logical_resolve(Path.home()))
+
+    for anchor in anchors:
+        for ancestor in (anchor, *anchor.parents):
+            physical = _physical(ancestor)
+            if physical is None or physical == ancestor:
+                continue  # unresolvable, or no symlink involved
+            if path.is_relative_to(physical):
+                return ancestor / path.relative_to(physical)
+
+    return path

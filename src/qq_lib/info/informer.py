@@ -1,8 +1,6 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Self
 
 from qq_lib.batch.interface import BatchInterface, BatchJobInterface
@@ -29,10 +27,12 @@ class Informer:
         Initialize the informer with job information.
 
         Args:
-            info (Info): An Info object containing raw job data.
+            info: An Info object containing raw job data.
         """
         self.info = info
         self._batch_info: BatchJobInterface | None = None
+        # machine from which the info file was read, `None` if read from the current machine
+        self._host: str | None = None
 
     @property
     def batch_system(self) -> type[BatchInterface]:
@@ -40,7 +40,7 @@ class Informer:
         Return the batch system class used for this job.
 
         Returns:
-            type[BatchInterface]: The batch system class used for this job.
+            The batch system class used for this job.
         """
         return self.info.batch_system
 
@@ -52,16 +52,18 @@ class Informer:
         If 'host' is provided, the file is read from the remote host; otherwise, it is read locally.
 
         Args:
-            file (Path): Path to a YAML file containing job information.
-            host (str | None): Optional remote host from which to read the file.
+            file: Path to a YAML file containing job information.
+            host: Optional remote host from which to read the file.
 
         Returns:
-            Informer: An instance initialized with the loaded Info.
+            An instance initialized with the loaded Info.
 
         Raises:
             QQError: If the file cannot be read, reached, or parsed correctly.
         """
-        return cls(Info.from_file(file, host))
+        informer = cls(Info.from_file(file, host))
+        informer._host = host
+        return informer
 
     @classmethod
     def from_job_id(cls, job_id: str) -> Self:
@@ -73,10 +75,10 @@ class Informer:
         as it also sets `_batch_info` without additional batch-system queries.
 
         Args:
-            job_id (str): The job identifier.
+            job_id: The job identifier.
 
         Returns:
-            Informer: The loaded informer.
+            The loaded informer.
 
         Raises:
             QQError: If the job does not exist or is not a valid qq job.
@@ -100,10 +102,10 @@ class Informer:
         as it also sets `_batch_info` without additional batch-system queries.
 
         Args:
-            batch_job (BatchJobInterface): The job info provided by the batch system.
+            batch_job: The job info provided by the batch system.
 
         Returns:
-            Informer: The loaded informer.
+            The loaded informer.
 
         Raises:
             QQError: If the job is not a valid qq job (missing info file).
@@ -136,7 +138,7 @@ class Informer:
         but the BatchJobInterface is empty.
 
         Args:
-            informers (list[Informer]): The list of informers to set the batch info for.
+            informers: The list of informers to set the batch info for.
         """
         if not informers:
             return
@@ -153,8 +155,8 @@ class Informer:
         If `host` is provided, the file is written to the remote host; otherwise, it is written locally.
 
         Args:
-            file (Path): Path to the output YAML file.
-            host (str | None): Optional remote host where the file should be written.
+            file: Path to the output YAML file.
+            host: Optional remote host where the file should be written.
 
         Raises:
             QQError: If the file cannot be created, reached, or written to.
@@ -166,10 +168,10 @@ class Informer:
         Determine whether this informer corresponds to the specified job ID.
 
         Args:
-            job_id (str): The job ID to compare against (e.g., "12345" or "12345.cluster.domain").
+            job_id: The job ID to compare against (e.g., "12345" or "12345.cluster.domain").
 
         Returns:
-            bool: True if both job IDs refer to the same job (same numeric/job part),
+            True if both job IDs refer to the same job (same numeric/job part),
                 False otherwise.
         """
         return self.info.job_id.split(".", 1)[0] == job_id.split(".", 1)[0]
@@ -181,9 +183,9 @@ class Informer:
         Mark the job as running and set associated metadata.
 
         Args:
-            time (datetime): Job start time.
-            main_node (str): Main node assigned to the job.
-            work_dir (Path): Working directory used by the job.
+            time: Job start time.
+            main_node: Main node assigned to the job.
+            work_dir: Working directory used by the job.
         """
         self.info.job_state = NaiveState.RUNNING
         self.info.start_time = time
@@ -196,7 +198,7 @@ class Informer:
         Mark the job as finished successfully.
 
         Args:
-            time (datetime): Job completion time.
+            time: Job completion time.
         """
         self.info.job_state = NaiveState.FINISHED
         self.info.completion_time = time
@@ -207,8 +209,8 @@ class Informer:
         Mark the job as failed.
 
         Args:
-            time (datetime): Job completion (failure) time.
-            exit_code (int): Exit code of the failed job.
+            time: Job completion (failure) time.
+            exit_code: Exit code of the failed job.
         """
         self.info.job_state = NaiveState.FAILED
         self.info.completion_time = time
@@ -219,7 +221,7 @@ class Informer:
         Mark the job as killed.
 
         Args:
-            time (datetime): Time when the job was killed.
+            time: Time when the job was killed.
         """
         self.info.job_state = NaiveState.KILLED
         self.info.completion_time = time
@@ -230,7 +232,7 @@ class Informer:
         Determine if the job uses a scratch directory.
 
         Returns:
-            bool: True if a scratch is used, False if it is not.
+            True if a scratch is used, False if it is not.
         """
         return self.info.resources.uses_scratch()
 
@@ -239,7 +241,7 @@ class Informer:
         Retrieve the job's main node and working directory.
 
         Returns:
-            tuple[str, Path] | None: A tuple of (main_node, work_dir)
+            A tuple of (main_node, work_dir)
                 if both are set, otherwise None.
         """
         if (main_node := self.info.main_node) and (work_dir := self.info.work_dir):
@@ -267,7 +269,7 @@ class Informer:
         via `batch_system.get_batch_job`. This avoids unnecessary remote calls.
 
         Returns:
-            BatchState: The job's state according to the batch system.
+            The job's state according to the batch system.
         """
         if not self._batch_info:
             self._batch_info = self.batch_system.get_batch_job(self.info.job_id)
@@ -283,8 +285,9 @@ class Informer:
         via `batch_system.get_batch_job`. This avoids unnecessary remote calls.
 
         Returns:
-            RealState: The job's real state obtained by combining information
-            from qq and the batch system.
+            The job's real state obtained by combining information
+            from qq and the batch system. `RealState.UNKNOWN` if the batch
+            system could not be asked about the job.
         """
         # shortcut: if the naive state is unknown, there is no need to check batch state
         if self.info.job_state in {
@@ -295,7 +298,17 @@ class Informer:
             )
             return RealState.from_states(self.info.job_state, BatchState.UNKNOWN)
 
-        return RealState.from_states(self.info.job_state, self.get_batch_state())
+        batch_state = self.get_batch_state()
+
+        # if the batch system could not be asked, the real state cannot be determined;
+        # the job must not be mistaken for a job that no longer exists in the batch system
+        if batch_state == BatchState.UNKNOWN and self.get_batch_info().is_unreachable():
+            logger.debug(
+                f"Could not get information about job '{self.info.job_id}' from the batch system."
+            )
+            return RealState.UNKNOWN
+
+        return RealState.from_states(self.info.job_state, batch_state)
 
     def get_comment(self) -> str | None:
         """
@@ -305,7 +318,7 @@ class Informer:
         via `batch_system.get_batch_job`. This avoids unnecessary remote calls.
 
         Returns:
-            str | None: The job comment if available, otherwise None.
+            The job comment if available, otherwise None.
         """
         if not self._batch_info:
             self._batch_info = self.batch_system.get_batch_job(self.info.job_id)
@@ -320,7 +333,7 @@ class Informer:
         via `batch_system.get_batch_job`. This avoids unnecessary remote calls.
 
         Returns:
-            tuple[datetime, str] | None: A tuple containing the estimated start time
+            A tuple containing the estimated start time
             (as a datetime) and the execution node (as a string), or None if the
             information is not available.
         """
@@ -339,7 +352,7 @@ class Informer:
         via `batch_system.get_batch_job`. This avoids unnecessary remote calls.
 
         Returns:
-            str | None: The hostname of the main execution node, or None if the
+            The hostname of the main execution node, or None if the
             information is not available.
         """
         if not self._batch_info:
@@ -357,9 +370,8 @@ class Informer:
         via `batch_system.get_batch_job`. This avoids unnecessary remote calls.
 
         Returns:
-            list[str] | None:
-                A list of hostnames (or node identifiers) where the job is running,
-                or `None` if the job has not started or node information is unavailable.
+            A list of hostnames (or node identifiers) where the job is running,
+            or `None` if the job has not started or node information is unavailable.
         """
         if not self._batch_info:
             self._batch_info = self.batch_system.get_batch_job(self.info.job_id)
@@ -372,7 +384,7 @@ class Informer:
         the batch system, cache it, and return the result.
 
         Returns:
-            BatchJobInterface: The information about the job from the batch system.
+            The information about the job from the batch system.
         """
         if self._batch_info is None:
             self._batch_info = self.batch_system.get_batch_job(self.info.job_id)
@@ -385,9 +397,19 @@ class Informer:
         Be aware that the info file does not have to exist.
 
         Returns:
-            Path: Absolute path to the info file.
+            Absolute path to the info file.
         """
         return construct_info_file_path(self.info.input_dir, self.info.job_name)
+
+    def get_host(self) -> str | None:
+        """
+        Get the machine from which the info file of this job was read.
+
+        Returns:
+            Hostname of the machine, or `None` if the info file was read from
+            the current machine or the informer was not created from a file.
+        """
+        return self._host
 
     def should_transfer_files(self, exit_code: int) -> bool:
         """

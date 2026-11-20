@@ -12,11 +12,13 @@ and referenced job IDs.
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
-from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
+
+if TYPE_CHECKING:
+    from qq_lib.batch.interface import AnyBatchClass
 
 logger = get_logger(__name__)
 
@@ -39,7 +41,7 @@ class DependType(Enum):
     AFTER_COMPLETION = 3
 
     @classmethod
-    def from_str(cls, string: str) -> "DependType":
+    def from_str(cls, string: str) -> DependType:
         """
         Convert a dependency string keyword to a `DependType`.
 
@@ -50,10 +52,10 @@ class DependType(Enum):
         - "afterany" - AFTER_COMPLETION
 
         Args:
-            string (str): Dependency type keyword.
+            string: Dependency type keyword.
 
         Returns:
-            DependType: Corresponding dependency type enum.
+            Corresponding dependency type enum.
 
         Raises:
             QQError: If the given string does not correspond to any known dependency type.
@@ -75,7 +77,7 @@ class DependType(Enum):
         Convert the dependency type to its corresponding string keyword.
 
         Returns:
-            str: One of the recognized dependency keywords:
+            One of the recognized dependency keywords:
                 - "after" for AFTER_START
                 - "afterok" for AFTER_SUCCESS
                 - "afternotok" for AFTER_FAILURE
@@ -108,8 +110,8 @@ class Depend:
     and a list of job IDs that the current job depends on.
 
     Attributes:
-        type (DependType): The type of dependency, determined by the dependency keyword.
-        jobs (list[str]): List of job IDs this dependency refers to.
+        type: The type of dependency, determined by the dependency keyword.
+        jobs: List of job IDs this dependency refers to.
     """
 
     type: DependType
@@ -125,7 +127,7 @@ class Depend:
         - `<job_id>` values are colon-separated job identifiers.
 
         Args:
-            raw_depend (str): Raw dependency string to parse.
+            raw_depend: Raw dependency string to parse.
 
         Raises:
             QQError: If the dependency string is malformed or cannot be parsed.
@@ -152,10 +154,10 @@ class Depend:
         spaces, or both. Each expression will be parsed into a separate `Depend` instance.
 
         Args:
-            raw (str): Raw dependency string possibly containing multiple expressions.
+            raw: Raw dependency string possibly containing multiple expressions.
 
         Returns:
-            list[Depend]: A list of parsed dependency objects.
+            A list of parsed dependency objects.
 
         Raises:
             QQError: If any dependency expression within the string is malformed.
@@ -171,7 +173,7 @@ class Depend:
             <type>=<job_id1>:<job_id2>:...
 
         Returns:
-            str: String representation combining the dependency type keyword and
+            String representation combining the dependency type keyword and
                 the colon-separated list of job IDs.
         """
         return f"{self.type.to_str()}={':'.join(self.jobs)}"
@@ -184,19 +186,17 @@ def filter_dependencies(
     Filter dependencies to only include those that are still present in the batch system.
 
     Args:
-        batch_system (AnyBatchClass): The batch system to check job presence against.
-        dependencies (list[Depend]): The list of dependencies to filter.
+        batch_system: The batch system to check job presence against.
+        dependencies: The list of dependencies to filter.
 
     Returns:
-        list[Depend]: The filtered list of dependencies.
+        The filtered list of dependencies.
     """
     filtered: list[Depend] = []
     for depend in dependencies:
         # get jobs that are still present in the batch system
         valid_jobs = [
-            job_id
-            for job_id in depend.jobs
-            if not (batch_system.get_batch_job(job_id)).is_empty()
+            job_id for job_id in depend.jobs if batch_system.is_valid_dependency(job_id)
         ]
 
         if valid_jobs:

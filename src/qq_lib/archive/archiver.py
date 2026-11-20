@@ -4,15 +4,19 @@
 import re
 import shutil
 import socket
-from collections.abc import Iterable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from qq_lib.batch.interface import AnyBatchClass
 from qq_lib.core.common import is_printf_pattern, printf_to_regex, relocate_by_name
 from qq_lib.core.config import CFG
 from qq_lib.core.logger import get_logger
 from qq_lib.core.logical_paths import logical_resolve
 from qq_lib.core.retryer import Retryer
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from qq_lib.batch.interface import AnyBatchClass
 
 logger = get_logger(__name__, show_time=True)
 
@@ -32,22 +36,25 @@ class Archiver:
         included_files: list[Path],
         excluded_files: list[Path],
         ignored_files: list[Path],
+        runtime_files: list[str] | None = None,
     ):
         """
         Initialize the Archiver.
 
         Args:
-            archive (Path): Absolute path to the job's archive directory.
-            archive_format (str): Printf-style or regex pattern describing archived filenames.
-            input_machine (str): The hostname from which the job was submitted.
-            input_dir (Path): The directory from which the job was submitted.
-            batch_system (AnyBatchClass): The batch system which manages the job.
-            included_files (list[Path]): List that were explicitly included
+            archive: Absolute path to the job's archive directory.
+            archive_format: Printf-style or regex pattern describing archived filenames.
+            input_machine: The hostname from which the job was submitted.
+            input_dir: The directory from which the job was submitted.
+            batch_system: The batch system which manages the job.
+            included_files: List that were explicitly included
                 in the working directory and should not be archived.
-            excluded_files (list[Path]): List of files that were explicitly excluded
+            excluded_files: List of files that were explicitly excluded
                 from the working directory and should not be fetched from archive.
-            ignored_files (list[Path]): List of files that are ignored and should be neither
+            ignored_files: List of files that are ignored and should be neither
                 archived nor fetched from archive.
+            runtime_files: Names of the job's standard output and standard error files.
+                These are qq runtime files and are never archived from the working directory.
         """
         self._batch_system = batch_system
         self._archive = archive
@@ -57,6 +64,7 @@ class Archiver:
         self._included_files = included_files
         self._excluded_files = excluded_files
         self._ignored_files = ignored_files
+        self._runtime_files = set(runtime_files or [])
 
     @property
     def archive(self) -> Path:
@@ -87,8 +95,8 @@ class Archiver:
         Files that were explicitly excluded via the `exclude` submission option are not fetched.
 
         Args:
-            dir (Path): The directory where files will be copied to.
-            cycle (int | None): The cycle number to filter files for.
+            dir: The directory where files will be copied to.
+            cycle: The cycle number to filter files for.
                 Only relevant for printf-style patterns. If `None`, all
                 matching files are fetched. Defaults to `None`.
 
@@ -135,18 +143,58 @@ class Archiver:
         Files that were explicitly included via the `include` submission option are not archived.
 
         Args:
-            work_dir (Path): The directory containing files to archive.
+            dir: The directory containing files to archive.
 
         Raises:
             QQError: If file transfer or removal fails.
         """
+        if not (files := self.copy_to_archive(dir, None, self._input_machine)):
+            return
+
+        # remove the archived files
+        Retryer(
+            self._remove_files,
+            files,
+            max_tries=CFG.archiver.retry_tries,
+            wait_seconds=CFG.archiver.retry_wait,
+        ).run()
+
+    def copy_to_archive(
+        self,
+        dir: Path,
+        host: str | None,
+        archive_host: str | None,
+        selected: list[Path] | None = None,
+    ) -> list[Path]:
+        """
+        Copy all files matching the archive format from the specified directory to the archive.
+
+        The files are not removed from `dir`. Files that were explicitly included
+        via the `include` submission option or ignored via the `ignore` submission option
+        are not archived.
+
+        Args:
+            dir: The directory containing files to archive.
+            host: Hostname of the machine on which `dir` is located,
+                or None if it is available from the current machine.
+            archive_host: Hostname of the machine on which the archive is located,
+                or None if it is available from the current machine.
+            selected: If provided, only files from this list (absolute paths in `dir`)
+                are archived.
+
+        Returns:
+            Absolute paths of the archived files in `dir`.
+
+        Raises:
+            QQError: If the file transfer fails.
+        """
         if not (
             files := self.get_files_matching_pattern(
-                dir, None, self._archive_format, None, False
+                dir, host, self._archive_format, None, False
             )
         ):
             logger.debug("Nothing to archive.")
-            return
+            return []
 
         # files that were explicitly included via the `include` submission option are not archived
         # as well as files that are explicitly ignored via the `ignore` submission option
@@ -156,26 +204,28 @@ class Archiver:
         )
         files = [file for file in files if file not in exclude]
 
+        if selected is not None:
+            chosen = {logical_resolve(file) for file in selected}
+            files = [file for file in files if file in chosen]
+
+        if not files:
+            logger.debug("Nothing to archive.")
+            return []
+
         logger.debug(f"Files to archive: {files}.")
 
         Retryer(
             self._batch_system.sync_selected,
             dir,
             self._archive,
-            socket.getfqdn(),
-            self._input_machine,
+            host or socket.getfqdn(),
+            archive_host,
             files,
             max_tries=CFG.archiver.retry_tries,
             wait_seconds=CFG.archiver.retry_wait,
         ).run()
 
-        # remove the archived files
-        Retryer(
-            self._remove_files,
-            files,
-            max_tries=CFG.archiver.retry_tries,
-            wait_seconds=CFG.archiver.retry_wait,
-        ).run()
+        return files
 
     def archive_runtime_files(self, job_name: str, cycle: int) -> None:
         """
@@ -190,8 +240,8 @@ class Archiver:
         of whether they have any qq-specific suffixes.
 
         Args:
-            job_name (str): The name of the job.
-            cycle (int): Cycle number for which the files should be archived.
+            job_name: The name of the job.
+            cycle: Cycle number for which the files should be archived.
 
         Raises:
             QQError: If moving the runtime files fails.
@@ -239,17 +289,23 @@ class Archiver:
         Determine which files in a directory match a given pattern.
 
         Args:
-            directory (Path): Directory to search for files.
-            host (str | None): Hostname if the directory is remote,
+            directory: Directory to search for files.
+            host: Hostname if the directory is remote,
                 or None if it is available from the current machine.
-            pattern (str): A printf-style or regex pattern to match file stems.
-            cycle (int | None): Optional cycle number for printf-style patterns.
+            pattern: A printf-style or regex pattern to match file stems.
+            cycle: Optional cycle number for printf-style patterns.
                 If provided, only files corresponding to that loop are returned.
                 If `None`, all matching files are returned. Defaults to `None`.
-            include_qq_files (bool): Whether to include qq runtime files. Defaults to False.
+            include_qq_files: Whether to include qq runtime files. Defaults to False.
 
         Returns:
-            list[Path]: A list of absolute (logical) paths to matching files.
+            A list of absolute (logical) paths to matching files.
+
+        Notes:
+            qq info files and qq output files are always qq runtime files. Files with
+            the suffixes of the job's standard output and standard error are only qq runtime
+            files if they are the job's own standard output and standard error files,
+            since other programs use these suffixes too.
         """
         if cycle and is_printf_pattern(pattern):
             try:
@@ -289,8 +345,24 @@ class Archiver:
         return [
             logical_resolve(f)
             for f in available_files
-            if regex.search(f.stem) and f.suffix not in CFG.suffixes.all_suffixes
+            if regex.search(f.stem) and not self._is_runtime_file(f)
         ]
+
+    def _is_runtime_file(self, file: Path) -> bool:
+        """
+        Check whether a file is a qq runtime file.
+
+        Args:
+            file: The file to check.
+
+        Returns:
+            True if the file is a qq info file, a qq output file, or the job's own
+            standard output or standard error file. False otherwise.
+        """
+        if file.suffix in {CFG.suffixes.qq_info, CFG.suffixes.qq_out}:
+            return True
+
+        return file.name in self._runtime_files
 
     def _get_excluded_from_copying_to_archive(self, dir: Path) -> list[Path]:
         """
@@ -301,10 +373,10 @@ class Archiver:
         preserving the order of first occurrence.
 
         Args:
-            dir (Path): The directory from which we are archiving the files.
+            dir: The directory from which we are archiving the files.
 
         Returns:
-            list[Path]: Paths that should not be copied to the archive.
+            Paths that should not be copied to the archive.
         """
 
         return list(
@@ -328,7 +400,7 @@ class Archiver:
         Duplicates are removed, preserving the order of first occurrence.
 
         Returns:
-            list[Path]: Paths that should not be copied from the archive.
+            Paths that should not be copied from the archive.
         """
 
         return list(
@@ -346,7 +418,7 @@ class Archiver:
         Used as a fallback when no valid archive file is produced, ensuring
         the next iteration of the loop job can proceed normally.
         Args:
-            cycle (int): The index of the next cycle of the loop job.
+            cycle: The index of the next cycle of the loop job.
         """
         Path(f"{self._archive_format % cycle}.init").touch()
 
@@ -356,10 +428,10 @@ class Archiver:
         Convert a printf-style pattern or regex string into a compiled regex.
 
         Args:
-            pattern (str): The pattern to convert.
+            pattern: The pattern to convert.
 
         Returns:
-            re.Pattern[str]: Compiled regex pattern that can be used for matching.
+            Compiled regex pattern that can be used for matching.
         """
         if is_printf_pattern(pattern):
             pattern = printf_to_regex(pattern)
@@ -372,7 +444,7 @@ class Archiver:
         Remove a list of files or directories from the filesystem.
 
         Args:
-            files (Iterable[Path]): Files or directories to delete.
+            files: Files or directories to delete.
 
         Raises:
             OSError: If file or directory removal fails for any file.

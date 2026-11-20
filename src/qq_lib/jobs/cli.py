@@ -11,7 +11,7 @@ from rich.console import Console
 
 from qq_lib.batch.interface import BatchInterface
 from qq_lib.core.click_format import GNUHelpColorsCommand
-from qq_lib.core.common import translate_server
+from qq_lib.core.common import delayed_spinner, translate_server
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -62,10 +62,11 @@ def jobs(user: str, extra: bool, all: bool, server: str | None, yaml: bool) -> N
         if server:
             server = translate_server(server)
 
-        if all:
-            jobs = BatchSystem.get_batch_jobs(user, server)
-        else:
-            jobs = BatchSystem.get_unfinished_batch_jobs(user, server)
+        with delayed_spinner("Collecting jobs..."):
+            if all:
+                jobs = BatchSystem.get_batch_jobs(user, server)
+            else:
+                jobs = BatchSystem.get_unfinished_batch_jobs(user, server)
 
         if not jobs:
             logger.info("No jobs found.")
@@ -77,7 +78,8 @@ def jobs(user: str, extra: bool, all: bool, server: str | None, yaml: bool) -> N
             presenter.dump_yaml()
         else:
             console = Console(record=False, markup=False)
-            panel = presenter.create_jobs_info_panel(console)
+            with delayed_spinner("Building the output table..."):
+                panel = presenter.create_jobs_info_panel(console)
             console.print(panel)
 
         sys.exit(0)

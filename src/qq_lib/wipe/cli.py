@@ -2,7 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 from pathlib import Path
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import click
 from rich.console import Console
@@ -22,8 +22,10 @@ from qq_lib.core.error_handlers import (
     handle_not_suitable_error,
 )
 from qq_lib.core.logger import get_logger
-from qq_lib.info.informer import Informer
 from qq_lib.wipe.wiper import Wiper
+
+if TYPE_CHECKING:
+    from qq_lib.info.informer import Informer
 
 logger = get_logger(__name__)
 console = Console()
@@ -66,6 +68,12 @@ If the working directory matches the input directory, `{CFG.binary_name} wipe` w
     help="One or more directories to search for qq jobs in. Supports globs.",
 )
 @click.option(
+    "-r",
+    "--recursive",
+    is_flag=True,
+    help="Also search subdirectories, except those inside a qq job's directory.",
+)
+@click.option(
     "-y",
     "--yes",
     is_flag=True,
@@ -77,7 +85,11 @@ If the working directory matches the input directory, `{CFG.binary_name} wipe` w
     help="Delete the working directory of the job forcibly, ignoring its current state and without confirmation.",
 )
 def wipe(
-    jobs: tuple[str, ...], dir: tuple[Path, ...], yes: bool = False, force: bool = False
+    jobs: tuple[str, ...],
+    dir: tuple[Path, ...],
+    recursive: bool,
+    yes: bool,
+    force: bool,
 ) -> NoReturn:
     """
     Delete the working directory of the specified qq job or qq job(s) submitted from the current directory.
@@ -91,6 +103,7 @@ def wipe(
         logger,
         force,
         yes,
+        recursive=recursive,
         n_threads=CFG.parallelization_options.job_info_max_threads,
     ).on_exception(QQNotSuitableError, handle_not_suitable_error).on_exception(
         QQError, handle_general_qq_error
@@ -102,10 +115,10 @@ def _wipe_work_dir(informer: Informer, force: bool, yes: bool) -> None:
     Attempt to delete the working directory of the job associated with the specified Informer.
 
     Args:
-        informer (Informer): Informer associated with the job.
-        force (bool): Whether to forcibly delete the working directory regardless of the job's state.
-        yes (bool): Whether to skip confirmation before deleting.
-        job (str | None): Optional job ID for matching the target job.
+        informer: Informer associated with the job.
+        force: Whether to forcibly delete the working directory regardless of the job's state.
+        yes: Whether to skip confirmation before deleting.
+        job: Optional job ID for matching the target job.
 
     Raises:
         QQNotSuitableError: If the job does (or should) not have a working directory.

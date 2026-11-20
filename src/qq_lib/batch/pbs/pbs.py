@@ -3,18 +3,19 @@
 
 
 import os
+import shlex
 import shutil
 import socket
 import subprocess
-from collections.abc import Callable
 from functools import partial
 from pathlib import Path
+from typing import TYPE_CHECKING, ClassVar
 
 from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.pbs.common import parse_multi_pbs_dump_to_dictionaries
 from qq_lib.batch.pbs.node import PBSNode
 from qq_lib.batch.pbs.queue import PBSQueue
-from qq_lib.core.common import equals_normalized
+from qq_lib.core.common import equals_normalized, run_with_timeout
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -23,6 +24,9 @@ from qq_lib.properties.depend import Depend
 from qq_lib.properties.resources import Resources
 
 from .job import PBSJob
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = get_logger(__name__)
 
@@ -33,7 +37,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
     """
 
     # all standard scratch directory (excl. in RAM scratch) types supported by PBS
-    SUPPORTED_SCRATCHES = ["scratch_local", "scratch_ssd", "scratch_shared"]
+    SUPPORTED_SCRATCHES: ClassVar[list[str]] = [
+        "scratch_local",
+        "scratch_ssd",
+        "scratch_shared",
+    ]
 
     # indicates that an operation with shared storage failed
     _shared_storage_failed: bool = False
@@ -62,7 +70,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         # (the allocated scratch dir cannot be deleted)
         work_dir = logical_resolve(scratch_dir / CFG.pbs_options.scratch_dir_inner)
 
-        logger.debug(f"Creating working directory '{str(work_dir)}'.")
+        logger.debug(f"Creating working directory '{work_dir!s}'.")
         work_dir.mkdir(exist_ok=True)
 
         return work_dir
@@ -84,7 +92,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         _ = account
 
         input_dir = script.parent
-        logger.debug(f"Job submission: input directory is '{str(input_dir)}'.")
+        logger.debug(f"Job submission: input directory is '{input_dir!s}'.")
 
         cls._shared_guard(input_dir, res, env_vars, server, remote_host)
 
@@ -110,39 +118,38 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         )
         logger.debug(command)
 
-        if not remote_host:
-            # submit the script from the current host
-            result = subprocess.run(
-                ["bash"],
-                input=command,
-                text=True,
-                check=False,
-                capture_output=True,
-                errors="replace",
-            )
-        else:
-            # submit the script from the remote host
-            logger.debug(
-                f"Navigating to '{remote_host}' to execute the submission command '{command}'."
-            )
-            result = subprocess.run(
-                [
-                    "ssh",
-                    "-o PasswordAuthentication=no",
-                    "-o GSSAPIAuthentication=yes",
-                    "-o StrictHostKeyChecking=no",  # allow unknown hosts
-                    f"-o ConnectTimeout={CFG.timeouts.ssh}",
-                    "-q",  # suppress some SSH messages
-                    remote_host,
-                    command,
-                ],
-                capture_output=True,
-                text=True,
-            )
+        try:
+            if not remote_host:
+                # submit the script from the current host
+                result = run_with_timeout(["bash"], CFG.timeouts.submit, input=command)
+            else:
+                # submit the script from the remote host
+                logger.debug(
+                    f"Navigating to '{remote_host}' to execute the submission command '{command}'."
+                )
+                result = run_with_timeout(
+                    [
+                        "ssh",
+                        "-o PasswordAuthentication=no",
+                        "-o GSSAPIAuthentication=yes",
+                        "-o StrictHostKeyChecking=no",  # allow unknown hosts
+                        f"-o ConnectTimeout={CFG.timeouts.ssh}",
+                        "-q",  # suppress some SSH messages
+                        remote_host,
+                        command,
+                    ],
+                    CFG.timeouts.submit,
+                )
+        except subprocess.TimeoutExpired as e:
+            raise QQError(
+                f"Submission of script '{script!s}' timed out after {CFG.timeouts.submit} seconds. "
+                "The job may or may not have been submitted. "
+                "Check that the input directory is accessible and that the batch server is responding."
+            ) from e
 
         if result.returncode != 0:
             raise QQError(
-                f"Failed to submit script '{str(script)}': {result.stderr.strip()}"
+                f"Failed to submit script '{script!s}': {result.stderr.strip()}"
             )
 
         return result.stdout.strip()
@@ -322,6 +329,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         ]
 
     @classmethod
+    def is_valid_dependency(cls, job_id: str) -> bool:
+        return not cls.get_batch_job(job_id).is_empty()
+
+    @classmethod
     def read_remote_file(cls, host: str, file: Path) -> str:
         if cls._using_shared_storage():
             # file is on shared storage, we can read it directly
@@ -493,7 +504,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             resources.work_dir, "input_dir"
         ):
             # work-size should not be used with job_dir
-            if provided_resources.work_size:
+            if (
+                provided_resources.work_size
+                or provided_resources.work_size_per_cpu
+                or provided_resources.work_size_per_node
+            ):
                 logger.warning(
                     "Setting work-size is not supported for work-dir='job_dir' or 'input_dir'.\n"
                     "Job will run in the submission directory with unlimited capacity.\n"
@@ -503,12 +518,17 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             resources.work_dir = "input_dir"
             resources.work_size = None
             resources.work_size_per_cpu = None
+            resources.work_size_per_node = None
             return resources
 
         # scratch in RAM (https://docs.metacentrum.cz/en/docs/computing/infrastructure/scratch-storages#scratch-in-ram)
         if equals_normalized(resources.work_dir, "scratch_shm"):
             # work-size should not be used with scratch_shm
-            if provided_resources.work_size:
+            if (
+                provided_resources.work_size
+                or provided_resources.work_size_per_cpu
+                or provided_resources.work_size_per_node
+            ):
                 logger.warning(
                     "Setting work-size is not supported for work-dir='scratch_shm'.\n"
                     "Size of the in-RAM scratch is specified using the --mem property.\n"
@@ -518,6 +538,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             resources.work_dir = "scratch_shm"
             resources.work_size = None
             resources.work_size_per_cpu = None
+            resources.work_size_per_node = None
             return resources
 
         # if work-dir matches any of the "standard" scratches supported by PBS
@@ -580,11 +601,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         but the input directory is not shared, a `QQError` is raised.
 
         Args:
-            input_dir (Path): Path to the input directory of the job.
-            res (Resources): The job's resource configuration.
-            env_vars (dict[str, str]): Dictionary of environment variables to propagate to the job.
-            server (str | None): The target PBS server, or None if submitting to the default server.
-            remote_host (str | None): Host from which the submission is performed, or None if sumitting from the current machine.
+            input_dir: Path to the input directory of the job.
+            res: The job's resource configuration.
+            env_vars: Dictionary of environment variables to propagate to the job.
+            server: The target PBS server, or None if submitting to the default server.
+            remote_host: Host from which the submission is performed, or None if sumitting from the current machine.
 
         Raises:
             QQError: If the job is set to run directly in the submission
@@ -628,19 +649,19 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Generate the PBS submission command for a job.
 
         Args:
-            res (Resources): The resources requested for the job.
-            queue (str): The queue name to submit to.
-            server (str): Optional name of the server to submit the job to.
-            input_dir (Path): The directory from which the job is being submitted.
-            script (str): Path to the job script.
-            job_name (str): Name of the job.
-            depend (list[Depend]): List of dependencies of the job.
-            env_vars (dict[str, str]): Dictionary of environment variables to set.
+            res: The resources requested for the job.
+            queue: The queue name to submit to.
+            server: Optional name of the server to submit the job to.
+            input_dir: The directory from which the job is being submitted.
+            script: Path to the job script.
+            job_name: Name of the job.
+            depend: List of dependencies of the job.
+            env_vars: Dictionary of environment variables to set.
 
         Returns:
-            str: The fully constructed qsub command string.
+            The fully constructed qsub command string.
         """
-        command = f"qsub -N {job_name} {cls._translate_queue_server(queue, server)} {cls._translate_output_server(input_dir, job_name, server)} "
+        command = f"qsub -N {shlex.quote(job_name)} {cls._translate_queue_server(queue, server)} {cls._translate_output_server(input_dir, job_name, server)} "
 
         # translate environment variables
         if env_vars:
@@ -676,7 +697,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             command += f"-W depend={converted_depend} "
 
         # add script
-        command += str(input_dir / script)
+        command += shlex.quote(str(input_dir / script))
 
         return command
 
@@ -690,11 +711,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         otherwise only the queue name is used.
 
         Args:
-            queue (str): The name of the target queue.
-            server (str | None): The target PBS server, or None if submitting to the default server.
+            queue: The name of the target queue.
+            server: The target PBS server, or None if submitting to the default server.
 
         Returns:
-            str: The PBS queue destination argument, e.g. `-q queue@server` or `-q queue`.
+            The PBS queue destination argument, e.g. `-q queue@server` or `-q queue`.
         """
         if server:
             return f"-q {queue}@{server}"
@@ -714,12 +735,12 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         delivering the output file to the submitting host.
 
         Args:
-            input_dir (Path): Directory in which the output file will be placed.
-            job_name (str): Name of the job, used to construct the output filename.
-            server (str | None): The target PBS server, or None if submitting to the default server.
+            input_dir: Directory in which the output file will be placed.
+            job_name: Name of the job, used to construct the output filename.
+            server: The target PBS server, or None if submitting to the default server.
 
         Returns:
-            str: The PBS output redirection arguments.
+            The PBS output redirection arguments.
         """
         qq_output = str((input_dir / job_name).with_suffix(CFG.suffixes.qq_out))
         if server:
@@ -727,7 +748,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
                 logger.debug(
                     f"Using output host '{output_host}' for server '{server}'."
                 )
-                return f"-j eo -e {output_host}:{qq_output}"
+                return f"-j eo -e {shlex.quote(f'{output_host}:{qq_output}')}"
 
             logger.warning(
                 f"No output host configured for server '{server}'. "
@@ -735,7 +756,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
                 "which may fail if it is not accessible from the working node."
             )
 
-        return f"-j eo -e {qq_output}"
+        return f"-j eo -e {shlex.quote(qq_output)}"
 
     @classmethod
     def _translate_env_vars(cls, env_vars: dict[str, str]) -> str:
@@ -743,11 +764,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Convert a dictionary of environment variables into a formatted string.
 
         Args:
-            env_vars (dict[str, str]): A mapping of environment variable names
+            env_vars: A mapping of environment variable names
                 to their corresponding values.
 
         Returns:
-            str: A comma-separated string of environment variable assignments,
+            A comma-separated string of environment variable assignments,
                 suitable for inclusion in the qsub command.
         """
         converted = []
@@ -765,11 +786,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         accordingly.
 
         Args:
-            res (Resources): The resource specification for the job.
+            res: The resource specification for the job.
 
         Returns:
-            list[str]: A list of per-node resource strings suitable for inclusion
-                    in a PBS submission command.
+            A list of per-node resource strings suitable for inclusion
+            in a PBS submission command.
 
         Raises:
             QQError: If sanity checks fail or required memory attributes are missing.
@@ -845,10 +866,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Translate the working directory and its requested size into a PBS resource string.
 
         Args:
-            res (Resources): The resources requested for the job.
+            res: The resources requested for the job.
 
         Returns:
-            str | None: Resource string specifying the working directory, or None if input_dir is used.
+            Resource string specifying the working directory, or None if input_dir is used.
         """
         assert res.nnodes is not None
 
@@ -882,11 +903,11 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Convert a list of `Depend` objects into a PBS-compatible dependency string.
 
         Args:
-            depend (list[Depend]): List of dependency objects to translate.
+            depend: List of dependency objects to translate.
 
         Returns:
-            str | None: PBS-style dependency string (e.g., "after:12345,afterok:1:2:3"),
-                        or None if the input list is empty.
+            PBS-style dependency string (e.g., "after:12345,afterok:1:2:3"),
+            or None if the input list is empty.
         """
         if not depend:
             return None
@@ -900,7 +921,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         This allows importing Infinity AMS modules in qq jobs.
 
         Returns:
-            dict[str, str]: Dictionary of AMS environment variables and their values.
+            Dictionary of AMS environment variables and their values.
         """
         ams_vars = {
             key: value
@@ -942,6 +963,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
             logger.warning(
                 f"Server '{server}' is not supported by the qq-AMS translation layer. The job will not have access to AMS modules. Please report this issue."
             )
+            return
 
         if "AMS_SITE" in env_vars:
             env_vars["AMS_SITE"] = ams_site_converter[server]
@@ -970,7 +992,7 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Return a Resources object representing the default resources for a batch job.
 
         Returns:
-            Resources: Default batch job resources with predefined settings.
+            Default batch job resources with predefined settings.
         """
         return Resources(
             nnodes=1,
@@ -987,10 +1009,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Generate the PBS force kill command for a job.
 
         Args:
-            job_id (str): The ID of the job to kill.
+            job_id: The ID of the job to kill.
 
         Returns:
-            str: The qdel command with force flag.
+            The qdel command with force flag.
         """
         return f"qdel -W force {job_id}"
 
@@ -1000,10 +1022,10 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Generate the standard PBS kill command for a job.
 
         Args:
-            job_id (str): The ID of the job to kill.
+            job_id: The ID of the job to kill.
 
         Returns:
-            str: The qdel command without force flag.
+            The qdel command without force flag.
         """
         return f"qdel {job_id}"
 
@@ -1014,9 +1036,9 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Move files on a locally accessible filesystem, recording each source once it has been moved.
 
         Args:
-            files (list[Path]): Files to move.
-            moved_files (list[Path]): Destinations, one per file in `files`.
-            done (list[Path]): Filled with the sources that were moved successfully,
+            files: Files to move.
+            moved_files: Destinations, one per file in `files`.
+            done: Filled with the sources that were moved successfully,
                 so that the caller can resume after a failure.
 
         Raises:
@@ -1039,14 +1061,14 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Run an operation on shared storage and fall back to a remote operation if it fails.
 
         Args:
-            shared_op (Callable[[], T]): Operation performed directly on shared storage.
-            remote_op (Callable[[], T]): Operation performed through the remote host. Called only if `shared_op` fails.
-            disable_shared (Callable[[], None]): Called after `shared_op` fails, before `remote_op` is attempted.
-            description (str): What the operation does, used in the warning (e.g. "read file 'x'").
-            fallback (str): What the fallback does, used in the warning (e.g. "reading on 'host'").
+            shared_op: Operation performed directly on shared storage.
+            remote_op: Operation performed through the remote host. Called only if `shared_op` fails.
+            disable_shared: Called after `shared_op` fails, before `remote_op` is attempted.
+            description: What the operation does, used in the warning (e.g. "read file 'x'").
+            fallback: What the fallback does, used in the warning (e.g. "reading on 'host'").
 
         Returns:
-            T: Result of `shared_op`, or of `remote_op` if `shared_op` failed.
+            Result of `shared_op`, or of `remote_op` if `shared_op` failed.
 
         Raises:
             QQError: If `remote_op` fails. Any other exception raised by `remote_op` is propagated as well.
@@ -1076,12 +1098,12 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Synchronize directories either locally or across remote hosts, depending on the environment and setup.
 
         Args:
-            src_dir (Path): Source directory to sync from.
-            dest_dir (Path): Destination directory to sync to.
-            src_host (str | None): Hostname of the source machine if remote; None if local.
-            dest_host (str | None): Hostname of the destination machine if remote; None if local.
-            files (list[Path] | None): Optional list of file paths to include or exclude, depending on `sync_function`.
-            sync_function (Callable): Function to perform the actual synchronization.
+            src_dir: Source directory to sync from.
+            dest_dir: Destination directory to sync to.
+            src_host: Hostname of the source machine if remote; None if local.
+            dest_host: Hostname of the destination machine if remote; None if local.
+            files: Optional list of file paths to include or exclude, depending on `sync_function`.
+            sync_function: Function to perform the actual synchronization.
 
         Raises:
             QQError: If both source and destination hosts are remote and cannot be
@@ -1154,23 +1176,22 @@ class PBS(BatchInterface[PBSJob, PBSQueue, PBSNode]):
         Execute a shell command to retrieve information about PBS jobs and parse it.
 
         Args:
-            command (str): The shell command to execute, typically a PBS query command.
-            include_completed (bool): Include both completed and uncompleted jobs.
+            command: The shell command to execute, typically a PBS query command.
+            include_completed: Include both completed and uncompleted jobs.
                 If `False`, completed jobs are filtered out from the output.
-            include_top_level_array (bool): Include top-level array jobs in the output.
+            include_top_level_array: Include top-level array jobs in the output.
                 If `False`, top-level array jobs are filtered out from the output.
-            ignore_exit_code (bool): Ignore the exit code of the command.
+            ignore_exit_code: Ignore the exit code of the command.
                 If `False`, the command must return a zero exit code.
 
         Returns:
-            list[PBSJob]: A list of `PBSJob` instances corresponding to the jobs
-                            returned by the command.
+            A list of `PBSJob` instances corresponding to the jobs
+            returned by the command.
 
         Raises:
             QQError: If the command fails (non-zero return code) or if the output
                     cannot be parsed into valid job information.
         """
-        ...
         result = subprocess.run(
             # -oL (line-buffer stdout), -eL (line-buffer stderr)
             # necessary for stdout and stderr merging

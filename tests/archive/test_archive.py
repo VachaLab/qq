@@ -4,6 +4,7 @@
 import re
 import socket
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -151,6 +152,7 @@ def archiver(input_dir, archive_dir):
         included_files=[],
         excluded_files=[],
         ignored_files=[],
+        runtime_files=["job0001.out", "job0001.err"],
     )
 
 
@@ -160,6 +162,7 @@ def _make_archiver(
     included_files: list[Path] | None = None,
     excluded_files: list[Path] | None = None,
     ignored_files: list[Path] | None = None,
+    runtime_files: list[str] | None = None,
 ) -> Archiver:
     return Archiver(
         archive=archive,
@@ -170,6 +173,7 @@ def _make_archiver(
         included_files=included_files or [],
         excluded_files=excluded_files or [],
         ignored_files=ignored_files or [],
+        runtime_files=runtime_files,
     )
 
 
@@ -453,9 +457,12 @@ def test_archive_from_nothing_to_fetch(monkeypatch, archiver, work_dir):
 
 
 def test_archive_to_archive_copies_and_removes_files(
-    monkeypatch, archiver, archive_dir, work_dir
+    monkeypatch, archive_dir, work_dir, input_dir
 ):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+    archiver = _make_archiver(
+        archive_dir, input_dir, runtime_files=["job0001.out", "job0002.err"]
+    )
     archiver.make_archive_dir()
 
     filenames = [
@@ -493,7 +500,10 @@ def test_archive_to_archive_copies_and_removes_files_except_included(
 ):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     archiver = _make_archiver(
-        archive_dir, input_dir, included_files=[Path("external/shared/job0002.dat")]
+        archive_dir,
+        input_dir,
+        included_files=[Path("external/shared/job0002.dat")],
+        runtime_files=["job0001.out", "job0002.err"],
     )
     archiver.make_archive_dir()
 
@@ -534,7 +544,10 @@ def test_archive_to_archive_copies_and_removes_files_except_ignored(
 ):
     monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
     archiver = _make_archiver(
-        archive_dir, input_dir, ignored_files=[Path("external/shared/job0002.dat")]
+        archive_dir,
+        input_dir,
+        ignored_files=[Path("external/shared/job0002.dat")],
+        runtime_files=["job0001.out", "job0002.err"],
     )
     archiver.make_archive_dir()
 
@@ -565,6 +578,165 @@ def test_archive_to_archive_copies_and_removes_files_except_ignored(
     # qq runtime files should remain as well
     assert (work_dir / "job0001.out").exists()
     assert (work_dir / "job0002.err").exists()
+
+
+def test_archive_copy_to_archive_copies_and_keeps_files(
+    monkeypatch, archive_dir, work_dir, input_dir
+):
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+    archiver = _make_archiver(archive_dir, input_dir, runtime_files=["job0001.out"])
+    archiver.make_archive_dir()
+    touch_files(work_dir, ["job0001.dat", "job0002.dat", "other.txt", "job0001.out"])
+
+    result = archiver.copy_to_archive(work_dir, None, "input")
+
+    assert set(result) == {work_dir / "job0001.dat", work_dir / "job0002.dat"}
+    assert sorted(f.name for f in archive_dir.iterdir()) == [
+        "job0001.dat",
+        "job0002.dat",
+    ]
+    # nothing is removed from the directory
+    assert sorted(f.name for f in work_dir.iterdir()) == [
+        "job0001.dat",
+        "job0001.out",
+        "job0002.dat",
+        "other.txt",
+    ]
+
+
+def test_archive_copy_to_archive_only_selected_files(
+    monkeypatch, archiver, archive_dir, work_dir
+):
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+    archiver.make_archive_dir()
+    touch_files(work_dir, ["job0001.dat", "job0002.dat", "other.txt"])
+
+    result = archiver.copy_to_archive(
+        work_dir,
+        None,
+        "input",
+        # not matching files and missing files are ignored
+        [work_dir / "job0002.dat", work_dir / "other.txt", work_dir / "job0003.dat"],
+    )
+
+    assert result == [work_dir / "job0002.dat"]
+    assert [f.name for f in archive_dir.iterdir()] == ["job0002.dat"]
+
+
+@pytest.mark.parametrize(
+    "option", ["included_files", "ignored_files"], ids=["included", "ignored"]
+)
+def test_archive_copy_to_archive_skips_included_and_ignored_files(
+    monkeypatch, archive_dir, work_dir, input_dir, option
+):
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+    files = [Path("external/shared/job0002.dat")]
+    archiver = _make_archiver(
+        archive_dir,
+        input_dir,
+        included_files=files if option == "included_files" else None,
+        ignored_files=files if option == "ignored_files" else None,
+    )
+    archiver.make_archive_dir()
+    touch_files(work_dir, ["job0001.dat", "job0002.dat"])
+
+    result = archiver.copy_to_archive(work_dir, None, "input")
+
+    assert result == [work_dir / "job0001.dat"]
+    assert [f.name for f in archive_dir.iterdir()] == ["job0001.dat"]
+
+
+@pytest.mark.parametrize("selected", [None, []], ids=["all files", "no selected files"])
+def test_archive_copy_to_archive_nothing_to_archive(work_dir, input_dir, selected):
+    batch_system = MagicMock()
+    archiver = Archiver(
+        archive=input_dir / "archive",
+        archive_format="job%04d",
+        input_machine="input",
+        input_dir=input_dir,
+        batch_system=batch_system,
+        included_files=[],
+        excluded_files=[],
+        ignored_files=[],
+    )
+    if selected is not None:
+        touch_files(work_dir, ["job0001.dat"])
+
+    assert archiver.copy_to_archive(work_dir, None, "input", selected) == []
+    batch_system.sync_selected.assert_not_called()
+
+
+def test_archive_copy_to_archive_from_remote_directory(work_dir, input_dir):
+    batch_system = MagicMock()
+    batch_system.list_remote_dir.return_value = [
+        work_dir / "job0001.dat",
+        work_dir / "other.txt",
+    ]
+    archiver = Archiver(
+        archive=input_dir / "archive",
+        archive_format="job%04d",
+        input_machine="input",
+        input_dir=input_dir,
+        batch_system=batch_system,
+        included_files=[],
+        excluded_files=[],
+        ignored_files=[],
+    )
+
+    result = archiver.copy_to_archive(work_dir, "node", None)
+
+    assert result == [work_dir / "job0001.dat"]
+    batch_system.list_remote_dir.assert_called_once_with("node", work_dir)
+    batch_system.sync_selected.assert_called_once_with(
+        work_dir, input_dir / "archive", "node", None, [work_dir / "job0001.dat"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "runtime_files", "expected"),
+    [
+        # qq info files and qq output files are always runtime files
+        ("job0005.qqinfo", [], True),
+        ("job0005.qqout", [], True),
+        # outputs of other programs
+        ("job0005.out", [], False),
+        ("job0005.err", [], False),
+        # the job's own standard output and standard error files
+        ("job0005.out", ["job0005.out", "job0005.err"], True),
+        ("job0005.err", ["job0005.out", "job0005.err"], True),
+        ("job0006.out", ["job0005.out", "job0005.err"], False),
+    ],
+)
+def test_archiver_is_runtime_file(tmp_path, name, runtime_files, expected):
+    archiver = _make_archiver(tmp_path, tmp_path, runtime_files=runtime_files)
+
+    assert archiver._is_runtime_file(tmp_path / name) is expected
+
+
+def test_archive_to_archive_archives_outputs_of_other_programs(
+    monkeypatch, archive_dir, work_dir, input_dir
+):
+    monkeypatch.setenv(CFG.env_vars.shared_submit, "true")
+    archiver = _make_archiver(
+        archive_dir, input_dir, runtime_files=["job+0005.out", "job+0005.err"]
+    )
+    archiver.make_archive_dir()
+    touch_files(
+        work_dir,
+        ["job0005.dat", "job0005.out", "job0005.err", "job+0005.out", "job+0005.err"],
+    )
+
+    archiver.to_archive(work_dir)
+
+    assert sorted(f.name for f in archive_dir.iterdir()) == [
+        "job0005.dat",
+        "job0005.err",
+        "job0005.out",
+    ]
+    assert sorted(f.name for f in work_dir.iterdir()) == [
+        "job+0005.err",
+        "job+0005.out",
+    ]
 
 
 def test_archive_to_nothing_to_archive(monkeypatch, archiver, archive_dir, work_dir):

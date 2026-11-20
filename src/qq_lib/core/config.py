@@ -96,6 +96,8 @@ class TimeoutSettings:
     ssh: int = 60
     # Timeout for rsync in seconds.
     rsync: int = 600
+    # Timeout for job submission in seconds.
+    submit: int = 120
 
 
 @dataclass(frozen=True)
@@ -198,6 +200,8 @@ class BriefInfoSettings:
     dir_path_color: str = "cyan"
     # Color of the loop info in brief info.
     loop_info_color: str = "grey70"
+    # Maximal length of a job directory path before shortening.
+    max_dir_length: int = 80
 
 
 @dataclass(frozen=True)
@@ -281,9 +285,9 @@ class QueuesPresenterSettings:
     headers_style: str = "default"
 
     # Mark used to denote main queues.
-    main_mark = "●"
+    main_mark: str = "●"
     # Mark used to denote reroutings.
-    rerouted_mark = " ··>"
+    rerouted_mark: str = " ··>"
 
     # Style used for the mark if the queue is available.
     available_mark_style: str = "bright_green"
@@ -329,7 +333,7 @@ class NodesPresenterSettings:
     all_nodes_group_name: str = "all nodes"
 
     # Mark used to denote nodes.
-    state_mark = "●"
+    state_mark: str = "●"
 
     # Style used for main information about the nodes.
     main_text_style: str = "white"
@@ -342,7 +346,7 @@ class NodesPresenterSettings:
     # Style used for the mark and resources if the node is busy.
     busy_node_style: str = "blue"
     # Style used for all information about unavailable nodes.
-    unavailable_node_style = "bright_red"
+    unavailable_node_style: str = "bright_red"
 
 
 @dataclass(frozen=True)
@@ -496,6 +500,9 @@ class ParallelizationOptions:
 
     # Maximal number of threads used to clear runtime files in parallel.
     clear_max_threads: int = 8
+
+    # Maximal number of threads used to walk the directory tree when searching for jobs.
+    search_max_threads: int = 8
 
 
 @dataclass(frozen=True)

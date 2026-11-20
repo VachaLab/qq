@@ -399,9 +399,9 @@ def test_parse_size_from_dict():
     assert result.value == 8192
 
 
-def test_parse_size_invalid_type_int():
-    result = Resources._parse_size(123)
-    assert result is None
+def test_parse_size_int_without_unit_raises():
+    with pytest.raises(QQError, match="Invalid size string"):
+        Resources._parse_size(123)
 
 
 def test_parse_size_invalid_type_none():
@@ -491,3 +491,21 @@ def test_props_to_value_non_boolean_strings():
         "c": "trueish",
     }
     assert res._props_to_value() == "a=TRUE,b=False,c=trueish"
+
+
+@pytest.mark.parametrize(
+    "field", ["mem", "mem_per_cpu", "mem_per_node", "work_size", "walltime"]
+)
+def test_resources_init_rejects_numeric_value_without_unit(field):
+    # e.g. `# qq mem 4096` or `# qq walltime 24` which the parser converts to int
+    with pytest.raises(QQError):
+        Resources(**{field: 24})  # ty: ignore[invalid-argument-type]
+
+
+def test_resources_merge_resources_takes_props_from_first_resource_as_a_whole():
+    command_line = Resources(props="gpu_cap=sm_80")
+    script = Resources(props="cluster=adan,infiniband")
+
+    merged = Resources.merge_resources(command_line, script)
+
+    assert merged.props == {"gpu_cap": "sm_80"}

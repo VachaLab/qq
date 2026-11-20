@@ -65,7 +65,7 @@ class Goer(Navigator):
 
         elif self._is_queued():
             logger.warning(
-                f"Job is {str(self._state)}: cannot visit the working directory. Will retry every {CFG.goer.wait_time} seconds."
+                f"Job is {self._state!s}: cannot visit the working directory. Will retry every {CFG.goer.wait_time} seconds."
             )
 
             # keep retrying until the job stops being queued
@@ -82,7 +82,7 @@ class Goer(Navigator):
         # hint for type checker
         # work_dir and main_node must be set - we check that in self.hasDestination
         assert self._work_dir and self._main_node
-        logger.info(f"Navigating to '{str(self._work_dir)}' on '{self._main_node}'.")
+        logger.info(f"Navigating to '{self._work_dir!s}' on '{self._main_node}'.")
         self._batch_system.navigate_to_destination(self._main_node, self._work_dir)
 
     def _wait_queued(self):

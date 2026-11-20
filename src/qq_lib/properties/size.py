@@ -11,7 +11,7 @@ qq to express quantities such as memory limits and scratch allocations.
 import math
 import re
 from dataclasses import dataclass
-from typing import Self
+from typing import ClassVar, Self
 
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
@@ -29,7 +29,7 @@ class Size:
 
     value: int
 
-    _unit_map = {
+    _unit_map: ClassVar[dict[str, int]] = {
         "kb": 1,
         "mb": 1024,
         "gb": 1024 * 1024,
@@ -41,8 +41,9 @@ class Size:
         unit = unit.lower()
         if unit not in self._unit_map:
             # special handling of bytes
+            # (rounded up to whole kilobytes)
             if unit == "b":
-                self.value = 0 if value == 0 else 1
+                self.value = math.ceil(value / 1024)
                 return
 
             raise QQError(f"Unsupported unit for size '{unit}'")
@@ -55,10 +56,10 @@ class Size:
         Create a Size object from a string.
 
         Args:
-            s (str): A string representation of the size, e.g., "10mb", "10 mb", "10m", "10M".
+            s: A string representation of the size, e.g., "10mb", "10 mb", "10m", "10M".
 
         Returns:
-            Size: A Size instance with parsed value and unit.
+            A Size instance with parsed value and unit.
 
         Raises:
             QQError: If the string cannot be parsed or contains an invalid unit.
@@ -70,20 +71,20 @@ class Size:
 
         # normalize single-letter units to their full form by appending 'b'
         # but skip bytes
-        if len(unit) == 1 and unit != "b":
+        if len(unit) == 1 and unit.lower() != "b":
             unit = unit.lower() + "b"
 
         return cls(int(value), unit)
 
-    def __mul__(self, n: int) -> "Size":
+    def __mul__(self, n: int) -> Size:
         """
         Multiply the Size by an integer.
 
         Args:
-            n (int): The multiplier.
+            n: The multiplier.
 
         Returns:
-            Size: A new Size object with the scaled value.
+            A new Size object with the scaled value.
 
         Raises:
             TypeError: If the multiplier is not an integer.
@@ -122,15 +123,15 @@ class Size:
         """Convert the Size to string while keeping it in kilobytes. Use K for the unit."""
         return f"{self.value}K"
 
-    def __floordiv__(self, n: int) -> "Size":
+    def __floordiv__(self, n: int) -> Size:
         """
         Divide the Size by an integer.
 
         Args:
-            n (int): The divisor.
+            n: The divisor.
 
         Returns:
-            Size: A new Size object representing the divided size.
+            A new Size object representing the divided size.
 
         Raises:
             TypeError: If n is not an integer.
@@ -143,17 +144,17 @@ class Size:
 
         return Size(math.ceil(self.value / n), "kb")
 
-    def __truediv__(self, other: "Size") -> float:
+    def __truediv__(self, other: Size) -> float:
         """
         Perform true division (/) between two Size instances.
 
         Computes the ratio of this Size to another, expressed as a float.
 
         Args:
-            other (Size): The divisor Size instance.
+            other: The divisor Size instance.
 
         Returns:
-            float: The ratio of self to other, based on total kilobytes.
+            The ratio of self to other, based on total kilobytes.
 
         Raises:
             TypeError:
@@ -171,15 +172,15 @@ class Size:
 
         return self.value / other.value
 
-    def __sub__(self, other: "Size") -> "Size":
+    def __sub__(self, other: Size) -> Size:
         """
         Subtract one Size from another.
 
         Args:
-            other (Size): The Size instance to subtract.
+            other: The Size instance to subtract.
 
         Returns:
-            Size: A new Size instance representing the difference.
+            A new Size instance representing the difference.
 
         Raises:
             TypeError: If `other` is not a Size instance.

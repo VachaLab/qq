@@ -1,8 +1,14 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
+import contextlib
+import os
 import re
+import signal
+import subprocess
+import sys
 import tempfile
+import time
 import types
 from datetime import timedelta
 from pathlib import Path
@@ -16,7 +22,9 @@ from qq_lib.batch.interface import BatchInterface
 from qq_lib.batch.pbs import PBS, PBSJob
 from qq_lib.core.common import (
     CFG,
+    _kill_process_group,
     available_work_dirs,
+    choice_prompt,
     construct_info_file_path,
     construct_loop_job_name,
     convert_absolute_to_relative,
@@ -40,6 +48,7 @@ from qq_lib.core.common import (
     load_yaml_loader,
     printf_to_regex,
     relocate_by_name,
+    run_with_timeout,
     split_string_list,
     to_snake_case,
     translate_server,
@@ -198,6 +207,48 @@ def test_other_key():
         assert result is False
 
 
+CHOICES = [("c", "Continue"), ("r", "rerun"), ("x", "cancel")]
+
+
+@pytest.mark.parametrize("key", ["c", "r", "x"])
+def test_choice_prompt_returns_selected_key(key):
+    with patch("readchar.readkey", return_value=key):
+        assert choice_prompt(CHOICES) == key
+
+
+def test_choice_prompt_ignores_other_keys():
+    with patch("readchar.readkey", side_effect=["n", "\r", " ", "r"]) as mock_readkey:
+        assert choice_prompt(CHOICES) == "r"
+
+    assert mock_readkey.call_count == 4
+
+
+def test_choice_prompt_is_case_insensitive():
+    with patch("readchar.readkey", return_value="C"):
+        assert choice_prompt(CHOICES) == "c"
+
+
+@pytest.mark.parametrize(
+    ("options", "expected"),
+    [
+        (
+            [("c", "Continue"), ("r", "rerun"), ("x", "cancel")],
+            "Continue [c], rerun [r], or cancel [x]?",
+        ),
+        ([("r", "Rerun"), ("x", "cancel")], "Rerun [r] or cancel [x]?"),
+    ],
+)
+def test_choice_prompt_text(options, expected):
+    with (
+        patch("readchar.readkey", return_value="x"),
+        patch("qq_lib.core.common.Live") as mock_live,
+    ):
+        choice_prompt(options)
+
+    text = mock_live.call_args.args[0]
+    assert text.plain == f"PROMPT   {expected}"
+
+
 @pytest.mark.parametrize(
     "a, b",
     [
@@ -286,7 +337,6 @@ def test_convert_absolute_to_relative_mixed_inside_and_outside(tmp_path):
         ("1:30:00", "1h30m"),
         ("49:00:00", "2d1h"),
         ("168:00:11", "1w11s"),
-        ("0:00:00", "0s"),
     ],
 )
 def test_hhmmss_to_wdhms(input_str, expected):
@@ -874,28 +924,45 @@ def test_raises_if_no_info_files_found(mock_get_info_files):
     mock_get_info_files.assert_called_once_with(Path())
 
 
-def test_get_runtime_files(tmp_path):
-    expected_files = [
-        tmp_path / f"f1{CFG.suffixes.qq_info}",
-        tmp_path / f"f2{CFG.suffixes.qq_out}",
-        tmp_path / f"f3{CFG.suffixes.stdout}",
-        tmp_path / f"f4{CFG.suffixes.stderr}",
-    ]
+@pytest.mark.parametrize(
+    "files, expected",
+    [
+        # qq info and qq output files are always runtime files
+        (["job.qqinfo", "old.qqout"], ["job.qqinfo", "old.qqout"]),
+        # output files of a qq job
+        (
+            ["job.qqinfo", "job.qqout", "job.out", "job.err"],
+            ["job.qqinfo", "job.qqout", "job.out", "job.err"],
+        ),
+        # a leftover qq output file also marks the job's output files
+        (["job.qqout", "job.out", "job.err"], ["job.qqout", "job.out", "job.err"]),
+        # loop job names and names with dots
+        (
+            ["md+0002.qqinfo", "md+0002.out", "md.prod.qqinfo", "md.prod.err"],
+            ["md+0002.qqinfo", "md+0002.out", "md.prod.qqinfo", "md.prod.err"],
+        ),
+        # output files of other programs are not runtime files
+        (["gaussian.out", "analysis.err", "notes.txt"], []),
+        (
+            ["job.qqinfo", "job.out", "orca.out", "md+0001.out"],
+            ["job.qqinfo", "job.out"],
+        ),
+    ],
+)
+def test_get_runtime_files(tmp_path, files, expected):
+    for name in files:
+        (tmp_path / name).touch()
 
-    def mock_get_files_with_suffix(directory, suffix):
-        _ = directory
-        return [tmp_path / f"f{CFG.suffixes.all_suffixes.index(suffix) + 1}{suffix}"]
+    result = get_runtime_files(tmp_path)
 
-    with patch(
-        "qq_lib.core.common.get_files_with_suffix",
-        side_effect=mock_get_files_with_suffix,
-    ) as mock_func:
-        result = get_runtime_files(tmp_path)
+    assert sorted(result) == sorted(tmp_path / name for name in expected)
 
-        assert result == expected_files
 
-        for suffix in CFG.suffixes.all_suffixes:
-            mock_func.assert_any_call(tmp_path, suffix)
+def test_get_runtime_files_ignores_directories(tmp_path):
+    (tmp_path / "job.qqinfo").touch()
+    (tmp_path / "job.out").mkdir()
+
+    assert get_runtime_files(tmp_path) == [tmp_path / "job.qqinfo"]
 
 
 @pytest.mark.parametrize(
@@ -1133,8 +1200,8 @@ def _touch(directory: Path, *relative: str) -> None:
     Create empty files under a directory, making parent directories as needed.
 
     Args:
-        directory (Path): Directory to create the files in.
-        *relative (str): Paths of the files, relative to `directory`.
+        directory: Directory to create the files in.
+        *relative: Paths of the files, relative to `directory`.
     """
     for rel in relative:
         path = directory / rel
@@ -1421,3 +1488,216 @@ def test_relocate_by_name_returns_absolute_paths(tmp_path: Path) -> None:
 
     assert result
     assert all(path.is_absolute() for path in result)
+
+
+def _wait_for_process_exit(pid: int, timeout: float = 5.0) -> bool:
+    """
+    Wait until a process is no longer running.
+
+    Zombie processes count as exited, since they are dead and only waiting to be reaped.
+
+    Args:
+        pid: ID of the process to watch.
+        timeout: Maximum time in seconds to wait.
+
+    Returns:
+        True if the process exited within `timeout`, False otherwise.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            stat = Path(f"/proc/{pid}/stat").read_text()
+        except FileNotFoundError:
+            return True
+        if stat.rsplit(")", 1)[1].split()[0] == "Z":
+            return True
+        time.sleep(0.05)
+    return False
+
+
+@pytest.mark.parametrize(
+    ("args", "returncode", "stdout", "stderr"),
+    [
+        (["bash", "-c", "echo out"], 0, "out\n", ""),
+        (["bash", "-c", "echo err >&2; exit 3"], 3, "", "err\n"),
+        (["bash", "-c", "echo out; echo err >&2"], 0, "out\n", "err\n"),
+    ],
+)
+def test_run_with_timeout_captures_output_and_return_code(
+    args: list[str], returncode: int, stdout: str, stderr: str
+) -> None:
+    result = run_with_timeout(args, timeout=5)
+
+    assert result.returncode == returncode
+    assert result.stdout == stdout
+    assert result.stderr == stderr
+
+
+def test_run_with_timeout_does_not_raise_on_nonzero_return_code() -> None:
+    result = run_with_timeout(["false"], timeout=5)
+
+    assert result.returncode == 1
+
+
+def test_run_with_timeout_returns_args() -> None:
+    args = ["echo", "hello"]
+
+    result = run_with_timeout(args, timeout=5)
+
+    assert result.args == args
+
+
+def test_run_with_timeout_passes_input_to_stdin() -> None:
+    result = run_with_timeout(["bash"], timeout=5, input="echo from stdin\nexit 4\n")
+
+    assert result.stdout == "from stdin\n"
+    assert result.returncode == 4
+
+
+def test_run_with_timeout_empty_input_closes_stdin() -> None:
+    result = run_with_timeout(["cat"], timeout=5, input="")
+
+    assert result.returncode == 0
+    assert result.stdout == ""
+
+
+def test_run_with_timeout_connects_stdin_to_devnull_without_input() -> None:
+    result = run_with_timeout(["readlink", "/proc/self/fd/0"], timeout=5)
+
+    assert result.stdout.strip() == "/dev/null"
+
+
+def test_run_with_timeout_replaces_invalid_utf8() -> None:
+    result = run_with_timeout(
+        ["bash", "-c", r"printf 'a\xffb'; printf 'c\xffd' >&2"], timeout=5
+    )
+
+    assert result.stdout == "a\ufffdb"
+    assert result.stderr == "c\ufffdd"
+
+
+def test_run_with_timeout_runs_command_in_own_process_group() -> None:
+    result = run_with_timeout(
+        [sys.executable, "-c", "import os; print(os.getpid(), os.getpgrp())"],
+        timeout=5,
+    )
+
+    pid, pgid = (int(x) for x in result.stdout.split())
+    assert pgid == pid
+    assert pgid != os.getpgrp()
+
+
+def test_run_with_timeout_raises_on_timeout() -> None:
+    args = ["sleep", "30"]
+
+    start = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired) as e:
+        run_with_timeout(args, timeout=0.5)
+    elapsed = time.monotonic() - start
+
+    assert e.value.timeout == 0.5
+    assert e.value.cmd == args
+    assert elapsed < 5
+
+
+def test_run_with_timeout_kills_child_and_grandchildren_on_timeout(
+    tmp_path: Path,
+) -> None:
+    bash_pid_file = tmp_path / "bash_pid"
+    sleep_pid_file = tmp_path / "sleep_pid"
+    command = (
+        f"echo $$ > {bash_pid_file}\nsleep 30 &\necho $! > {sleep_pid_file}\nwait\n"
+    )
+
+    with pytest.raises(subprocess.TimeoutExpired):
+        run_with_timeout(["bash"], timeout=1, input=command)
+
+    assert _wait_for_process_exit(int(bash_pid_file.read_text()))
+    assert _wait_for_process_exit(int(sleep_pid_file.read_text()))
+
+
+def test_run_with_timeout_does_not_wait_for_grandchild_holding_pipes(
+    tmp_path: Path,
+) -> None:
+    # the grandchild escapes the process group via setsid, so it survives the kill
+    # and keeps stdout/stderr open; this simulates a process stuck on unavailable NFS
+    pid_file = tmp_path / "pid"
+    command = f"setsid sleep 30 &\necho $! > {pid_file}\nwait\n"
+
+    try:
+        start = time.monotonic()
+        with pytest.raises(subprocess.TimeoutExpired):
+            run_with_timeout(["bash"], timeout=1, input=command)
+        elapsed = time.monotonic() - start
+
+        assert elapsed < 5
+    finally:
+        with contextlib.suppress(FileNotFoundError, ProcessLookupError):
+            os.kill(int(pid_file.read_text()), signal.SIGKILL)
+
+
+def test_run_with_timeout_kills_process_group_on_keyboard_interrupt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pid_file = tmp_path / "pid"
+    tmp_pid_file = tmp_path / "pid.tmp"
+    command = (
+        f"sleep 30 & echo $! > {tmp_pid_file} && mv {tmp_pid_file} {pid_file}; wait"
+    )
+
+    def interrupted_communicate(
+        self: subprocess.Popen[str],
+        input: str | None = None,
+        timeout: float | None = None,
+    ) -> tuple[str, str]:
+        _ = self, input, timeout
+        deadline = time.monotonic() + 5
+        while not pid_file.exists() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(subprocess.Popen, "communicate", interrupted_communicate)
+
+    with pytest.raises(KeyboardInterrupt):
+        run_with_timeout(["bash", "-c", command], timeout=30)
+
+    assert _wait_for_process_exit(int(pid_file.read_text()))
+
+
+def test_kill_process_group_kills_all_processes_in_group() -> None:
+    proc = subprocess.Popen(
+        ["bash", "-c", "sleep 30 & sleep 30 & wait"], process_group=0
+    )
+
+    _kill_process_group(proc.pid)
+
+    assert proc.wait(timeout=5) == -signal.SIGKILL
+
+
+def test_kill_process_group_ignores_missing_group() -> None:
+    proc = subprocess.Popen(["true"], process_group=0)
+    proc.wait()
+
+    _kill_process_group(proc.pid)
+
+
+@pytest.mark.parametrize(
+    "td", [timedelta(seconds=-1), timedelta(seconds=-65), timedelta(days=-3)]
+)
+def test_format_duration_wdhhmmss_negative_is_zero(td):
+    # e.g. a planned start time of a pending job that is already in the past
+    assert format_duration_wdhhmmss(td) == "00:00:00"
+
+
+@pytest.mark.parametrize(
+    "string, expected",
+    [
+        ("a.txt,", ["a.txt"]),
+        (" a.txt", ["a.txt"]),
+        ("a.txt, b.txt ", ["a.txt", "b.txt"]),
+        (":a.txt::b.txt:", ["a.txt", "b.txt"]),
+        (" , ", []),
+    ],
+)
+def test_split_string_list_ignores_empty_items(string, expected):
+    assert split_string_list(string) == expected

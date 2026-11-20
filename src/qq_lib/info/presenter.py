@@ -1,9 +1,9 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
-from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from warnings import deprecated
 
 from rich.align import Align
@@ -14,12 +14,17 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-from qq_lib.batch.interface.job import BatchJobInterface
 from qq_lib.core.common import format_duration_wdhhmmss, get_panel_width
 from qq_lib.core.config import CFG
+from qq_lib.core.logical_paths import logical_cwd, logical_resolve, to_logical
 from qq_lib.properties.states import RealState
 
-from .informer import Informer
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from qq_lib.batch.interface.job import BatchJobInterface
+
+    from .informer import Informer
 
 
 class Presenter:
@@ -32,7 +37,7 @@ class Presenter:
         Initialize the presenter with an Informer.
 
         Args:
-            informer (Informer): The informer object that provides
+            informer: The informer object that provides
                 access to qq job metadata and runtime details.
         """
         self._informer = informer
@@ -42,11 +47,11 @@ class Presenter:
         Create a standalone status panel for the job.
 
         Args:
-            console (Console | None): Optional Rich console.
+            console: Optional Rich console.
                 If not provided, a new Console is created.
 
         Returns:
-            Group: A Rich Group containing the status panel.
+            A Rich Group containing the status panel.
         """
         console = console or Console()
 
@@ -74,11 +79,11 @@ class Presenter:
         Create a full job information panel.
 
         Args:
-            console (Console | None): Optional Rich console.
+            console: Optional Rich console.
                 If not provided, a new Console is created.
 
         Returns:
-            Group: A Rich Group containing the full job info panel.
+            A Rich Group containing the full job info panel.
         """
 
         console = console or Console()
@@ -143,32 +148,24 @@ class Presenter:
 
         return Group(Text(""), full_panel, Text(""))
 
-    def get_brief_info(self, print_dir: bool) -> Text:
+    def get_brief_info(self) -> Text:
         """
         Return a concise, colorized summary of the job's current state.
 
+        The job's input directory is shown at the end of the line, in the shortest
+        available form and abbreviated if it is too long.
+
         Returns:
-            Text: A Rich `Text` object containing brief information about the job.
+            A Rich `Text` object containing brief information about the job.
         """
         state = self._informer.get_real_state()
-        job_id = Text(
-            self._informer.info.job_id,
-            style=CFG.presenter.brief_info.job_id_color,
-        )
-        state_text = Text(str(state), style=state.color)
-
-        if print_dir:
-            dir_path = Text(
-                str(
-                    self._informer.info.input_dir.resolve().relative_to(
-                        Path.cwd(), walk_up=True
-                    )
-                ),
-                style=CFG.presenter.brief_info.dir_path_color,
+        full_text = (
+            Text(
+                self._informer.info.job_id, style=CFG.presenter.brief_info.job_id_color
             )
-            full_text = job_id + "   [" + dir_path + "]   " + state_text
-        else:
-            full_text = job_id + "   " + state_text
+            + "   "
+            + Text(str(state), style=state.color)
+        )
 
         if loop_info := self._informer.info.loop_info:
             full_text += (
@@ -180,26 +177,38 @@ class Presenter:
                 + "]"
             )
 
+        full_text += (
+            Text("   [")
+            + Text(
+                Presenter._format_dir(
+                    self._informer.info.input_dir,
+                    CFG.presenter.brief_info.max_dir_length,
+                ),
+                style=CFG.presenter.brief_info.dir_path_color,
+            )
+            + "]"
+        )
+
         return full_text
 
     @deprecated("This function has been deprecated, use get_brief_info instead.")
-    def get_short_info(self, print_dir: bool) -> Text:
+    def get_short_info(self) -> Text:
         """
         Return a concise, colorized summary of the job's current state.
 
         This function is deprecated, use `get_brief_info` instead.
 
         Returns:
-            Text: A Rich `Text` object containing brief information about the job.
+            A Rich `Text` object containing brief information about the job.
         """
-        return self.get_brief_info(print_dir)
+        return self.get_brief_info()
 
     def _create_basic_info_table(self) -> Table:
         """
         Create a table with basic job information.
 
         Returns:
-            Table: A Rich table with key-value pairs of basic job details.
+            A Rich table with key-value pairs of basic job details.
         """
         table = Table(show_header=False, box=None, padding=(0, 1))
         table.add_column(justify="right", style=CFG.presenter.key_style)
@@ -242,11 +251,11 @@ class Presenter:
         Create a table displaying job resource requirements.
 
         Args:
-            term_width (int): Width of the current terminal, used
+            term_width: Width of the current terminal, used
                 to size the spacer column.
 
         Returns:
-            Table: A Rich table summarizing resource allocations.
+            A Rich table summarizing resource allocations.
         """
         resources = self._informer.info.resources
         table = Table(show_header=False, box=None, padding=(0, 1))
@@ -305,10 +314,10 @@ class Presenter:
         Create a table summarizing the job timeline.
 
         Args:
-            state (RealState): State of the job.
+            state: State of the job.
 
         Returns:
-            Table: A Rich table showing the chronological job history.
+            A Rich table showing the chronological job history.
         """
         submitted = self._informer.info.submission_time
         started = self._informer.info.start_time
@@ -371,10 +380,10 @@ class Presenter:
         Create a table summarizing the current job status.
 
         Args:
-            state (RealState): The current real state of the job.
+            state: The current real state of the job.
 
         Returns:
-            Table: A Rich table with job state and details.
+            A Rich table with job state and details.
         """
         (message, details) = self._get_state_messages(
             state,
@@ -413,10 +422,10 @@ class Presenter:
         to be used within full-info job panels.
 
         Args:
-            steps (Sequence[BatchJobInterface]): A list of batch-system step objects belonging to the job.
+            steps: A list of batch-system step objects belonging to the job.
 
         Returns:
-            Table: A Rich table containing the formatted step information.
+            A Rich table containing the formatted step information.
         """
         table = Table(show_header=True, box=None, padding=(0, 1))
 
@@ -463,7 +472,7 @@ class Presenter:
         contains more than one step; for single-step jobs, an empty block is returned.
 
         Returns:
-            Group: A Rich group representing the job-steps section, or an empty group
+            A Rich group representing the job-steps section, or an empty group
             if no multi-step information should be displayed.
         """
 
@@ -493,12 +502,12 @@ class Presenter:
         Map a RealState to human-readable messages.
 
         Args:
-            state (RealState): The current job state.
-            start_time (datetime): Start time of the relevant state period.
-            end_time (datetime): End time of the relevant state period.
+            state: The current job state.
+            start_time: Start time of the relevant state period.
+            end_time: End time of the relevant state period.
 
         Returns:
-            tuple[str, str]: A tuple containing:
+            A tuple containing:
                 - A short status message (e.g., "Job is running").
                 - Additional details, such as elapsed time or error info.
         """
@@ -593,14 +602,13 @@ class Presenter:
         For jobs in other states, return (None, None).
 
         Args:
-            state (RealState): The current job state.
+            state: The current job state.
 
         Returns:
-            tuple[str | None, tuple[datetime, str] | None]:
-                A tuple containing:
-                - The job comment as a string, or None if unavailable.
-                - A tuple with the estimated start time (datetime) and execution node (str),
-                    or None if unavailable or not applicable.
+            A tuple containing:
+            - The job comment as a string, or None if unavailable.
+            - A tuple with the estimated start time (datetime) and execution node (str),
+                or None if unavailable or not applicable.
         """
         if state in {
             RealState.QUEUED,
@@ -622,7 +630,7 @@ class Presenter:
         Translates a RealState and optional exit code into a human-readable completion message.
 
         Returns:
-            str: A string representing the final status of the job/process.
+            A string representing the final status of the job/process.
         """
         if state == RealState.FINISHED or (
             state == RealState.EXITING and exit_code == 0
@@ -638,3 +646,45 @@ class Presenter:
             return "failed"
 
         return "completed"  # default option; should not happen
+
+    @staticmethod
+    def _format_dir(path: Path, max_length: int) -> str:
+        """
+        Format a directory for brief output.
+
+        Uses the shortest of the path relative to the current directory,
+        the path relative to the home directory (as `~/...`), and the absolute path.
+        If that is still longer than `max_length`, leading components are replaced
+        by `(...)`, keeping as many trailing components as fit (at least the last one).
+
+        Args:
+            path: The directory to format.
+            max_length: The preferred maximal length of the result.
+
+        Returns:
+            The formatted directory.
+        """
+        path = to_logical(path)
+        cwd = logical_cwd()
+        home = logical_resolve(Path.home())
+
+        candidates: list[str] = [str(path.relative_to(cwd, walk_up=True)), str(path)]
+
+        if path == home:
+            candidates.append("~")
+        elif path.is_relative_to(home):
+            candidates.append(f"~/{path.relative_to(home)}")
+
+        best = min(candidates, key=lambda candidate: len(candidate))
+        if len(best) <= max_length:
+            return best
+
+        parts = path.parts
+        shortened = f"(...)/{parts[-1]}"
+        for i in range(len(parts) - 2, 0, -1):
+            candidate = f"(...)/{'/'.join(parts[i:])}"
+            if len(candidate) > max_length:
+                break
+            shortened = candidate
+
+        return shortened

@@ -90,7 +90,7 @@ class Resources(HasCouplingMethods):
         mem_per_cpu: Size | str | dict[str, object] | None = None,
         ngpus: int | str | None = None,
         ngpus_per_node: int | str | None = None,
-        walltime: str | None = None,
+        walltime: str | int | None = None,
         work_dir: str | None = None,
         work_size: Size | str | dict[str, object] | None = None,
         work_size_per_node: Size | str | dict[str, object] | None = None,
@@ -106,6 +106,9 @@ class Resources(HasCouplingMethods):
         work_size_per_cpu = Resources._parse_size(work_size_per_cpu)
 
         # convert walltime
+        # numbers without a unit (e.g. from `# qq walltime 24`) are rejected by `wdhms_to_hhmmss`
+        if isinstance(walltime, int):
+            walltime = str(walltime)
         if isinstance(walltime, str) and ":" not in walltime:
             walltime = wdhms_to_hhmmss(walltime)
 
@@ -142,7 +145,7 @@ class Resources(HasCouplingMethods):
         self.props = props
 
         # enforce coupling rules
-        self.__post_init__()  # ty: ignore[unresolved-attribute]
+        self.__post_init__()
 
         logger.debug(f"Resources: {self}")
 
@@ -155,18 +158,20 @@ class Resources(HasCouplingMethods):
         Determine if the job uses a scratch directory.
 
         Returns:
-            bool: True if a work_dir is not 'job_dir' or 'input_dir', otherwise False.
+            True if a work_dir is not 'job_dir' or 'input_dir', otherwise False.
         """
         return not equals_normalized(
             str(self.work_dir), "job_dir"
         ) and not equals_normalized(str(self.work_dir), "input_dir")
 
     @staticmethod
-    def merge_resources(*resources: "Resources") -> "Resources":
+    def merge_resources(*resources: Resources) -> Resources:
         """
         Merge multiple Resources objects.
 
-        Earlier resources take precedence over later ones. Properties are merged.
+        Earlier resources take precedence over later ones. Properties are not merged:
+        `props` are taken as a whole from the first resource that defines them
+        (e.g., properties on the command line replace the properties from the script).
 
         If either field in a coupling is set in an earlier resource, both fields of
         that coupling are taken from that resource and ignore later resources.
@@ -175,10 +180,10 @@ class Resources(HasCouplingMethods):
         even though `mem` is a dominant attribute and `mem-per-cpu` is recessive.)
 
         Args:
-            *resources (Resources): One or more Resources objects, in order of precedence.
+            *resources: One or more Resources objects, in order of precedence.
 
         Returns:
-            Resources: A new Resources object with merged fields.
+            A new Resources object with merged fields.
         """
         merged_data = {}
         processed_couplings: set[FieldCoupling] = set()
@@ -224,16 +229,18 @@ class Resources(HasCouplingMethods):
         Convert a raw value into a `Size` instance if possible.
 
         Args:
-            value (object): A Size object or a raw size value (a string or a dictionary).
+            value: A Size object or a raw size value (a string or a dictionary).
 
         Returns:
-            Size | None: A `Size` object if the input could be parsed,
+            A `Size` object if the input could be parsed,
             otherwise `None`.
         """
-        if isinstance(value, str):
-            return Size.from_string(value)
+        # numbers without a unit (e.g. from `# qq mem 4096`) are passed to `Size.from_string`
+        # so that they are rejected the same way as on the command line
+        if isinstance(value, str | int):
+            return Size.from_string(str(value))
         if isinstance(value, dict):
-            return Size(**value)  # ty: ignore[invalid-argument-type]
+            return Size(**value)
         if isinstance(value, Size):
             return value
         return None
@@ -250,10 +257,10 @@ class Resources(HasCouplingMethods):
         - "^key"      - stored as {"key": "false"}
 
         Args:
-            props (str): A string containing job properties.
+            props: A string containing job properties.
 
         Returns:
-            dict[str, str]: Parsed properties as key/value pairs.
+            Parsed properties as key/value pairs.
 
         Raises:
             QQError: If a property key is defined multiple times.
@@ -284,10 +291,10 @@ class Resources(HasCouplingMethods):
         Convert a properties dictionary into a command-line raw value string.
 
         Args:
-            props (dict[str, str]): Mapping of property names to their string values.
+            props: Mapping of property names to their string values.
 
         Returns:
-            str | None: A comma-separated command-line representation of the property definitions
+            A comma-separated command-line representation of the property definitions
             or None if the dictionary is empty.
         """
         if not self.props:

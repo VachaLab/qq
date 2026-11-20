@@ -157,12 +157,12 @@ class Info:
         the batch system's `read_remote_file` method. Otherwise, the file is read locally.
 
         Args:
-            file (Path): Path to the YAML qq info file.
-            host (str | None): Optional hostname of the remote machine where the file resides.
+            file: Path to the YAML qq info file.
+            host: Optional hostname of the remote machine where the file resides.
                 If None, the file is assumed to be local.
 
         Returns:
-            Info: Instance constructed from the file.
+            Instance constructed from the file.
 
         Raises:
             QQError: If the file does not exist, cannot be reached, cannot be parsed,
@@ -212,8 +212,8 @@ class Info:
         the batch system's `write_remote_file` method. Otherwise, the file is written locally.
 
         Args:
-            file (Path): Path to write the YAML file.
-            host (str | None): Optional hostname of the remote machine where the file should be written.
+            file: Path to write the YAML file.
+            host: Optional hostname of the remote machine where the file should be written.
                 If None, the file is written locally.
 
         Raises:
@@ -239,7 +239,7 @@ class Info:
         Serialize the Info instance to a YAML string.
 
         Returns:
-            str: YAML representation of the Info object.
+            YAML representation of the Info object.
         """
         return yaml.dump(
             self._to_dict(), default_flow_style=False, sort_keys=False, Dumper=Dumper
@@ -251,7 +251,7 @@ class Info:
         Fields that are None are ignored.
 
         Returns:
-            dict[str, object]: Dictionary containing all fields with non-None values,
+            Dictionary containing all fields with non-None values,
             converting enums and nested objects appropriately.
         """
         result: dict[str, object] = {}
@@ -307,10 +307,10 @@ class Info:
         Construct an Info instance from a dictionary.
 
         Args:
-            data (dict[str, object]): Dictionary containing field names and values.
+            data: Dictionary containing field names and values.
 
         Returns:
-            Info: An Info instance.
+            An Info instance.
 
         Raises:
             TypeError: If required fields are missing.
@@ -329,7 +329,7 @@ class Info:
                 init_kwargs[name] = JobType.from_str(value)
             # convert optional loop job info
             elif f.type == LoopInfo | None and isinstance(value, dict):
-                init_kwargs[name] = LoopInfo.from_dict(value)  # ty: ignore[invalid-argument-type]
+                init_kwargs[name] = LoopInfo.from_dict(value)
             # convert resources
             elif f.type == Resources:
                 init_kwargs[name] = Resources(**value)  # ty: ignore[invalid-argument-type]
@@ -351,13 +351,13 @@ class Info:
                 ]
             # convert transfer modes
             elif f.type == list[TransferMode] and isinstance(value, list):
-                init_kwargs[name] = [TransferMode.from_str(x) for x in value]  # ty: ignore[invalid-argument-type]
+                init_kwargs[name] = [TransferMode.from_str(x) for x in value]
             # convert dependencies
             elif f.type == list[Depend] and isinstance(value, list):
-                init_kwargs[name] = [Depend.from_str(x) for x in value]  # ty: ignore[invalid-argument-type]
+                init_kwargs[name] = [Depend.from_str(x) for x in value]
             # convert resubmit hosts
             elif f.type == list[ResubmitHost] and isinstance(value, list):
-                init_kwargs[name] = [ResubmitHost.from_str(x) for x in value]  # ty: ignore[invalid-argument-type]
+                init_kwargs[name] = [ResubmitHost.from_str(x) for x in value]
             # convert interpreter from string (legacy)
             elif (f.type == Interpreter or f.type == Interpreter | None) and isinstance(
                 value, str
@@ -367,7 +367,7 @@ class Info:
             elif (f.type == Interpreter or f.type == Interpreter | None) and isinstance(
                 value, dict
             ):
-                init_kwargs[name] = Interpreter.from_dict(value)  # ty: ignore[invalid-argument-type]
+                init_kwargs[name] = Interpreter.from_dict(value)
             # convert timestamp
             elif (f.type == datetime or f.type == datetime | None) and isinstance(
                 value, str
@@ -376,4 +376,4 @@ class Info:
             else:
                 init_kwargs[name] = value
 
-        return cls(**init_kwargs)
+        return cls(**init_kwargs)  # ty: ignore[invalid-argument-type]

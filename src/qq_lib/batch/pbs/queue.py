@@ -4,8 +4,7 @@
 import socket
 import subprocess
 from dataclasses import fields
-from datetime import timedelta
-from typing import Self
+from typing import TYPE_CHECKING, ClassVar, Self
 
 import yaml
 
@@ -15,6 +14,9 @@ from qq_lib.core.common import hhmmss_to_duration, load_yaml_dumper
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
 from qq_lib.properties.resources import Resources
+
+if TYPE_CHECKING:
+    from datetime import timedelta
 
 logger = get_logger(__name__)
 
@@ -28,19 +30,19 @@ class ACLData:
     Improves performance when multiple ACL checks are performed repeatedly during queue evaluations.
     """
 
-    _groups: dict[str, list[str]] = {}
-    _host: str | None = None
+    _groups: ClassVar[dict[str, list[str]]] = {}
+    _host: ClassVar[str | None] = None
 
     @staticmethod
     def get_groups_or_init(user: str) -> list[str]:
         """
         Retrieve the cached group memberships for a user, initializing them if needed.
         Args:
-            user (str): The username whose group memberships should be retrieved.
+            user: The username whose group memberships should be retrieved.
 
         Returns:
-            list[str]: A list of group names the user belongs to.
-                       Returns an empty list if the system command fails.
+            A list of group names the user belongs to.
+            Returns an empty list if the system command fails.
         """
         if groups := ACLData._groups.get(user):
             return groups
@@ -69,7 +71,7 @@ class ACLData:
         Retrieve the cached hostname, initializing it if not already set.
 
         Returns:
-            str: The local machine's hostname.
+            The local machine's hostname.
         """
         if host := ACLData._host:
             return host
@@ -219,10 +221,10 @@ class PBSQueue(BatchQueueInterface):
         Retrieve an integer value from the provided dictionary.
 
         Args:
-            key (str): The key to look up in the dictionary.
+            key: The key to look up in the dictionary.
 
         Returns:
-            int | None: The integer value if conversion succeeds, otherwise `None`.
+            The integer value if conversion succeeds, otherwise `None`.
         """
         if not (raw := dict.get(key)):
             return None
@@ -251,12 +253,12 @@ class PBSQueue(BatchQueueInterface):
 
 
         Args:
-            name (str): The unique name of the queue.
-            server (str | None): Server on which the queue is located. If `None`, assumes the current server.
-            info (dict[str, str]): A dictionary containing PBS queue metadata as key-value pairs.
+            name: The unique name of the queue.
+            server: Server on which the queue is located. If `None`, assumes the current server.
+            info: A dictionary containing PBS queue metadata as key-value pairs.
 
         Returns:
-            Self: A new instance of PBSQueue.
+            A new instance of PBSQueue.
 
         Note:
             This method does not perform any validation or processing of the provided dictionary.

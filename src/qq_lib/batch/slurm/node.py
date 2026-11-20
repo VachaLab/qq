@@ -117,21 +117,28 @@ class SlurmNode(BatchNodeInterface):
             logger.debug(f"Could not get state information for node '{self._name}'.")
             return False
 
-        invalid_states = [
+        invalid_states = {
             "DOWN",
+            "DRAIN",
             "DRAINED",
+            "DRAINING",
             "FAIL",
             "FUTURE",
             "INVAL",
+            "INVALID_REG",
             "MAINT",
+            "MAINTENANCE",
+            "NOT_RESPONDING",
             "PERFCTRS",
             "POWERED_DOWN",
             "POWERING_DOWN",
             "RESERVED",
             "UNKNOWN",
-        ]
+        }
 
-        return state not in invalid_states
+        # scontrol reports the base state followed by '+'-separated flags
+        # (e.g., 'IDLE+DRAIN', 'DOWN+NOT_RESPONDING')
+        return not any(flag in invalid_states for flag in state.split("+"))
 
     @classmethod
     def from_dict(cls, name: str, info: dict[str, str]) -> Self:
@@ -139,11 +146,11 @@ class SlurmNode(BatchNodeInterface):
         Construct a new instance of SlurmNode from node name and a dictionary of node information.
 
         Args:
-            name (str): The unique name of the node.
-            info (dict[str, str]): A dictionary containing Slurm node metadata as key-value pairs.
+            name: The unique name of the node.
+            info: A dictionary containing Slurm node metadata as key-value pairs.
 
         Returns:
-            Self: A new instance of SlurmNode.
+            A new instance of SlurmNode.
 
         Note:
             This method does not perform any validation or processing of the provided dictionary.
@@ -164,10 +171,10 @@ class SlurmNode(BatchNodeInterface):
         Retrieve an integer-valued resource from the node information.
 
         Args:
-            res (str): The resource key to retrieve.
+            res: The resource key to retrieve.
 
         Returns:
-            int | None: The integer value of the resource, or `None` if unavailable or invalid.
+            The integer value of the resource, or `None` if unavailable or invalid.
         """
         if not (val := self._info.get(res)):
             return None
@@ -182,11 +189,11 @@ class SlurmNode(BatchNodeInterface):
         Retrieve an integer-valued resources from TRES.
 
         Args:
-            tres_key (str): The tres key to use.
-            res (str): The resource key to retrieve.
+            tres_key: The tres key to use.
+            res: The resource key to retrieve.
 
         Returns:
-            int | None: The integer value of the resources, or `None` if unavailable or invalid.
+            The integer value of the resources, or `None` if unavailable or invalid.
         """
         tres = self._info.get(tres_key, "")
 
@@ -206,10 +213,10 @@ class SlurmNode(BatchNodeInterface):
         Retrieve a Size resource from the node information.
 
         Args:
-            res (str): The resource key to retrieve.
+            res: The resource key to retrieve.
 
         Returns:
-            Size | None: The parsed Size, or `None` if unavailable or invalid.
+            The parsed Size, or `None` if unavailable or invalid.
         """
         if not (val := self._info.get(res)):
             return None

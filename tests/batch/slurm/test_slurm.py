@@ -2,6 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 
+import shlex
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -726,7 +727,7 @@ def test_slurm_get_batch_job_creates_slurmjob(mock_job):
     mock_job.assert_called_once_with("1234")
 
 
-@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+@patch("qq_lib.batch.slurm.slurm.run_with_timeout")
 @patch("qq_lib.batch.slurm.slurm.Slurm._translate_submit", return_value="sbatch cmd")
 @patch("qq_lib.batch.slurm.slurm.PBS._shared_guard")
 def test_slurm_job_submit_success(mock_guard, mock_translate, mock_run):
@@ -744,7 +745,7 @@ def test_slurm_job_submit_success(mock_guard, mock_translate, mock_run):
     assert result == "56789"
 
 
-@patch("qq_lib.batch.slurm.slurm.subprocess.run")
+@patch("qq_lib.batch.slurm.slurm.run_with_timeout")
 @patch("qq_lib.batch.slurm.slurm.Slurm._translate_submit", return_value="sbatch fail")
 @patch("qq_lib.batch.slurm.slurm.PBS._shared_guard")
 def test_slurm_job_submit_raises_on_error(mock_guard, mock_translate, mock_run):
@@ -999,3 +1000,34 @@ def test_slurm_get_jobs_in_parallel_raises_on_failure(mock_slurm_job):
 
     with pytest.raises(QQError, match="Failed to load job 999"):
         Slurm._get_jobs_in_parallel(["999"])
+
+
+def test_slurm_get_batch_jobs_from_ids_returns_empty_job_for_unknown_id():
+    def fake_run(*_args, **kwargs):
+        command = kwargs["input"]
+        if command.startswith("scontrol"):
+            return MagicMock(returncode=1, stdout="", stderr="Invalid job id specified")
+        # sacct prints nothing for unknown jobs
+        return MagicMock(returncode=0, stdout="", stderr="")
+
+    with patch("subprocess.run", side_effect=fake_run):
+        jobs = Slurm.get_batch_jobs_from_ids(["999"])
+
+    assert [job.get_id() for job in jobs] == ["999"]
+    assert jobs[0].is_empty()
+
+
+def test_slurm_translate_submit_quotes_paths_with_spaces():
+    res = Resources(nnodes=1, ncpus=1, mem="1gb", work_dir="input_dir")
+    input_dir = Path("/home/user/my sims")
+    command = Slurm._translate_submit(
+        res, "cpu", input_dir, "run me.sh", "run me.sh", [], {}, None
+    )
+
+    args = shlex.split(command)
+    qq_output = "/home/user/my sims/run me.qqout"
+    assert args[args.index("-J") + 1] == "run me.sh"
+    assert args[args.index("-e") + 1] == qq_output
+    assert args[args.index("-o") + 1] == qq_output
+    assert "--chdir=/home/user/my sims" in args
+    assert args[-1] == "/home/user/my sims/run me.sh"
