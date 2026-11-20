@@ -5,7 +5,7 @@ from dataclasses import fields
 from typing import TYPE_CHECKING
 
 from qq_lib.batch.interface import AnyBatchClass, BatchInterface
-from qq_lib.core.common import split_string_list, translate_server
+from qq_lib.core.common import is_printf_pattern, split_string_list, translate_server
 from qq_lib.core.config import CFG
 from qq_lib.core.error import QQError
 from qq_lib.core.logger import get_logger
@@ -194,6 +194,18 @@ class SubmitterFactory:
         )
         end = _first_not_none(self._kwargs.get("loop_end"), self._parser.get_loop_end())
 
+        archive_format = (
+            self._kwargs.get("archive_format")
+            or self._parser.get_archive_format()
+            or CFG.loop_jobs.archive_format
+        )
+        if not is_printf_pattern(archive_format):
+            logger.warning(
+                f"Archive format '{archive_format}' is not a printf-style pattern. "
+                "Archive formats that are not printf-style patterns will not be supported in qq v0.15. "
+                "If you have concerns about this, please open an issue at https://github.com/VachaLab/qq/issues."
+            )
+
         return LoopInfo(
             1 if start is None else start,
             end,
@@ -203,9 +215,7 @@ class SubmitterFactory:
                 or self._parser.get_archive()
                 or CFG.loop_jobs.archive_dir
             ),
-            self._kwargs.get("archive_format")
-            or self._parser.get_archive_format()
-            or CFG.loop_jobs.archive_format,
+            archive_format,
             input_dir=self._input_dir,
             archive_mode=TransferMode.multi_from_str(
                 self._kwargs.get("archive_mode") or ""

@@ -240,6 +240,43 @@ def test_submitter_factory_get_loop_info_uses_cli_over_parser():
     assert loop_info.archive_format == "job%04d"
 
 
+@pytest.mark.parametrize(
+    ("archive_format", "warns"),
+    [
+        ("job%04d", False),
+        ("md%d", False),
+        ("job\\d+", True),
+        ("job", True),
+    ],
+)
+def test_submitter_factory_get_loop_info_warns_about_non_printf_archive_format(
+    archive_format, warns
+):
+    mock_parser = MagicMock()
+    mock_parser.get_loop_start.return_value = None
+    mock_parser.get_loop_end.return_value = 5
+    mock_parser.get_archive.return_value = None
+    mock_parser.get_archive_format.return_value = None
+
+    factory = SubmitterFactory.__new__(SubmitterFactory)
+    factory._input_dir = Path("fake_path")
+    factory._parser = mock_parser
+    factory._kwargs = {"archive_format": archive_format}
+
+    with patch("qq_lib.submit.factory.logger") as mock_logger:
+        loop_info = factory._get_loop_info()
+
+    assert loop_info.archive_format == archive_format
+    if warns:
+        mock_logger.warning.assert_called_once()
+        message = mock_logger.warning.call_args.args[0]
+        assert f"'{archive_format}' is not a printf-style pattern" in message
+        assert "will not be supported in qq v0.15" in message
+        assert "https://github.com/VachaLab/qq/issues" in message
+    else:
+        mock_logger.warning.assert_not_called()
+
+
 def test_submitter_factory_get_loop_info_falls_back_to_parser():
     mock_parser = MagicMock()
     mock_parser.get_loop_start.return_value = 2
