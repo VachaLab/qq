@@ -2,6 +2,7 @@
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
 
+from contextlib import contextmanager
 from unittest.mock import patch
 
 import pytest
@@ -230,3 +231,52 @@ def test_jobs_command_no_jobs():
 
         assert result.exit_code == 0
         mock_sort.assert_not_called()
+
+
+def make_fake_spinner(events):
+    """Create a replacement for `delayed_spinner` recording when it starts and stops."""
+
+    @contextmanager
+    def fake_spinner(message):
+        events.append(f"start {message}")
+        yield
+        events.append(f"stop {message}")
+
+    return fake_spinner
+
+
+@pytest.mark.parametrize(
+    ("flags", "method"),
+    [([], "get_unfinished_batch_jobs"), (["--all"], "get_batch_jobs")],
+)
+def test_jobs_command_collects_jobs_with_spinner(parsed_jobs, flags, method):
+    runner = CliRunner()
+    events = []
+
+    def fetch(*_args):
+        events.append("fetch")
+        return parsed_jobs
+
+    with (
+        patch.object(BatchInterface, "from_env_var_or_guess", return_value=PBS),
+        patch.object(PBS, method, side_effect=fetch),
+        patch.object(PBS, "sort_jobs"),
+        patch("getpass.getuser", return_value="user"),
+        patch("qq_lib.jobs.cli.delayed_spinner", make_fake_spinner(events)),
+        patch.object(
+            JobsPresenter,
+            "create_jobs_info_panel",
+            side_effect=lambda _console: events.append("panel") or "",
+        ),
+    ):
+        result = runner.invoke(jobs, flags, catch_exceptions=False)
+
+    assert result.exit_code == 0
+    assert events == [
+        "start Collecting jobs...",
+        "fetch",
+        "stop Collecting jobs...",
+        "start Building the output table...",
+        "panel",
+        "stop Building the output table...",
+    ]

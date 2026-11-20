@@ -12,6 +12,7 @@
 - `qq respawn` can now continue a loop job with the next cycle if the archive already contains files for it (for example, when only the submission of the next cycle failed). The user is asked whether to continue or to rerun the failed cycle; use `--force-continue` or `--force-respawn` to choose without being asked.
 - Added the `--archive` option to `qq sync`. For failed or killed loop jobs, it copies files matching the archive format to the archive and fetches the remaining files to the input directory, as qq does after a successfully finished cycle.
 - `.out` and `.err` files matching the archive format are now archived unless they are qq runtime files. Previously, all such files were left out of the archive.
+- Added spinners for long operations of `qq info`, `qq jobs`, `qq stat`, `qq queues`, and `qq nodes`.
 
 ### Installation
 

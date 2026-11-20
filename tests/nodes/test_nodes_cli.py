@@ -1,8 +1,10 @@
 # Released under MIT License.
 # Copyright (c) 2025-2026 Ladislav Bartos and Robert Vacha Lab
 
+from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
+import pytest
 from click.testing import CliRunner
 
 from qq_lib.core.config import CFG
@@ -188,3 +190,56 @@ def test_nodes_command_without_available_nodes_exits_zero():
         result = runner.invoke(nodes, [])
 
     assert result.exit_code == 0
+
+
+def make_fake_spinner(events):
+    """Create a replacement for `delayed_spinner` recording when it starts and stops."""
+
+    @contextmanager
+    def fake_spinner(message):
+        events.append(f"start {message}")
+        yield
+        events.append(f"stop {message}")
+
+    return fake_spinner
+
+
+@pytest.mark.parametrize("flags", [[], ["--all"]])
+def test_nodes_command_collects_nodes_with_spinner(flags):
+    runner = CliRunner()
+    events = []
+    item = MagicMock()
+    item.is_available_to_user.side_effect = lambda _user: (
+        events.append("availability"),
+        True,
+    )[1]
+
+    def fetch(_server):
+        events.append("fetch")
+        return [item]
+
+    with (
+        patch("qq_lib.nodes.cli.BatchInterface.from_env_var_or_guess") as mock_meta,
+        patch("qq_lib.nodes.cli.NodesPresenter") as mock_presenter_cls,
+        patch("qq_lib.nodes.cli.Console"),
+        patch("qq_lib.nodes.cli.getpass.getuser", return_value="user"),
+        patch("qq_lib.nodes.cli.delayed_spinner", make_fake_spinner(events)),
+    ):
+        mock_meta.return_value.get_nodes.side_effect = fetch
+        mock_presenter_cls.return_value.create_nodes_info_panel.side_effect = (
+            lambda _console: events.append("panel")
+        )
+
+        result = runner.invoke(nodes, flags)
+
+    assert result.exit_code == 0
+    collected = ["fetch"] if flags else ["fetch", "availability"]
+    # the panel may query the availability, so it is created under a spinner as well
+    assert events == [
+        "start Collecting nodes...",
+        *collected,
+        "stop Collecting nodes...",
+        "start Building the output table...",
+        "panel",
+        "stop Building the output table...",
+    ]

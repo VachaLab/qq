@@ -10,7 +10,7 @@ import click
 from rich.console import Console
 
 from qq_lib.batch.interface import BatchInterface
-from qq_lib.core.common import translate_server
+from qq_lib.core.common import delayed_spinner, translate_server
 from qq_lib.core.config import CFG
 
 if TYPE_CHECKING:
@@ -51,18 +51,21 @@ def queues(all: bool, server: str | None, yaml: bool) -> NoReturn:
         if server:
             server = translate_server(server)
 
-        queues: list[BatchQueueInterface] = BatchSystem.get_queues(server)
         user = getpass.getuser()
 
-        if not all:
-            queues = [q for q in queues if q.is_available_to_user(user)]
+        with delayed_spinner("Collecting queues..."):
+            queues: list[BatchQueueInterface] = BatchSystem.get_queues(server)
+            if not all:
+                queues = [q for q in queues if q.is_available_to_user(user)]
 
         presenter = QueuesPresenter(queues, user, all, server)
         if yaml:
             presenter.dump_yaml()
         else:
             console = Console(record=False, markup=False)
-            panel = presenter.create_queues_info_panel(console)
+            # the availability of the queues is only queried here if `all` is set
+            with delayed_spinner("Building the output table..."):
+                panel = presenter.create_queues_info_panel(console)
             console.print(panel)
         sys.exit(0)
     except QQError as e:
