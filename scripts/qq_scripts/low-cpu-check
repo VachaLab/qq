@@ -7,7 +7,7 @@
 Report running qq jobs with low CPU utilization.
 The script is meant to be run periodically as a cron job.
 
-Version qq 0.13.0.
+Version qq 0.14.0.
 Requires `uv`: https://docs.astral.sh/uv
 """
 

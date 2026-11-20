@@ -5,7 +5,7 @@
 
 """
 Get the estimated time of a Gromacs simulation finishing.
-Version qq 0.13.0.
+Version qq 0.14.0.
 Requires `uv`: https://docs.astral.sh/uv
 """
 

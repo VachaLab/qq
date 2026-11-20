@@ -5,7 +5,7 @@
 
 """
 Report timing statistics and estimated completion times for qq loop jobs.
-Version qq 0.13.0.
+Version qq 0.14.0.
 Requires `uv`: https://docs.astral.sh/uv
 """
 

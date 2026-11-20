@@ -5,7 +5,7 @@
 
 """
 Write the computational resources used by a collection of qq jobs into a CSV file.
-Version qq 0.13.0.
+Version qq 0.14.0.
 Requires `uv`: https://docs.astral.sh/uv
 """
 
