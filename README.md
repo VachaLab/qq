@@ -8,6 +8,8 @@
 
 **qq** is a lightweight wrapper for batch scheduling systems, designed to provide a consistent and simplified interface across different schedulers. qq makes it easier to submit, monitor, and manage jobs without needing to learn the details of each backend.
 
+![Animation showcasing some of what qq can do](assets/qq_overview.gif)
+
 Read the [qq manual](https://vachalab.github.io/qq-manual) for more information.
 
 **Designed for the specific needs of the [RoVa Research Group](https://vacha.ceitec.cz/).**
